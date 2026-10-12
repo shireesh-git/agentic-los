@@ -1,0 +1,343 @@
+{
+	"info": {
+		"name": "CAM Intelligence Platform",
+		"description": "Complete API collection for the Corporate Lending CAM Intelligence Platform.\n\nBase URL: http://localhost:8000",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/health",
+							"host": ["{{base_url}}"],
+							"path": ["api", "health"]
+						},
+						"description": "Check server health — returns company count, cases analysed, active LLM, engines."
+					}
+				},
+				{
+					"name": "Get Enums (Sectors, Types)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/enums",
+							"host": ["{{base_url}}"],
+							"path": ["api", "enums"]
+						},
+						"description": "Returns valid enum values: sectors, case_types, facility_types, borrower_types."
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/dashboard",
+							"host": ["{{base_url}}"],
+							"path": ["api", "dashboard"]
+						},
+						"description": "Dashboard metrics: total cases, approved/declined/referred, grade distribution, recent cases."
+					}
+				}
+			]
+		},
+		{
+			"name": "Companies",
+			"item": [
+				{
+					"name": "List All Companies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies",
+							"host": ["{{base_url}}"],
+							"path": ["api", "companies"]
+						},
+						"description": "List all companies available for analysis (synthetic + user-added)."
+					}
+				},
+				{
+					"name": "Add New Company",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entity_id\": \"NEWCO001\",\n  \"company_name\": \"Acme Industries Pvt Ltd\",\n  \"sector\": \"manufacturing\",\n  \"borrower_type\": \"unlisted\",\n  \"case_type\": \"NTB\",\n  \"facility_type\": \"working_capital\",\n  \"amount_requested_cr\": 75.0,\n  \"purpose\": \"Working capital for expansion\",\n  \"tenor_months\": 12,\n  \"cin\": \"U12345MH2010PTC123456\",\n  \"pan\": \"AADCN1234K\",\n  \"date_of_incorporation\": \"2010-06-15\",\n  \"credit_rating\": \"BBB+\",\n  \"rating_agency\": \"CRISIL\",\n  \"employee_count\": 350,\n  \"line_items\": {\n    \"revenue\": 250.0,\n    \"ebitda\": 40.0,\n    \"pat\": 22.0,\n    \"total_debt\": 80.0,\n    \"net_worth\": 120.0,\n    \"total_assets\": 300.0,\n    \"current_assets\": 130.0,\n    \"current_liabilities\": 70.0,\n    \"cash_and_equivalents\": 25.0,\n    \"interest_expense\": 12.0,\n    \"depreciation\": 8.0,\n    \"tax_expense\": 7.0,\n    \"inventory\": 45.0,\n    \"trade_receivables\": 35.0,\n    \"trade_payables\": 28.0\n  },\n  \"collateral\": [\n    {\n      \"collateral_type\": \"property\",\n      \"description\": \"Factory land at Pune MIDC\",\n      \"market_value_cr\": 50.0,\n      \"forced_sale_value_cr\": 35.0\n    }\n  ],\n  \"directors\": [\n    {\n      \"name\": \"Rajesh Kumar\",\n      \"din\": \"01234567\",\n      \"designation\": \"Managing Director\",\n      \"is_promoter\": true,\n      \"net_worth_cr\": 25.0\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/companies",
+							"host": ["{{base_url}}"],
+							"path": ["api", "companies"]
+						},
+						"description": "Add a new company for credit analysis. Required: entity_id, company_name, sector, case_type, facility_type, amount_requested_cr."
+					}
+				},
+				{
+					"name": "Delete Company",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/companies/NEWCO001",
+							"host": ["{{base_url}}"],
+							"path": ["api", "companies", "NEWCO001"]
+						},
+						"description": "Delete a company and its associated case data."
+					}
+				}
+			]
+		},
+		{
+			"name": "Cases & Analysis",
+			"item": [
+				{
+					"name": "List All Cases",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cases",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cases"]
+						},
+						"description": "List all analysed cases with summary (grade, score, recommendation)."
+					}
+				},
+				{
+					"name": "Get Case Detail",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cases/BMFG001",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cases", "BMFG001"]
+						},
+						"description": "Full case detail: scores, CAM text, fact pack, pipeline log, exceptions, policy decisions."
+					}
+				},
+				{
+					"name": "Get CAM Document",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cases/BMFG001/cam",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cases", "BMFG001", "cam"]
+						},
+						"description": "Get just the CAM (Credit Approval Memo) text for a case."
+					}
+				},
+				{
+					"name": "Run Analysis — Single Company",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cases/BMFG001/run",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cases", "BMFG001", "run"]
+						},
+						"description": "Execute the full analysis pipeline for a single company. Replace BMFG001 with any entity_id."
+					}
+				},
+				{
+					"name": "Run Analysis — All Companies",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/pipeline/run-all",
+							"host": ["{{base_url}}"],
+							"path": ["api", "pipeline", "run-all"]
+						},
+						"description": "Execute the analysis pipeline for ALL companies in the store."
+					}
+				}
+			]
+		},
+		{
+			"name": "Configuration",
+			"item": [
+				{
+					"name": "Get All Config",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/config",
+							"host": ["{{base_url}}"],
+							"path": ["api", "config"]
+						},
+						"description": "Returns all config sections (settings, benchmarks, rules, llm_providers)."
+					}
+				},
+				{
+					"name": "Get Config Section",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/config/benchmarks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "config", "benchmarks"]
+						},
+						"description": "Get a specific config section. Valid: settings, benchmarks, rules, llm_providers."
+					}
+				},
+				{
+					"name": "Update Config Section",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"sectors\": {\n    \"manufacturing\": {\n      \"current_ratio\": [1.2, 1.5, 2.0],\n      \"debt_to_equity\": [0.8, 1.2, 2.0],\n      \"interest_coverage\": [2.0, 3.0, 5.0],\n      \"roe\": [8.0, 12.0, 18.0]\n    }\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/config/benchmarks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "config", "benchmarks"]
+						},
+						"description": "Update an entire config section. Body replaces the section."
+					}
+				}
+			]
+		},
+		{
+			"name": "Engines",
+			"item": [
+				{
+					"name": "List Engines",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/engines",
+							"host": ["{{base_url}}"],
+							"path": ["api", "engines"]
+						},
+						"description": "List all registered engines with name, version, category, enabled status."
+					}
+				},
+				{
+					"name": "Toggle Engine",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/engines/ratio_engine/toggle",
+							"host": ["{{base_url}}"],
+							"path": ["api", "engines", "ratio_engine", "toggle"]
+						},
+						"description": "Enable/disable an engine. Replace ratio_engine with the engine name."
+					}
+				}
+			]
+		},
+		{
+			"name": "LLM Providers",
+			"item": [
+				{
+					"name": "List LLM Providers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/llm/providers",
+							"host": ["{{base_url}}"],
+							"path": ["api", "llm", "providers"]
+						},
+						"description": "List all configured LLM providers and the currently active one."
+					}
+				},
+				{
+					"name": "Set Active LLM Provider",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"provider\": \"ollama\",\n  \"narrative_mode\": \"llm\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/llm/active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "llm", "active"]
+						},
+						"description": "Switch active LLM provider. Options: mock, openai, anthropic, azure_openai, ollama. Narrative mode: template or llm."
+					}
+				},
+				{
+					"name": "Test LLM Connection",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/llm/test",
+							"host": ["{{base_url}}"],
+							"path": ["api", "llm", "test"]
+						},
+						"description": "Test connection to the active LLM provider."
+					}
+				}
+			]
+		},
+		{
+			"name": "Agents",
+			"item": [
+				{
+					"name": "List Agents",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/agents",
+							"host": ["{{base_url}}"],
+							"path": ["api", "agents"]
+						},
+						"description": "List all pipeline agents (DataIngestion, FinancialAnalysis, Validation, Benchmark, Policy, Narrative)."
+					}
+				}
+			]
+		}
+	]
+}

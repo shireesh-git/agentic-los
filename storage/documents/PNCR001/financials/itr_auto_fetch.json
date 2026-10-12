@@ -1,0 +1,29 @@
+{
+  "source": "itr_auto_fetch",
+  "entity_key": "PNCR001",
+  "as_of_date": "2026-04-06T08:55:00",
+  "source_status": "success",
+  "payload": {
+    "pan": "AABCP1234R",
+    "assessment_year": "2025-26",
+    "itr_type": "ITR-6",
+    "filing_date": "2025-09-28",
+    "total_income_cr": 1059,
+    "tax_paid_cr": 150,
+    "refund_status": "NIL",
+    "previous_years": [
+      {
+        "ay": "2024-25",
+        "total_income_cr": 802,
+        "tax_cr": 144,
+        "filed": "2024-09-30"
+      },
+      {
+        "ay": "2023-24",
+        "total_income_cr": 809,
+        "tax_cr": 229,
+        "filed": "2023-09-28"
+      }
+    ]
+  }
+}

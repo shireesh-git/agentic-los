@@ -1,0 +1,54 @@
+{
+  "source": "rating",
+  "record_type": "latest_action",
+  "entity_key": "PINF001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "rating_agency": "ICRA",
+    "long_term_rating": "ICRA BBB- (Watch Negative)",
+    "short_term_rating": "ICRA A3",
+    "outlook": "Watch Negative",
+    "last_action": "Placed on Watch Negative",
+    "action_date": "2025-11-15",
+    "history": [
+      {
+        "date": "2025-11-15",
+        "action": "Watch Negative",
+        "rating": "BBB-",
+        "outlook": "Watch Negative"
+      },
+      {
+        "date": "2025-04-20",
+        "action": "Downgraded",
+        "rating": "BBB-",
+        "outlook": "Negative"
+      },
+      {
+        "date": "2024-10-10",
+        "action": "Reaffirmed",
+        "rating": "BBB",
+        "outlook": "Stable"
+      },
+      {
+        "date": "2023-10-08",
+        "action": "Reaffirmed",
+        "rating": "BBB",
+        "outlook": "Stable"
+      }
+    ],
+    "rationale_summary": "Watch negative reflects continued project execution delays across multiple sites, revenue decline of 14% in FY2024, rising leverage (Debt/Equity 2.75x), weakening cash flows, and subsidiary contract termination by NHAI. Bureau report shows SMA-1 status with Canara Bank. Elevated enquiry count (8 in 6 months) indicates funding stress.",
+    "key_rating_drivers": [
+      "Longstanding infrastructure execution track record (20+ years)",
+      "Revenue decline of 14% in FY2024 due to project delays",
+      "High leverage: Debt/Equity at 2.75x, Debt/EBITDA at 5.10x",
+      "Subsidiary contract terminated by NHAI \u2014 contingent liability risk",
+      "SMA-1 status with 1 lender; elevated bureau enquiries"
+    ],
+    "rating_sensitivity": {
+      "upgrade": "Resolution of NHAI dispute, revenue growth >10%, D/E <2.0x",
+      "downgrade": "Further delays, DPD escalation beyond SMA-1, or D/E >3.5x"
+    }
+  }
+}

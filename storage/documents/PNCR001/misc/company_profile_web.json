@@ -1,0 +1,37 @@
+{
+  "source": "web_scrape",
+  "entity_key": "PNCR001",
+  "as_of_date": "2026-04-06T08:50:00",
+  "payload": {
+    "company_name": "PNC Infratech Limited",
+    "website": "https://www.pncinfratech.com",
+    "industry": "Infrastructure - Roads & Highways",
+    "about": "PNC Infratech Limited is one of the leading Indian infrastructure companies specializing in road and highway construction. The company provides end-to-end infrastructure solutions including design, engineering, procurement, construction, and O&M services on EPC, DBFOT, HAM, and BOT formats.",
+    "headquarters": "Agra, Uttar Pradesh",
+    "founded": 2007,
+    "employees": 12500,
+    "iso_certification": "ISO 9001:2015",
+    "key_clients": [
+      "NHAI",
+      "UPEIDA",
+      "MPRDC",
+      "UPSHA"
+    ],
+    "segments": [
+      "EPC Highways",
+      "BOT/HAM Highways",
+      "Water Projects",
+      "Industrial Area Development"
+    ],
+    "order_book_cr": 27680,
+    "order_book_multiple": 3.2,
+    "vision": "To become among the top 3 infrastructure companies in India",
+    "strengths": [
+      "Integrated construction capabilities from mining to commissioning",
+      "17+ years track record of timely project completion",
+      "NHAI AAAA rating",
+      "Large fleet of sophisticated machinery and plants",
+      "Strong promoter group with 63% shareholding"
+    ]
+  }
+}

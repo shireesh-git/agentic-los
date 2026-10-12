@@ -1,0 +1,1749 @@
+<!-- Application detail: header, stage rail, current step with its actions, details and the audit trail -->
+<section x-show="page === 'app'">
+  <p class="empty-state card" x-show="!current">Loading the application…</p>
+  <div x-show="current">
+    <div class="los-app-head">
+      <button class="btn btn-sm btn-ghost" @click="go(lastList)">← Back</button>
+      <div class="los-app-title">
+        <strong x-text="current?.application_id"></strong>
+        <span x-text="current?.borrower_name"></span>
+        <span class="badge sm" :class="statusCls(current?.status)" x-text="statusLabel(current?.status)"></span>
+        <span class="badge sm badge-red" x-show="current?.escalated">Escalated</span>
+        <span class="badge sm badge-grey" x-show="current?.seeded_demo" title="Seeded demo application">Demo</span>
+      </div>
+      <div class="los-app-actions">
+        <a class="btn btn-sm btn-outline" :href="'/#case/' + current?.entity_id" target="_blank" rel="noopener">Credit workspace ↗</a>
+        <button class="btn btn-sm btn-outline" x-show="current?.can_reassign" @click="panel = panel === 'reassign' ? '' : 'reassign'">Reassign</button>
+        <button class="btn btn-sm btn-outline" x-show="current?.step && current?.status !== 'REJECTED'" @click="panel = panel === 'escalate' ? '' : 'escalate'">Escalate</button>
+      </div>
+    </div>
+
+    <div class="los-app-body">
+      <!-- Stage rail -->
+      <aside class="los-rail">
+        <div class="los-rail-facility">
+          <strong x-text="titleCase(current?.facility?.facility_type)"></strong>
+          <span x-text="'₹' + fmtAmount(current?.amount_cr) + ' Cr'"></span>
+        </div>
+        <template x-for="st in current?.rail || []" :key="st.id">
+          <div class="los-rail-stage" :class="'los-' + st.state">
+            <button type="button" class="los-rail-stage-head" @click="toggleStage(st.id)">
+              <span class="los-rail-code" x-text="st.id"></span><span x-text="st.name"></span>
+              <span class="los-rail-caret" x-text="openStages[st.id] ? '▾' : '▸'"></span>
+            </button>
+            <ol x-show="openStages[st.id]">
+              <template x-for="s in st.steps" :key="s.id">
+                <li :class="'los-' + s.state" :title="s.role_name"><span class="los-dot"></span><span x-text="s.name"></span></li>
+              </template>
+            </ol>
+          </div>
+        </template>
+      </aside>
+
+      <div class="los-app-main">
+        <!-- Current step -->
+        <div class="card los-step-card" x-show="current?.step">
+          <div class="los-step-head">
+            <div>
+              <span class="los-kicker" x-text="current?.step?.stage_name"></span>
+              <h2 x-text="current?.step?.name"></h2>
+              <span class="text-muted" x-text="current?.step?.role_name + ' · ' + kindLabel(current?.step?.kind)"></span>
+            </div>
+            <div class="los-step-meta">
+              <div><span>Assignee</span><strong x-text="current?.assignee_name || 'Unassigned'"></strong></div>
+              <div><span>SLA</span><strong class="los-sla" :class="slaCls(current?.sla)" x-text="slaText(current?.sla)"></strong></div>
+              <div><span>Turnaround</span><strong x-text="current?.tat_days + ' days'"></strong></div>
+            </div>
+          </div>
+
+          <div class="status-inline status-inline-error" x-show="current?.status === 'RETURNED'">
+            <span x-text="'Returned for rework: ' + (lastReturn()?.comment || '')"></span>
+          </div>
+          <p class="text-muted los-step-note" x-show="current?.demo_note" x-text="current?.demo_note"></p>
+
+          <div x-show="current?.actions?.length">
+            <label class="los-field" x-show="current?.step?.kind === 'allocation'">Allocate to
+              <select class="input" x-model="allocateTo">
+                <option value="">Select…</option>
+                <template x-for="u in usersWithRole(current?.step?.allocates_to)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+              </select>
+            </label>
+            <div class="status-inline" x-show="RISK_MAKER.includes(current?.step?.id) && current?.actions?.includes('submit') && rm"
+                 :class="{'status-inline-error': !current?.credit_assessment}">
+              <span x-text="!current?.credit_assessment ? 'Run the credit assessment before submitting this step.'
+                : 'Analyst review: ' + reviewSummaryText() + '. Pending and stale fields go to the reviewer as unreviewed.'"></span>
+            </div>
+            <div class="status-inline" x-show="current?.step?.id === 'ip_note' && current?.actions?.includes('submit')"
+                 :class="{'status-inline-error': !current?.ip_note}">
+              <span x-text="!current?.ip_note ? 'Generate the IP Note (below) before submitting this step.'
+                : 'IP Note ready — ' + current.ip_note.outcome + '.'"></span>
+            </div>
+            <div class="status-inline" x-show="current?.step?.id === 'pos_maker' && current?.actions?.includes('submit') && ps"
+                 :class="{'status-inline-error': !ps?.condition_summary?.cps_cleared}">
+              <span x-text="ps?.condition_summary?.cps_cleared ? 'All conditions precedent cleared — deferrals and waivers go to the checker for approval.'
+                : ps?.condition_summary?.cp_open + ' condition(s) precedent still open — satisfy, defer or waive them below.'"></span>
+            </div>
+            <div class="status-inline" x-show="current?.step?.id === 'dis_maker' && current?.actions?.includes('submit') && ps"
+                 :class="{'status-inline-error': !(ps?.disbursement?.complete && ps?.disbursement?.pending_tranche)}">
+              <span x-text="ps?.disbursement?.complete && ps?.disbursement?.pending_tranche ? 'Checklist complete and tranche recorded — ready to submit.'
+                : 'Record the tranche and complete the disbursement checklist below before submitting.'"></span>
+            </div>
+            <div class="status-inline" x-show="current?.step?.id === 'dis_vp_review' && ps">
+              <span x-text="'Read-only VP review of the disbursement record' + (ps?.disbursement?.pending_tranche ? ' — verified tranche ₹' + fmtAmount(ps.disbursement.pending_tranche.amount_cr) + ' Cr, value ' + ps.disbursement.pending_tranche.value_date : '')
+                + '. Submit to endorse it to the Disbursement Approver, or Rework to return it to the Disbursement Maker (a comment is required).'"></span>
+            </div>
+            <label class="los-field" x-show="current?.step?.id === 'dis_vp_review'">Significant changes observed since the last approval <span class="text-muted">(optional — kept with the review in the audit trail)</span>
+              <input class="input" x-model="sigChanges" placeholder="e.g. revised account mandate, security documentation re-papered">
+              <span class="text-muted">This VP review is a read-only submit / rework gate — it does not change the sanction.</span>
+            </label>
+            <label class="los-field" x-show="current?.actions?.includes('sanction')">Sanctioned amount (₹ Cr)
+              <input class="input" type="number" min="0" step="0.01" x-model.number="sanctionAmount">
+              <span class="text-muted" x-text="'Reassessed recommendation: ' + (pack?.recommended_sanction_label || '—') + '. A different amount needs minutes.'"></span>
+            </label>
+            <label class="los-field" x-show="current?.actions?.includes('return') && (current?.rework_destinations?.length)">Rework destination <span class="text-muted">(optional — a specific earlier step; the reason goes in the comment)</span>
+              <select class="input" x-model="reworkTo">
+                <option value="">Default (the stage's maker step)</option>
+                <template x-for="d in current?.rework_destinations || []" :key="d.id"><option :value="d.id" x-text="d.name + ' — ' + d.stage"></option></template>
+              </select>
+            </label>
+            <label class="los-field">Comment <span class="text-muted" x-text="current?.actions?.includes('sanction') ? '(sanction minutes; required to return, reject or sanction a different amount)'
+              : current?.step?.id === 'pos_checker' ? '(required for every decision at this step)' : '(required to return, reject, withdraw, drop or propose a modification)'"></span>
+              <textarea class="input" rows="2" x-model="comment" placeholder="Notes for the next person and the audit trail"></textarea>
+            </label>
+            <div class="los-action-row">
+              <template x-for="a in current?.actions || []" :key="a">
+                <button class="btn" :class="actionCls(a)" :disabled="busy" @click="act(a)" x-text="actionLabelFor(a)"></button>
+              </template>
+            </div>
+          </div>
+          <p class="text-muted" x-show="!current?.actions?.length && current?.status !== 'REJECTED' && !['WITHDRAWN','DROPPED'].includes(current?.status)"
+             x-text="'This step is with the ' + current?.step?.role_name + ' role' + (current?.assignee_name ? ' (' + current?.assignee_name + ')' : '') + '. Switch role or sign in as that user to act on it.'"></p>
+          <p class="status-inline status-inline-error" x-show="current?.status === 'REJECTED'">This application was rejected.</p>
+          <p class="status-inline status-inline-error" x-show="current?.status === 'WITHDRAWN'"
+             x-text="'Application withdrawn — ' + (current?.terminated?.reason || 'no reason recorded') + ' (' + (current?.terminated?.by_name || '') + ')'"></p>
+          <p class="status-inline status-inline-error" x-show="current?.status === 'DROPPED'"
+             x-text="'Application dropped / terminated — ' + (current?.terminated?.reason || 'no reason recorded') + ' (' + (current?.terminated?.by_name || '') + ')'"></p>
+
+          <div class="los-panel" x-show="panel === 'reassign'">
+            <label class="los-field">Reassign to
+              <select class="input" x-model="reassignTo">
+                <option value="">Select…</option>
+                <template x-for="u in usersWithRole(current?.step?.role)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+              </select>
+            </label>
+            <button class="btn btn-sm btn-primary" :disabled="!reassignTo || busy" @click="reassign()">Reassign</button>
+          </div>
+          <div class="los-panel" x-show="panel === 'escalate'">
+            <label class="los-field">Reason for escalation<textarea class="input" rows="2" x-model="escalateNote"></textarea></label>
+            <button class="btn btn-sm btn-primary" :disabled="!escalateNote.trim() || busy" @click="escalate()">Escalate</button>
+          </div>
+        </div>
+        <div class="card status-inline-success los-complete-card" x-show="current && !current.step">
+          <strong>Complete.</strong> All stages are done — the application has reached Exit (approved).
+          Payment execution and reconciliation with core banking are outside the LOS.
+          <div class="los-panel" x-show="current?.status === 'APPROVED'" style="margin-top:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+              <label class="los-field">Subsequent tranche — reason (required)
+                <input x-model="subTrancheReason" placeholder="e.g. project milestone reached; drawdown for phase 2"></label>
+              <button class="btn btn-sm btn-primary" :disabled="busy || !subTrancheReason.trim()" @click="requestSubsequentTranche()">Request subsequent tranche</button>
+              <span class="text-muted los-small" x-show="current.tranche_rounds > 1" x-text="'Tranche round ' + current.tranche_rounds + ' (repeat drawdown after Exit)'"></span>
+            </div>
+            <p class="text-muted los-small" style="margin:6px 0 0">Re-opens the application at the Disbursement Maker; the usual DIS gates apply to the new tranche.</p>
+          </div>
+        </div>
+
+        <!-- Dependency invalidations (UAT-P2-10): ownership / group / rating changes awaiting re-evaluation -->
+        <div class="card" x-show="current && (current.open_invalidations || []).length">
+          <div class="summary-table-head">
+            <h3>Stale conclusions — re-evaluation required</h3>
+            <span class="text-muted">An ownership, group or rating change has made a prior conclusion stale. Resolve it once the re-evaluation is done.</span>
+          </div>
+          <template x-for="inv in current.open_invalidations" :key="inv.invalidation_id">
+            <div class="status-inline status-inline-error" style="margin:6px 0">
+              <span class="badge sm badge-red" x-text="inv.type"></span>
+              <span x-text="inv.detail + ' (by ' + inv.by_name + ', ' + inv.at + ')'"></span>
+              <div style="display:flex;gap:8px;margin-top:6px" x-show="invResolving === inv.invalidation_id">
+                <input class="input" x-model="invResolution" placeholder="Resolution note — what was re-evaluated (required)">
+                <button class="btn btn-sm btn-primary" :disabled="busy || !invResolution.trim()" @click="resolveInvalidation(inv.invalidation_id)">Resolve</button>
+                <button class="btn btn-sm btn-ghost" @click="invResolving = ''">Cancel</button>
+              </div>
+              <button class="btn btn-sm btn-outline" style="margin-top:6px" x-show="invResolving !== inv.invalidation_id" @click="invResolving = inv.invalidation_id; invResolution = ''">Resolve…</button>
+            </div>
+          </template>
+        </div>
+
+        <!-- Governed due-diligence workspace (Client One GAP-P0-05/06) -->
+        <div class="card los-dd" x-show="dd && current?.step && ['ps_maker','ip_note','ip_risk_maker','ap_risk_maker'].includes(current?.step?.id)">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Due diligence · governed workspace</span>
+              <h3>Pre-sanction checks</h3>
+              <span class="text-muted">Eight checks run against the in-app record and the demo services (MCA, CIBIL, CRIF, litigation,
+                EWS, GSTIN, LEI, name screening); seven are recorded manually. A red mandatory result blocks the submission until
+                it is re-run to clear or the Compliance VP records the exception. “Unavailable” means the provider returned nothing —
+                it is never treated as a clear result.</span>
+            </div>
+            <div class="los-action-row">
+              <span class="badge sm" :class="dd.summary.pending ? 'badge-amber' : 'badge-green'" x-text="dd.summary.pending ? dd.summary.pending + ' pending' : 'complete'"></span>
+              <span class="badge sm" :class="(dd.summary.matched || dd.summary.failed) ? 'badge-red' : 'badge-grey'" x-text="(dd.summary.matched + dd.summary.failed) + ' matched / failed'" x-show="dd.summary.matched || dd.summary.failed"></span>
+              <span class="badge sm badge-grey" x-text="(dd.summary.clear ?? 0) + ' clear'"></span>
+              <span class="badge sm" :class="dd.summary.rescreen_overdue ? 'badge-red' : 'badge-grey'" x-show="dd.summary.rescreen_overdue" x-text="dd.summary.rescreen_overdue + ' re-screening overdue'"></span>
+              <button class="btn btn-primary" x-show="dd.can_edit" :disabled="busy" @click="ddRunAll()">Run all API checks</button>
+            </div>
+          </div>
+          <div class="status-inline" style="margin:8px 0;" x-show="dd.screening && dd.screening.needs_attention" :class="dd.screening.overdue.length ? 'status-inline-error' : ''">
+            <template x-for="r in (dd.screening?.rescreens || []).filter(r => r.state !== 'current')" :key="'r'+r.id">
+              <div class="los-small" :style="r.state === 'overdue' ? 'color:var(--red,#b91c1c);' : 'color:var(--amber,#b45309);'"
+                   x-text="r.state === 'overdue' ? '⚠ ' + r.name + ': 90-day re-screening overdue since ' + r.due_at + ' — re-run the check to lift the block.'
+                                                : r.name + ': 90-day re-screening due ' + r.due_at + ' (' + r.days_left + ' days).'"></div>
+            </template>
+            <template x-for="e in (dd.screening?.exceptions || []).filter(e => e.state !== 'current')" :key="'e'+e.check_id">
+              <div class="los-small" :style="e.state === 'expired' ? 'color:var(--red,#b91c1c);' : 'color:var(--amber,#b45309);'"
+                   x-text="e.state === 'expired' ? '⚠ ' + e.name + ': Compliance VP exception lapsed on ' + e.expires_at + ' — the check blocks until the VP re-approves.'
+                                                : e.name + ': Compliance VP exception (' + e.by_name + ') expires ' + e.expires_at + ' (' + e.days_left + ' days).'"></div>
+            </template>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead><tr><th>Check</th><th>Type</th><th>Status</th><th>Detail / evidence</th><th>History</th><th x-show="dd.can_edit">Actions</th></tr></thead>
+              <tbody><template x-for="c in dd.checks" :key="c.id">
+                <tr :class="c.status === 'matched' || c.status === 'failed' ? 'los-dd-bad' : ''">
+                  <td><strong x-text="c.name"></strong>
+                    <span class="badge sm badge-red" x-show="c.mandatory">mandatory</span>
+                    <span class="badge sm badge-amber" x-show="c.exception">VP exception</span></td>
+                  <td class="text-muted" x-text="c.mode"></td>
+                  <td><span class="badge sm" :class="{ pending: 'badge-grey', clear: 'badge-green', matched: 'badge-red', failed: 'badge-red', unavailable: 'badge-amber' }[c.status] || 'badge-grey'" x-text="c.status"></span></td>
+                  <td>
+                    <span class="text-muted" x-text="c.detail || '—'"></span>
+                    <div class="text-muted los-small" x-show="c.error" x-text="c.error"></div>
+                    <div class="los-small" x-show="c.exception" style="color:var(--amber,#b45309);" x-text="'Exception: ' + c.exception.reason + ' — ' + c.exception.by_name + ', ' + c.exception.at + (c.exception.expires_at ? ' (expires ' + c.exception.expires_at + ')' : '')"></div>
+                    <div class="text-muted los-small" x-for="ie in c.exception_history || []" :key="ie.invalidated_at" x-text="'Invalidated ' + ie.invalidated_at + ': ' + ie.reason + ' (approved by ' + ie.by_name + ')'" style="color:var(--amber,#b45309)"></div>
+                    <div class="text-muted los-small" x-show="c.status === 'unavailable' && c.mandatory" x-text="'Provider returned nothing — requires Compliance VP approval before progression (policy: vp_approval; never presented as clear)'"></div>
+                    <div class="text-muted los-small"><template x-for="cm in c.comments || []" :key="cm.at"><span>• <span x-text="cm.by_name"></span>: <span x-text="cm.text"></span></span></template></div>
+                    <div class="text-muted los-small" x-show="(c.evidence || []).length">
+                      <strong>Evidence:</strong>
+                      <template x-for="(ev, ei) in c.evidence" :key="ei"><span x-text="ev.name + (ev.note ? ' (' + ev.note + ')' : '') + ' — ' + ev.by_name"></span><template x-if="ei < c.evidence.length - 1">,</template></span></template>
+                    </div>
+                    <div class="los-small" x-show="dd.can_edit && ddEv !== c.id" style="margin-top:4px">
+                      <input class="input" style="width:200px;display:inline-block" x-model="ddEvName" placeholder="Evidence reference (doc / report ID)">
+                      <button class="btn btn-sm btn-ghost" @click="ddEv = c.id">Attach…</button>
+                    </div>
+                    <div class="los-small" x-show="dd.can_edit && ddEv === c.id" style="margin-top:4px">
+                      <input class="input" style="width:200px;display:inline-block" x-model="ddEvName" placeholder="Evidence reference">
+                      <input class="input" style="width:160px;display:inline-block" x-model="ddEvNote" placeholder="Note (optional)">
+                      <button class="btn btn-sm btn-primary" @click="ddAddEvidence(c.id)">Attach</button>
+                      <button class="btn btn-sm btn-ghost" @click="ddEv = ''">Cancel</button>
+                    </div>
+                    <div class="los-small" x-show="c.id === 'udin' && dd.can_edit" style="margin-top:4px">
+                      <button class="btn btn-sm btn-ghost" @click="openUdin(c)">UDIN grid…</button>
+                      <template x-if="udinRows.length"><span> — <span x-text="udinRows.length" + ' document(s) in the grid' + (c.status ? ' · check ' + c.status : '')"></span></template>
+                    </div>
+                    <table class="data-table los-small" x-show="c.grid && c.grid.length && c.id !== 'udin'" style="margin-top:6px">
+                      <template x-if="c.id === 'ews'">
+                        <tbody><tr><th>Period</th><th>Overdue</th><th>Cheque returns</th><th>Max days overdue</th><th>DPD 90 count</th></tr>
+                          <template x-for="(g, gi) in c.grid" :key="gi"><tr><td x-text="g.period"></td><td x-text="g.overdue_instances"></td><td x-text="g.cheque_returns"></td><td x-text="g.max_overdue_days"></td><td x-text="g.dpd_90_count"></td></tr></template></tbody>
+                      </template>
+                      <template x-if="c.id === 'lei'">
+                        <tbody><tr><th>LEI code</th><th>Entity</th><th>Address</th><th>ISO country</th><th>Status</th><th>Provider</th></tr>
+                          <template x-for="(g, gi) in c.grid" :key="gi"><tr><td x-text="g.lei_code || '—'"></td><td x-text="g.entity_name || '—'"></td><td x-text="g.legal_address || '—'"></td><td x-text="g.iso_country || '—'"></td><td x-text="g.status"></td><td x-text="g.provider"></td></tr></template></tbody>
+                      </template>
+                    </table>
+                  </td>
+                  <td class="text-muted los-small"><template x-for="h in c.history || []" :key="h.at"><span x-text="h.at + ' · ' + h.by_name + ': ' + h.previous_status + ' → ' + h.status"></span></template></td>
+                  <td x-show="dd.can_edit">
+                    <div class="los-action-row" x-show="ddEdit !== c.id">
+                      <button class="btn btn-sm btn-outline" x-show="c.mode === 'api'" :disabled="busy" @click="ddTrigger(c.id)" x-text="c.status === 'clear' ? 'Re-run' : 'Run'"></button>
+                      <button class="btn btn-sm btn-outline" x-show="c.mode === 'manual'" :disabled="busy" @click="startDdRecord(c)" x-text="c.status === 'pending' ? 'Record' : 'Re-record'"></button>
+                      <button class="btn btn-sm btn-outline" x-show="session?.role === 'compliance_vp' && ((c.status === 'matched' || c.status === 'failed') || (c.status === 'unavailable' && c.mandatory)) && !c.exception"
+                              :disabled="busy" @click="ddEdit = c.id; ddResult = 'exception'; ddRemarks = ''" x-text="c.status === 'unavailable' ? 'Approve VP (unavailable)…' : 'Approve exception…'"></button>
+                    </div>
+                    <div class="los-action-row" x-show="ddEdit === c.id">
+                      <select class="input" style="width:auto;" x-model="ddResult">
+                        <option value="clear" x-show="c.mode === 'manual'">clear</option><option value="matched" x-show="c.mode === 'manual'">matched</option><option value="failed" x-show="c.mode === 'manual'">failed</option>
+                        <option value="exception" x-show="session?.role === 'compliance_vp' && ((c.status === 'matched' || c.status === 'failed') || (c.status === 'unavailable' && c.mandatory))">approve exception (Compliance VP)</option>
+                      </select>
+                      <input class="input" style="width:260px;" x-model="ddRemarks" :placeholder="ddResult === 'exception' ? 'Exception reason (required)'
+                            : ddResult === 'clear' ? 'Optional remark' : 'Reason (required)'">
+                      <button class="btn btn-sm btn-primary" :disabled="busy"
+                              @click="ddResult === 'exception' ? ddException() : ddSaveRecord()"
+                              x-text="ddResult === 'exception' ? 'Approve exception' : 'Save'"></button>
+                      <button class="btn btn-sm btn-ghost" @click="ddEdit = ''">Cancel</button>
+                    </div>
+                  </td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel" x-show="udinOpen" style="margin-top:8px">
+              <h4 style="margin-top:0">UDIN verification grid</h4>
+              <p class="text-muted los-small" style="margin-top:0">Professional documents verified through UDIN (demo — recorded manually). All verified → the check clears; any not verified → the check matches.</p>
+              <table class="data-table los-small" x-show="udinRows.length">
+                <thead><tr><th>Document</th><th>UDIN code</th><th>Status</th></tr></thead>
+                <tbody><template x-for="(r, ri) in udinRows" :key="ri"><tr><td x-text="r.document"></td><td x-text="r.udin_code"></td>
+                  <td><span class="badge sm" :class="{verified:'badge-green',not_verified:'badge-red',pending:'badge-amber'}[r.status] || 'badge-grey'" x-text="r.status"></span></td></tr></template></tbody>
+              </table>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+                <label class="los-field">Document<input x-model="udinRow.document"></label>
+                <label class="los-field">UDIN code<input x-model="udinRow.udin_code"></label>
+                <label class="los-field">Status<select x-model="udinRow.status"><option>verified</option><option>not_verified</option><option>pending</option></select></label>
+                <button class="btn btn-sm btn-primary" :disabled="!udinRow.document || !udinRow.udin_code" @click="udinAddRow()">Add row</button>
+              </div>
+              <div class="los-action-row" style="margin-top:8px">
+                <button class="btn btn-sm btn-primary" :disabled="busy || !udinRows.length" @click="udinSave()">Save UDIN grid</button>
+                <button class="btn btn-sm btn-ghost" @click="udinOpen = false">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+                <!-- Governance workspaces (clientspec GAP-P0/P1/P2) -->
+        <div class="card" x-show="current?.step && govTabs().length">
+          <div class="los-rm-head">
+            <div>
+              <h3>Workspaces</h3>
+              <p class="text-muted" style="margin:0">Parties, facilities, securities, projects, ESMS, ratings, CMA, proposal, pricing, documents, disbursement ops, mandatory rules and the approval package — gated per step on the server.</p>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0" x-show="govTabs().length">
+            <template x-for="t in govTabs()" :key="t[0]">
+              <button class="btn btn-sm" :class="gov.tab === t[0] ? 'btn-primary' : 'btn-outline'" @click="openGov(t[0])" x-text="t[1]"></button>
+            </template>
+          </div>
+          <div class="status-inline status-inline-error" x-show="current?.material_change_gate" x-text="current.material_change_gate"></div>
+          <div class="status-inline status-inline-error" x-show="current?.pricing_gate && !current?.material_change_gate" x-text="current.pricing_gate"></div>
+
+          <!-- Facilities & limits -->
+          <div x-show="gov.tab === 'facilities'">
+            <p class="text-muted los-small">Proposed → sanctioned → committed → executed → disbursed are separate values. Edits are attributed in each facility's change history and, after sanction, raise a material-change flag.</p>
+            <table class="data-table">
+              <thead><tr><th>Facility</th><th>Type</th><th>Proposed</th><th>Sanctioned</th><th>Committed</th><th>Executed</th><th>Disbursed</th><th>Outstanding</th><th>Benchmark + spread</th><th>Repayment</th><th>Review</th><th>Actions</th></tr></thead>
+              <tbody><template x-for="f in current.facilities" :key="f.facility_id">
+                <tr>
+                  <td><strong x-text="f.facility_id"></strong></td>
+                  <td x-text="f.facility_type" :title="f.purpose"></td>
+                  <td x-text="f.proposed_cr"></td>
+                  <td x-text="f.sanctioned_cr ?? '—'"></td>
+                  <td x-text="f.committed_cr ?? '—'"></td>
+                  <td x-text="f.executed_cr ?? '—'"></td>
+                  <td x-text="f.disbursed_cr ?? '—'"></td>
+                  <td x-text="f.outstanding_cr ?? '—'"></td>
+                  <td x-text="(f.pricing?.benchmark || '—') + ' + ' + (f.pricing?.spread ?? '—')"></td>
+                  <td x-text="f.repayment?.repayment_type || '—'" :title="'Freq: ' + (f.repayment?.repayment_frequency || '—') + (f.repayment?.moratorium_months ? ' · moratorium ' + f.repayment.moratorium_months + ' m' : '')"></td>
+                  <td x-text="f.next_review_date || '—'"></td>
+                  <td>
+                    <div class="los-action-row" x-show="current.stage_id !== 'DIS'">
+                      <button class="btn btn-sm btn-outline"
+                        @click="gov.pricing = { facility_id: f.facility_id, benchmark: f.pricing?.benchmark, spread: f.pricing?.spread, interest_rate: f.pricing?.interest_rate, other_banks_comparison: f.pricing?.other_banks_comparison, justification: f.pricing?.justification, tenor_months: f.tenor_months, repayment_type: f.repayment?.repayment_type, repayment_frequency: f.repayment?.repayment_frequency, moratorium_months: f.repayment?.moratorium_months, next_review_date: f.next_review_date, total_limit_id: f.ops?.total_limit_id, fund_limit_id: f.ops?.fund_limit_id }; gov.facEdit = f.facility_id">Edit</button>
+                    </div>
+                    <div class="los-panel" x-show="gov.facEdit === f.facility_id">
+                      <div style="display:flex;flex-wrap:wrap;gap:8px">
+                        <label class="los-field">Benchmark<select x-model="gov.pricing.benchmark"><option value="">—</option><option>MCLR</option><option>18/36/91 day T-Bill</option><option>External Benchmark</option><option>Fixed</option></select></label>
+                        <label class="los-field">Spread (bps)<input type="number" step="0.01" x-model.number="gov.pricing.spread"></label>
+                        <label class="los-field">Rate %<input type="number" step="0.01" x-model.number="gov.pricing.interest_rate"></label>
+                        <label class="los-field">Tenor (m)<input type="number" x-model.number="gov.pricing.tenor_months"></label>
+                        <label class="los-field">Repayment<select x-model="gov.pricing.repayment_type"><option value="">—</option><option value="bullets">Bullets</option><option value="quarterly_quarters">Quarterly quarters</option><option value="semi_annual_quarters">Semi-annual quarters</option><option value="annum_quarters">Annual quarters</option></select></label>
+                        <label class="los-field">Frequency<select x-model="gov.pricing.repayment_frequency"><option value="">—</option><option>quarterly</option><option>semi_annual</option><option>annual</option><option>monthly</option></select></label>
+                        <label class="los-field">Moratorium (m)<input type="number" x-model.number="gov.pricing.moratorium_months"></label>
+                        <label class="los-field">Next review<input type="date" x-model="gov.pricing.next_review_date"></label>
+                        <label class="los-field">Total limit ID<input x-model="gov.pricing.total_limit_id" placeholder="LMT-1"></label>
+                        <label class="los-field">Fund limit ID<input x-model="gov.pricing.fund_limit_id" placeholder="LMT-2"></label>
+                      </div>
+                      <div class="los-small" x-show="(f.change_history || []).length" style="margin-top:6px">
+                        <strong>Change history</strong>
+                        <div x-for="h in (f.change_history || []).slice(-3).reverse()" :key="h.at" x-text="h.at + ' · ' + h.by + ' · ' + h.change"></div>
+                      </div>
+                      <div class="los-action-row" style="margin-top:6px">
+                        <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveFacility(f.facility_id)">Save</button>
+                        <button class="btn btn-sm btn-ghost" @click="gov.facEdit = ''">Cancel</button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template></tbody>
+            </table>
+          </div>
+
+          <!-- Parties & identity -->
+          <div x-show="gov.tab === 'parties'">
+            <p class="text-muted los-small">Identity is stored with the application and recomputed server-side; a PAN change re-runs dedupe and invalidates PAN-dependent checks.
+              Each party is also linked <b>separately</b> to KYC, bureau checks, name screening, ratings, financial records, documents and exceptions (UAT-P0-3).</p>
+            <table class="data-table" x-show="(current.related_parties || []).length">
+              <thead><tr><th>Party</th><th>Role</th><th>Type</th><th>PAN / CIN</th><th>Ownership</th><th>Relationship / address</th><th>Status</th><th>Party evidence</th><th></th></tr></thead>
+              <tbody><template x-for="p in current.related_parties" :key="p.party_id">
+                <tr>
+                  <td x-text="p.name + (p.key_person_role ? ' (' + p.key_person_role + ')' : '')"></td>
+                  <td x-text="p.role"></td>
+                  <td x-text="p.party_type"></td>
+                  <td class="los-small"><span x-text="p.pan || '—'"></span><div class="text-muted" x-show="p.cin" x-text="p.cin"></div></td>
+                  <td x-text="p.ownership_pct == null || p.ownership_pct === '' ? '—' : p.ownership_pct + '%'"></td>
+                  <td class="los-small"><span x-text="p.relationship || '—'"></span>
+                    <div class="text-muted" x-show="p.sourced_address" x-text="p.sourced_address"></div></td>
+                  <td><span class="badge sm" :class="{active: 'badge-green', inactive: 'badge-grey', withdrawn: 'badge-red'}[p.party_status] || 'badge-grey'" x-text="p.party_status || 'active'"></span></td>
+                  <td class="los-small">
+                    <template x-for="(cov, pid) in current.party_evidence_coverage || {}" :key="pid">
+                      <span x-show="pid === p.party_id">
+                        <span class="badge sm" :class="cov.complete ? 'badge-green' : 'badge-amber'" x-text="cov.complete ? 'complete' : cov.open.length + ' open'"></span>
+                        <span class="text-muted" x-show="!cov.complete" x-text="cov.open.join(', ') + (cov.exception ? ' · VP exception' : '')"></span>
+                      </span>
+                    </template>
+                  </td>
+                  <td><div class="los-action-row"><button class="btn btn-sm btn-outline" @click="editParty(p)">Edit</button><button class="btn btn-sm btn-outline" @click="openPartyEvidence(p)">Evidence</button></div></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel" x-show="gov.partyEv">
+              <h4 x-text="'Party evidence — ' + (gov.partyEv.party_name || '')" style="margin-top:0"></h4>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">KYC status<select x-model="gov.partyEv.kyc_status"><option value="">—</option><option>pending</option><option>clear</option><option>matched</option><option>failed</option><option>unavailable</option></select></label>
+                <label class="los-field">KYC evidence refs (doc names, comma-separated)<input x-model="gov.partyEv.kyc_evidence" placeholder="Aadhaar, address proof"></label>
+                <label class="los-field">KYC remark<input x-model="gov.partyEv.kyc_remarks" placeholder="Required for matched/failed"></label>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">CIBIL<select x-model="gov.partyEv.cibil_status"><option value="">—</option><option>pending</option><option>clear</option><option>matched</option><option>failed</option><option>unavailable</option></select></label>
+                <label class="los-field">CIBIL remark<input x-model="gov.partyEv.cibil_remarks"></label>
+                <label class="los-field">CRIF<select x-model="gov.partyEv.crif_status"><option value="">—</option><option>pending</option><option>clear</option><option>matched</option><option>failed</option><option>unavailable</option></select></label>
+                <label class="los-field">CRIF remark<input x-model="gov.partyEv.crif_remarks"></label>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">Name screening<select x-model="gov.partyEv.screening_status"><option value="">—</option><option>pending</option><option>clear</option><option>matched</option><option>failed</option><option>unavailable</option></select></label>
+                <label class="los-field">Hits<input type="number" min="0" x-model.number="gov.partyEv.screening_hits"></label>
+                <label class="los-field">Screening remark<input x-model="gov.partyEv.screening_remarks"></label>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">Rating ref<input x-model="gov.partyEv.rating_ref" placeholder="e.g. sponsor / promoter rating"></label>
+                <label class="los-field">Financial record ref (CMA subject)<input x-model="gov.partyEv.financial_ref" placeholder="e.g. group guarantee cover"></label>
+                <label class="los-field">Document refs (comma-separated)<input x-model="gov.partyEv.document_ids"></label>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+                <label class="los-field" x-show="session?.role === 'compliance_vp'">Exception reason (Compliance VP)<input x-model="gov.partyEv.exception_reason" placeholder="Required; releases a matched/failed/unavailable party result"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="savePartyEvidence()">Save party evidence</button>
+                <button class="btn btn-sm btn-ghost" @click="gov.partyEv = null">Close</button>
+              </div>
+            </div>
+            <div class="los-panel" x-show="!gov.partyEv">
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">Name<input x-model="gov.party.name"></label>
+                <label class="los-field">Role<select x-model="gov.party.role"><option value="">—</option><option value="promoter">Promoter</option><option value="sponsor">Sponsor</option><option value="guarantor">Guarantor</option><option value="director">Director</option><option value="key_person">Key person</option><option value="beneficial_owner">Beneficial owner</option><option value="spv">SPV</option><option value="parent">Parent</option><option value="subsidiary">Subsidiary</option><option value="associate">Associate</option><option value="group_concern">Group concern</option><option value="group_company">Group company</option><option value="joint_venture">Joint venture</option><option value="collaborator">Collaborator</option></select></label>
+                <label class="los-field">Type<select x-model="gov.party.party_type"><option value="">—</option><option>individual</option><option>non_individual</option></select></label>
+                <label class="los-field">PAN<input x-model="gov.party.pan" placeholder="ABCDE1234F"></label>
+                <label class="los-field" x-show="gov.party.party_type === 'non_individual'">CIN<input x-model="gov.party.cin" maxlength="21" placeholder="U12345MH2020PLC123456"></label>
+                <label class="los-field">Ownership %<input type="number" min="0" max="100" step="0.01" x-model.number="gov.party.ownership_pct" placeholder="e.g. 61"></label>
+                <label class="los-field">Party status<select x-model="gov.party.party_status"><option value="">—</option><option>active</option><option>inactive</option><option>withdrawn</option></select></label>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+                <label class="los-field" style="flex:2">Relationship to the entity<input x-model="gov.party.relationship" placeholder="e.g. 61% promoter; group parent"></label>
+                <label class="los-field" style="flex:2">Sourced address (with source)<input x-model="gov.party.sourced_address" placeholder="e.g. 12 MG Road, Bengaluru (KYC — Aadhaar)"></label>
+                <label class="los-field" x-show="gov.party.party_type === 'individual'">Key-person role<input x-model="gov.party.key_person_role" placeholder="e.g. MD & CEO, CFO"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveParty()" x-text="gov.party.party_id ? 'Update party' : 'Save party'"></button>
+                <button class="btn btn-sm btn-ghost" x-show="gov.party.party_id" @click="gov.party = {}">Cancel edit</button>
+              </div>
+            </div>
+            <div class="los-panel">
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+                <label class="los-field"><input type="checkbox" x-model="gov.entity.entity_incorporated"> Entity incorporated (company)</label>
+                <label class="los-field">Latest material information received (date)<input type="date" x-model="gov.entity.latest_material_information_date"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveEntity()">Save entity</button>
+                <span class="text-muted los-small" x-text="(current.entity?.entity_incorporated == null) ? 'Entity flags not recorded yet' : 'Incorporated: ' + (current.entity.entity_incorporated ? 'yes' : 'no') + ' · LMI ' + (current.entity.latest_material_information_date || '—') + ' (by ' + (current.entity.latest_material_information_by || current.entity.entity_incorporated_by || '—') + ')'"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Securities -->
+          <div x-show="gov.tab === 'securities'">
+            <p class="text-muted los-small">Security master covering multiple facilities; apportioned value drives the cover ratio; creation and perfection are tracked to completion.</p>
+            <p class="text-muted" x-text="'Cover: ' + (current.security_cover ?? '—') + '×'" :class="current.security_cover >= 1 ? 'status-inline-success' : 'status-inline-error'" style="display:inline-block;margin:4px 0"></p>
+            <table class="data-table" x-show="(current.securities || []).length">
+              <thead><tr><th>ID</th><th>Category</th><th>Type</th><th>Facilities</th><th>Apportioned (₹ Cr)</th><th>Valuation</th><th>Charge</th><th>Perfection</th></tr></thead>
+              <tbody><template x-for="s in current.securities" :key="s.security_id">
+                <tr>
+                  <td x-text="s.security_id"></td>
+                  <td x-text="s.category"></td>
+                  <td x-text="s.type" :title="s.description"></td>
+                  <td x-text="(s.facility_ids || []).join(', ')"></td>
+                  <td x-text="s.apportioned_value_cr ?? '—'"></td>
+                  <td x-text="(s.valuation_date || '—') + ' (' + (s.valuation_basis || '—') + ')'"></td>
+                  <td x-text="s.charge_type || '—'"></td>
+                  <td x-text="s.perfection_status"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel">
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">ID (existing)<input x-model="gov.security.security_id" placeholder="SEC-001"></label>
+                <label class="los-field">Category<select x-model="gov.security.category"><option value="">—</option><option>primary</option><option>collateral</option><option>other</option></select></label>
+                <label class="los-field">Type<select x-model="gov.security.type"><option value="">—</option><option>land_building</option><option>plant_machinery</option><option>book_debts</option><option>current_account</option><option>fixed_deposit</option><option>guarantee</option><option>assignment</option><option>inventory</option><option>other</option></select></label>
+                <label class="los-field">Facility IDs<input x-model="gov.security.facility_ids_text" placeholder="FAC-001, FAC-002"></label>
+                <label class="los-field">Value (₹ Cr)<input type="number" x-model.number="gov.security.apportioned_value_cr"></label>
+                <label class="los-field">Valuation date<input type="date" x-model="gov.security.valuation_date"></label>
+                <label class="los-field">Basis<input x-model="gov.security.valuation_basis" placeholder="chartered valuer"></label>
+                <label class="los-field">Charge<select x-model="gov.security.charge_type"><option value="">—</option><option>first_charge</option><option>second_charge</option><option>pari_passu</option><option>none</option></select></label>
+                <label class="los-field">Perfection<select x-model="gov.security.perfection_status"><option value="">—</option><option>not_started</option><option>in_progress</option><option>completed</option></select></label>
+              </div>
+              <div class="los-action-row" style="margin-top:6px">
+                <button class="btn btn-sm btn-primary" :disabled="busy"
+                  @click="gov.security.facility_ids = (gov.security.facility_ids_text || '').split(',').map(x => x.trim()).filter(Boolean); saveSecurity(); gov.security = {}">Save security</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Projects & ESMS -->
+          <div x-show="gov.tab === 'projects'">
+            <table class="data-table" x-show="(current.projects || []).length">
+              <thead><tr><th>Project</th><th>Type</th><th>TEV (₹ Cr)</th><th>Cost (₹ Cr)</th><th>Promoter (₹ Cr)</th><th>DCCO</th><th>High risks</th><th>Status</th></tr></thead>
+              <tbody><template x-for="pr in current.projects" :key="pr.project_id">
+                <tr>
+                  <td><strong x-text="pr.project_id"></strong> <span class="los-small" x-text="pr.name"></span></td>
+                  <td x-text="pr.type"></td>
+                  <td x-text="pr.tev?.total_cr ?? '—'"></td>
+                  <td x-text="pr.cost?.total_cr ?? '—'"></td>
+                  <td x-text="pr.cost?.promoter_contribution_cr ?? '—'"></td>
+                  <td x-text="pr.plan?.original_dcco || '—'"></td>
+                  <td x-text="(pr.risks || []).filter(r => r.level === 'High').map(r => r.description).join('; ') || '—'"></td>
+                  <td x-text="pr.status" :class="pr.status === 'reappraisal_required' ? 'status-inline-error' : ''" style="display:inline-block"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel" x-show="(current.projects || []).length">
+              <strong>Project changes</strong> <span class="text-muted los-small">a cost / DCCO / scope change flags the project for reappraisal</span>
+              <div x-for="ch in (current.projects[0]?.changes || [])" :key="ch.at || ch.field" class="los-small"
+                   x-text="(current.projects.findIndex(p => p.changes?.includes(ch)) >= 0 ? current.projects.find(p => p.changes?.includes(ch))?.project_id : '') + ' · ' + ch.field + ': ' + (ch.previous || '—') + ' → ' + (ch.current || '—') + ' · ' + (ch.reason || '') + ' · ' + ch.status"></div>
+            </div>
+            <div class="los-panel">
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">ID (existing)<input x-model="gov.project.project_id" placeholder="PRJ-001"></label>
+                <label class="los-field">Name<input x-model="gov.project.name"></label>
+                <label class="los-field">Type<select x-model="gov.project.type"><option value="">—</option><option>greenfield</option><option>brownfield</option><option>capacity_expansion</option><option>working_capital</option></select></label>
+                <label class="los-field">TEV total (₹ Cr)<input type="number" x-model.number="gov.project.tev_total_cr"></label>
+                <label class="los-field">Cost total (₹ Cr)<input type="number" x-model.number="gov.project.cost_total_cr"></label>
+                <label class="los-field">Promoter contribution<input type="number" x-model.number="gov.project.promoter_contribution_cr"></label>
+                <label class="los-field">DCCO<input type="date" x-model="gov.project.dcco"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy"
+                  @click="gov.project.tev = { total_cr: gov.project.tev_total_cr }; gov.project.cost = { total_cr: gov.project.cost_total_cr, promoter_contribution_cr: gov.project.promoter_contribution_cr }; gov.project.plan = { original_dcco: gov.project.dcco }; saveProject(); gov.project = {}">Save project</button>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px" x-show="(current.projects || []).length">
+                <label class="los-field">Project<select x-model="gov.projectChange.project_id"><template x-for="pr in current.projects" :key="pr.project_id"><option :value="pr.project_id" x-text="pr.project_id + ' — ' + pr.name"></option></template></select></label>
+                <label class="los-field">Field<input x-model="gov.projectChange.field" placeholder="dcco"></label>
+                <label class="los-field">Previous<input x-model="gov.projectChange.previous"></label>
+                <label class="los-field">Current<input x-model="gov.projectChange.current"></label>
+                <label class="los-field">Reason<input x-model="gov.projectChange.reason"></label>
+                <label class="los-field">Impact on repayment<input x-model="gov.projectChange.impact_on_repayment"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="changeProject(); gov.projectChange = {}">Record change</button>
+              </div>
+            </div>
+            <div class="los-panel" x-show="current.esms_checklist">
+              <strong>ESMS / ESDD screening</strong> <span class="text-muted los-small">remarks are mandatory for any “Yes” or “Not Available” answer</span>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0">
+                <label class="los-field">Screening date<input type="date" x-model="gov.esms.screening_date"></label>
+                <label class="los-field">Category<select x-model="gov.esms.category"><option value="">—</option><option>A</option><option>B</option><option>C</option></select></label>
+                <label class="los-field">ESDD required<input x-model="gov.esms.esdd" placeholder="Yes / No / NA + note"></label>
+              </div>
+              <table class="data-table">
+                <thead><tr><th>Screening item</th><th>Answer</th><th>Remarks</th></tr></thead>
+                <tbody><template x-for="item in current.esms_checklist" :key="item[0]">
+                  <tr>
+                    <td x-text="item[1]"></td>
+                    <td>
+                      <select x-model="gov.esms.checklist[item[0]]" style="min-width:130px">
+                        <option value="">—</option><option>No</option><option>Yes</option><option>Not Available</option>
+                      </select>
+                    </td>
+                    <td><input x-model="gov.esms.remarks[item[0]]" placeholder="mandatory if Yes / Not Available"></td>
+                  </tr>
+                </template></tbody>
+              </table>
+              <div class="los-action-row" style="margin-top:6px">
+                <button class="btn btn-sm btn-primary" :disabled="busy"
+                  @click="gov.esms.checklist = Object.entries(gov.esms.checklist || {}).filter(([, v]) => v).map(([id, answer]) => ({ id, answer, remarks: gov.esms.remarks?.[id] || '' })); saveEsms()">Save ESMS</button>
+              </div>
+            </div>
+            <div class="los-panel" x-show="(current.ewps || []).length || true">
+              <strong>External work parties</strong>
+              <table class="data-table" style="margin-top:6px" x-show="(current.ewps || []).length">
+                <thead><tr><th>ID</th><th>Role</th><th>Name</th><th>Contact</th><th>Phase</th><th>Status</th></tr></thead>
+                <tbody><template x-for="w in current.ewps" :key="w.ewp_id">
+                  <tr>
+                    <td x-text="w.ewp_id"></td>
+                    <td x-text="w.role"></td>
+                    <td x-text="w.name"></td>
+                    <td x-text="(w.contact_number || '') + ' · ' + (w.email || '')"></td>
+                    <td x-text="w.phase || '—'"></td>
+                    <td x-text="w.status"></td>
+                  </tr>
+                </template></tbody>
+              </table>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+                <label class="los-field">Role<select x-model="gov.ewp.role"><option value="">—</option><option>LIA</option><option>LIE</option><option>Security Trustee</option><option>ESDD provider</option><option>Legal Loan Counsel</option></select></label>
+                <label class="los-field">Name<input x-model="gov.ewp.name"></label>
+                <label class="los-field">Contact<input x-model="gov.ewp.contact_number"></label>
+                <label class="los-field">Email<input x-model="gov.ewp.email"></label>
+                <label class="los-field">Phase<input x-model="gov.ewp.phase" placeholder="documentation"></label>
+                <label class="los-field">Status<select x-model="gov.ewp.status"><option value="">—</option><option>appointed</option><option>engaged</option><option>completed</option></select></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveEwp(); gov.ewp = {}">Save</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ratings & RAROC -->
+          <div x-show="gov.tab === 'ratings'">
+            <div class="los-panel" x-show="current.ratings?.group_rating">
+              <strong>Group rating</strong> <span class="text-muted los-small" x-text="current.ratings.group_rating.basis"></span>
+              <span class="text-muted" style="margin-left:8px" x-text="current.ratings.group_rating.rating || '—'"></span>
+            </div>
+            <table class="data-table" x-show="(current.ratings?.external_ratings || []).length">
+              <thead><tr><th>Subject</th><th>Agency</th><th>Rating</th><th>Type / term</th><th>Date</th><th>Rationale</th></tr></thead>
+              <tbody><template x-for="(r, i) in current.ratings.external_ratings" :key="i">
+                <tr>
+                  <td x-text="r.subject"></td>
+                  <td x-text="r.agency || '—'"></td>
+                  <td x-text="r.rating || '—'"></td>
+                  <td x-text="(r.rating_type || '—') + ' / ' + (r.term_class || '—')"></td>
+                  <td x-text="r.date || '—'"></td>
+                  <td class="los-small" x-text="r.rationale || ''"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <table class="data-table" x-show="(current.ratings?.internal_ratings || []).length">
+              <thead><tr><th>Subject</th><th>Grade</th><th>Score</th><th>Date</th><th>Rationale</th></tr></thead>
+              <tbody><template x-for="(r, i) in current.ratings.internal_ratings" :key="i">
+                <tr>
+                  <td x-text="r.subject"></td>
+                  <td x-text="r.grade || '—'"></td>
+                  <td x-text="r.score ?? '—'"></td>
+                  <td x-text="r.date || '—'"></td>
+                  <td class="los-small" x-text="r.rationale || ''"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel" x-show="Object.keys(current.ratings?.raroc || {}).length">
+              <strong>RAROC by facility</strong> <span class="text-muted los-small">labelled demo model — the production model is confirmation-required</span>
+              <table class="data-table" style="margin-top:6px">
+                <thead><tr><th>Facility</th><th>RAROC %</th><th>Hurdle</th><th>Input hash</th><th></th></tr></thead>
+                <tbody><template x-for="(entry, fid) in current.ratings.raroc" :key="fid">
+                  <tr>
+                    <td x-text="fid"></td>
+                    <td x-text="entry.raroc_pct ?? '—'"></td>
+                    <td x-text="(entry.meets_hurdle ? 'meets' : 'below') + (current.raroc_stale?.includes(fid) ? ' · STALE' : '')"></td>
+                    <td class="los-small" x-text="(entry.input_hash || '').slice(0, 12)"></td>
+                    <td><button class="btn btn-sm btn-outline" :disabled="busy" @click="computeRaroc(fid)">Recompute</button></td>
+                  </tr>
+                </template></tbody>
+              </table>
+            </div>
+            <div class="los-panel">
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">Kind<select x-model="gov.rating.kind"><option value="internal">Internal</option><option value="external">External</option><option value="adverse_event">Adverse-event review</option></select></label>
+                <label class="los-field" x-show="gov.rating.kind !== 'adverse_event'">Subject<input x-model="gov.rating.subject" placeholder="borrower"></label>
+                <label class="los-field" x-show="gov.rating.kind === 'external'">Agency<input x-model="gov.rating.agency" placeholder="required"></label>
+                <label class="los-field" x-show="gov.rating.kind === 'external'">Rating<input x-model="gov.rating.rating" placeholder="AA-"></label>
+                <label class="los-field" x-show="gov.rating.kind === 'internal'">Grade<input x-model="gov.rating.grade" placeholder="A2"></label>
+                <label class="los-field" x-show="gov.rating.kind === 'internal'">Score<input type="number" step="0.1" x-model.number="gov.rating.score"></label>
+                <label class="los-field" x-show="gov.rating.kind === 'adverse_event'">Trigger<input x-model="gov.rating.trigger"></label>
+                <label class="los-field" x-show="gov.rating.kind === 'adverse_event'">Revised<input x-model="gov.rating.revised_rating"></label>
+                <label class="los-field">Date<input type="date" x-model="gov.rating.date"></label>
+                <label class="los-field">Rationale / comments<input x-model="gov.rating.rationale"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="recordRating()">Record</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CMA -->
+          <div x-show="gov.tab === 'cma'">
+            <p class="text-muted los-small" x-text="current.cma?.note"></p>
+            <p class="text-muted" x-text="'Review: ' + (current.cma?.review_status || 'draft') + (current.cma?.review_by ? ' — ' + current.cma.review_by + ' · ' + current.cma.review_at : '')"></p>
+            <div class="los-panel" x-for="(s, i) in (current.cma?.subjects || [])" :key="i">
+              <strong x-text="s.subject"></strong> <span class="text-muted los-small" x-text="s.periods.join(' · ') + ' — ' + s.row_count + ' values'"></span>
+              <table class="data-table" style="margin-top:6px" x-show="s.periods.length">
+                <thead><tr><th>Row</th><template x-for="p in s.periods" :key="p"><th x-text="p"></th></template></tr></thead>
+                <tbody><template x-for="row in (current.cma_rows || [])" :key="row[0]">
+                  <tr>
+                    <td x-text="row[1]"></td>
+                    <template x-for="p in s.periods" :key="p + row[0]">
+                      <td x-text="(s.rows?.[p]?.[row[0]] ?? '—') + (s.rows?.[p]?.[row[0]] != null ? ' Cr' : '')"></td>
+                    </template>
+                  </tr>
+                </template></tbody>
+              </table>
+            </div>
+            <div class="los-panel">
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">Subject<select x-model="gov.cma.subject"><option>borrower</option><option>promoter</option><option>sponsor</option><option>spv</option><option>parent</option></select></label>
+                <label class="los-field">Period<input x-model="gov.cma.period" placeholder="FY2025" style="width:90px"></label>
+                <template x-for="row in (current.cma_rows || [])" :key="row[0]">
+                  <label class="los-field" style="min-width:130px"><span x-text="row[1]"></span><input type="number" step="0.01" x-model="gov.cma.rows[row[0]]"></label>
+                </template>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveCma()">Record period</button>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap" x-show="current.cma?.review_status === 'submitted'">
+                <label><input type="checkbox" x-model="gov.cmaReview"> Approve CMA</label>
+                <input x-model="gov.cmaRemarks" placeholder="review remarks (required to return)">
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="reviewCma()">Save review</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Proposal & exposure -->
+          <div x-show="gov.tab === 'proposal'">
+            <div class="status-inline status-inline-error" x-show="current?.exposure_gate" x-text="current.exposure_gate"></div>
+            <div class="los-panel" x-show="current.proposal?.exposure">
+              <strong>Exposure</strong> <span class="text-muted los-small" x-text="(current.proposal.exposure.loan?.source || '') + ' · ' + (current.proposal.exposure.bond?.source || '')"></span>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+                <label class="los-field">Sanctioned (₹ Cr)<input type="number" x-model.number="gov.exposure.sanctioned_cr" :value="current.proposal.exposure.sanctioned_cr ?? ''"></label>
+                <label class="los-field">Outstanding (₹ Cr)<input type="number" x-model.number="gov.exposure.outstanding_cr" :value="current.proposal.exposure.outstanding_cr ?? ''"></label>
+                <label class="los-field">LEF norm<input type="number" x-model.number="gov.exposure.lef" :value="current.proposal.exposure.norms?.lef ?? ''"></label>
+                <label class="los-field">EPM norm<input type="number" x-model.number="gov.exposure.epm" :value="current.proposal.exposure.norms?.epm ?? ''"></label>
+                <label class="los-field">Breach alert<input x-model="gov.exposure.breach_alert"></label>
+                <label class="los-field">Exception justification<input x-model="gov.exposure.exception_justification" placeholder="required when a breach is on record"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveExposure()">Save exposure</button>
+              </div>
+            </div>
+            <div class="los-panel" x-show="(current.proposal?.conduct?.rows || []).length">
+              <strong>Conduct</strong>
+              <table class="data-table" style="margin-top:6px">
+                <thead><tr><th>Month</th><th>Status</th><th>Limit</th><th>Outstanding</th><th>Irregularity</th><th>Instances</th><th>Days</th><th>Financial difficulty</th></tr></thead>
+                <tbody><template x-for="(r, i) in current.proposal.conduct.rows" :key="i">
+                  <tr>
+                    <td x-text="r.month"></td>
+                    <td x-text="r.status"></td>
+                    <td x-text="r.limit_cr ?? '—'"></td>
+                    <td x-text="r.outstanding_cr ?? '—'"></td>
+                    <td class="los-small" x-text="r.irregularity || '—'"></td>
+                    <td x-text="r.instances ?? '—'"></td>
+                    <td x-text="r.irregular_days ?? '—'"></td>
+                    <td x-text="r.financial_difficulty ? 'yes' : 'no'"></td>
+                  </tr>
+                </template></tbody>
+              </table>
+            </div>
+            <div class="los-panel">
+              <strong>Banking arrangement</strong> <span class="text-muted los-small">a syndication case must use a Consortium arrangement (RUL-08)</span>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+                <label class="los-field">Arrangement<select x-model="gov.banking.arrangement"><option value="">—</option><option>solo</option><option>syndication</option><option>consortium</option><option>back_to_back</option></select></label>
+                <label class="los-field" x-show="gov.banking.arrangement !== 'solo' && gov.banking.arrangement">Number of banks<input type="number" x-model.number="gov.banking.number_of_banks"></label>
+                <label class="los-field" x-show="gov.banking.arrangement === 'consortium'">Lead bank<input x-model="gov.banking.lead_bank"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveBanking()">Save</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pricing & fees -->
+          <div x-show="gov.tab === 'pricing'">
+            <p class="text-muted los-small">RUL-07: benchmark type and proposed spread are mandatory for every fund-based facility before AP submission.</p>
+            <table class="data-table" x-show="Object.keys(current.pricing?.facilities || {}).length">
+              <thead><tr><th>Facility</th><th>Benchmark</th><th>Spread (bps)</th><th>Rate %</th><th>Comparison</th><th>Justification</th></tr></thead>
+              <tbody><template x-for="(entry, fid) in current.pricing.facilities" :key="fid">
+                <tr>
+                  <td x-text="fid"></td>
+                  <td x-text="entry.proposed_benchmark || '—'"></td>
+                  <td x-text="entry.proposed_spread_bps ?? '—'"></td>
+                  <td x-text="entry.proposed_rate ?? '—'"></td>
+                  <td class="los-small" x-text="entry.other_banks_comparison || ''"></td>
+                  <td class="los-small" x-text="entry.justification || ''"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel">
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <label class="los-field">Facility<select x-model="gov.pricing.facility_id"><template x-for="f in current.facilities" :key="f.facility_id"><option :value="f.facility_id" x-text="f.facility_id + ' — ' + f.facility_type"></option></template></select></label>
+                <label class="los-field">Benchmark<select x-model="gov.pricing.proposed_benchmark"><option value="">—</option><option>MCLR</option><option>18/36/91 day T-Bill</option><option>External Benchmark</option><option>Fixed</option></select></label>
+                <label class="los-field">Spread (bps)<input type="number" step="0.01" x-model.number="gov.pricing.proposed_spread_bps"></label>
+                <label class="los-field">Rate %<input type="number" step="0.01" x-model.number="gov.pricing.proposed_rate"></label>
+                <label class="los-field">Other banks<input x-model="gov.pricing.other_banks_comparison"></label>
+                <label class="los-field">Justification<input x-model="gov.pricing.justification"></label>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="savePricingRow()">Record pricing</button>
+              </div>
+            </div>
+            <div class="los-panel" x-show="(current.pricing?.fees || []).length">
+              <strong>Fees</strong>
+              <table class="data-table" style="margin-top:6px">
+                <thead><tr><th>Nature</th><th>Status</th><th>Type</th><th>Scope</th><th>Amount (₹ Cr)</th><th>Milestone</th><th>Invoice</th></tr></thead>
+                <tbody><template x-for="(fee, i) in current.pricing.fees" :key="i">
+                  <tr>
+                    <td x-text="fee.nature"></td>
+                    <td x-text="fee.status"></td>
+                    <td x-text="fee.type || '—'"></td>
+                    <td x-text="fee.scope || '—'"></td>
+                    <td x-text="fee.amount_cr ?? '—'"></td>
+                    <td x-text="fee.milestone || '—'"></td>
+                    <td class="los-small" x-text="fee.invoice_no ? fee.invoice_no + ' · ' + fee.invoice_date : '—'"></td>
+                  </tr>
+                </template></tbody>
+              </table>
+            </div>
+            <div class="los-panel" x-show="(current.pricing?.tentative_schedules || []).length">
+              <strong>Tentative term-loan schedule</strong> <span class="text-muted los-small">kept distinct from the final disbursement terms</span>
+              <div x-for="(sch, i) in current.pricing.tentative_schedules" :key="i" class="los-small"
+                   x-text="sch.facility_ids.join(', ') + ' · ' + sch.amount_cr + ' Cr · ' + sch.tenor_months + ' m · ' + sch.pricing + ' · ' + (sch.acceptability_comments || '')"></div>
+            </div>
+          </div>
+
+          <!-- Documents -->
+          <div x-show="gov.tab === 'documents'">
+            <div class="status-inline status-inline-error" x-show="govDocs?.gate" x-text="govDocs.gate"></div>
+            <table class="data-table" x-show="govDocs">
+              <thead><tr><th>Document</th><th>Stage</th><th>Required</th><th>Versions</th><th>Status</th><th>Reviewed</th><th></th></tr></thead>
+              <tbody><template x-for="(d, i) in govDocs?.documents || []" :key="i">
+                <tr>
+                  <td><strong x-text="d.name"></strong> <span class="text-muted los-small" x-text="d.kind"></span></td>
+                  <td x-text="d.stage || '—'"></td>
+                  <td x-text="d.required ? 'mandatory' : 'optional'"></td>
+                  <td x-text="(d.versions || []).length + ' version(s)'"></td>
+                  <td x-text="d.status"></td>
+                  <td class="los-small" x-text="d.reviewer ? d.reviewer + ' · ' + d.review_at + (d.review_remarks ? ' — ' + d.review_remarks : '') : '—'"></td>
+                  <td>
+                    <div class="los-action-row">
+                      <button class="btn btn-sm btn-outline" x-show="d.status !== 'reviewed'" @click="gov.docReview = d.doc_id; gov.docStatus = 'reviewed'">Review</button>
+                      <div class="los-panel" x-show="gov.docReview === d.doc_id" style="min-width:320px">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                          <select x-model="gov.docStatus"><option value="reviewed">reviewed</option><option value="unreviewed">unreviewed</option><option value="missing">missing</option></select>
+                          <input x-model="gov.docRemarks" placeholder="remarks">
+                          <button class="btn btn-sm btn-primary" :disabled="busy" @click="reviewDoc()">Save</button>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel" x-show="current?.step">
+              <strong>Generated outputs</strong> <span class="text-muted los-small">letters, memos and downloads as labelled demo artefacts</span>
+              <div class="los-action-row" style="margin-top:6px;flex-wrap:wrap">
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('executive_summary')">Executive summary</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('due_diligence_report')">Due-diligence report</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('esms_approval_note')">ESMS approval note</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('committee_minutes')">Committee minutes</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('cma_download')">CMA</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('disbursement_memo')">Disbursement memo</button>
+                <span class="text-muted los-small" style="flex-basis:100%;margin-top:4px">Verification &amp; bureau reports (demo data)</span>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('mca_report')">MCA report</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('cibil_report')">CIBIL report</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('crif_report')">CRIF report</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('ceib_proforma_a')">CEIB Proforma A</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('udin_response')">UDIN response</button>
+                <span class="text-muted los-small" style="flex-basis:100%;margin-top:4px">Drawdown &amp; annexures (labelled demo templates)</span>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('drawdown_request')">Drawdown request</button>
+                <button class="btn btn-sm btn-outline" @click="downloadOutput('drawdown_schedule')">Drawdown schedule</button>
+                <template x-for="[k, label] in [['annexure_I','Annexure I'],['annexure_III','Annexure III'],['annexure_IV','Annexure IV'],['annexure_VI','Annexure VI'],['annexure_IX','Annexure IX'],['annexure_XI','Annexure XI'],['annexure_XIII','Annexure XIII'],['annexure_XIV','Annexure XIV']]" :key="k">
+                  <button class="btn btn-sm btn-outline" @click="downloadOutput(k)" x-text="label"></button>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Disbursement ops -->
+          <div x-show="gov.tab === 'disops'">
+            <div class="status-inline status-inline-error" x-show="current.disops?.maker_gate" x-text="current.disops.maker_gate" style="margin:6px 0"></div>
+            <div class="los-panel" x-show="current.disops?.cif">
+              <strong>CIF</strong> <span class="text-muted los-small" x-text="current.disops.cif.cif_no + ' · ' + (current.disops.cif.status || '')"></span>
+            </div>
+            <table class="data-table" x-show="(current.disops?.limits || []).length">
+              <thead><tr><th>Facility</th><th>Limit</th><th>Amount (₹ Cr)</th><th>Drawn (₹ Cr)</th><th>As of</th></tr></thead>
+              <tbody><template x-for="(l, i) in current.disops.limits" :key="i">
+                <tr>
+                  <td x-text="l.facility_id"></td>
+                  <td x-text="l.limit_type"></td>
+                  <td x-text="l.amount_cr ?? '—'"></td>
+                  <td x-text="l.drawn_cr ?? '—'"></td>
+                  <td x-text="l.as_of || '—'"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <table class="data-table" x-show="(current.disops?.security_refs || []).length">
+              <thead><tr><th>Facility</th><th>Security</th><th>CBS number</th><th>Remarks</th></tr></thead>
+              <tbody><template x-for="(r, i) in current.disops.security_refs" :key="i">
+                <tr>
+                  <td x-text="r.facility_id"></td>
+                  <td class="los-small" x-text="r.description || '—'"></td>
+                  <td x-text="r.cbs_security_no || 'missing'"></td>
+                  <td class="los-small" x-text="r.remarks || ''"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <table class="data-table" x-show="(current.disops?.beneficiaries || []).length">
+              <thead><tr><th>Facility</th><th>Type</th><th>Name</th><th>Account</th><th>Bank / IFSC</th><th>Mode</th><th>Amount (₹ Cr)</th></tr></thead>
+              <tbody><template x-for="(b, i) in current.disops.beneficiaries" :key="i">
+                <tr>
+                  <td x-text="b.facility_id"></td>
+                  <td x-text="b.type"></td>
+                  <td x-text="b.name"></td>
+                  <td x-text="b.account_no"></td>
+                  <td x-text="b.bank + ' · ' + (b.ifsc || '—')"></td>
+                  <td x-text="b.payment_mode || '—'"></td>
+                  <td x-text="b.amount_cr ?? '—'"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <div class="los-panel" x-show="current.disops?.repayment_final">
+              <strong>Repayment (final)</strong> <span class="text-muted los-small" x-text="current.disops.repayment_final.method + ' · ' + (current.disops.repayment_final.frequency || '—') + ' · first DDI ' + (current.disops.repayment_final.first_ddi || '—') + (current.disops.repayment_final.moratorium_months ? ' · moratorium ' + current.disops.repayment_final.moratorium_months + ' m' : '')"></span>
+            </div>
+            <div class="los-panel" x-show="current.disops?.interest_terms">
+              <strong>Interest</strong> <span class="text-muted los-small" x-text="current.disops.interest_terms.frequency + (current.disops.interest_terms.day_in_arrears ? ' · day in arrears ' + current.disops.interest_terms.day_in_arrears : '')"></span>
+            </div>
+            <div class="los-panel" x-show="current.disops?.arrears?.exists">
+              <strong>Arrears on record</strong>
+              <div x-for="(a, i) in current.disops.arrears.rows" :key="i" class="los-small" x-text="a.facility_id + ' · ' + a.type + ' · ' + a.amount_cr + ' Cr · due since ' + a.due_since + ' · ' + (a.remarks || '')"></div>
+            </div>
+            <div class="los-panel" x-show="(current.disops?.sop || []).length">
+              <strong>Interim SOP checklist</strong> <span class="text-muted los-small" x-text="current.disops.sop_gate || 'all in compliance'"></span>
+              <table class="data-table" style="margin-top:6px">
+                <thead><tr><th>Item</th><th>Status</th><th>Remarks</th><th></th></tr></thead>
+                <tbody><template x-for="(item, i) in current.disops.sop" :key="i">
+                  <tr>
+                    <td x-text="item.label"></td>
+                    <td x-text="item.status"></td>
+                    <td class="los-small" x-text="item.remarks || item.detail || ''"></td>
+                    <td><button class="btn btn-sm btn-outline" :disabled="busy || item._saving"
+                          @click="item.status = item.status === 'in_compliance' ? 'pending' : 'in_compliance'; setSop(item)">Toggle</button></td>
+                  </tr>
+                </template></tbody>
+              </table>
+            </div>
+            <div class="los-panel" x-show="current.disops?.memo">
+              <strong>Disbursement memo</strong> <span class="text-muted los-small" x-text="'generated ' + current.disops.memo.generated_at + ' · hash ' + (current.disops.memo.content_hash || '').slice(0, 12)"></span>
+              <span class="text-muted" style="margin-left:6px" x-text="current.disops.memo.reviewed ? 'reviewed' : 'review pending'"></span>
+              <div class="los-action-row" style="margin-top:6px">
+                <button class="btn btn-sm btn-outline" :disabled="busy" @click="genMemo()">Regenerate</button>
+                <button class="btn btn-sm btn-primary" :disabled="busy || current.disops.memo.reviewed" @click="reviewMemo()">Mark reviewed (I verified the record)</button>
+              </div>
+            </div>
+            <div class="los-panel" x-show="current?.checker_review && current.step?.id === 'dis_checker'">
+              <strong>Checker review</strong> <span class="text-muted los-small">read-only — every item must be confirmed before approve</span>
+              <label x-for="(i, k) in current.checker_review" :key="k" style="display:block;margin:4px 0">
+                <input type="checkbox" :checked="i.done" @change="toggleReviewItem('checker')"> <span x-text="i.label"></span>
+              </label>
+            </div>
+            <div class="los-panel" x-show="current?.final_review && current.step?.id === 'dis_approver'">
+              <strong>Final review</strong> <span class="text-muted los-small">read-only — every item must be confirmed before approve</span>
+              <label x-for="(i, k) in current.final_review" :key="k" style="display:block;margin:4px 0">
+                <input type="checkbox" :checked="i.done" @change="toggleReviewItem('final')"> <span x-text="i.label"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Mandatory rules -->
+          <div x-show="gov.tab === 'rules'">
+            <p class="text-muted los-small" x-text="govRules?.note"></p>
+            <table class="data-table" x-show="govRules">
+              <thead><tr><th>ID</th><th>Rule</th><th>Severity</th><th>Applies at</th><th>Status</th><th>Detail</th><th>Reset / exception</th></tr></thead>
+              <tbody><template x-for="(r, i) in govRules?.rules || []" :key="i">
+                <tr>
+                  <td x-text="r.id"></td>
+                  <td x-text="r.rule"></td>
+                  <td x-text="r.severity"></td>
+                  <td class="los-small" x-text="(r.applies_at || []).join(', ')"></td>
+                  <td x-text="r.status"></td>
+                  <td class="los-small" x-text="r.detail || ''"></td>
+                  <td class="los-small" x-text="r.exception ? 'Exception on record' : (r.reset || '')"></td>
+                </tr>
+              </template></tbody>
+            </table>
+          </div>
+
+          <!-- Approval package -->
+          <div x-show="gov.tab === 'approvals'">
+            <div class="los-panel" x-show="(current.material_changes || []).length">
+              <strong>Material change(s) since the approval snapshot</strong>
+              <div class="los-small" x-text="current.material_changes.join(', ')"></div>
+              <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+                <select x-model="gov.mcDecision"><option value="accept">Accept</option><option value="reject">Return for correction</option></select>
+                <input x-model="gov.mcRemarks" placeholder="remarks (mandatory)">
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveMc()">Record review</button>
+              </div>
+            </div>
+            <table class="data-table" x-show="govSnap">
+              <thead><tr><th>Ref</th><th>Seq</th><th>At</th><th>By</th><th>Domains bound</th><th>Content hash</th></tr></thead>
+              <tbody><template x-for="(s, k) in govSnap?.snapshots || {}" :key="k">
+                <tr>
+                  <td x-text="k"></td>
+                  <td x-text="s.seq ?? '—'"></td>
+                  <td class="los-small" x-text="s.at"></td>
+                  <td x-text="s.by"></td>
+                  <td class="los-small" x-text="Object.keys(s.domains || {}).length + ' domains'"></td>
+                  <td class="los-small" x-text="(s.content_hash || '').slice(0, 14)"></td>
+                </tr>
+              </template></tbody>
+            </table>
+            <p class="text-muted los-small" x-show="govSnap" x-text="govSnap.gate || 'No unreviewed material change — the next approval is clear.'"></p>
+          </div>
+        </div>
+
+<!-- Review & committee pack (Risk Review, EVP, Sanction Committee) -->
+        <div class="card los-pack" x-show="pack?.available && (pack?.at_committee_step || pack?.sanctions && Object.keys(pack.sanctions).length)">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Review &amp; committee pack</span>
+              <h3 x-text="(current?.step?.name || 'Committee') + ' — decision pack'"></h3>
+              <span class="text-muted" x-text="'Credit assessment of ' + fmtDateTime(pack?.run_at) + ' · sanctioning authority: ' + (pack?.headline?.approving_authority || '—')"></span>
+            </div>
+            <div class="los-action-row">
+              <button class="btn btn-outline" x-show="pack?.can_brief" :disabled="briefing" @click="generateBrief()"
+                      x-text="briefing ? 'Writing the brief…' : (pack?.brief?.executive_summary ? 'Regenerate committee brief (AI)' : 'Generate committee brief (AI)')"></button>
+              <a class="btn btn-outline" :href="pack?.links?.final_cam_pdf" target="_blank" rel="noopener">CAM PDF ↗</a>
+            </div>
+          </div>
+
+          <div class="los-rm-headline">
+            <div><span>Reassessed recommendation</span><strong><span class="badge" :class="decisionCls(pack?.headline?.decision)" x-text="pack?.headline?.decision_label || '—'"></span></strong></div>
+            <div><span>Requested → recommended</span><strong x-text="'₹' + fmtAmount(pack?.headline?.requested_cr) + ' → ' + (pack?.recommended_sanction_cr ? '₹' + fmtAmount(pack.recommended_sanction_cr) + ' Cr' : (pack?.recommended_sanction_label || '—'))"></strong></div>
+            <div><span>Risk grade</span><strong x-text="(pack?.headline?.risk_grade || '—') + ' · ' + (pack?.headline?.composite_score ?? '—')"></strong></div>
+            <div><span>Overall assessment</span><strong x-text="titleCase((pack?.headline?.overall_assessment || '').toLowerCase())"></strong></div>
+            <div><span>Deviation route</span><strong x-text="pack?.headline?.deviation_route_required ? 'Required' : 'Not required'"></strong></div>
+          </div>
+          <p class="los-rm-implication" x-text="pack?.headline?.decision_sentence"></p>
+
+          <div class="los-brief" x-show="pack?.brief?.executive_summary || pack?.brief?.final_recommendation">
+            <span class="los-kicker">Committee brief <span class="prov prov-ai" title="AI interpretation of the composed CAM; figures are checked against the CAM">AI</span></span>
+            <p x-show="pack?.brief?.executive_summary" x-text="pack?.brief?.executive_summary?.text"></p>
+            <p x-show="pack?.brief?.final_recommendation" x-text="pack?.brief?.final_recommendation?.text"></p>
+            <span class="text-muted los-note" x-text="'Model: ' + (pack?.brief?.executive_summary?.model || pack?.brief?.final_recommendation?.model || '—') + ' · the recommendation and figures are the engine’s, not the AI’s.'"></span>
+          </div>
+
+          <div class="los-pack-grid">
+            <div class="los-pack-block">
+              <h4>Analyst review <span class="text-muted" x-text="(pack?.review_status?.confirmed || 0) + ' confirmed · ' + (pack?.review_status?.overridden || 0) + ' overridden · ' + (pack?.review_status?.stale || 0) + ' stale · ' + (pack?.review_status?.pending || 0) + ' pending'"></span></h4>
+              <p class="text-muted" x-show="!(pack?.overrides || []).length">No fields were overridden by the Risk Maker.</p>
+              <table class="data-table" x-show="(pack?.overrides || []).length">
+                <thead><tr><th>Field</th><th>Engine value</th><th>Analyst value</th><th>Reason</th><th>By</th></tr></thead>
+                <tbody><template x-for="o in pack?.overrides || []" :key="o.field_id">
+                  <tr><td x-text="o.label"></td><td class="text-muted" x-text="o.original"></td><td><strong x-text="o.value"></strong></td>
+                    <td x-text="o.reason"></td><td x-text="o.by_name"></td></tr></template></tbody>
+              </table>
+            </div>
+            <div class="los-pack-block">
+              <h4 x-text="'Unresolved risks (' + (pack?.risks || []).length + ')'"></h4>
+              <ul class="los-rm-lines"><template x-for="(r, i) in (pack?.risks || []).slice(0, 6)" :key="i">
+                <li><span class="badge sm" :class="sevCls(r.severity)" x-text="r.severity"></span> <strong x-text="r.risk"></strong>
+                  <span class="text-muted" x-text="' — ' + r.status.toLowerCase()"></span></li></template></ul>
+            </div>
+            <div class="los-pack-block">
+              <h4 x-text="'Open due diligence and challenges (' + (pack?.open_items || []).length + ')'"></h4>
+              <ul class="los-rm-lines"><template x-for="(u, i) in (pack?.open_items || []).slice(0, 8)" :key="i">
+                <li><span class="badge sm badge-grey" x-text="u.priority || u.type"></span> <span x-text="u.title"></span></li></template></ul>
+              <p class="text-muted" x-show="!(pack?.open_items || []).length">Nothing open.</p>
+            </div>
+            <div class="los-pack-block">
+              <h4 x-text="'Deviations (' + (pack?.deviations || []).length + ')'"></h4>
+              <ul class="los-rm-lines"><template x-for="(d, i) in pack?.deviations || []" :key="i">
+                <li><strong x-text="d[0]"></strong> <span class="text-muted" x-text="'— ' + d[1]"></span></li></template></ul>
+              <p class="text-muted" x-show="!(pack?.deviations || []).length">No deviations.</p>
+            </div>
+            <div class="los-pack-block">
+              <h4 x-text="'Conditions (' + (pack?.conditions?.precedent || []).length + ' precedent · ' + (pack?.conditions?.subsequent || []).length + ' subsequent)'"></h4>
+              <ol class="los-rm-lines"><template x-for="(c, i) in pack?.conditions?.precedent || []" :key="'p' + i"><li x-text="c"></li></template></ol>
+            </div>
+            <div class="los-pack-block">
+              <h4>Decision trail</h4>
+              <ol class="los-rm-lines"><template x-for="s in (pack?.trail?.steps || []).filter(s => s.status !== 'unavailable')" :key="s.id">
+                <li><strong x-text="s.label + ': '"></strong><span x-text="s.text"></span></li></template></ol>
+              <p class="text-muted" x-text="pack?.trail?.outcome"></p>
+            </div>
+          </div>
+
+          <div class="los-pack-block" x-show="(pack?.comments || []).length">
+            <h4>Comments from earlier steps</h4>
+            <ul class="los-rm-lines"><template x-for="(c, i) in pack?.comments || []" :key="i">
+              <li><strong x-text="c.actor + ' (' + (c.role || '') + ')'"></strong> <span class="text-muted" x-text="actionPast(c.action) + ' at ' + (c.step || '') + ', ' + fmtDateTime(c.at) + ':'"></span>
+                <span x-text="c.comment"></span></li></template></ul>
+          </div>
+
+          <div class="los-pack-block" x-show="pack?.sanctions && Object.keys(pack.sanctions).length">
+            <h4>Sanctions</h4>
+            <template x-for="[stage, s] in Object.entries(pack?.sanctions || {})" :key="stage">
+              <p><strong x-text="stage + ': ₹' + fmtAmount(s.sanctioned_cr) + ' Cr sanctioned'"></strong>
+                <span class="text-muted" x-text="' by ' + s.by_name + ' on ' + fmtDateTime(s.at) + ' (recommended ' + (s.recommended_cr ? '₹' + fmtAmount(s.recommended_cr) + ' Cr' : '—') + ')'"></span>
+                <span class="badge sm badge-amber" x-show="s.deviates_from_recommendation">Differs from recommendation</span>
+                <br><span x-show="s.minutes" x-text="'Minutes: ' + s.minutes"></span></p>
+            </template>
+          </div>
+        </div>
+
+        <!-- Copilot: next best actions (runs tools for the step holder), drafts and Q&A on this application -->
+        <div class="card los-copilot" x-show="copilot">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Copilot · agentic assistant</span>
+              <h3>Next best actions</h3>
+              <span class="text-muted">Proposals from the application's state. The copilot can run the marked tasks for you;
+                it never submits, approves, returns or sanctions.</span>
+            </div>
+            <span class="badge sm" :class="copilot?.ai_available ? 'badge-green' : 'badge-grey'"
+                  x-text="copilot?.ai_available ? 'AI connected' : 'Rule-based (AI not configured)'"></span>
+          </div>
+          <ol class="los-cop-list">
+            <template x-for="a in copilot?.actions || []" :key="a.id">
+              <li :class="'los-cop-' + a.priority">
+                <div class="los-cop-text"><strong x-text="a.title"></strong><span class="text-muted" x-text="a.why"></span></div>
+                <div class="los-action-row">
+                  <button class="btn btn-sm btn-primary" x-show="a.tool && copilot?.is_holder" :disabled="!!copilotBusy"
+                          @click="copilotRun(a.tool)" x-text="copilotBusy === a.tool ? 'Working…' : 'Do it'"></button>
+                  <button class="btn btn-sm btn-outline" x-show="a.draft" :disabled="!!copilotBusy"
+                          @click="copilotDraft(a.draft)" x-text="a.draft === 'return_note' ? 'Draft return note' : 'Draft request'"></button>
+                </div>
+              </li>
+            </template>
+          </ol>
+          <template x-if="draft">
+          <div class="los-cop-draft">
+            <div class="los-rm-head"><strong x-text="draft?.kind === 'return_note' ? 'Draft return note' : 'Draft document request'"></strong>
+              <div class="los-action-row">
+                <button class="btn btn-sm btn-outline" x-show="draft?.kind === 'return_note' && current?.actions?.includes('return')" @click="comment = draft.text; notify('Draft copied into the comment box — edit, then Return', 'ok')">Use as comment</button>
+                <button class="btn btn-sm btn-outline" @click="copyDraft()">Copy</button>
+                <button class="btn btn-sm btn-outline" @click="draft = null">Close</button>
+              </div></div>
+            <textarea class="input" rows="7" x-model="draft.text" aria-label="Draft text"></textarea>
+            <p class="text-muted los-note" x-text="draft?.note"></p>
+          </div>
+          </template>
+          <div class="los-cop-ask">
+            <form class="los-cop-askrow" @submit.prevent="copilotAsk()">
+              <input class="input" x-model="question" maxlength="500" placeholder="Ask about this application — e.g. Why was the limit reduced? What conditions are open?" aria-label="Ask the copilot">
+              <button class="btn btn-primary" :disabled="asking || !question.trim()" x-text="asking ? 'Thinking…' : 'Ask'"></button>
+            </form>
+            <template x-for="(h, i) in copilot?.history || []" :key="i">
+              <div class="los-cop-qa">
+                <div class="los-cop-q"><span x-text="h.question"></span> <span class="text-muted los-small" x-text="h.by_name + ' · ' + fmtDateTime(h.at)"></span></div>
+                <div class="los-cop-a"><span class="prov" :class="h.mode === 'ai' ? 'prov-ai' : 'prov-source'" x-text="h.mode === 'ai' ? 'AI' : 'Record'"></span>
+                  <span class="los-pre" x-text="h.answer"></span></div>
+                <div class="text-muted los-small" x-show="h.note" x-text="h.note"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Prospect sourcing: borrower documents and the document prefill (pattern extraction + corroboration) -->
+        <div class="card los-src" x-show="src && (src.at_sourcing || src.prefill)">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Prospect sourcing · document prefill</span>
+              <h3>Documents &amp; AI prefill</h3>
+              <span class="text-muted" x-text="srcHeadline()"></span>
+            </div>
+            <div class="los-action-row">
+              <button class="btn btn-primary" x-show="src?.can_edit" :disabled="prefilling || !(src?.documents || []).length"
+                      @click="runPrefill()" x-text="prefilling ? 'Reading documents…' : (src?.prefill ? 'Re-run prefill' : 'Run document prefill')"></button>
+            </div>
+          </div>
+          <div class="los-src-docs">
+            <details>
+              <summary x-text="(src?.documents || []).length + ' document(s) on file for this borrower'"></summary>
+              <ul class="los-rm-lines"><template x-for="d in src?.documents || []" :key="d.document">
+                <li><span x-text="d.document"></span> <span class="text-muted" x-text="d.size_kb + ' KB'"></span>
+                  <span class="badge sm badge-blue" x-show="docFields(d.document)" x-text="docFields(d.document) + ' field(s) read'"></span></li>
+              </template></ul>
+            </details>
+            <div class="los-src-upload" x-show="src?.can_edit">
+              <select class="input" x-model="uploadCategory" aria-label="Document category">
+                <template x-for="c in src?.categories || []" :key="c"><option :value="c" x-text="titleCase(c)"></option></template>
+              </select>
+              <input class="input" type="file" accept="application/pdf" x-ref="srcFile" aria-label="PDF document">
+              <button class="btn btn-sm btn-outline" :disabled="busy" @click="uploadDoc()">Upload PDF</button>
+            </div>
+          </div>
+
+          <div x-show="src?.prefill">
+            <div class="los-src-summary">
+              <span class="badge sm badge-blue" x-text="src?.prefill?.summary?.found + ' / ' + src?.prefill?.summary?.total + ' fields found'"></span>
+              <span class="badge sm badge-green" x-text="src?.prefill?.summary?.high + ' high'"></span>
+              <span class="badge sm badge-amber" x-text="src?.prefill?.summary?.medium + ' to confirm'"></span>
+              <span class="badge sm badge-red" x-show="src?.prefill?.summary?.conflicts" x-text="src?.prefill?.summary?.conflicts + ' conflict(s)'"></span>
+              <span class="badge sm badge-grey" x-show="src?.prefill?.summary?.not_found" x-text="src?.prefill?.summary?.not_found + ' not found'"></span>
+              <span class="text-muted" x-text="src?.prefill?.engine + ' · AI fallback: ' + src?.prefill?.ai?.status"></span>
+            </div>
+            <div class="los-action-row" x-show="src?.can_edit">
+              <button class="btn btn-sm btn-primary" :disabled="busy" @click="acceptHigh()">Accept all high-confidence</button>
+              <button class="btn btn-sm btn-outline" :disabled="busy || !srcSelected().length" @click="acceptSelected()"
+                      x-text="'Accept selected (' + srcSelected().length + ')'"></button>
+            </div>
+            <template x-for="g in srcGroups()" :key="g">
+              <div class="table-scroll">
+                <h4 class="los-src-group" x-text="g"></h4>
+                <table class="data-table los-src-table">
+                  <thead><tr><th x-show="src?.can_edit"></th><th>Field</th><th>Extracted value</th><th>Confidence</th><th>Source</th><th>Check</th></tr></thead>
+                  <tbody><template x-for="f in srcFields(g)" :key="f.id">
+                    <tr :class="{'los-src-accepted': f.accepted}">
+                      <td x-show="src?.can_edit"><input type="checkbox" :disabled="!f.display" :checked="srcSel[f.id]"
+                             @change="srcSel = { ...srcSel, [f.id]: $event.target.checked }" :aria-label="'Select ' + f.label"></td>
+                      <td x-text="f.label"></td>
+                      <td>
+                        <div x-show="srcEdit !== f.id">
+                          <strong x-text="f.accepted ? f.accepted.display : (f.display || '—')"></strong>
+                          <span class="badge sm badge-green" x-show="f.accepted && !f.accepted.edited">Accepted</span>
+                          <span class="badge sm badge-amber" x-show="f.accepted?.edited" :title="'Proposed: ' + (f.accepted?.proposed || '—') + ' · ' + (f.accepted?.reason || '')">Edited</span>
+                          <button type="button" class="los-link" x-show="src?.can_edit" @click="startSrcEdit(f)">edit</button>
+                          <button type="button" class="los-link" x-show="src?.can_edit && f.accepted" @click="clearSrc(f)">clear</button>
+                        </div>
+                        <div class="los-rm-edit" x-show="srcEdit === f.id">
+                          <input class="input" x-model="srcEditValue" :aria-label="f.label">
+                          <input class="input" x-model="srcEditReason" placeholder="Reason (required)">
+                          <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveSrcEdit(f)">Save</button>
+                          <button class="btn btn-sm btn-outline" @click="srcEdit = ''">Cancel</button>
+                        </div>
+                      </td>
+                      <td><span class="los-conf" :class="'los-conf-' + f.band" x-text="f.band === 'none' ? '—' : Math.round(f.confidence * 100) + '%'"></span></td>
+                      <td class="los-src-source">
+                        <template x-if="f.sources.length">
+                          <span :title="f.sources[0].snippet"><span class="prov" :class="f.method === 'ai' ? 'prov-ai' : 'prov-source'" x-text="f.method === 'ai' ? 'AI' : 'S'"></span>
+                            <span x-text="f.sources[0].document + ' · p.' + f.sources[0].page"></span>
+                            <span class="text-muted" x-show="f.sources.length > 1" x-text="' +' + (f.sources.length - 1) + ' more'"></span></span>
+                        </template>
+                        <span class="text-muted" x-show="!f.sources.length">—</span>
+                      </td>
+                      <td>
+                        <span class="text-muted" x-text="f.note"></span>
+                        <template x-for="(a, i) in f.alternatives" :key="i">
+                          <div class="los-src-alt" x-text="'≠ ' + a.value + ' (' + a.document + (a.page ? ' p.' + a.page : '') + ')'"></div>
+                        </template>
+                      </td>
+                    </tr>
+                  </template></tbody>
+                </table>
+              </div>
+            </template>
+            <p class="text-muted los-note">Values are proposals: nothing changes until accepted. Hover a source for the text it was read from.
+              Accepted facility values (amount, tenor, purpose, type) update the application; every acceptance is in the audit trail.</p>
+          </div>
+        </div>
+
+        <!-- IP Note (In-Principle stage) -->
+        <div class="card los-note-card" x-show="ipn && (ipn.at_ip_note || ipn.generated)">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">In-principle stage · IP Note</span>
+              <h3 x-text="ipn?.note?.title"></h3>
+              <span class="text-muted" x-text="ipn?.generated ? 'Prepared by ' + (ipn.note.prepared_by || 'the RM') + ' · ' + fmtDateTime(ipn.note.generated_at) + (ipn.note.seeded ? ' (seeded demo history)' : '')
+                : 'Preview — generate the note to record it on the application.'"></span>
+            </div>
+            <div class="los-action-row">
+              <label class="los-check" x-show="ipn?.can_generate"><input type="checkbox" x-model="noteWithAi"> AI summary</label>
+              <button class="btn btn-primary" x-show="ipn?.can_generate" :disabled="noting" @click="generateNote()"
+                      x-text="noting ? 'Preparing…' : (ipn?.generated ? 'Regenerate IP Note' : 'Generate IP Note')"></button>
+              <button class="btn btn-outline" @click="openNote()">Printable view ↗</button>
+            </div>
+          </div>
+          <div class="los-panel" style="margin-top:8px">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end">
+              <label class="los-field">LPFG Analyst<input x-model="ipnAssign.lpfg_analyst" placeholder="e.g. R. Menon"></label>
+              <label class="los-field">LPFG Senior Analyst<input x-model="ipnAssign.lpfg_senior_analyst" placeholder="e.g. S. Kulkarni"></label>
+              <label class="los-field">CRAC recommendation
+                <select x-model="ipnAssign.crac_recommendation"><option value="">—</option>
+                  <template x-for="o in ipn?.crac_vocabulary || []" :key="o"><option :value="o" x-text="o"></option></template>
+                </select></label>
+              <label class="los-field" x-show="['Recommend for modification','Recommend decline','Defer'].includes(ipnAssign.crac_recommendation)">CRAC remark<input x-model="ipnAssign.crac_remarks" placeholder="Required for modification / decline / defer"></label>
+              <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveIpnAssign()">Save assignments</button>
+              <span class="text-muted los-small" x-text="(ipn?.assignments?.lpfg_analyst || ipn?.assignments?.crac_recommendation) ? 'Assigned: ' + (ipn.assignments.lpfg_analyst || '—') + ' / ' + (ipn.assignments.lpfg_senior_analyst || '—') + ' · CRAC: ' + (ipn.assignments.crac_recommendation || '—') : 'LPFG / CRAC assignments not recorded yet'"></span>
+            </div>
+            <p class="text-muted los-small" style="margin:6px 0 0">CRAC vocabulary is a labelled demo set — the client's exact committee labels are confirmation-required.</p>
+          </div>
+          <div class="los-brief" x-show="ipn?.note?.ai_summary">
+            <span class="prov prov-ai">AI</span> <span class="text-muted">Summary — figures checked against the note</span>
+            <p x-text="ipn?.note?.ai_summary?.text"></p>
+          </div>
+          <p class="text-muted" x-show="ipn?.generated && ipn?.note?.ai_status && ipn?.note?.ai_status !== 'ok'" x-text="'AI summary: ' + ipn?.note?.ai_status"></p>
+          <div class="status-inline" :class="(ipn?.note?.prescreen?.breaches || []).length ? 'status-inline-error' : 'status-inline-success'">
+            <strong x-text="'Pre-screen (' + (ipn?.note?.prescreen?.period || 'n/a') + '): ' + ipn?.note?.prescreen?.outcome"></strong>
+          </div>
+          <div class="los-pack-grid">
+            <template x-for="blk in [['Borrower', 'borrower'], ['Proposal', 'proposal'], ['Security', 'security']]" :key="blk[1]">
+              <div class="los-pack-block">
+                <h4 x-text="blk[0]"></h4>
+                <div class="los-kv"><template x-for="f in ipn?.note?.[blk[1]] || []" :key="f.label">
+                  <div class="los-kv-pair"><span x-text="f.label"></span>
+                    <strong><span x-text="f.value"></span> <span class="prov" :class="'prov-' + f.provenance" :title="f.source || provLabel(f.provenance)" x-text="provTag(f.provenance)"></span></strong></div>
+                </template></div>
+              </div>
+            </template>
+            <div class="los-pack-block">
+              <h4 x-text="'Policy pre-screen — ' + (ipn?.note?.prescreen?.period || 'n/a')"></h4>
+              <table class="data-table"><thead><tr><th>Ratio</th><th>Value</th><th>Policy</th><th>Result</th></tr></thead>
+                <tbody><template x-for="c in ipn?.note?.prescreen?.checks || []" :key="c.metric">
+                  <tr><td x-text="c.label"></td><td x-text="c.value"></td><td x-text="c.limit"></td>
+                    <td><span class="badge sm" :class="{pass: 'badge-green', breach: 'badge-red'}[c.result] || 'badge-grey'" x-text="c.result.replace('_', ' ')"></span></td></tr>
+                </template></tbody></table>
+              <p class="text-muted los-note" x-text="ipn?.note?.prescreen?.note"></p>
+            </div>
+            <div class="los-pack-block">
+              <h4>Financial snapshot (audited, ₹ Cr)</h4>
+              <table class="data-table"><thead><tr><template x-for="c in ipn?.note?.financials?.columns || []" :key="c"><th x-text="c"></th></template></tr></thead>
+                <tbody><template x-for="(r, i) in ipn?.note?.financials?.rows || []" :key="i">
+                  <tr><template x-for="(c, j) in r" :key="j"><td x-text="c"></td></template></tr></template></tbody></table>
+            </div>
+            <div class="los-pack-block">
+              <h4>Existing exposure with the bank</h4>
+              <table class="data-table" x-show="(ipn?.note?.existing_exposure?.rows || []).length"><thead><tr><template x-for="c in ipn?.note?.existing_exposure?.columns || []" :key="c"><th x-text="c"></th></template></tr></thead>
+                <tbody><template x-for="(r, i) in ipn?.note?.existing_exposure?.rows || []" :key="i">
+                  <tr><template x-for="(c, j) in r" :key="j"><td x-text="c"></td></template></tr></template></tbody></table>
+              <p class="text-muted" x-show="!(ipn?.note?.existing_exposure?.rows || []).length">No existing exposure on record.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Term sheet & sanction letter -->
+        <div class="card los-letters" x-show="(letters?.letters || []).some(l => l.available || l.versions.length)">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Documents</span>
+              <h3>Term sheet &amp; sanction letter</h3>
+              <span class="text-muted">Generated from the sanction record, conditions, covenants and approved deviations. Each issue is a new, immutable version.</span>
+            </div>
+          </div>
+          <div class="los-pack-grid">
+            <template x-for="l in letters?.letters || []" :key="l.kind">
+              <div class="los-pack-block">
+                <h4><span x-text="l.title"></span>
+                  <span class="badge sm" :class="l.versions.length ? 'badge-green' : (l.available ? 'badge-amber' : 'badge-grey')"
+                        x-text="l.versions.length ? 'Issued v' + l.versions[0].version : (l.available ? 'Not issued' : 'Not available')"></span></h4>
+                <p class="text-muted" x-show="!l.available" x-text="l.reason"></p>
+                <p class="text-muted" x-show="l.available && !l.can_generate && !l.versions.length" x-text="'Issued by the ' + l.issuer_role + ' role.'"></p>
+                <div x-show="l.versions.length">
+                  <div class="los-small" x-text="l.versions[0]?.reference + ' · ' + fmtDateTime(l.versions[0]?.issued_at) + ' · ' + l.versions[0]?.issued_by"></div>
+                  <div class="los-small text-muted" x-text="'Valid for acceptance until ' + l.versions[0]?.valid_until"></div>
+                </div>
+                <div class="los-action-row">
+                  <button class="btn btn-sm btn-primary" x-show="l.can_generate" :disabled="busy" @click="issueLetter(l.kind)"
+                          x-text="l.versions.length ? 'Re-issue' : 'Issue'"></button>
+                  <button class="btn btn-sm btn-outline" x-show="l.versions.length" @click="openLetter(l.kind)">Open ↗</button>
+                </div>
+                <details x-show="l.versions.length > 1"><summary class="los-small" x-text="(l.versions.length - 1) + ' earlier version(s)'"></summary>
+                  <ul class="los-rm-lines"><template x-for="v in l.versions.slice(1)" :key="v.version">
+                    <li><a href="#" @click.prevent="openLetter(l.kind, v.version)" x-text="v.reference"></a>
+                      <span class="text-muted" x-text="' · ' + fmtDateTime(v.issued_at) + ' · ' + v.issued_by"></span></li>
+                  </template></ul></details>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Post sanction & disbursement: conditions, deviations, IP → AP, tranche -->
+        <div class="card los-post" x-show="ps?.visible">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Post sanction &amp; disbursement</span>
+              <h3>Conditions, deviations and disbursement</h3>
+              <span class="text-muted" x-text="postHeadline()"></span>
+            </div>
+          </div>
+
+          <!-- Sanction consent & facility execution (Client One GAP-P0-13) -->
+          <div x-show="ps?.at_post_sanction" style="margin-bottom:14px;">
+            <template x-if="ps?.consent">
+              <div class="status-inline status-inline-success">
+                <strong>Sanction consent recorded.</strong>
+                <span x-text="'Acknowledged by ' + ps.consent.acknowledged_by + ' on ' + ps.consent.consent_date + ' (recorded by ' + ps.consent.by_name + ', ' + ps.consent.at + ')' + (ps.consent.remarks ? ' — ' + ps.consent.remarks : '')"></span>
+                <span class="text-muted"><template x-for="f in ps.consent.facilities || []" :key="f.facility_id">
+                  <span x-text="f.facility_id + ': ' + f.execution_status + (f.agreement_date ? ' (agreement ' + f.agreement_date + ')' : '')"></span></template></span>
+              </div>
+            </template>
+            <template x-if="!ps?.consent">
+              <div>
+                <p class="status-inline" :class="current?.step?.id === 'pos_maker' ? 'status-inline-error' : ''"
+                   x-text="current?.step?.id === 'pos_maker' ? 'The customer\'s sanction consent has not been recorded — the submission waits for it.' : 'The customer\'s sanction consent will be recorded by the Post-Sanction Maker.'"></p>
+                <div x-show="current?.step?.id === 'pos_maker' && current?.actions?.includes('submit')">
+                  <div class="los-action-row" style="flex-wrap:wrap;">
+                    <label class="los-field">Acknowledged by (customer)
+                      <input class="input" x-model="consent.acknowledged_by" placeholder="e.g. Director / Authorised signatory"></label>
+                    <label class="los-field">Consent date<input class="input" type="date" x-model="consent.consent_date"></label>
+                    <label class="los-field los-wide">Remarks<input class="input" x-model="consent.remarks" placeholder="Optional"></label>
+                  </div>
+                  <table class="data-table" style="max-width:760px;">
+                    <thead><tr><th>Facility</th><th>Execution status</th><th>Facility agreement date</th></tr></thead>
+                    <tbody><template x-for="f in consentFacilities" :key="f.facility_id">
+                      <tr><td x-text="f.facility_id"></td>
+                        <td><select class="input" style="width:auto;" x-model="f.execution_status">
+                          <option value="">— record one —</option><option value="executed">executed</option>
+                          <option value="partial">partial</option><option value="not_executed">not_executed</option></select></td>
+                        <td><input class="input" type="date" style="width:auto;" x-model="f.agreement_date" :disabled="f.execution_status !== 'executed'"></td></tr>
+                    </template></tbody>
+                  </table>
+                  <div class="los-action-row" style="margin-top:8px;">
+                    <button class="btn btn-primary" :disabled="busy" @click="saveConsent()">Record sanction consent</button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div class="tabs los-tabs">
+            <button :class="{'tab-active': psTab === 'conditions'}" @click="psTab = 'conditions'">Conditions
+              <span class="tab-count" x-text="(ps?.conditions || []).length"></span></button>
+            <button :class="{'tab-active': psTab === 'deviations'}" @click="psTab = 'deviations'">Deviation register
+              <span class="tab-count" x-text="(ps?.deviations || []).length"></span></button>
+            <button :class="{'tab-active': psTab === 'compare'}" @click="psTab = 'compare'">IP → AP
+              <span class="tab-count" x-show="ps?.comparison?.changes" x-text="ps?.comparison?.changes"></span></button>
+            <button :class="{'tab-active': psTab === 'disburse'}" @click="psTab = 'disburse'">Disbursement</button>
+          </div>
+
+          <!-- Conditions tracker -->
+          <div x-show="psTab === 'conditions'">
+            <p class="text-muted" x-show="!(ps?.conditions || []).length">Conditions are recorded when the final sanction is given (Committee Sanction, AP stage).</p>
+            <div class="los-src-summary" x-show="(ps?.conditions || []).length">
+              <span class="badge sm" :class="ps?.condition_summary?.cp_open ? 'badge-red' : 'badge-green'" x-text="ps?.condition_summary?.cp_open + ' of ' + ps?.condition_summary?.cp_total + ' CP open'"></span>
+              <span class="badge sm badge-blue" x-text="ps?.condition_summary?.cs_open + ' of ' + ps?.condition_summary?.cs_total + ' CS open'"></span>
+              <span class="badge sm badge-red" x-show="ps?.condition_summary?.cs_overdue" x-text="ps?.condition_summary?.cs_overdue + ' overdue'"></span>
+              <span class="badge sm badge-amber" x-show="ps?.condition_summary?.pending_approval" x-text="ps?.condition_summary?.pending_approval + ' awaiting checker approval'"></span>
+            </div>
+            <div class="table-scroll" x-show="(ps?.conditions || []).length">
+              <table class="data-table los-src-table">
+                <thead><tr><th>#</th><th>Condition</th><th>Due</th><th>Status</th><th>Evidence / note</th><th x-show="ps?.can_update_conditions"></th></tr></thead>
+                <tbody><template x-for="c in ps?.conditions || []" :key="c.id">
+                  <tr>
+                    <td><strong x-text="c.id"></strong></td>
+                    <td><span x-text="c.text"></span>
+                      <span class="prov" :class="'prov-' + c.provenance" :title="c.source" x-text="provTag(c.provenance)"></span></td>
+                    <td x-text="c.due || (c.type === 'CP' ? 'Before disbursement' : '—')"></td>
+                    <td><span class="badge sm" :class="condCls(c.state)" x-text="c.state"></span>
+                      <div class="text-muted los-small" x-show="c.approval" x-text="'Approved by ' + c.approval?.by_name"></div></td>
+                    <td>
+                      <div x-show="condEdit !== c.id">
+                        <span x-text="c.evidence || ''"></span> <span class="text-muted" x-text="c.note || ''"></span>
+                        <div class="text-muted los-small" x-show="c.updated_by" x-text="c.updated_by + ' · ' + fmtDateTime(c.updated_at)"></div>
+                      </div>
+                      <div class="los-cond-form" x-show="condEdit === c.id">
+                        <select class="input" x-model="condForm.status" aria-label="New status">
+                          <option value="satisfied">Satisfied</option><option value="deferred">Deferred</option>
+                          <option value="waived">Waived</option><option value="open">Reopen</option>
+                        </select>
+                        <select class="input" x-show="condForm.status === 'satisfied'" x-model="condForm.evidence" aria-label="Evidence document">
+                          <option value="">Evidence document (optional)</option>
+                          <template x-for="d in src?.documents || []" :key="d.document"><option :value="d.document" x-text="d.document"></option></template>
+                        </select>
+                        <input class="input" type="date" x-show="condForm.status === 'deferred'" x-model="condForm.due" aria-label="New due date">
+                        <input class="input" x-model="condForm.note" :placeholder="condForm.status === 'satisfied' ? 'Note (or choose evidence)' : 'Reason (required)'">
+                        <div class="los-action-row">
+                          <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveCondition(c)">Save</button>
+                          <button class="btn btn-sm btn-outline" @click="condEdit = ''">Cancel</button>
+                        </div>
+                      </div>
+                    </td>
+                    <td x-show="ps?.can_update_conditions"><button type="button" class="los-link" x-show="condEdit !== c.id" @click="startCondition(c)">update</button></td>
+                  </tr>
+                </template></tbody>
+              </table>
+            </div>
+            <!-- Recurring covenant monitoring (UAT-P2-11) -->
+            <div class="los-panel" x-show="(ps?.covenant_summary?.covenants || []).length" style="margin-top:10px">
+              <h4 style="margin-top:0">Covenant monitoring</h4>
+              <div class="los-src-summary">
+                <span class="badge sm" :class="ps?.covenant_summary?.breached.length ? 'badge-red' : 'badge-grey'" x-text="ps.covenant_summary.breached.length + ' breached'"></span>
+                <span class="badge sm" :class="ps?.covenant_summary?.reminders.length ? 'badge-amber' : 'badge-grey'" x-text="ps.covenant_summary.reminders.length + ' reminder due'"></span>
+                <span class="badge sm badge-green" x-text="ps.covenant_summary.cured.length + ' cured'"></span>
+              </div>
+              <table class="data-table los-small" style="margin-top:6px">
+                <thead><tr><th>Covenant</th><th>Frequency</th><th>Compliance</th><th>Next due</th><th>Last tested</th><th x-show="ps?.can_update_conditions">Monitor</th></tr></thead>
+                <tbody><template x-for="cv in ps?.covenant_summary?.covenants || []" :key="cv.id">
+                  <tr :class="cv.state === 'breached' ? 'los-dd-bad' : ''">
+                    <td><strong x-text="cv.id"></strong> <span x-text="cv.text"></span></td>
+                    <td x-text="cv.frequency"></td>
+                    <td>
+                      <span class="badge sm" :class="{compliant:'badge-green',untested:'badge-grey',breached:'badge-red',cured:'badge-blue',reminder_due:'badge-amber'}[cv.state] || 'badge-grey'" x-text="cv.state"></span>
+                      <div class="text-muted los-small" x-show="cv.cure" x-text="'Cured ' + cv.cure.at + ' by ' + cv.cure.by_name + (cv.cure.remarks ? ' — ' + cv.cure.remarks : '')"></div>
+                    </td>
+                    <td x-text="cv.next_due || '—'"></td>
+                    <td x-text="cv.last_tested || '—'" + (cv.tests ? ' (' + cv.tests + ' test(s))' : '')></td>
+                    <td x-show="ps?.can_update_conditions">
+                      <div class="los-action-row">
+                        <button class="btn btn-sm btn-outline" :disabled="busy" @click="covenantTest(cv.id, 'pass')">Test: pass</button>
+                        <button class="btn btn-sm btn-danger" :disabled="busy" @click="covenantTest(cv.id, 'fail')">Test: fail</button>
+                        <button class="btn btn-sm btn-outline" :disabled="busy" x-show="cv.state === 'breached'" @click="covenantCure(cv.id)">Cure</button>
+                      </div>
+                    </td>
+                  </tr>
+                </template></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Deviation register -->
+          <div x-show="psTab === 'deviations'">
+            <p class="text-muted" x-show="!(ps?.deviations || []).length">No deviations recorded.</p>
+            <div class="table-scroll" x-show="(ps?.deviations || []).length">
+              <table class="data-table los-src-table">
+                <thead><tr><th>#</th><th>Category</th><th>Deviation</th><th>Detail</th><th>Approving authority</th><th>Status</th></tr></thead>
+                <tbody><template x-for="d in ps?.deviations || []" :key="d.id">
+                  <tr><td x-text="d.id"></td><td><span class="badge sm badge-grey" x-text="d.category"></span></td>
+                    <td><strong x-text="d.description"></strong></td><td class="text-muted" x-text="d.detail"></td>
+                    <td x-text="d.authority || '—'"></td>
+                    <td><span class="badge sm" :class="/Pending|For approval/.test(d.status) ? 'badge-amber' : 'badge-green'" x-text="d.status"></span></td></tr>
+                </template></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- IP → AP comparison -->
+          <div x-show="psTab === 'compare'">
+            <p class="text-muted" x-show="!ps?.comparison?.available" x-text="ps?.comparison?.reason"></p>
+            <div x-show="ps?.comparison?.available">
+              <p class="status-inline" x-show="ps?.comparison?.note" x-text="ps?.comparison?.note"></p>
+              <p class="text-muted" x-show="!ps?.comparison?.final_sanctioned">The final (AP) sanction is not recorded yet — the AP column shows the current proposal.</p>
+              <div class="table-scroll">
+                <table class="data-table los-src-table">
+                  <thead><tr><th></th><th>Item</th><th>In-principle (IP)</th><th>Application processing (AP)</th></tr></thead>
+                  <tbody><template x-for="r in ps?.comparison?.rows || []" :key="r.label">
+                    <tr :class="{'los-changed': r.changed}"><td class="text-muted" x-text="r.group"></td><td x-text="r.label"></td>
+                      <td x-text="r.ip"></td><td><strong x-text="r.ap"></strong> <span class="badge sm badge-amber" x-show="r.changed">changed</span></td></tr>
+                  </template></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Disbursement -->
+          <div x-show="psTab === 'disburse'">
+            <p class="text-muted" x-show="!ps?.disbursement?.visible">Disbursement opens once post-sanction documentation is approved.</p>
+            <div x-show="ps?.disbursement?.visible">
+              <div class="los-rm-headline">
+                <div><span>Sanctioned</span><strong x-text="fmtCr(ps?.disbursement?.sanctioned_cr)"></strong></div>
+                <div><span>Approved for release</span><strong x-text="fmtCr(ps?.disbursement?.disbursed_cr)"></strong></div>
+                <div><span>Available</span><strong x-text="fmtCr(ps?.disbursement?.available_cr)"></strong></div>
+              </div>
+              <div class="los-pack-grid">
+                <div class="los-pack-block">
+                  <h4>Disbursement checklist</h4>
+                  <ul class="los-checklist"><template x-for="i in ps?.disbursement?.checklist || []" :key="i.id">
+                    <li>
+                      <label :class="{'los-auto': i.kind === 'auto'}">
+                        <input type="checkbox" :checked="i.done" :disabled="i.kind === 'auto' || !ps?.disbursement?.can_edit || busy"
+                               @change="toggleCheck(i, $event.target.checked)">
+                        <span x-text="i.label"></span>
+                      </label>
+                      <span class="text-muted los-small" x-text="i.kind === 'auto' ? 'System check' : (i.done ? i.by_name + ' · ' + fmtDateTime(i.at) : '')"></span>
+                    </li>
+                  </template></ul>
+                </div>
+                <div class="los-pack-block">
+                  <h4>Tranche</h4>
+                  <div class="los-tranche-form" x-show="ps?.disbursement?.can_edit">
+                    <label class="los-field">Amount (₹ Cr)<input class="input" type="number" min="0" step="0.01" x-model.number="trancheForm.amount_cr"></label>
+                    <label class="los-field">Value date<input class="input" type="date" x-model="trancheForm.value_date"></label>
+                    <label class="los-field los-wide">Purpose<input class="input" x-model="trancheForm.purpose" placeholder="e.g. first tranche — project capex"></label>
+                    <button class="btn btn-sm btn-primary" :disabled="busy" @click="saveTranche()"
+                            x-text="ps?.disbursement?.pending_tranche ? 'Replace pending tranche' : 'Record tranche'"></button>
+                  </div>
+                  <table class="data-table" x-show="(ps?.disbursement?.tranches || []).length">
+                    <thead><tr><th>#</th><th>Amount</th><th>Value date</th><th>Status</th></tr></thead>
+                    <tbody><template x-for="t in ps?.disbursement?.tranches || []" :key="t.no">
+                      <tr><td x-text="t.no"></td><td x-text="fmtCr(t.amount_cr)"></td><td x-text="t.value_date"></td>
+                        <td><span class="badge sm" :class="{approved: 'badge-green', verified: 'badge-blue', requested: 'badge-amber', rejected: 'badge-red', disbursed: 'badge-green'}[t.status]" x-text="t.status === 'approved' ? 'approved for release' : t.status"></span></td></tr>
+                    </template></tbody>
+                  </table>
+                  <p class="text-muted los-small" x-text="ps?.disbursement?.settlement_note"></p>
+                  <p class="text-muted" x-show="!(ps?.disbursement?.tranches || []).length">No tranche recorded yet.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credit assessment (Risk Maker workspace): the credit-intelligence engine, read-only tabs -->
+        <div class="card los-rm" x-show="rmVisible()">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Credit assessment · credit-intelligence engine</span>
+              <h3 x-text="rm?.view?.available ? 'Risk Maker workspace' : 'No credit assessment yet'"></h3>
+              <span class="text-muted" x-show="rm?.view?.available && rm?.job?.state !== 'running'"
+                    x-text="'Assessed ' + fmtDateTime(rm?.view?.run_at) + ' · CAM written by ' + (rm?.view?.narrative_mode === 'llm' ? 'LLM' : 'template')"></span>
+              <span class="text-muted" x-show="!rm?.view?.available && rm?.job?.state !== 'running'" x-text="rm?.view?.reason"></span>
+            </div>
+            <div class="los-action-row">
+              <button class="btn btn-primary" x-show="rm?.can_run" :disabled="rm?.job?.state === 'running'"
+                      @click="runAssessment()" x-text="rm?.view?.available ? 'Re-run credit assessment' : 'Run credit assessment'"></button>
+              <a class="btn btn-outline" x-show="rm?.view?.available" :href="'/#case/' + current?.entity_id + '/cam'" target="_blank" rel="noopener">Full CAM ↗</a>
+            </div>
+          </div>
+
+          <div class="los-rm-job" x-show="rm?.job?.state === 'running'">
+            <div class="los-progress"><div :style="'width:' + (rm?.job?.progress || 2) + '%'"></div></div>
+            <span x-text="rm?.job?.message"></span>
+          </div>
+          <div class="status-inline status-inline-error" x-show="rm?.job?.state === 'failed'"><span x-text="rm?.job?.message"></span></div>
+
+          <div x-show="rm?.view?.available && rm?.job?.state !== 'running'">
+            <div class="los-rm-headline">
+              <div><span>Recommendation</span><strong><span class="badge" :class="decisionCls(rm?.view?.headline?.decision)" x-text="rm?.view?.headline?.decision_label || '—'"></span></strong></div>
+              <div><span>Requested → recommended</span><strong x-text="'₹' + fmtAmount(rm?.view?.headline?.requested_cr) + ' → ₹' + fmtAmount(rm?.view?.headline?.recommended_cr) + ' Cr'"></strong></div>
+              <div><span>Risk grade</span><strong x-text="(rm?.view?.headline?.risk_grade || '—') + ' · ' + (rm?.view?.headline?.composite_score ?? '—')"></strong></div>
+              <div><span>Repayment capacity</span><strong x-text="titleCase((rm?.view?.headline?.repayment_capacity || '').toLowerCase())"></strong></div>
+              <div><span>Risks · due diligence · challenges</span><strong x-text="rm?.view?.headline?.observations + ' · ' + rm?.view?.headline?.investigations + ' · ' + rm?.view?.headline?.challenges"></strong></div>
+            </div>
+            <p class="los-rm-implication" x-show="rm?.view?.headline?.resilience_implication" x-text="rm?.view?.headline?.resilience_implication"></p>
+            <div class="los-rm-reviewbar">
+              <span class="los-kicker">Analyst review</span>
+              <span x-text="reviewSummaryText()"></span>
+              <span class="text-muted" x-show="!rm?.can_review">Read-only for your role.</span>
+            </div>
+
+            <div class="tabs los-rm-tabs">
+              <template x-for="t in rm?.view?.tabs || []" :key="t.id">
+                <button :class="{'tab-active': rmTab === t.id}" @click="rmTab = t.id; rmEdit = ''">
+                  <span x-text="t.title"></span>
+                  <span class="tab-count los-tab-count" x-show="t.review_counts?.fields"
+                        :class="{'los-tab-count-done': t.review_counts?.reviewed === t.review_counts?.fields}"
+                        x-text="t.review_counts?.reviewed + '/' + t.review_counts?.fields"></span>
+                </button>
+              </template>
+            </div>
+            <template x-for="t in (rm?.view?.tabs || []).filter(t => t.id === rmTab)" :key="t.id">
+              <div class="los-rm-body">
+                <div class="los-rm-tabbar" x-show="rm?.can_review && t.review_counts?.fields">
+                  <button class="btn btn-sm btn-outline" :disabled="busy || t.review_counts?.reviewed === t.review_counts?.fields"
+                          @click="confirmTab(t)">Confirm all in this tab</button>
+                </div>
+                <template x-for="(sec, si) in t.sections" :key="si">
+                  <div class="los-rm-section">
+                    <h4><span x-text="sec.title"></span>
+                      <span class="prov" x-show="sec.provenance" :class="'prov-' + sec.provenance" :title="provLabel(sec.provenance) + (sec.source ? ' — ' + sec.source : '')" x-text="provTag(sec.provenance)"></span></h4>
+                    <div class="los-rm-fields" x-show="sec.kind === 'fields'">
+                      <template x-for="(f, fi) in sec.fields || []" :key="fi">
+                        <div class="los-rm-field" :class="fieldCls(f)">
+                          <span x-text="f.label"></span>
+                          <strong><span x-text="fieldValue(f)"></span>
+                            <span class="prov" :class="'prov-' + (overridden(f) ? 'ai' : f.provenance)"
+                                  :title="fieldTagTitle(f)" x-text="overridden(f) ? 'Ovr' : provTag(f.provenance)"></span></strong>
+                          <em class="los-rm-review" x-show="f.review" x-text="reviewLine(f)"></em>
+                          <div class="los-rm-ctl" x-show="rm?.can_review && rmEdit !== f.id">
+                            <button type="button" title="Confirm" :disabled="busy" @click="reviewField(f, 'confirmed')">✓</button>
+                            <button type="button" title="Override" :disabled="busy" @click="startOverride(f)">✎</button>
+                            <button type="button" title="Clear review" x-show="f.review" :disabled="busy" @click="reviewField(f, 'clear')">↺</button>
+                          </div>
+                          <div class="los-rm-edit" x-show="rmEdit === f.id">
+                            <input class="input" x-model="rmEditValue" placeholder="Corrected value">
+                            <input class="input" x-model="rmEditReason" placeholder="Reason (required)">
+                            <div><button class="btn btn-sm btn-primary" :disabled="busy || !rmEditValue.trim() || !rmEditReason.trim()" @click="saveOverride(f)">Save override</button>
+                              <button class="btn btn-sm btn-ghost" @click="rmEdit = ''">Cancel</button></div>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                    <div class="table-scroll" x-show="sec.kind === 'table' && (sec.rows || []).length">
+                      <table class="data-table">
+                        <thead><tr><template x-for="col in sec.columns || []" :key="col"><th x-text="col"></th></template></tr></thead>
+                        <tbody><template x-for="(row, ri) in sec.rows || []" :key="ri"><tr><template x-for="(cell, ci) in row" :key="ci"><td x-text="cell ?? ''"></td></template></tr></template></tbody>
+                      </table>
+                    </div>
+                    <p class="text-muted" x-show="sec.kind === 'table' && !(sec.rows || []).length" x-text="sec.empty"></p>
+                    <ul class="los-rm-lines" x-show="sec.kind === 'text'">
+                      <template x-for="(line, li) in sec.lines || []" :key="li"><li x-text="line"></li></template>
+                    </ul>
+                    <p class="text-muted los-note" x-show="sec.note" x-text="sec.note"></p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <p class="text-muted los-note">Basis tags: hover a tag for its source. <span class="prov prov-synthetic_demo">Demo</span> values are synthetic
+              (bank models not connected); <span class="prov prov-unavailable">N/A</span> means not available from submitted information.</p>
+          </div>
+        </div>
+
+        <!-- Details / Activity -->
+        <div class="tabs los-tabs">
+          <button :class="{'tab-active': appTab === 'details'}" @click="appTab = 'details'">Application</button>
+          <button :class="{'tab-active': appTab === 'activity'}" @click="appTab = 'activity'">Activity &amp; audit <span class="tab-count" x-text="current?.events?.length || 0"></span></button>
+        </div>
+        <div class="card los-tab-card" x-show="appTab === 'details'">
+          <div class="los-kv">
+            <span>Borrower</span><strong x-text="current?.borrower_name"></strong>
+            <span>Entity ID</span><strong x-text="current?.entity_id"></strong>
+            <span>Sector</span><strong x-text="titleCase(current?.sector)"></strong>
+            <span>Constitution</span><strong x-text="titleCase(current?.constitution)"></strong>
+            <span>Total proposed exposure</span><strong x-text="'₹' + fmtAmount(current?.amount_cr) + ' Cr'"></strong>
+            <span>Facilities</span><strong x-text="(current?.facilities || []).length"></strong>
+            <span>Related parties</span><strong x-text="(current?.related_parties || []).length"></strong>
+            <span>Created</span><strong x-text="fmtDateTime(current?.created_at) + ' by ' + userName(current?.created_by)"></strong>
+          </div>
+          <template x-if="current?.customer_identity">
+            <div>
+              <h4 class="los-detail-heading">Customer identity &amp; deduplication</h4>
+              <div class="los-kv">
+                <span>NTB/ETB</span><strong x-text="titleCase(current.customer_identity.ntb_etb)"></strong>
+                <span>Customer ID / CIF</span><strong x-text="current.customer_identity.customer_id || 'Allocated at onboarding (new-to-bank)'"></strong>
+                <span>PAN</span><strong x-text="current.customer_identity.pan || '—'"></strong>
+                <span>Name as per PAN</span><strong x-text="current.customer_identity.name_as_per_pan || '—'"></strong>
+                <span>CIN</span><strong x-text="current.customer_identity.cin || '—'"></strong>
+                <span>GSTIN</span><strong x-text="current.customer_identity.gstin || '—'"></strong>
+                <span>Date of incorporation</span><strong x-text="current.customer_identity.date_of_incorporation || '—'"></strong>
+                <span>Constitution</span><strong x-text="titleCase(current.customer_identity.constitution) || '—'"></strong>
+                <span>CBS customer search</span><strong x-text="(current.customer_identity.cbs.status === 'found' ? 'Found' : 'Not found') + ' — ' + current.customer_identity.cbs.detail + ' (' + current.customer_identity.cbs.source + ')'"></strong>
+                <span>LOS duplicate check</span><strong x-text="current.customer_identity.los_duplicates.matches.length + ' potential existing application(s)'"></strong>
+              </div>
+              <p class="text-muted los-small" x-text="current.customer_identity.los_duplicates.advice + ' (checked ' + fmtDateTime(current.customer_identity.los_duplicates.checked_at) + ')'></p>
+              <div class="table-scroll" x-show="current.customer_identity.los_duplicates.matches.length">
+                <table class="data-table">
+                  <thead><tr><th>Application</th><th>Borrower</th><th>Stage</th><th>Step</th><th>Status</th><th>Amount</th><th>Matched on</th></tr></thead>
+                  <tbody><template x-for="m in current.customer_identity.los_duplicates.matches" :key="m.application_id">
+                    <tr><td x-text="m.application_id"></td><td x-text="m.borrower_name + ' (' + m.entity_id + ')'"></td>
+                      <td x-text="m.stage"></td><td x-text="m.step"></td>
+                      <td><span class="badge sm" :class="statusCls(m.status)" x-text="statusLabel(m.status)"></span></td>
+                      <td x-text="'₹' + fmtAmount(m.amount_cr) + ' Cr'"></td><td x-text="m.matched_on.join(', ')" class="text-muted"></td></tr>
+                  </template></tbody>
+                </table>
+              </div>
+            </div>
+          </template>
+          <template x-if="current?.sourcing_decision">
+            <div>
+              <h4 class="los-detail-heading">Sourcing decision</h4>
+              <div class="los-kv">
+                <span>Decision</span><strong x-text="current.sourcing_decision.decision || '—'"></strong>
+                <span>Mandatory fields</span><strong x-text="current.sourcing_decision.mandatory_remarks || '—'"></strong>
+                <span>Conditional items</span><strong x-text="current.sourcing_decision.conditional_remarks || '—'"></strong>
+              </div>
+            </div>
+          </template>
+          <template x-if="current?.due_diligence && Object.keys(current.due_diligence).length">
+            <div>
+              <h4 class="los-detail-heading">Due diligence (governed workspace)</h4>
+              <div class="los-kv">
+                <template x-for="c in (current.due_diligence.checks || []).filter(c => c.status !== 'clear')" :key="c.id">
+                  <span x-text="c.name"></span>
+                  <strong><span class="badge sm" :class="{ pending: 'badge-grey', matched: 'badge-red', failed: 'badge-red', unavailable: 'badge-amber' }[c.status] || 'badge-grey'" x-text="c.status"></span>
+                    <span class="text-muted" x-text="c.detail || ''"></span></strong>
+                </template>
+                <span x-show="!(current.due_diligence.checks || []).some(c => c.status !== 'clear')">All checks</span>
+                <strong class="text-muted" x-show="!(current.due_diligence.checks || []).some(c => c.status !== 'clear')">clear</strong>
+              </div>
+            </div>
+          </template>
+          <template x-if="current?.prospect_discussion && Object.values(current.prospect_discussion).some(Boolean)">
+            <div>
+              <h4 class="los-detail-heading">Prospect discussion</h4>
+              <div class="los-kv">
+                <span>Project type</span><strong x-text="current.prospect_discussion.project_type || '—'"></strong>
+                <span>Funding type</span><strong x-text="current.prospect_discussion.funding_type || '—'"></strong>
+                <span>Brief project description</span><strong x-text="current.prospect_discussion.brief_description || '—'"></strong>
+              </div>
+              <p class="text-muted" x-show="current.prospect_discussion.detailed_discussion" x-text="'Detailed discussion: ' + current.prospect_discussion.detailed_discussion"></p>
+              <p class="text-muted" x-show="current.prospect_discussion.initial_remarks" x-text="'Initial sourcing remarks: ' + current.prospect_discussion.initial_remarks"></p>
+            </div>
+          </template>
+          <h4 class="los-detail-heading">Proposed facilities</h4>          <div class="table-scroll"><table class="data-table">
+            <thead><tr><th>ID</th><th>Nature</th><th>Type</th><th>Amount</th><th>Tenor</th><th>Purpose</th></tr></thead>
+            <tbody><template x-for="f in current?.facilities || []" :key="f.facility_id">
+              <tr><td x-text="f.facility_id"></td><td x-text="titleCase(f.facility_nature)"></td><td x-text="titleCase(f.facility_type)"></td>
+                <td x-text="'₹' + fmtAmount(f.amount_cr) + ' Cr'"></td><td x-text="f.tenor_months !== null && f.tenor_months !== undefined ? f.tenor_months + ' months' : '—'"></td><td x-text="f.purpose || '—'"></td></tr>
+            </template></tbody>
+          </table></div>
+          <h4 class="los-detail-heading">Related parties</h4>
+          <p class="text-muted" x-show="!(current?.related_parties || []).length">No related parties recorded.</p>
+          <div class="table-scroll" x-show="(current?.related_parties || []).length"><table class="data-table">
+            <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Type</th><th>Ownership</th><th>PAN / CIN</th><th>Verification</th></tr></thead>
+            <tbody><template x-for="p in current?.related_parties || []" :key="p.party_id">
+              <tr><td x-text="p.party_id"></td><td x-text="p.name"></td><td x-text="titleCase(p.role)"></td><td x-text="titleCase(p.party_type)"></td>
+                <td x-text="p.ownership_pct !== null && p.ownership_pct !== undefined ? p.ownership_pct + '%' : '—'"></td><td x-text="p.pan || p.cin || '—'"></td><td><span class="badge sm badge-amber" x-text="titleCase(p.verification_status)"></span></td></tr>
+            </template></tbody>
+          </table></div>
+          <p class="text-muted los-note">The full credit analysis (risks, due diligence, challenges, repayment, resilience and the CAM) is in the credit workspace.</p>
+        </div>
+        <div class="card los-tab-card" x-show="appTab === 'activity'">
+          <ol class="los-timeline">
+            <template x-for="e in current?.events || []" :key="e.event_id">
+              <li :class="'los-ev-' + e.action">
+                <div class="los-ev-head"><strong x-text="actionPast(e.action)"></strong>
+                  <span x-text="e.actor_name + (e.actor_role_name ? ' · ' + e.actor_role_name : '')"></span>
+                  <span class="text-muted" x-text="fmtDateTime(e.at)"></span></div>
+                <div class="text-muted" x-show="e.from_step_name || e.to_step_name"
+                     x-text="(e.from_step_name || '') + (e.to_step_name && e.to_step_name !== e.from_step_name ? ' → ' + e.to_step_name : '')"></div>
+                <div class="los-ev-comment" x-show="e.comment" x-text="e.comment"></div>
+              </li>
+            </template>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

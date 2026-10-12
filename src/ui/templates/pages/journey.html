@@ -1,0 +1,446 @@
+<section x-show="page==='onboard'" x-cloak>
+  <div class="page-header page-header-stack">
+    <div>
+      <div class="page-kicker">Guided Case Creation</div>
+      <h1>CAM Journey</h1>
+      <p class="page-subtitle">Choose the borrower path, pull the verified public record set once, let the RM upload the latest reports, then move into the final CAM workspace with fresh financial overrides.</p>
+    </div>
+  </div>
+
+  <div class="journey-shell" x-show="onboardMode !== 'manual'">
+    <div class="journey-stepper">
+      <template x-for="step in journeySteps()" :key="step.key">
+        <div class="journey-step-pill" :class="'is-' + journeyStepState(step.key)">
+          <span class="journey-step-dot"></span>
+          <span x-text="step.label"></span>
+        </div>
+      </template>
+    </div>
+
+    <div class="card journey-stage-card" x-show="journeyStage==='select'">
+      <div class="surface-heading">
+        <div>
+          <div class="section-kicker">Step 1</div>
+          <h2>Select CAM Journey</h2>
+          <p class="section-subtitle">The app now follows the same storyline pattern as the reference flow. Pick the borrower journey first, then progress through verified retrieval, CAM drafting, and final review.</p>
+        </div>
+        <span class="badge lg" :class="probeStatus?.configured ? 'badge-green' : 'badge-amber'" x-text="probeStatus?.configured ? 'Integration Ready' : 'Setup Required'"></span>
+      </div>
+      <div class="journey-mode-grid">
+        <button class="journey-mode-card" :class="onboardCaseType==='NTB' && 'is-selected'" @click="selectJourney('NTB')">
+          <h3>New to Bank</h3>
+          <p>Start with one public-data pull, map the borrower, and capture whatever the RM still needs to upload.</p>
+        </button>
+        <button class="journey-mode-card" :class="onboardCaseType==='ETB' && 'is-selected'" @click="selectJourney('ETB')">
+          <h3>Existing to Bank</h3>
+          <p>Add ETB and CRILC context before the CAM draft is generated.</p>
+        </button>
+      </div>
+    </div>
+
+    <div class="card journey-stage-card" x-show="journeyStage==='entity'">
+      <div class="surface-heading">
+        <div>
+          <div class="section-kicker">Step 2</div>
+          <h2 x-text="onboardCaseType==='ETB' ? 'Existing to Bank - Entity Details' : 'New to Bank - Entity Details'"></h2>
+          <p class="section-subtitle">Resolve the borrower once, then reuse the same verified case bundle for documents, CAM drafting, and analyst chat.</p>
+        </div>
+        <span class="chip chip-soft">Retained public records</span>
+      </div>
+
+      <div class="journey-entity-grid">
+        <div class="form-group form-group-span">
+          <label class="required">Borrower</label>
+          <select class="input input-lg" x-model="onboardPick" @change="onJourneyBorrowerPicked()">
+            <option value="">Select a borrower</option>
+            <optgroup :label="(onboardCaseType === 'ETB' ? 'Existing to Bank' : 'New to Bank') + ' borrowers'">
+              <template x-for="c in journeyBorrowerOptions(true)" :key="c.entity_id">
+                <option :value="c.entity_id" x-text="journeyBorrowerLabel(c)"></option>
+              </template>
+            </optgroup>
+            <optgroup label="Other borrowers in the catalog" x-show="journeyBorrowerOptions(false).length">
+              <template x-for="c in journeyBorrowerOptions(false)" :key="c.entity_id">
+                <option :value="c.entity_id" x-text="journeyBorrowerLabel(c) + ' — ' + c.case_type"></option>
+              </template>
+            </optgroup>
+            <option value="__other__">Other — enter CIN / PAN / GSTIN / name</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" style="margin-top:0.35rem; padding-left:0" @click="onboardMode='manual'">Borrower not on record? Add it manually</button>
+          <p class="text-muted" style="margin:0.35rem 0 0; font-size:0.8rem" x-show="journeyPickedCompany()"
+             x-text="journeyIdentifierLine(journeyPickedCompany())"></p>
+          <p class="text-muted" style="margin:0.35rem 0 0; font-size:0.8rem"
+             x-show="onboardCaseType === 'ETB' && !journeyBorrowerOptions(true).length">No ETB borrowers in the test data; pick from the other borrowers or enter an identifier.</p>
+        </div>
+        <div class="form-group form-group-span" x-show="onboardPick === '__other__'">
+          <label class="required">Company / CIN / GSTIN / PAN</label>
+          <input class="input" x-model="onboardId" placeholder="e.g. L85110KA1981PLC013115 or AAACI3456C or Infosys Limited">
+        </div>
+        <div class="form-group">
+          <label class="required">Facility Type</label>
+          <select class="input" x-model="onboardFacility">
+            <template x-for="f in enumVals.facility_types||[]"><option :value="f" :selected="f === onboardFacility" x-text="titleCase(f)"></option></template>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="required">Amount Requested (Cr)</label>
+          <select class="input" x-model.number="onboardAmount">
+            <option value="">Select amount</option>
+            <template x-for="opt in journeyAmountOptions()" :key="opt.value">
+              <option :value="opt.value" :selected="opt.value === onboardAmount" x-text="opt.label"></option>
+            </template>
+          </select>
+        </div>
+        <div class="form-group form-group-span">
+          <label>Purpose</label>
+          <select class="input" x-model="onboardPurpose">
+            <option value="">Not specified</option>
+            <template x-for="p in journeyPurposeOptions()" :key="p">
+              <option :value="p" :selected="p === onboardPurpose" x-text="p"></option>
+            </template>
+          </select>
+        </div>
+      </div>
+
+      <div class="action-row" style="margin-top:1rem">
+        <button class="btn btn-outline" @click="previewResolve()" :disabled="loading || !onboardId.trim()">Preview Entity</button>
+        <button class="btn btn-primary" @click="launchJourneyPreparation()" :disabled="loading || !journeyFormComplete()">Proceed with CAM Preparation</button>
+      </div>
+      <p class="text-muted" style="margin:0.5rem 0 0; font-size:0.8rem" x-show="!journeyFormComplete()">Fill the fields marked <span style="color:var(--red)">*</span> to continue.</p>
+
+      <template x-if="onboardCaseType==='ETB'">
+        <div class="status-panel status-panel-blue" style="margin-top:1rem">
+          <div class="status-panel-head">
+            <div>
+              <div class="section-kicker">Relationship Check</div>
+              <h4>Verify existing exposure via CRILC</h4>
+            </div>
+            <button class="btn btn-primary" @click="etbLookup()" :disabled="loading || !onboardId.trim()">Fetch ETB Data</button>
+          </div>
+          <div x-show="etbLookupError" class="status-inline status-inline-error">
+            <span x-text="etbLookupError"></span>
+          </div>
+          <div x-show="etbLookupResult" class="status-inline status-inline-success">
+            <div class="info-cluster">
+              <div><span>Entity</span><strong x-text="etbLookupResult?.entity_name"></strong></div>
+              <div><span>Total Exposure</span><strong x-text="formatCurrencyCr(etbLookupResult?.aggregate_exposure_cr || 0)"></strong></div>
+              <div><span>Fund Based</span><strong x-text="formatCurrencyCr(etbLookupResult?.fund_based_cr || 0)"></strong></div>
+              <div><span>Non-Fund Based</span><strong x-text="formatCurrencyCr(etbLookupResult?.non_fund_based_cr || 0)"></strong></div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div class="journey-preview-grid" x-show="resolvePreview">
+        <div class="card card-blue">
+          <div class="section-kicker">Resolved Match</div>
+          <h3 x-text="displayCompanyName(resolvePreview?.company_name) || 'Resolved entity'"></h3>
+          <div class="info-cluster info-cluster-vertical">
+            <div><span>CIN</span><strong x-text="resolvePreview?.cin || '-'"></strong></div>
+            <div><span>PAN</span><strong x-text="resolvePreview?.pan || '-'"></strong></div>
+            <div><span>GSTIN</span><strong x-text="resolvePreview?.gstin || '-'"></strong></div>
+          </div>
+        </div>
+        <div class="card card-alt">
+          <div class="section-kicker">Entity Snapshot</div>
+          <h3>Verified identity preview</h3>
+          <div class="info-cluster info-cluster-vertical">
+            <div><span>Records</span><strong>Verified public records</strong></div>
+            <div><span>Industry</span><strong x-text="resolvePreview?.probe_summary?.industry || '-'"></strong></div>
+            <div><span>Status</span><strong x-text="resolvePreview?.probe_summary?.status || '-'"></strong></div>
+            <div><span>Directors</span><strong x-text="resolvePreview?.probe_summary?.directors_count ?? '-'"></strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card journey-stage-card journey-progress-stage" x-show="journeyStage==='aggregating'">
+      <div class="section-kicker">Step 3</div>
+      <h2>Aggregating Company Data</h2>
+      <p>Fetching verified information across public records, borrower identity, and case storage using one retained entity snapshot.</p>
+      <div class="journey-loading-list">
+        <div class="journey-loading-item"><span class="spinner-sm"></span><strong>Resolve borrower identity</strong></div>
+        <div class="journey-loading-item"><span class="spinner-sm"></span><strong>Fetch verified public records</strong></div>
+        <div class="journey-loading-item"><span class="spinner-sm"></span><strong>Capture missing-document gaps</strong></div>
+        <div class="journey-loading-item"><span class="spinner-sm"></span><strong>Prepare case shell for CAM</strong></div>
+      </div>
+    </div>
+
+    <div class="card journey-stage-card" x-show="journeyStage==='retrieved'">
+      <div class="surface-heading">
+        <div>
+          <div class="section-kicker">Step 3</div>
+          <h2>Company Data &amp; Documents Retrieved</h2>
+          <p class="section-subtitle">Verified public records have been validated and retained. RM can now upload the latest audited, provisional, and debt documents to override stale public-period financials before CAM generation.</p>
+        </div>
+        <div class="validated-pill-row">
+          <template x-for="badge in journeySourceBadges()" :key="badge">
+            <span class="badge badge-green" x-text="badge"></span>
+          </template>
+        </div>
+      </div>
+
+      <div class="journey-info-grid">
+        <template x-for="group in journeyRetrievedInfo()" :key="group.title">
+          <article class="journey-info-card">
+            <h4 x-text="group.title"></h4>
+            <ul>
+              <template x-for="item in group.items" :key="item">
+                <li x-text="item"></li>
+              </template>
+            </ul>
+          </article>
+        </template>
+      </div>
+
+      <!-- ─── Unified Document Checklist ─── -->
+      <div class="journey-docs-panel">
+        <div class="surface-heading">
+          <div>
+            <div class="section-kicker">Case Documents</div>
+            <h3>All documents for this borrower</h3>
+          </div>
+        </div>
+
+        <table class="doc-checklist-table">
+          <thead>
+            <tr>
+              <th style="width:5%">#</th>
+              <th style="width:30%">Document</th>
+              <th style="width:25%">Status</th>
+              <th style="width:25%">CAM Section</th>
+              <th style="width:15%"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(item, idx) in journeyAllDocuments()" :key="item.title + idx">
+              <tr>
+                <td x-text="idx + 1" style="color:var(--text-muted)"></td>
+                <td>
+                  <strong x-text="item.title"></strong>
+                  <!-- File chips for files in this row -->
+                  <template x-if="item.files && item.files.length">
+                    <div class="file-chips">
+                      <template x-for="(file, fi) in item.files" :key="file.filename">
+                        <span class="file-chip">
+                          <span class="file-chip-name" x-text="file.filename" :title="file.filename"></span>
+                          <button class="file-chip-remove" title="Remove file" @click="deleteJourneyFile(item.category, file.filename)">&times;</button>
+                        </span>
+                      </template>
+                    </div>
+                  </template>
+                </td>
+                <td>
+                  <span class="badge" :class="item.status === 'available' ? 'badge-green' : item.status === 'uploaded' ? 'badge-green' : item.status === 'missing' ? 'badge-amber' : 'badge-grey'" x-text="item.status === 'available' ? 'Available' : item.status === 'uploaded' ? 'Uploaded' : item.status === 'missing' ? 'Required' : 'Optional'"></span>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:4px" x-show="item.status !== 'available' && item.status !== 'uploaded'" x-text="item.statusLabel"></div>
+                </td>
+                <td><span style="font-size:12px;color:var(--text-sec)" x-text="item.camSection || '—'"></span></td>
+                <td>
+                  <template x-if="item.canUpload">
+                    <span>
+                      <input :id="'doc-upload-' + idx" type="file" multiple style="display:none" @change="uploadJourneyFile(item.category, $event, item.roleKey || item.key || '')">
+                      <button class="btn btn-sm btn-outline" @click="document.getElementById('doc-upload-' + idx).click()" x-text="item.files && item.files.length ? '+ Add' : 'Upload'"></button>
+                    </span>
+                  </template>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="action-row" style="margin-top:1.25rem">
+        <button class="btn btn-primary" @click="proceedToCamBuild()">Review CAM Inputs</button>
+      </div>
+    </div>
+
+    <div class="card journey-stage-card" x-show="journeyStage==='prebuilt'">
+      <div class="surface-heading">
+        <div>
+          <div class="section-kicker">Step 4</div>
+          <h2 x-text="journeyPendingRequiredCount() ? 'Almost ready to generate the CAM' : 'Ready to generate the CAM'"></h2>
+          <p class="section-subtitle" x-text="journeyPendingRequiredCount()
+            ? 'Some RM uploads are still pending. You can generate now with the data available, or go back and upload them first so the CAM reflects the latest period.'
+            : 'All mandatory inputs are in place. The CAM will be generated from the verified records and workspace files below.'"></p>
+        </div>
+      </div>
+
+      <div class="journey-ready-metrics">
+        <article class="journey-ready-metric">
+          <span>Verified record sets</span>
+          <strong x-text="journeyVerifiedSourceCount()"></strong>
+        </article>
+        <article class="journey-ready-metric">
+          <span>Public data coverage</span>
+          <strong x-text="journeyVerifiedCoverageLabel()"></strong>
+        </article>
+        <article class="journey-ready-metric">
+          <span>Workspace files</span>
+          <strong x-text="journeyWorkspaceDocumentCount()"></strong>
+        </article>
+        <article class="journey-ready-metric">
+          <span>Pending RM uploads</span>
+          <strong x-text="journeyPendingRequiredCount() || 0"></strong>
+        </article>
+      </div>
+
+      <div class="journey-ready-gap-list" x-show="journeyPendingRequiredCount()">
+        <template x-for="item in journeyMissingRequiredUploads()" :key="item.title">
+          <article class="journey-ready-gap-card">
+            <div>
+              <strong x-text="item.title"></strong>
+              <p x-text="item.hint"></p>
+            </div>
+            <span class="badge badge-red">RM upload</span>
+          </article>
+        </template>
+      </div>
+
+      <div class="action-row" style="margin-top:1.25rem">
+        <button class="btn btn-primary" @click="generateJourneyCam()">Generate CAM</button>
+        <button class="btn btn-outline" @click="journeyStage='retrieved'">Back to documents</button>
+      </div>
+    </div>
+
+    <div class="card journey-stage-card journey-progress-stage" x-show="journeyStage==='drafting'">
+      <div class="section-kicker">Step 5</div>
+      <h2>Generating Credit Appraisal Memorandum</h2>
+      <p>Building section-wise CAM draft with validated company data, retrieved filings, and policy output.</p>
+      <div class="journey-progress-bar">
+        <div class="journey-progress-fill" :style="'width:' + (agentPct || 12) + '%'"></div>
+      </div>
+      <p class="field-hint" x-text="agentProgress || 'Starting CAM generation'"></p>
+      <div class="journey-completion-grid">
+        <template x-if="camBuildSections.length === 0">
+          <p class="field-hint">Waiting for section progress&hellip;</p>
+        </template>
+        <template x-for="sec in camBuildSections" :key="sec.id">
+          <article class="completion-card" :class="{'completion-card-done': sec.status === 'done'}">
+            <span x-text="sec.title"></span>
+            <strong x-text="sec.status === 'done' ? 'Complete' : 'Writing…'"></strong>
+          </article>
+        </template>
+      </div>
+    </div>
+
+    <div class="card journey-stage-card" x-show="journeyStage==='ready'">
+      <div class="section-kicker">Step 6</div>
+      <h2>CAM Ready for Final Review</h2>
+      <p><strong>~90%</strong> of the CAM has been consolidated for decisioning. External data, internal inputs, and policy outputs are now structured into the final review flow.</p>
+      <div class="story-metrics-grid compact">
+        <template x-for="stat in journeyReviewStats()" :key="stat.label">
+          <article class="story-metric-card">
+            <strong x-text="stat.value"></strong>
+            <span x-text="stat.label"></span>
+          </article>
+        </template>
+      </div>
+      <div class="journey-review-grid">
+        <div class="card card-alt">
+          <h4>Review &amp; Inputs Required</h4>
+          <ul class="compact-list">
+            <li>Add site visit observations where relevant</li>
+            <li>Validate projections and repayment assumptions</li>
+            <li>Confirm collateral valuation and charge comfort</li>
+            <li>Review policy deviations and analyst comments</li>
+          </ul>
+        </div>
+        <div class="card card-blue">
+          <h4>Current CAM Snapshot</h4>
+          <template x-if="journeyCurrentCase()">
+            <div class="info-cluster info-cluster-vertical">
+              <div><span>Recommendation</span><strong x-text="fmtRec(journeyCurrentCase()?.recommendation || '')"></strong></div>
+              <div><span>Risk Grade</span><strong x-text="journeyCurrentCase()?.risk_grade || '-'"></strong></div>
+              <div><span>Composite Score</span><strong x-text="displayScore(journeyCurrentCase()?.composite_score)"></strong></div>
+              <div><span>Sections Parsed</span><strong x-text="camSections.length || '-'"></strong></div>
+            </div>
+          </template>
+          <template x-if="!journeyCurrentCase()">
+            <p class="field-hint">Final CAM metrics will populate after the latest pipeline run completes.</p>
+          </template>
+        </div>
+      </div>
+      <div class="action-row" style="margin-top:1rem">
+        <button class="btn btn-primary" @click="openJourneyWorkspace()">Open CAM</button>
+        <button class="btn btn-secondary" @click="openWorkspace(journeyEntityId(), 'chat')">Ask AI Analyst</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual entry: create a borrower that is not in the catalog (POST /api/companies) -->
+  <div x-show="onboardMode==='manual'">
+    <div class="surface-heading" style="margin-bottom:1rem">
+      <div>
+        <div class="section-kicker">New Borrower</div>
+        <h2>Add a Borrower Manually</h2>
+        <p class="section-subtitle">For a borrower that is not in the catalog. After it is added, run it from Pipeline.</p>
+      </div>
+      <button class="btn btn-outline" @click="onboardMode='smart'">&larr; Back to CAM Journey</button>
+    </div>
+    <div class="card">
+      <h3>Company Details</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="required">Entity ID</label>
+          <input class="input" x-model="newCo.entity_id" placeholder="e.g. ACME001">
+        </div>
+        <div class="form-group">
+          <label class="required">Company Name</label>
+          <input class="input" x-model="newCo.company_name" placeholder="e.g. Acme Corp Pvt Ltd">
+        </div>
+        <div class="form-group">
+          <label>CIN</label>
+          <input class="input" x-model="newCo.cin" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label>PAN</label>
+          <input class="input" x-model="newCo.pan" placeholder="Optional">
+        </div>
+        <div class="form-group">
+          <label class="required">Sector</label>
+          <select class="input" x-model="newCo.sector">
+            <option value="">Select</option>
+            <template x-for="s in enumVals.sectors||[]"><option :value="s" x-text="s"></option></template>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Borrower Type</label>
+          <select class="input" x-model="newCo.borrower_type">
+            <template x-for="b in enumVals.borrower_types||[]"><option :value="b" x-text="b"></option></template>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Facility Request</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="required">Case Type</label>
+          <select class="input" x-model="newCo.case_type">
+            <template x-for="c in enumVals.case_types||[]"><option :value="c" x-text="c"></option></template>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="required">Facility Type</label>
+          <select class="input" x-model="newCo.facility_type">
+            <template x-for="f in enumVals.facility_types||[]"><option :value="f" x-text="titleCase(f)"></option></template>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="required">Amount Requested (Cr)</label>
+          <input class="input" type="number" step="0.01" x-model.number="newCo.amount_requested_cr">
+        </div>
+        <div class="form-group">
+          <label>Purpose</label>
+          <input class="input" x-model="newCo.purpose" placeholder="General corporate purpose">
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:1rem; margin-top:1rem">
+      <button class="btn btn-primary" @click="submitCompany()" :disabled="loading">
+        <span x-show="!loading"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-plus"/></svg> Add Company</span>
+        <span x-show="loading">Submitting&hellip;</span>
+      </button>
+      <button class="btn btn-secondary" @click="resetCompanyForm()">Reset</button>
+    </div>
+  </div>
+</section>

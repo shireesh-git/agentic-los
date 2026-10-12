@@ -1,0 +1,175 @@
+<!-- New application (Prospect Sourcing maker). -->
+<section x-show="page === 'new'">
+  <div class="los-page-head"><div><h1>New Corporate Loan Application</h1>
+    <p class="text-muted">Create one application for a primary borrower, its related parties and one or more proposed facilities.</p></div></div>
+  <div class="card los-form">
+    <label class="los-field">Primary borrower *
+      <select class="input" x-model="newApp.entity_id" @change="onBorrowerChange()">
+        <option value="">Select a borrower…</option>
+        <template x-for="b in borrowers" :key="b.entity_id"><option :value="b.entity_id" x-text="b.name + ' (' + b.entity_id + ')'"></option></template>
+      </select>
+    </label>
+
+    <!-- Customer Identity & Deduplication (shown once a primary borrower is selected) -->
+    <div class="los-form-section" x-show="newApp.entity_id">
+      <div class="los-section-head">
+        <div><h3>Customer identity &amp; deduplication</h3>
+          <p class="text-muted">Read from the borrower master, the reference identifier table and the core-banking book (demo data).
+            Stored with the application when it is created.</p></div>
+        <span class="badge sm badge-blue" x-show="!identity">Loading identity…</span>
+      </div>
+      <template x-if="identity">
+        <div>
+          <div class="los-form-grid">
+            <label class="los-field">NTB/ETB classification<input class="input" readonly :value="titleCase(identity.ntb_etb)"></label>
+            <label class="los-field">Customer ID / CIF *
+              <select class="input" x-model="customerIdSel">
+                <option value="">Select…</option>
+                <template x-for="o in identity.customer_id_options" :key="o.value"><option :value="o.value" x-text="o.label"></option></template>
+              </select>
+              <span class="text-muted">Storing “new” on an existing customer is allowed but flagged for the workflow.</span>
+            </label>
+            <label class="los-field">PAN<input class="input" readonly :value="identity.pan || '—'"></label>
+            <label class="los-field">Name as per PAN<input class="input" readonly :value="identity.name_as_per_pan || '—'"></label>
+            <label class="los-field">CIN<input class="input" readonly :value="identity.cin || '—'"></label>
+            <label class="los-field">GSTIN<input class="input" readonly :value="identity.gstin || '—'"></label>
+            <label class="los-field">Date of incorporation<input class="input" readonly :value="identity.date_of_incorporation || '—'"></label>
+            <label class="los-field">Constitution<input class="input" readonly :value="titleCase(identity.constitution) || '—'"></label>
+          </div>
+          <div class="status-inline" :class="identity.cbs.status === 'found' ? 'status-inline-success' : 'status-inline-error'">
+            <strong x-text="'CBS customer search: ' + (identity.cbs.status === 'found' ? 'Found' : 'Not found') + ' — '"></strong>
+            <span x-text="identity.cbs.detail + ' (' + identity.cbs.source + ')'"></span>
+          </div>
+          <div class="status-inline" :class="identity.los_duplicates.matches.length ? 'status-inline-error' : 'status-inline-success'">
+            <strong x-text="'LOS duplicate check: ' + identity.los_duplicates.matches.length + ' potential existing application(s)'"></strong>
+            <span x-text="identity.los_duplicates.advice + ' (checked ' + fmtDateTime(identity.los_duplicates.checked_at) + ')'" x-show="identity.los_duplicates.matches.length"></span>
+          </div>
+          <div class="table-scroll" x-show="identity.los_duplicates.matches.length">
+            <table class="data-table">
+              <thead><tr><th>Application</th><th>Borrower</th><th>Stage</th><th>Step</th><th>Status</th><th>Amount</th><th>Matched on</th></tr></thead>
+              <tbody><template x-for="m in identity.los_duplicates.matches" :key="m.application_id">
+                <tr><td x-text="m.application_id"></td><td x-text="m.borrower_name + ' (' + m.entity_id + ')'"></td>
+                    <td x-text="m.stage"></td><td x-text="m.step"></td>
+                    <td><span class="badge sm" :class="statusCls(m.status)" x-text="statusLabel(m.status)"></span></td>
+                    <td x-text="'₹' + fmtAmount(m.amount_cr) + ' Cr'"></td><td x-text="m.matched_on.join(', ')" class="text-muted"></td></tr>
+              </template></tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Sourcing decision (part of Customer Identity & Deduplication) -->
+    <div class="los-form-section" x-show="newApp.entity_id">
+      <div class="los-section-head">
+        <div><h3>Sourcing decision</h3>
+          <p class="text-muted">Record the decision with the application, and — where applicable — remarks for every mandatory and conditional field.</p></div>
+      </div>
+      <div class="los-form-grid">
+        <label class="los-field">Decision <span class="badge sm badge-red">required</span>
+          <select class="input" x-model="newApp.decision.decision">
+            <option value="">Select (recorded with the application)…</option>
+            <option>Refer for in-principle</option><option>Request further information</option><option>Defer</option><option>Decline</option>
+          </select></label>
+      </div>
+      <label class="los-field">Mandatory fields — remarks <span class="badge sm badge-red">required</span><textarea class="input" rows="2" maxlength="1000" x-model="newApp.decision.mandatory_remarks" placeholder="Remarks for each mandatory field, where applicable"></textarea></label>
+      <label class="los-field">Conditional fields — remarks <span class="badge sm badge-red" x-show="newApp.decision?.decision === 'Defer'">required when deferring</span><textarea class="input" rows="2" maxlength="1000" x-model="newApp.decision.conditional_remarks" placeholder="Remarks for each conditional item (required when the decision is Defer)"></textarea></label>
+    </div>
+
+    <div class="los-form-section">
+      <div class="los-section-head">
+        <div><h3>Proposed facilities</h3><p class="text-muted">Each facility retains its own nature, amount, tenor and purpose.</p></div>
+        <button type="button" class="btn btn-sm btn-secondary" @click="addFacility()">+ Add Facility</button>
+      </div>
+      <template x-for="(f, index) in newApp.facilities" :key="index">
+        <div class="los-entry-card">
+          <div class="los-entry-head"><strong x-text="'Facility ' + (index + 1)"></strong>
+            <button type="button" class="btn btn-sm btn-ghost" x-show="newApp.facilities.length > 1" @click="removeFacility(index)">Remove</button></div>
+          <div class="los-form-grid">
+            <label class="los-field">Type of proposal
+              <select class="input" x-model="f.proposal_type">
+                <template x-for="o in ['Fresh', 'Enhancement', 'Renewal', 'Restructure', 'Review']" :key="o"><option :value="o" x-text="o"></option></template>
+              </select></label>
+            <label class="los-field">Facility nature *
+              <select class="input" x-model="f.facility_nature">
+                <option value="fund_based">Fund-based</option><option value="non_fund_based">Non-fund-based</option>
+              </select></label>
+            <label class="los-field">Facility type *
+              <select class="input" x-model="f.facility_type">
+                <template x-for="o in ['working_capital', 'cash_credit', 'overdraft', 'wcdl', 'term_loan', 'project_finance', 'letter_of_credit', 'bank_guarantee']" :key="o"><option :value="o" x-text="titleCase(o)"></option></template>
+              </select></label>
+            <label class="los-field">Proposed amount (₹ Cr) *<input class="input" type="number" min="0.01" step="0.01" x-model.number="f.amount_cr"></label>
+            <label class="los-field">Tenor (months)<input class="input" type="number" min="0" step="1" x-model.number="f.tenor_months"></label>
+            <label class="los-field los-check-field"><span>Ad hoc facility</span><input type="checkbox" x-model="f.ad_hoc"></label>
+          </div>
+          <label class="los-field">Purpose<textarea class="input" rows="2" maxlength="1000" x-model="f.purpose"></textarea></label>
+        </div>
+      </template>
+      <div class="los-form-total"><span>Total proposed exposure</span><strong x-text="'₹' + fmtAmount(totalNewAmount()) + ' Cr'"></strong></div>
+    </div>
+
+    <div class="los-form-section">
+      <div class="los-section-head">
+        <div><h3>Related parties</h3><p class="text-muted">Optional at creation. Add promoters, sponsors, guarantors, group entities and beneficial owners.</p></div>
+        <button type="button" class="btn btn-sm btn-secondary" @click="addRelatedParty()">+ Add Related Party</button>
+      </div>
+      <p class="los-empty-note" x-show="!newApp.related_parties.length">No related parties added.</p>
+      <template x-for="(p, index) in newApp.related_parties" :key="index">
+        <div class="los-entry-card">
+          <div class="los-entry-head"><strong x-text="'Related party ' + (index + 1)"></strong>
+            <button type="button" class="btn btn-sm btn-ghost" @click="removeRelatedParty(index)">Remove</button></div>
+          <div class="los-form-grid">
+            <label class="los-field">Name *<input class="input" maxlength="200" x-model.trim="p.name"></label>
+            <label class="los-field">Role *
+              <select class="input" x-model="p.role">
+                <option value="">Select role…</option>
+                <template x-for="o in ['promoter', 'sponsor', 'guarantor', 'spv', 'parent', 'subsidiary', 'associate', 'group_concern', 'joint_venture', 'collaborator', 'beneficial_owner', 'key_person']" :key="o"><option :value="o" x-text="titleCase(o)"></option></template>
+              </select></label>
+            <label class="los-field">Party type *
+              <select class="input" x-model="p.party_type"><option value="non_individual">Non-individual</option><option value="individual">Individual</option></select></label>
+            <label class="los-field">Ownership (%)<input class="input" type="number" min="0" max="100" step="0.01" x-model.number="p.ownership_pct"></label>
+            <label class="los-field">PAN<input class="input" maxlength="10" x-model.trim="p.pan" @input="p.pan = p.pan.toUpperCase()"></label>
+            <label class="los-field">CIN<input class="input" maxlength="21" x-model.trim="p.cin" @input="p.cin = p.cin.toUpperCase()"></label>
+            <label class="los-field">Party status
+              <select class="input" x-model="p.party_status"><option value="active">Active</option><option value="inactive">Inactive</option><option value="withdrawn">Withdrawn</option></select></label>
+            <label class="los-field">Relationship to the entity<input class="input" maxlength="300" x-model.trim="p.relationship" placeholder="e.g. 61% promoter; group parent"></label>
+            <label class="los-field">Sourced address (with source)<input class="input" maxlength="400" x-model.trim="p.sourced_address" placeholder="e.g. 12 MG Road, Bengaluru (KYC — Aadhaar)"></label>
+            <label class="los-field" x-show="p.party_type === 'individual'">Key-person role<input class="input" maxlength="120" x-model.trim="p.key_person_role" placeholder="e.g. MD &amp; CEO, CFO"></label>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div class="los-form-section">
+      <div class="los-section-head">
+        <div><h3>Prospect discussion</h3>
+          <p class="text-muted">What was discussed with the prospect: the project, the funding need and the RM's initial sourcing remarks. Stored with the application.</p></div>
+      </div>
+      <div class="los-form-grid">
+        <label class="los-field">Project type
+          <select class="input" x-model="newApp.prospect.project_type">
+            <option value="">Select…</option>
+            <template x-for="o in ['Corporate', 'Project finance', 'Infrastructure', 'SME', 'Working capital', 'Trade finance', 'Other']" :key="o"><option :value="o" x-text="o"></option></template>
+          </select></label>
+        <label class="los-field">Funding type
+          <select class="input" x-model="newApp.prospect.funding_type">
+            <option value="">Select…</option>
+            <template x-for="o in ['Term loan', 'Working capital', 'Composite', 'Project finance', 'Bridge / short term', 'Non-fund based']" :key="o"><option :value="o" x-text="o"></option></template>
+          </select></label>
+      </div>
+      <label class="los-field">Brief project description<textarea class="input" rows="2" maxlength="500" x-model="newApp.prospect.brief_description" placeholder="One or two lines on the project and the funding need"></textarea></label>
+      <label class="los-field">Detailed prospect discussion<textarea class="input" rows="4" maxlength="4000" x-model="newApp.prospect.detailed_discussion" placeholder="The discussion with the prospect: requirement, use of proceeds, sources, timeline, group structure, security offered…"></textarea></label>
+      <label class="los-field">Initial sourcing remarks<textarea class="input" rows="2" maxlength="2000" x-model="newApp.prospect.initial_remarks" placeholder="RM's initial remarks: relationship, rationale, open items"></textarea></label>
+    </div>
+
+    <div class="los-form-grid">
+      <label class="los-field">Priority
+        <select class="input" x-model="newApp.priority"><option>Normal</option><option>High</option><option>Low</option></select></label>
+    </div>
+    <p class="los-validation-note" x-show="!canCreateApp()">Select a borrower, complete every facility, complete or remove any unfinished related-party row, and record the sourcing decision with its mandatory remarks (conditional remarks are required when deferring).</p>
+    <div class="los-action-row">
+      <button class="btn btn-primary" :disabled="!canCreateApp() || busy" @click="createApp()">Create draft</button>
+      <button class="btn btn-ghost" @click="go('dashboard')">Cancel</button>
+    </div>
+  </div>
+</section>

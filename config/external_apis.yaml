@@ -1,0 +1,51 @@
+# ═══════════════════════════════════════════════════════════════════════
+# External API Configuration — CAM Intelligence Platform
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Controls how the app fetches external data (MCA, Bureau, GST, etc.)
+#
+# Two modes:
+#   local  - In-memory Python dict lookup (instant, no server needed)
+#   http   - HTTP calls to Postman Mock Server (editable in Postman)
+#
+# To switch modes, either:
+#   1. Change the values here and restart the app, OR
+#   2. Set environment variables: CAM_MOCK_MODE, CAM_MOCK_URL
+#
+# Environment variables take precedence over this file.
+# ═══════════════════════════════════════════════════════════════════════
+
+mock_server:
+  # Mode: "local" (default) or "http"
+  mode: "http"
+
+  # Postman Mock Server URL (only used when mode = "http")
+  # After creating a mock server in Postman, paste the URL here:
+  url: "https://80552247-7c4f-49ad-863c-c2b5f8ad8a2d.mock.pstmn.io"
+
+  # Timeout for mock server HTTP calls (seconds)
+  timeout_seconds: 10
+
+# ── Data Source API Paths (relative to mock_url) ──
+# These match the Postman collection structure.
+# Only change if you customise the collection folder paths.
+api_paths:
+  mca_company_master: "/v1/mca/company/{cin}"
+  mca_directors:      "/v1/mca/directors/{cin}"
+  mca_charges:        "/v1/mca/charges/{cin}"
+  bureau_commercial:  "/v1/bureau/commercial/{pan}"
+  gst_turnover:       "/v1/gst/turnover/{pan}"
+  credit_rating:      "/v1/rating/company/{entity_id}"
+  market_sentiment:   "/v1/market/sentiment/{entity_id}"
+  exchange_filings:   "/v1/exchange/filings/{isin}"
+  document_store:     "/v1/dms/documents/{entity_id}"
+
+probe42:
+  enabled: true
+  transport: "mcp"
+  mcp_url: "https://api-mcp.probe42.in/api/mcp"
+  api_key_env: "PROBE42_API_KEY"
+  api_version: "1.0"
+  bundle_profile: "full"
+  cache_enabled: true
+  cache_ttl_hours: 0

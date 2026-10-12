@@ -1,0 +1,16 @@
+{
+  "source": "gst",
+  "record_type": "turnover_summary",
+  "entity_key": "AAACI3456C",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "gstin": "29AAACI3456C1Z2",
+    "legal_name": "Infosys Limited",
+    "aggregate_turnover_fy2024_cr": 38520.0,
+    "aggregate_turnover_fy2023_cr": 34850.0,
+    "filing_status": "Regular \u2014 all returns filed on time",
+    "last_return_filed": "GSTR-3B Dec 2025"
+  }
+}

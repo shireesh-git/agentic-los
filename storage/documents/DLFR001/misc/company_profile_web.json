@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "DLFR001",
+  "scraped_at": "2026-03-23T21:43:05.648041",
+  "profile": {
+    "entity_id": "DLFR001",
+    "actual_company_name": "DLF Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "DLF (company)",
+      "description": "Indian commercial real estate developer",
+      "extract": "DLF Limited is an Indian commercial real estate development company. It was founded by Chaudhary Raghvendra Singh in 1946, and it is based in New Delhi, India. DLF has developed residential colonies in Delhi such as Model Town, Rajouri Garden, Krishna Nagar, South Extension, Greater Kailash, Kailash Colony, and Hauz Khas. DLF builds residential, office, and retail properties.",
+      "url": "https://en.wikipedia.org/wiki/DLF_(company)"
+    },
+    "official_website": {
+      "url": "https://www.dlf.in/",
+      "title": "DLF India | Leading Real Estate Developers",
+      "description": "With 75 years of real estate investments, development, and management experience, DLF has an unparalleled scale of delivery and an unmatched track record of customer-centric service excellence in India."
+    }
+  }
+}

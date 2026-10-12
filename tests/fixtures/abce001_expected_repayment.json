@@ -1,0 +1,30 @@
+{
+  "entity_id": "ABCE001",
+  "note": "Repayment assessment for the demo borrower with all observations NEW.",
+  "repayment_capacity": "STRESSED",
+  "capacity_by_period": {"FY2023": "STRONG", "FY2024": "STRONG", "FY2025": "STRONG", "FY2026": "STRESSED"},
+  "repayment_risk": "HIGH",
+  "primary": {"source": "Operating cash flow", "adequacy": "INADEQUATE"},
+  "secondary": {"source": "Security (collateral)", "adequacy": "PARTIAL", "fsv_cover": 1.18, "hard_security_cover": 0.45},
+  "latest_metrics": {
+    "ebitda_cr": 268.0, "operating_cash_flow_cr": 45.0, "ocf_to_ebitda_pct": 16.8, "finance_cost_cr": 88.0,
+    "ocf_to_interest": 0.51, "total_debt_cr": 1100.0, "debt_to_ebitda": 4.1, "interest_coverage_ratio": 2.34,
+    "dscr": 1.19, "ocf_to_debt": 4.1, "capex_cr": 410.0, "free_cash_flow_cr": -365.0
+  },
+  "concerns": [
+    "Operating cash flow declining despite EBITDA growth",
+    "Debt increasing faster than EBITDA",
+    "DSCR deterioration",
+    "Operating cash flow does not cover interest",
+    "Negative free cash flow",
+    "Secondary source overlaps the primary"
+  ],
+  "positive_factors": [
+    "Track record before the latest year",
+    "EBITDA still growing",
+    "Operating cash flow positive in every year",
+    "Interest coverage within policy",
+    "Moderate gearing on the balance sheet",
+    "Security available as a fallback"
+  ]
+}

@@ -1,0 +1,199 @@
+{
+  "source": "NSE India API (Live)",
+  "fetched_at": "2026-03-23T21:42:20.599583",
+  "entity_id": "APOL001",
+  "data": {
+    "info": {
+      "symbol": "APOLLOHOSP",
+      "companyName": "Apollo Hospitals Enterprise Limited",
+      "industry": "Hospital",
+      "activeSeries": [
+        "EQ"
+      ],
+      "debtSeries": [],
+      "isFNOSec": true,
+      "isCASec": false,
+      "isSLBSec": true,
+      "isDebtSec": false,
+      "isSuspended": false,
+      "tempSuspendedSeries": [],
+      "isETFSec": false,
+      "isDelisted": false,
+      "isin": "INE437A01024",
+      "slb_isin": "INE437A01024",
+      "listingDate": "1996-01-10",
+      "isMunicipalBond": false,
+      "isHybridSymbol": false,
+      "segment": "EQUITY",
+      "isTop10": false,
+      "identifier": "APOLLOHOSPEQN"
+    },
+    "metadata": {
+      "series": "EQ",
+      "symbol": "APOLLOHOSP",
+      "isin": "INE437A01024",
+      "status": "Listed",
+      "listingDate": "10-Jan-1996",
+      "industry": "Hospital",
+      "lastUpdateTime": "23-Mar-2026 16:00:00",
+      "pdSectorPe": 57.69,
+      "pdSymbolPe": 58.17,
+      "pdSectorInd": "NIFTY 50",
+      "pdSectorIndAll": [
+        "NIFTY 50",
+        "NIFTY500 MULTICAP INFRASTRUCTURE 50:30:20",
+        "NIFTY100 ESG",
+        "NIFTY100 ENHANCED ESG",
+        "NIFTY50 EQUAL WEIGHT",
+        "NIFTY 100",
+        "NIFTY 200",
+        "NIFTY 500",
+        "NIFTY GROWTH SECTORS 15",
+        "NIFTY HEALTHCARE INDEX",
+        "NIFTY INDIA CONSUMPTION",
+        "NIFTY INDIA FPI 150",
+        "NIFTY INFRASTRUCTURE",
+        "NIFTY LOW VOLATILITY 50",
+        "NIFTY SERVICES SECTOR",
+        "NIFTY TOTAL MARKET",
+        "NIFTY100 ESG SECTOR LEADERS",
+        "NIFTY100 EQUAL WEIGHT",
+        "NIFTY100 LOW VOLATILITY 30",
+        "NIFTY500 EQUAL WEIGHT",
+        "NIFTY500 HEALTHCARE",
+        "NIFTY500 LARGEMIDSMALL EQUAL-CAP WEIGHTED",
+        "NIFTY500 LOW VOLATILITY 50",
+        "NIFTY500 MULTICAP 50:25:25",
+        "NIFTY ALPHA LOW-VOLATILITY 30",
+        "NIFTY LARGEMIDCAP 250"
+      ]
+    },
+    "securityInfo": {
+      "boardStatus": "Main",
+      "tradingStatus": "Active",
+      "tradingSegment": "Normal Market",
+      "sessionNo": "-",
+      "slb": "Yes",
+      "classOfShare": "Equity",
+      "derivatives": "Yes",
+      "surveillance": {
+        "surv": null,
+        "desc": null
+      },
+      "faceValue": 5,
+      "issuedSize": 143784657
+    },
+    "sddDetails": {
+      "SDDAuditor": "-",
+      "SDDStatus": "-"
+    },
+    "currentMarketType": "NM",
+    "priceInfo": {
+      "lastPrice": 7124.5,
+      "change": -240,
+      "pChange": -3.2588770452848124,
+      "previousClose": 7364.5,
+      "open": 7288,
+      "close": 7145,
+      "vwap": 7136.11,
+      "stockIndClosePrice": 0,
+      "lowerCP": "6430.50",
+      "upperCP": "7859.50",
+      "pPriceBand": "No Band",
+      "basePrice": 7364.5,
+      "intraDayHighLow": {
+        "min": 7080,
+        "max": 7288,
+        "value": 7124.5
+      },
+      "weekHighLow": {
+        "min": 6363.75,
+        "minDate": "20-Mar-2025",
+        "max": 8099.5,
+        "maxDate": "23-Oct-2025",
+        "value": 7124.5
+      },
+      "iNavValue": null,
+      "checkINAV": false,
+      "tickSize": 0.5,
+      "ieq": ""
+    },
+    "industryInfo": {
+      "macro": "Healthcare",
+      "sector": "Healthcare",
+      "industry": "Healthcare Services",
+      "basicIndustry": "Hospital"
+    },
+    "preOpenMarket": {
+      "preopen": [
+        {
+          "price": 7264,
+          "buyQty": 2,
+          "sellQty": 0
+        },
+        {
+          "price": 7265,
+          "buyQty": 1,
+          "sellQty": 0
+        },
+        {
+          "price": 7272,
+          "buyQty": 1,
+          "sellQty": 0
+        },
+        {
+          "price": 7282,
+          "buyQty": 1,
+          "sellQty": 0
+        },
+        {
+          "price": 7288,
+          "buyQty": 8,
+          "sellQty": 0,
+          "iep": true
+        },
+        {
+          "price": 7300,
+          "buyQty": 0,
+          "sellQty": 202
+        },
+        {
+          "price": 7314,
+          "buyQty": 0,
+          "sellQty": 50
+        },
+        {
+          "price": 7328,
+          "buyQty": 0,
+          "sellQty": 3
+        },
+        {
+          "price": 7334.5,
+          "buyQty": 0,
+          "sellQty": 1
+        },
+        {
+          "price": 7340,
+          "buyQty": 0,
+          "sellQty": 25
+        }
+      ],
+      "ato": {
+        "buy": 0,
+        "sell": 0
+      },
+      "IEP": 7288,
+      "totalTradedVolume": 513,
+      "finalPrice": 7288,
+      "finalQuantity": 513,
+      "lastUpdateTime": "23-Mar-2026 09:07:24",
+      "totalBuyQuantity": 2063,
+      "totalSellQuantity": 3050,
+      "atoBuyQty": 0,
+      "atoSellQty": 0,
+      "Change": -76.5,
+      "perChange": -1.04,
+      "prevClose": 7364.5
+    }
+  }
+}

@@ -1,0 +1,13 @@
+month,installment_due_cr,paid_cr,paid_date,status,dpd
+Apr-2024,22.0,22.0,08-Apr-2024,OnTime,0
+May-2024,22.0,22.0,10-May-2024,OnTime,0
+Jun-2024,22.0,20.0,18-Jun-2024,PartialDelay,0
+Jul-2024,22.0,24.0,22-Jul-2024,Delay12,12
+Aug-2024,22.0,22.0,25-Aug-2024,Delay15,15
+Sep-2024,22.0,22.0,12-Sep-2024,OnTime,0
+Oct-2024,22.0,20.0,28-Oct-2024,Delay18,18
+Nov-2024,22.0,24.0,15-Dec-2024,Delay45,45
+Dec-2024,22.0,22.0,18-Jan-2025,Delay48,48
+Jan-2025,22.0,22.0,15-Jan-2025,OnTime,0
+Feb-2025,22.0,22.0,10-Feb-2025,OnTime,0
+Mar-2025,22.0,18.0,28-Mar-2025,Delay18,18

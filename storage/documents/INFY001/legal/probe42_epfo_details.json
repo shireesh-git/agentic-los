@@ -1,0 +1,551 @@
+{
+  "metadata": {
+    "old_identifier": null,
+    "api_version": "1.0",
+    "last_updated": "2026-03-02"
+  },
+  "data": [
+    {
+      "payment_timeliness": "Payment After Due Date in last 12 Months.",
+      "establishment_id": "PYBOM0010088000",
+      "establishment_name": "INFOSYS LIMITED",
+      "working_status": "LIVE ESTABLISHMENT",
+      "principal_business_activities": "ELECTRONIC MEDIA COMPANIES IN PRIVATE SECTOR",
+      "date_of_setup": "1981-07-02",
+      "address_as_per_epfo": "44AND 97A 3RD CROSS ELECTRONIC CITY HOSUR ROAD,BENGALURU,KARNATAKA,560100,India",
+      "city": "BENGALURU",
+      "exemption_status_edli": "EXEMPTED",
+      "exemption_status_pension": "UNEXEMPTED",
+      "exemption_status_pf": "EXEMPTED",
+      "filing_details": [
+        {
+          "wage_month": "AUG-25",
+          "payment_due_date": "2025-09-15",
+          "trrn": "2482509006762",
+          "date_of_credit": "2025-09-13",
+          "no_of_employees": 37000,
+          "amount": 48469680,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "AUG-25",
+          "payment_due_date": "2025-09-15",
+          "trrn": "2482509006761",
+          "date_of_credit": "2025-09-13",
+          "no_of_employees": 38000,
+          "amount": 40025993,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "AUG-25",
+          "payment_due_date": "2025-09-15",
+          "trrn": "2482509006760",
+          "date_of_credit": "2025-09-13",
+          "no_of_employees": 65000,
+          "amount": 53258233,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "AUG-25",
+          "payment_due_date": "2025-09-15",
+          "trrn": "2482509006759",
+          "date_of_credit": "2025-09-13",
+          "no_of_employees": 86361,
+          "amount": 55899946,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUL-25",
+          "payment_due_date": "2025-08-15",
+          "trrn": "2482508007104",
+          "date_of_credit": "2025-08-14",
+          "no_of_employees": 48999,
+          "amount": 51682625,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUL-25",
+          "payment_due_date": "2025-08-15",
+          "trrn": "2482508007103",
+          "date_of_credit": "2025-08-14",
+          "no_of_employees": 65001,
+          "amount": 49674380,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUL-25",
+          "payment_due_date": "2025-08-15",
+          "trrn": "2482508007102",
+          "date_of_credit": "2025-08-14",
+          "no_of_employees": 36000,
+          "amount": 47280056,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUL-25",
+          "payment_due_date": "2025-08-15",
+          "trrn": "2482508007099",
+          "date_of_credit": "2025-08-14",
+          "no_of_employees": 75333,
+          "amount": 47933213,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUN-25",
+          "payment_due_date": "2025-07-15",
+          "trrn": "2482507005437",
+          "date_of_credit": "2025-07-10",
+          "no_of_employees": 35000,
+          "amount": 46011613,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUN-25",
+          "payment_due_date": "2025-07-15",
+          "trrn": "2482507005436",
+          "date_of_credit": "2025-07-10",
+          "no_of_employees": 45000,
+          "amount": 47799904,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUN-25",
+          "payment_due_date": "2025-07-15",
+          "trrn": "2482507005435",
+          "date_of_credit": "2025-07-10",
+          "no_of_employees": 83792,
+          "amount": 53041681,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JUN-25",
+          "payment_due_date": "2025-07-15",
+          "trrn": "2482507005434",
+          "date_of_credit": "2025-07-10",
+          "no_of_employees": 60998,
+          "amount": 49061670,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAY-25",
+          "payment_due_date": "2025-06-15",
+          "trrn": "2482507008502",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 2,
+          "amount": 3080,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "MAY-25",
+          "payment_due_date": "2025-06-15",
+          "trrn": "2482506004132",
+          "date_of_credit": "2025-06-10",
+          "no_of_employees": 99814,
+          "amount": 55685320,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAY-25",
+          "payment_due_date": "2025-06-15",
+          "trrn": "2482506004131",
+          "date_of_credit": "2025-06-10",
+          "no_of_employees": 45107,
+          "amount": 46057107,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAY-25",
+          "payment_due_date": "2025-06-15",
+          "trrn": "2482506004130",
+          "date_of_credit": "2025-06-10",
+          "no_of_employees": 45000,
+          "amount": 48042150,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAY-25",
+          "payment_due_date": "2025-06-15",
+          "trrn": "2482506004129",
+          "date_of_credit": "2025-06-10",
+          "no_of_employees": 35000,
+          "amount": 46401785,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "APR-25",
+          "payment_due_date": "2025-05-15",
+          "trrn": "2482507008505",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 44,
+          "amount": 65948,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "APR-25",
+          "payment_due_date": "2025-05-15",
+          "trrn": "2482505006708",
+          "date_of_credit": "2025-05-14",
+          "no_of_employees": 95436,
+          "amount": 54075529,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "APR-25",
+          "payment_due_date": "2025-05-15",
+          "trrn": "2482505006707",
+          "date_of_credit": "2025-05-14",
+          "no_of_employees": 36000,
+          "amount": 47315644,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "APR-25",
+          "payment_due_date": "2025-05-15",
+          "trrn": "2482505006706",
+          "date_of_credit": "2025-05-14",
+          "no_of_employees": 55000,
+          "amount": 54187498,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "APR-25",
+          "payment_due_date": "2025-05-15",
+          "trrn": "2482505006705",
+          "date_of_credit": "2025-05-14",
+          "no_of_employees": 39000,
+          "amount": 42164121,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAR-25",
+          "payment_due_date": "2025-04-15",
+          "trrn": "2482507008507",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 62,
+          "amount": 81976,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "MAR-25",
+          "payment_due_date": "2025-04-15",
+          "trrn": "2482504003653",
+          "date_of_credit": "2025-04-09",
+          "no_of_employees": 80115,
+          "amount": 48484609,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAR-25",
+          "payment_due_date": "2025-04-15",
+          "trrn": "2482504003652",
+          "date_of_credit": "2025-04-09",
+          "no_of_employees": 62000,
+          "amount": 51903305,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAR-25",
+          "payment_due_date": "2025-04-15",
+          "trrn": "2482504003651",
+          "date_of_credit": "2025-04-09",
+          "no_of_employees": 47999,
+          "amount": 51065833,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "MAR-25",
+          "payment_due_date": "2025-04-15",
+          "trrn": "2482504003649",
+          "date_of_credit": "2025-04-09",
+          "no_of_employees": 35000,
+          "amount": 45978690,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "FEB-25",
+          "payment_due_date": "2025-03-15",
+          "trrn": "2482507008508",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 136,
+          "amount": 179479,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "FEB-25",
+          "payment_due_date": "2025-03-15",
+          "trrn": "2482503005856",
+          "date_of_credit": "2025-03-13",
+          "no_of_employees": 36000,
+          "amount": 47168927,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "FEB-25",
+          "payment_due_date": "2025-03-15",
+          "trrn": "2482503005855",
+          "date_of_credit": "2025-03-13",
+          "no_of_employees": 44000,
+          "amount": 46781158,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "FEB-25",
+          "payment_due_date": "2025-03-15",
+          "trrn": "2482503005854",
+          "date_of_credit": "2025-03-13",
+          "no_of_employees": 50000,
+          "amount": 52647853,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "FEB-25",
+          "payment_due_date": "2025-03-15",
+          "trrn": "2482503005853",
+          "date_of_credit": "2025-03-13",
+          "no_of_employees": 95638,
+          "amount": 52072368,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JAN-25",
+          "payment_due_date": "2025-02-15",
+          "trrn": "2482507008509",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 169,
+          "amount": 220132,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "JAN-25",
+          "payment_due_date": "2025-02-15",
+          "trrn": "2482502006207",
+          "date_of_credit": "2025-02-13",
+          "no_of_employees": 77057,
+          "amount": 45885772,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JAN-25",
+          "payment_due_date": "2025-02-15",
+          "trrn": "2482502006206",
+          "date_of_credit": "2025-02-13",
+          "no_of_employees": 59996,
+          "amount": 50414780,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JAN-25",
+          "payment_due_date": "2025-02-15",
+          "trrn": "2482502006199",
+          "date_of_credit": "2025-02-13",
+          "no_of_employees": 34904,
+          "amount": 45877543,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "JAN-25",
+          "payment_due_date": "2025-02-15",
+          "trrn": "2482502006198",
+          "date_of_credit": "2025-02-13",
+          "no_of_employees": 53855,
+          "amount": 57175771,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "DEC-24",
+          "payment_due_date": "2025-01-15",
+          "trrn": "2482507009290",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 192,
+          "amount": 247776,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "DEC-24",
+          "payment_due_date": "2025-01-15",
+          "trrn": "2482501004614",
+          "date_of_credit": "2025-01-13",
+          "no_of_employees": 85196,
+          "amount": 46192912,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "DEC-24",
+          "payment_due_date": "2025-01-15",
+          "trrn": "2482501004613",
+          "date_of_credit": "2025-01-13",
+          "no_of_employees": 63000,
+          "amount": 61175369,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "DEC-24",
+          "payment_due_date": "2025-01-15",
+          "trrn": "2482501004599",
+          "date_of_credit": "2025-01-13",
+          "no_of_employees": 35000,
+          "amount": 45984939,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "DEC-24",
+          "payment_due_date": "2025-01-15",
+          "trrn": "2482501004597",
+          "date_of_credit": "2025-01-13",
+          "no_of_employees": 42000,
+          "amount": 45362340,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "NOV-24",
+          "payment_due_date": "2024-12-15",
+          "trrn": "2482507008511",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 201,
+          "amount": 264222,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "NOV-24",
+          "payment_due_date": "2024-12-15",
+          "trrn": "2482412005489",
+          "date_of_credit": "2024-12-11",
+          "no_of_employees": 35000,
+          "amount": 46344051,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "NOV-24",
+          "payment_due_date": "2024-12-15",
+          "trrn": "2482412005488",
+          "date_of_credit": "2024-12-11",
+          "no_of_employees": 45000,
+          "amount": 48622514,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "NOV-24",
+          "payment_due_date": "2024-12-15",
+          "trrn": "2482412005487",
+          "date_of_credit": "2024-12-11",
+          "no_of_employees": 60000,
+          "amount": 59503062,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "NOV-24",
+          "payment_due_date": "2024-12-15",
+          "trrn": "2482412005486",
+          "date_of_credit": "2024-12-11",
+          "no_of_employees": 83077,
+          "amount": 43143874,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "OCT-24",
+          "payment_due_date": "2024-11-15",
+          "trrn": "2482507008512",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 219,
+          "amount": 284727,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "OCT-24",
+          "payment_due_date": "2024-11-15",
+          "trrn": "2482411006070",
+          "date_of_credit": "2024-11-14",
+          "no_of_employees": 45000,
+          "amount": 48638325,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "OCT-24",
+          "payment_due_date": "2024-11-15",
+          "trrn": "2482411006069",
+          "date_of_credit": "2024-11-14",
+          "no_of_employees": 35000,
+          "amount": 46046695,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "OCT-24",
+          "payment_due_date": "2024-11-15",
+          "trrn": "2482411006065",
+          "date_of_credit": "2024-11-14",
+          "no_of_employees": 60000,
+          "amount": 61319605,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "OCT-24",
+          "payment_due_date": "2024-11-15",
+          "trrn": "2482411006064",
+          "date_of_credit": "2024-11-14",
+          "no_of_employees": 81831,
+          "amount": 40562265,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "SEP-24",
+          "payment_due_date": "2024-10-15",
+          "trrn": "2482507008513",
+          "date_of_credit": "2025-07-16",
+          "no_of_employees": 246,
+          "amount": 320493,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "SEP-24",
+          "payment_due_date": "2024-10-15",
+          "trrn": "2482410004809",
+          "date_of_credit": "2024-10-11",
+          "no_of_employees": 100365,
+          "amount": 57358650,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "SEP-24",
+          "payment_due_date": "2024-10-15",
+          "trrn": "2482410004808",
+          "date_of_credit": "2024-10-17",
+          "no_of_employees": 50000,
+          "amount": 52304124,
+          "payment_timeliness": "Payment After Due Date"
+        },
+        {
+          "wage_month": "SEP-24",
+          "payment_due_date": "2024-10-15",
+          "trrn": "2482410004807",
+          "date_of_credit": "2024-10-10",
+          "no_of_employees": 35000,
+          "amount": 38962149,
+          "payment_timeliness": "Paid on Time"
+        },
+        {
+          "wage_month": "SEP-24",
+          "payment_due_date": "2024-10-15",
+          "trrn": "2482410004806",
+          "date_of_credit": "2024-10-11",
+          "no_of_employees": 35000,
+          "amount": 46814735,
+          "payment_timeliness": "Paid on Time"
+        }
+      ]
+    },
+    {
+      "payment_timeliness": null,
+      "establishment_id": "PBCHD0029394000",
+      "establishment_name": "INFOSYS TECHNOLOGIES PRIVATE LIMITED",
+      "working_status": "CLOSED/ALL MEMBER EXCLUDED",
+      "principal_business_activities": "EXPERT SERVICES",
+      "date_of_setup": null,
+      "address_as_per_epfo": "B-100, INDL.AREA B-100, INDL.AREA,MOHALI,PUNJAB,160055,India",
+      "city": "MOHALI",
+      "exemption_status_edli": "UNEXEMPTED",
+      "exemption_status_pension": "UNEXEMPTED",
+      "exemption_status_pf": "UNEXEMPTED",
+      "filing_details": []
+    }
+  ]
+}

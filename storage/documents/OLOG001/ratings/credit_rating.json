@@ -1,0 +1,42 @@
+{
+  "source": "rating",
+  "record_type": "latest_action",
+  "entity_key": "OLOG001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "rating_agency": "ICRA",
+    "long_term_rating": "ICRA BBB (Stable)",
+    "short_term_rating": "ICRA A3+",
+    "outlook": "Stable",
+    "last_action": "Reaffirmed with concern",
+    "action_date": "2025-08-15",
+    "history": [
+      {
+        "date": "2025-08-15",
+        "action": "Reaffirmed",
+        "rating": "BBB",
+        "outlook": "Stable"
+      },
+      {
+        "date": "2024-08-12",
+        "action": "Reaffirmed",
+        "rating": "BBB",
+        "outlook": "Stable"
+      }
+    ],
+    "rationale_summary": "The rating reflects Omega Logistics' growing market share in 3PL logistics, improving revenue trajectory (+12% CAGR), and strategic warehouse investments. Rating constrained by rising cheque returns (15/quarter), elevated utilization (96%+), covenant breaches on DSCR and cheque returns, and thin profit margins.",
+    "key_rating_drivers": [
+      "Growing 3PL logistics player with expanding warehouse network",
+      "Revenue CAGR of 12% over 3 years",
+      "Thin margins: EBITDA 12%, Net Profit 3.3%",
+      "Conduct concerns: Rising cheque returns, DPD up to 32 days",
+      "Covenant breaches: DSCR 1.08x vs required 1.20x"
+    ],
+    "rating_sensitivity": {
+      "upgrade": "Sustained margin improvement >15% EBITDA, clean conduct 4 quarters",
+      "downgrade": "DPD >60 days, DSCR <1.0x, or further covenant breaches"
+    }
+  }
+}

@@ -1,0 +1,170 @@
+<section x-show="page==='summary'" x-cloak>
+  <div class="page-header summary-header">
+    <div>
+      <h1>Summary</h1>
+      <p class="page-subtitle">Credit proposals at a glance<span x-show="summaryLoadedAt"> · updated <span x-text="fmtTime(summaryLoadedAt)"></span></span></p>
+    </div>
+    <div class="header-actions no-print">
+      <button class="btn btn-ghost btn-sm" @click="loadSummary()"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-refresh"/></svg> Refresh</button>
+      <button class="btn btn-outline btn-sm" @click="printSummary()" title="Print, or choose Save as PDF, for the board pack"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-print"/></svg> Print / PDF</button>
+    </div>
+  </div>
+
+  <!-- Headline numbers: each tile filters the proposals table -->
+  <!-- Placeholder while the first load is in flight -->
+  <div class="kpi-grid" x-show="!summaryLoadedAt" aria-hidden="true">
+    <template x-for="i in 5" :key="i"><div class="kpi-tile skeleton"></div></template>
+  </div>
+  <div class="kpi-grid" x-show="summaryLoadedAt">
+    <template x-for="kpi in summaryKpis()" :key="kpi.label">
+      <button type="button" class="kpi-tile" :class="[kpi.tone ? 'kpi-' + kpi.tone : '', isSummaryFilter(kpi) ? 'is-active' : '']"
+              :disabled="!kpi.type" @click="setSummaryFilter(kpi)">
+        <span class="kpi-label" x-text="kpi.label"></span>
+        <strong class="kpi-value" x-text="kpi.figure"></strong>
+        <span class="kpi-sub" x-text="kpi.sub"></span>
+      </button>
+    </template>
+  </div>
+
+  <div class="card summary-empty" x-show="summaryLoadedAt && !summaryRows().length">
+    <p>No credit proposals yet. Create the first CAM to see the portfolio here.</p>
+    <button class="btn btn-gold" @click="startCamJourney()">&#43; Create New CAM</button>
+  </div>
+
+  <!-- Breakdowns (bar length = amount requested; click to filter) -->
+  <div class="summary-panels" x-show="summaryRows().length">
+    <template x-for="panel in [
+        { title: 'By risk grade', bars: gradeBars() },
+        { title: 'By decision status', bars: statusBars() },
+        { title: 'By sector', bars: sectorBars() },
+      ]" :key="panel.title">
+      <article class="card summary-panel">
+        <h3 x-text="panel.title"></h3>
+        <div class="bar-list">
+          <template x-for="bar in panel.bars" :key="bar.key">
+            <button type="button" class="bar-row" :class="{ 'is-active': isSummaryFilter(bar.filter), 'is-empty': !bar.count }"
+                    :disabled="!bar.count" @click="setSummaryFilter(bar.filter)">
+              <span class="bar-label" x-text="bar.label"></span>
+              <span class="bar-track"><span class="bar-fill" :class="'bar-' + bar.tone" :style="'width:' + bar.pct + '%'"></span></span>
+              <span class="bar-value">
+                <strong x-text="formatCurrencyCr(bar.amount)"></strong>
+                <span x-text="bar.count + (bar.count === 1 ? ' case' : ' cases')"></span>
+              </span>
+            </button>
+          </template>
+        </div>
+      </article>
+    </template>
+  </div>
+
+  <!-- Proposals, most urgent first -->
+  <article class="card" x-show="summaryRows().length">
+    <div class="summary-table-head">
+      <h3>Proposals</h3>
+      <span class="table-tools no-print">
+        <button class="link-btn" x-show="tableSort.summary" @click="clearSort('summary')">Back to most urgent first</button>
+        <button class="btn btn-ghost btn-sm" @click="exportSummaryCsv()"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-download"/></svg> Export to Excel</button>
+      </span>
+      <div class="filter-chips">
+        <template x-for="chip in summaryChips()" :key="chip.type">
+          <button type="button" class="filter-chip" :class="{ 'is-active': isSummaryFilter(chip) }" @click="setSummaryFilter(chip)">
+            <span x-text="chip.label"></span> <span class="filter-chip-count" x-text="chip.count"></span>
+          </button>
+        </template>
+        <button type="button" class="filter-chip is-active" x-show="summaryExtraFilter()" @click="setSummaryFilter({ type: 'all' })"
+                title="Clear filter">
+          <span x-text="summaryExtraFilter()"></span> &times;
+        </button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table class="data-table summary-table">
+        <thead><tr>
+          <th :aria-sort="ariaSort('summary','borrower')"><button type="button" class="th-sort" @click="toggleSort('summary','borrower')">Borrower <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','borrower')"/></svg></button></th><th :aria-sort="ariaSort('summary','facility')"><button type="button" class="th-sort" @click="toggleSort('summary','facility')">Facility <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','facility')"/></svg></button></th><th class="num" :aria-sort="ariaSort('summary','amount')"><button type="button" class="th-sort" @click="toggleSort('summary','amount')">Amount <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','amount')"/></svg></button></th><th :aria-sort="ariaSort('summary','grade')"><button type="button" class="th-sort" @click="toggleSort('summary','grade')">Grade <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','grade')"/></svg></button></th><th class="num" :aria-sort="ariaSort('summary','score')"><button type="button" class="th-sort" @click="toggleSort('summary','score')">Score <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','score')"/></svg></button></th>
+          <th :aria-sort="ariaSort('summary','view')"><button type="button" class="th-sort" @click="toggleSort('summary','view')">System view <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','view')"/></svg></button></th><th :aria-sort="ariaSort('summary','status')"><button type="button" class="th-sort" @click="toggleSort('summary','status')">Status <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','status')"/></svg></button></th><th :aria-sort="ariaSort('summary','authority')"><button type="button" class="th-sort" @click="toggleSort('summary','authority')">Sanctioning authority <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','authority')"/></svg></button></th><th :aria-sort="ariaSort('summary','updated')"><button type="button" class="th-sort" @click="toggleSort('summary','updated')">Updated <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('summary','updated')"/></svg></button></th>
+        </tr></thead>
+        <tbody>
+          <template x-for="row in summaryTableRows()" :key="row.entity_id">
+            <tr class="row-link" tabindex="0" @click="openSummaryRow(row)" @keydown.enter="openSummaryRow(row)">
+              <td>
+                <strong x-text="displayCompanyName(row.company_name)"></strong>
+                <span class="row-sub" x-text="titleCase(row.sector) + (row.case_type ? ' · ' + caseTypeLabel(row.case_type) : '')"></span>
+              </td>
+              <td x-text="row.facility_type ? titleCase(row.facility_type) : '--'"></td>
+              <td class="num" x-text="formatCurrencyCr(row.requested_amount_cr)"></td>
+              <td><span class="badge" :class="gradeCls(row.risk_grade)" x-text="row.risk_grade || '--'"></span></td>
+              <td class="num" x-text="displayScore(row.composite_score)"></td>
+              <td><span class="badge" :class="recCls(row.recommendation)" x-text="fmtRec(row.recommendation) || '--'"></span></td>
+              <td>
+                <span class="badge" x-show="row.workflow_status" :class="workflowStatusClass(row.workflow_status)" x-text="workflowLabel(row.workflow_status)"></span>
+                <span class="badge badge-amber" x-show="lastRunStatus(row) === 'running'">Run in progress</span>
+                <span class="badge badge-red" x-show="lastRunStatus(row) === 'failed'" :title="row.last_run?.error || ''">Last run failed</span>
+                <span class="badge badge-red" x-show="isRowOverdue(row)" :title="'Waiting longer than the ' + decisionTatDays + '-day decision TAT'">Overdue</span>
+              </td>
+              <td x-text="row.required_authority || '--'"></td>
+              <td class="text-muted" x-text="ageLabel(summaryUpdatedAt(row))"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <p class="empty-state" x-show="!summaryTableRows().length">No proposals match this filter.</p>
+  </article>
+
+  <!-- Side panel: quick preview of one proposal -->
+  <div class="drawer-overlay" x-show="summaryPreview" x-transition.opacity @click="closeSummaryPreview()"></div>
+  <aside class="drawer" x-show="summaryPreview" x-transition @keydown.escape.window="closeSummaryPreview()"
+         role="dialog" aria-label="Proposal preview">
+    <template x-if="summaryPreview">
+      <div class="drawer-body">
+        <div class="drawer-head">
+          <div>
+            <h2 x-text="displayCompanyName(summaryPreview.company_name)"></h2>
+            <span class="ws-sub" x-text="[summaryPreview.entity_id, titleCase(summaryPreview.sector), caseTypeLabel(summaryPreview.case_type), titleCase(summaryPreview.facility_type)].filter(v => v && v !== '--').join(' · ')"></span>
+          </div>
+          <button class="btn btn-ghost btn-sm" @click="closeSummaryPreview()" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="drawer-facts">
+          <div class="ws-fact"><span>Amount</span><strong x-text="formatCurrencyCr(summaryPreview.requested_amount_cr)"></strong></div>
+          <div class="ws-fact"><span>Risk grade</span><strong><span class="badge" :class="gradeCls(summaryPreview.risk_grade)" x-text="summaryPreview.risk_grade || '--'"></span></strong></div>
+          <div class="ws-fact"><span>Score</span><strong x-text="displayScore(summaryPreview.composite_score)"></strong></div>
+          <div class="ws-fact"><span>System view</span><strong><span class="badge" :class="recCls(summaryPreview.recommendation)" x-text="fmtRec(summaryPreview.recommendation) || '--'"></span></strong></div>
+          <div class="ws-fact"><span>Status</span><strong><span class="badge" x-show="summaryPreview.workflow_status" :class="workflowStatusClass(summaryPreview.workflow_status)" x-text="workflowLabel(summaryPreview.workflow_status)"></span><span x-show="!summaryPreview.workflow_status">--</span></strong></div>
+          <div class="ws-fact"><span>Sanctioning authority</span><strong x-text="summaryPreview.required_authority || '--'"></strong></div>
+          <div class="ws-fact"><span>Updated</span><strong x-text="ageLabel(summaryUpdatedAt(summaryPreview))"></strong></div>
+        </div>
+
+        <div class="status-inline status-inline-error" x-show="lastRunStatus(summaryPreview) === 'failed'">
+          <span x-text="'Last run failed: ' + (summaryPreview.last_run?.error || 'no error message recorded')"></span>
+        </div>
+
+        <div class="drawer-section" x-show="hasCase(summaryPreview)">
+          <h4>Points to note</h4>
+          <ul class="drawer-list">
+            <li x-show="previewCase().top_exception">
+              <strong x-text="issueText(previewCase().top_exception)"></strong>
+              <span x-show="previewCase().exception_count > 1" x-text="' and ' + (previewCase().exception_count - 1) + ' more validation exception(s)'"></span>
+            </li>
+            <li x-show="!previewCase().exception_count">No validation exceptions.</li>
+            <li x-show="previewCase().key_risk_count" x-text="previewCase().key_risk_count + ' key risk(s) noted in the CAM'"></li>
+            <li x-show="previewCase().documents_changed">Documents changed since this run &mdash; a re-run is due.</li>
+          </ul>
+        </div>
+
+        <div class="drawer-actions">
+          <template x-if="hasCase(summaryPreview)">
+            <div class="action-row">
+              <button class="btn btn-primary" @click="openFromPreview('overview')">Open workspace</button>
+              <button class="btn btn-outline" @click="openFromPreview('cam')">Read CAM</button>
+              <button class="btn btn-outline" x-show="summaryPreview.workflow_status === 'submitted'" @click="openFromPreview('decision')">Decide</button>
+            </div>
+          </template>
+          <template x-if="!hasCase(summaryPreview)">
+            <button class="btn btn-primary" @click="openFromPreview()">Go to Run CAM</button>
+          </template>
+        </div>
+      </div>
+    </template>
+  </aside>
+</section>

@@ -1,0 +1,22 @@
+{
+  "source": "mca_v3",
+  "entity_key": "L45201DL1999PLC195937",
+  "as_of_date": "2026-04-06T08:51:02",
+  "source_status": "success",
+  "payload": {
+    "cin": "L45201DL1999PLC195937",
+    "company_name": "PNC ROADS & INFRA LIMITED",
+    "status": "Active",
+    "date_of_incorporation": "2007-06-09",
+    "registered_state": "Uttar Pradesh",
+    "registered_office": "14th Floor, Vikas Deep Building, Lalbagh, Lucknow, Uttar Pradesh - 226001",
+    "authorized_capital_inr": 1500000000,
+    "paid_up_capital_inr": 513000000,
+    "nic_code": "42101",
+    "industrial_class": "Construction of roads and highways",
+    "listed_exchange": "BSE/NSE",
+    "company_category": "Company limited by Shares",
+    "company_sub_category": "Non-govt company",
+    "email": "info@pncroadsinfra.com"
+  }
+}

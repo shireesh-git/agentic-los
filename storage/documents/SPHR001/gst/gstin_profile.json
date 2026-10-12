@@ -1,0 +1,36 @@
+{
+  "source": "gstin",
+  "record_type": "registration",
+  "entity_key": "24AABCS9012H1Z2",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "24AABCS9012H1Z2",
+    "legal_name": "Sunrise Pharma Pvt Ltd",
+    "trade_name": "SUNRISE PHARMA",
+    "pan": "AABCS9012H",
+    "registration_date": "2017-07-01",
+    "status": "Active",
+    "state": "Gujarat",
+    "taxpayer_type": "Regular",
+    "constitution": "Private Limited Company",
+    "nature_of_business": [
+      "Manufacturing",
+      "Trading"
+    ],
+    "aggregate_turnover_fy2024_cr": 418.0,
+    "aggregate_turnover_fy2023_cr": 382.0,
+    "aggregate_turnover_fy2022_cr": 348.0,
+    "filing_frequency": "Monthly",
+    "compliance": {
+      "gstr1_filed_on_time_pct": 100,
+      "gstr3b_filed_on_time_pct": 100,
+      "pending_returns": 0,
+      "last_gstr3b_filed": "February 2026",
+      "last_gstr1_filed": "February 2026"
+    },
+    "itc_claimed_fy2024_cr": 58.9,
+    "tax_paid_fy2024_cr": 16.2
+  }
+}

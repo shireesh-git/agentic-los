@@ -1,0 +1,9 @@
+{
+  "source": "NSE India API (Live)",
+  "fetched_at": "2026-03-23T21:42:33.993580",
+  "entity_id": "REIL001",
+  "data": {
+    "error": {},
+    "message": "TypeError: Cannot read properties of undefined (reading 'length')"
+  }
+}

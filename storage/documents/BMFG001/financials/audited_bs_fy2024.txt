@@ -1,0 +1,66 @@
+
+═══════════════════════════════════════════════════════════════════
+  BHARAT MANUFACTURING LTD — AUDITED FINANCIAL STATEMENTS FY2024
+  CIN: L29100MH2008PLC185432    Auditor: Deloitte Haskins & Sells
+═══════════════════════════════════════════════════════════════════
+
+                    BALANCE SHEET (₹ Crore)
+─────────────────────────────────────────────────────────────────
+EQUITY & LIABILITIES           FY2024      FY2023      FY2022
+─────────────────────────────────────────────────────────────────
+Share Capital                   62.50       62.50       62.50
+Reserves & Surplus             622.50      517.50      445.00
+Total Equity                   685.00      580.00      507.50
+Long-term Debt                 425.00      380.00      340.00
+Short-term Debt                280.00      250.00      220.00
+Current Liabilities            385.00      340.00      310.00
+  - Trade Payables             210.00      185.00      168.00
+  - Other CL                   175.00      155.00      142.00
+TOTAL                        1,710.00    1,530.00    1,365.00
+─────────────────────────────────────────────────────────────────
+ASSETS
+─────────────────────────────────────────────────────────────────
+Net Fixed Assets               685.00      620.00      565.00
+CWIP                            55.00       35.00       20.00
+Intangibles                     12.00       10.00        8.00
+Investments                     38.00       30.00       25.00
+Current Assets                 620.00      545.00      487.00
+  - Inventory                  195.00      170.00      155.00
+  - Trade Receivables          285.00      245.00      220.00
+  - Cash & Equivalents          45.00       40.00       32.00
+  - Other CA                    95.00       90.00       80.00
+TOTAL                        1,710.00    1,530.00    1,365.00
+─────────────────────────────────────────────────────────────────
+
+              PROFIT & LOSS (₹ Crore)
+─────────────────────────────────────────────────────────────────
+Revenue (Operating)          1,850.00    1,620.00    1,490.00
+Other Income                    22.50       18.50       15.00
+Total Income                 1,872.50    1,638.50    1,505.00
+─────────────────────────────────────────────────────────────────
+Raw Material Cost            1,017.50      891.00      819.50
+Employee Cost                  185.00      162.00      149.00
+Other Expenses                 222.00      194.40      179.00
+EBITDA                         448.00      391.10      357.50
+Depreciation                    92.50       82.00       72.00
+EBIT                           355.50      309.10      285.50
+Finance Cost                    67.00       62.00       58.00
+PBT                            288.50      247.10      227.50
+Tax Expense                     72.13       61.78       56.88
+PAT                            216.37      185.32      170.62
+─────────────────────────────────────────────────────────────────
+
+                  CASH FLOW (₹ Crore)
+─────────────────────────────────────────────────────────────────
+Operating Cash Flow            325.00      285.00      260.00
+Investing Cash Flow           -145.00      -95.00      -85.00
+Financing Cash Flow           -165.00     -175.00     -160.00
+Net Change in Cash              15.00       15.00       15.00
+─────────────────────────────────────────────────────────────────
+
+AUDITOR'S OPINION: Unmodified / Clean
+QUALIFIED: No
+EMPHASIS OF MATTER: None material
+
+Signed: Partner, Deloitte Haskins & Sells
+Date: 28 September 2024

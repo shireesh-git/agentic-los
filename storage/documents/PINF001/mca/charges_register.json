@@ -1,0 +1,65 @@
+{
+  "source": "mca",
+  "record_type": "charges",
+  "entity_key": "L45200DL2005PLC134567",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "total_charges": 5,
+    "open_charges": 5,
+    "satisfied_charges": 0,
+    "charges": [
+      {
+        "charge_id": "10023456",
+        "charge_holder": "Punjab National Bank",
+        "amount_inr": 4500000000,
+        "date_created": "2018-04-20",
+        "date_modified": "2025-01-15",
+        "status": "Open",
+        "assets": "All movable and immovable assets present and future",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10023457",
+        "charge_holder": "Bank of Baroda",
+        "amount_inr": 2800000000,
+        "date_created": "2019-11-05",
+        "date_modified": "2024-11-05",
+        "status": "Open",
+        "assets": "Project assets \u2014 NH48 extension",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10023458",
+        "charge_holder": "Canara Bank",
+        "amount_inr": 3500000000,
+        "date_created": "2020-07-15",
+        "date_modified": "2024-07-15",
+        "status": "Open",
+        "assets": "Equipment, Plant, Project receivables",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10023459",
+        "charge_holder": "State Bank of India",
+        "amount_inr": 2000000000,
+        "date_created": "2021-03-20",
+        "date_modified": "2024-09-20",
+        "status": "Open",
+        "assets": "Bank Guarantee margin, FD lien",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10023460",
+        "charge_holder": "Union Bank of India",
+        "amount_inr": 1800000000,
+        "date_created": "2022-06-10",
+        "date_modified": "2025-06-10",
+        "status": "Open",
+        "assets": "Working capital current assets",
+        "charge_holder_type": "Bank"
+      }
+    ]
+  }
+}

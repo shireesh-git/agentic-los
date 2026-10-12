@@ -1,0 +1,15 @@
+
+═══════════════════════════════════════════════════
+         GST REGISTRATION CERTIFICATE
+═══════════════════════════════════════════════════
+GSTIN:          27AABCB1234F1Z5
+Legal Name:     BHARAT MANUFACTURING LTD
+Trade Name:     BHARAT MFG
+PAN:            AABCB1234F
+State:          Maharashtra
+Date of Reg:    01-Jul-2017
+Status:         Active
+Type:           Regular Taxpayer
+Constitution:   Public Limited Company
+Nature:         Manufacturing, Export
+═══════════════════════════════════════════════════

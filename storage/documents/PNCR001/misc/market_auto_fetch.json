@@ -1,0 +1,27 @@
+{
+  "source": "market_auto_fetch",
+  "entity_key": "PNCR001",
+  "as_of_date": "2026-04-06T09:00:00",
+  "source_status": "success",
+  "payload": {
+    "nse_symbol": "PNCINFRA",
+    "bse_code": "539150",
+    "isin": "INE195J01029",
+    "last_price": 385.6,
+    "change_pct": 1.24,
+    "52w_high": 458.9,
+    "52w_low": 278.4,
+    "market_cap_cr": 9885,
+    "pe_ratio": 10.88,
+    "book_value": 202.1,
+    "pb_ratio": 1.91,
+    "dividend_yield_pct": 0.78,
+    "face_value": 2,
+    "shares_outstanding_cr": 25.63,
+    "promoter_holding_pct": 63.1,
+    "fii_holding_pct": 12.4,
+    "dii_holding_pct": 18.2,
+    "public_holding_pct": 6.3,
+    "avg_volume_30d": 2850000
+  }
+}

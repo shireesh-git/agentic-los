@@ -1,0 +1,151 @@
+{
+  "info": {
+    "name": "CAM Platform — NTB (New-To-Bank) Flow",
+    "description": "NTB enrichment-heavy onboarding flow.\n\nSequence:\n1. CIN Lookup → Auto-fetch MCA, Bureau, GST, Rating, Market\n2. Exchange Financial Results\n3. Exchange Governance Filings\n4. Social Reputation Signals\n5. Document Upload (KYC pack)\n6. OCR Extraction\n7. Pipeline Execution → CAM Generation\n\n**NTB Document Checklist:**\n- Certificate of Incorporation\n- PAN of company\n- CIN verification\n- GST registration\n- MOA / AOA\n- Board resolution for borrowing\n- Authorized signatory proof\n- UBO / shareholding declaration\n- Director / promoter KYC\n- 3-year audited financials\n- Latest provisional financials\n- CMA projections\n- Bureau consent letter",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8001"},
+    {"key": "cin", "value": "L29100MH2008PLC185432"},
+    {"key": "pan", "value": "AABCB1234F"},
+    {"key": "gstin", "value": "27AABCB1234F1Z5"},
+    {"key": "entity_id", "value": "BMFG001"}
+  ],
+  "item": [
+    {
+      "name": "1. Company Onboarding",
+      "description": "Initial company identification and enrichment",
+      "item": [
+        {
+          "name": "CIN Lookup (Start NTB Onboarding)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"cin\": \"{{cin}}\"}"},
+            "url": {"raw": "{{baseUrl}}/api/onboard/cin-lookup", "host": ["{{baseUrl}}"], "path": ["api", "onboard", "cin-lookup"]}
+          }
+        },
+        {
+          "name": "MCA Company Master",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/mca/company/{{cin}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "mca", "company", "{{cin}}"]}}
+        },
+        {
+          "name": "MCA Directors & Promoters",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/mca/directors/{{cin}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "mca", "directors", "{{cin}}"]}}
+        },
+        {
+          "name": "MCA Charges Register",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/mca/charges/{{cin}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "mca", "charges", "{{cin}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "2. External Validations",
+      "description": "Cross-validate borrower claims with independent sources",
+      "item": [
+        {
+          "name": "Bureau Commercial Credit Report",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/bureau/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "bureau", "{{pan}}"]}}
+        },
+        {
+          "name": "GSTIN Details",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/gstin/{{gstin}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "gstin", "{{gstin}}"]}}
+        },
+        {
+          "name": "GST Turnover Summary",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/gst-turnover/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "gst-turnover", "{{pan}}"]}}
+        },
+        {
+          "name": "Credit Rating Action",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/rating/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "rating", "{{entity_id}}"]}}
+        },
+        {
+          "name": "RBI CRILC Large Credit Report",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/crilc/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "crilc", "{{pan}}"]}}
+        },
+        {
+          "name": "EPFO Compliance Check",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/epfo/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "epfo", "{{pan}}"]}}
+        },
+        {
+          "name": "Income Tax ITR Status",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/itr/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "itr", "{{pan}}"]}}
+        },
+        {
+          "name": "CRILC PDF Report",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/crilc/{{pan}}/pdf", "host": ["{{baseUrl}}"], "path": ["api", "external", "crilc", "{{pan}}", "pdf"]}}
+        }
+      ]
+    },
+    {
+      "name": "3. Exchange & Market Intelligence",
+      "description": "Listed company filings and market signals",
+      "item": [
+        {
+          "name": "Exchange Financial Results",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/exchange/financial-results/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "exchange", "financial-results", "{{entity_id}}"]}}
+        },
+        {
+          "name": "Exchange Governance Filings",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/exchange/governance/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "exchange", "governance", "{{entity_id}}"]}}
+        },
+        {
+          "name": "Market News Sentiment",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/market/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "market", "{{entity_id}}"]}}
+        },
+        {
+          "name": "Social Reputation Signals",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/social/reputation/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "social", "reputation", "{{entity_id}}"]}}
+        },
+        {
+          "name": "Web Crawl — Latest News (NTB)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/web-crawl/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "web-crawl", "{{entity_id}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "4. Document & Financial Extraction",
+      "description": "Upload documents and extract financial data via OCR",
+      "item": [
+        {
+          "name": "List Company Documents",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/documents", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "documents"]}}
+        },
+        {
+          "name": "Run OCR Extraction",
+          "request": {"method": "POST", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/extract", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "extract"]}}
+        }
+      ]
+    },
+    {
+      "name": "5. Pipeline & CAM Generation",
+      "description": "Run full pipeline and generate credit assessment",
+      "item": [
+        {
+          "name": "Run Pipeline (Full Analysis)",
+          "request": {"method": "POST", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/run", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "run"]}}
+        },
+        {
+          "name": "Get Case Result",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}"]}}
+        },
+        {
+          "name": "View CAM Report (HTML)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/cam-html", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "cam-html"]}}
+        },
+        {
+          "name": "Download CAM PDF",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/cam-pdf", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "cam-pdf"]}}
+        },
+        {
+          "name": "One-Page Credit Memo",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/one-pager", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "one-pager"]}}
+        },
+        {
+          "name": "360° Company View",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/360", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "360"]}}
+        }
+      ]
+    }
+  ]
+}

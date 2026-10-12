@@ -1,0 +1,44 @@
+{
+  "source": "bureau",
+  "record_type": "commercial_report",
+  "entity_key": "AAACI3456C",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Infosys Limited",
+    "credit_score": 825,
+    "score_band": "AAA",
+    "total_exposure_cr": 3800.0,
+    "total_lenders": 3,
+    "dpd_status": "Standard",
+    "max_dpd_last_12m": 0,
+    "worst_status_12m": "Standard",
+    "suit_filed_amount_cr": 0.0,
+    "wilful_defaulter": false,
+    "enquiries_last_6m": 1,
+    "facilities": [
+      {
+        "lender": "HDFC",
+        "type": "CC",
+        "limit_cr": 200.0,
+        "outstanding_cr": 85.0,
+        "dpd": 0
+      },
+      {
+        "lender": "SBI",
+        "type": "BG",
+        "limit_cr": 150.0,
+        "outstanding_cr": 120.0,
+        "dpd": 0
+      },
+      {
+        "lender": "Citi",
+        "type": "SBLC",
+        "limit_cr": 100.0,
+        "outstanding_cr": 80.0,
+        "dpd": 0
+      }
+    ]
+  }
+}

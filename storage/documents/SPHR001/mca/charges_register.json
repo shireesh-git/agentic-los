@@ -1,0 +1,35 @@
+{
+  "source": "mca",
+  "record_type": "charges",
+  "entity_key": "U24230GJ2012PTC068945",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "total_charges": 2,
+    "open_charges": 2,
+    "satisfied_charges": 0,
+    "charges": [
+      {
+        "charge_id": "10034567",
+        "charge_holder": "IDBI Bank Ltd",
+        "amount_inr": 850000000,
+        "date_created": "2018-12-15",
+        "date_modified": "2024-12-15",
+        "status": "Open",
+        "assets": "Plant and machinery, Factory premises at GIDC",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10034568",
+        "charge_holder": "Bank of India",
+        "amount_inr": 650000000,
+        "date_created": "2020-06-20",
+        "date_modified": "2024-06-20",
+        "status": "Open",
+        "assets": "Inventory, Book Debts",
+        "charge_holder_type": "Bank"
+      }
+    ]
+  }
+}

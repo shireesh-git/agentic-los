@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "TSTL001",
+  "scraped_at": "2026-03-23T21:42:29.783819",
+  "profile": {
+    "entity_id": "TSTL001",
+    "actual_company_name": "Tata Steel Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Tata Steel",
+      "description": "Indian multinational steel company",
+      "extract": "Tata Steel Limited is an Indian multinational steel company headquartered in Mumbai and is part of the Tata Group. Formerly known as Tata Iron and Steel Company Limited (TISCO), the company was established on 26 August 1907 in Jamshedpur.",
+      "url": "https://en.wikipedia.org/wiki/Tata_Steel"
+    },
+    "official_website": {
+      "url": "https://www.tatasteel.com/",
+      "title": "Steel Supplier &amp; Manufacturer in India | Tata Steel",
+      "description": "Tata Steel is one of the leading steel manufacturing companies of India. Visit the website to get comprehensive information about the Company, its product offerings, sustainability credentials, and more."
+    }
+  }
+}

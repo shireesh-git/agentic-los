@@ -1,0 +1,18 @@
+{
+  "source": "gstin",
+  "record_type": "turnover",
+  "entity_key": "AABCP5678G",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "07AABCP5678G1Z8",
+    "legal_name": "Pinnacle Infra Projects Ltd",
+    "aggregate_turnover_fy2024_cr": 2180.0,
+    "aggregate_turnover_fy2023_cr": 2540.0,
+    "aggregate_turnover_fy2022_cr": 2380.0,
+    "filing_status": "GSTR-3B on-time 75%",
+    "last_return_filed": "December 2025",
+    "pending_returns": 2
+  }
+}

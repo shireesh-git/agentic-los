@@ -1,0 +1,20 @@
+{
+  "source": "income_tax",
+  "record_type": "itr_status",
+  "entity_key": "AAACI3456C",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "\u2014",
+    "assessment_year": "AY 2025-26",
+    "itr_form": "ITR-6",
+    "date_filed": "2025-09-30",
+    "filing_status": "Filed within due date",
+    "total_income_cr": 120.0,
+    "tax_paid_cr": 30.0,
+    "refund_status": "Nil",
+    "outstanding_demand_cr": 0,
+    "tds_credit_26as_cr": 8.5
+  }
+}

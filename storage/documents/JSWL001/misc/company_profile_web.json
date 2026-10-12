@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "JSWL001",
+  "scraped_at": "2026-03-23T21:43:14.427517",
+  "profile": {
+    "entity_id": "JSWL001",
+    "actual_company_name": "JSW Steel Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "JSW Steel",
+      "description": "Indian multinational steel company",
+      "extract": "JSW Steel Limited is an Indian multinational steel producer based in Mumbai and is a flagship company of the JSW Group. After the merger of Bhushan Power & Steel, Ispat Steel and Jindal Vijayanagar Steel Limited, JSW Steel became one of India's largest private sector steel companies.",
+      "url": "https://en.wikipedia.org/wiki/JSW_Steel"
+    },
+    "official_website": {
+      "url": "https://www.jsw.in/steel",
+      "title": "JSW - Leading Steel Manufacturing Company in India",
+      "description": "As India\u2019s best steel company, JSW excels in producing high-quality stainless steel with cutting-edge technology. Our commitment to excellence and sustainability positions us at the forefront of the steel industry. Explore our diverse range of steel products tailored for robust"
+    }
+  }
+}

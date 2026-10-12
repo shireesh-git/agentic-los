@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Client One LOS — Demo Walkthrough</title>
+  <style>
+    :root {
+      --navy:#082f63; --navy-2:#0d478d; --gold:#d5a514; --ink:#17243a;
+      --muted:#60708a; --line:#d9e2ef; --paper:#fff; --bg:#eef3f9;
+      --green:#147a49; --green-bg:#e9f7ef; --amber:#8a5a00; --amber-bg:#fff5d6;
+      --blue-bg:#eaf2ff; --red:#a12b2b; --shadow:0 12px 32px rgba(22,49,82,.10);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 Inter,Segoe UI,Arial,sans-serif}
+    a{color:var(--navy-2)}
+    header{background:linear-gradient(120deg,#062753,#0d4b91);color:#fff;padding:42px clamp(22px,5vw,72px) 34px;border-bottom:5px solid var(--gold)}
+    .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.15em;font-weight:800;color:#f4cf5a}
+    h1{font-size:clamp(30px,4.6vw,54px);line-height:1.05;margin:9px 0 12px;max-width:970px}
+    header p{max-width:940px;margin:0;color:#dce9f8;font-size:17px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+    .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(255,255,255,.5);border-radius:9px;padding:10px 14px;color:#fff;text-decoration:none;font-weight:750;background:rgba(255,255,255,.08);cursor:pointer}
+    .btn.primary{background:var(--gold);color:#18233a;border-color:var(--gold)}
+    .layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:26px;max-width:1480px;margin:0 auto;padding:28px}
+    aside{position:sticky;top:18px;align-self:start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow);max-height:calc(100vh - 36px);overflow:auto}
+    aside h2{font-size:16px;margin:0 0 4px}
+    aside p{font-size:12px;color:var(--muted);margin:0 0 12px}
+    nav a{display:block;text-decoration:none;padding:7px 9px;border-radius:7px;font-size:13px;color:#29405e}
+    nav a:hover{background:var(--blue-bg);color:var(--navy)}
+    .progress{height:7px;background:#e9edf3;border-radius:10px;overflow:hidden;margin:12px 0 5px}
+    .progress span{display:block;height:100%;width:0;background:var(--green);transition:width .25s}
+    main{min-width:0}
+    .notice,.summary{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px;box-shadow:var(--shadow)}
+    .notice{border-left:5px solid var(--gold)}
+    .notice strong{color:var(--navy)}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+    .metric{background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:12px}
+    .metric strong{display:block;color:var(--navy);font-size:20px}.metric span{font-size:12px;color:var(--muted)}
+    section.demo{background:var(--paper);border:1px solid var(--line);border-radius:15px;margin:0 0 20px;overflow:hidden;box-shadow:var(--shadow);scroll-margin-top:18px}
+    main>section.demo{display:none!important}
+    .section-head{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;padding:20px 22px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#fff,#f7faff)}
+    .num{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:var(--navy);color:#fff;font-weight:850}
+    h2{font-size:21px;line-height:1.25;margin:0;color:var(--navy)}
+    .subtitle{color:var(--muted);font-size:13px;margin-top:3px}
+    .check{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:750;color:var(--green);white-space:nowrap}
+    .check input{width:18px;height:18px;accent-color:var(--green)}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;padding:13px 22px;background:#fbfcfe;border-bottom:1px solid var(--line)}
+    .pill{border:1px solid var(--line);border-radius:999px;padding:4px 9px;font-size:12px;background:#fff}
+    .pill.role{color:var(--navy);font-weight:750}.pill.case{color:#704b00;background:var(--amber-bg)}
+    .content{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;padding:20px 22px}
+    .panel{border:1px solid var(--line);border-radius:11px;padding:15px;background:#fff}
+    .panel h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);margin:0 0 9px}
+    ol,ul{margin:0;padding-left:21px} li+li{margin-top:6px}
+    .talk{background:var(--blue-bg);border-color:#c9dbf4}.talk p{margin:0}
+    .why{margin-top:12px;background:var(--green-bg);border:1px solid #bee4ce;border-radius:9px;padding:11px 12px}
+    .why strong{color:var(--green)}
+    .show{margin-top:12px;background:var(--amber-bg);border:1px solid #ecd791;border-radius:9px;padding:11px 12px}
+    .show strong{color:var(--amber)}
+    .warning{background:#fff1f1;border:1px solid #e9c2c2;color:#742020;border-radius:9px;padding:10px 12px;margin-top:12px}
+    code{background:#edf1f7;border-radius:5px;padding:2px 5px;font-size:.92em}
+    .scope{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .scope h3{margin:0 0 8px}.yes{border-top:4px solid var(--green)}.no{border-top:4px solid var(--gold)}
+    .inventory{background:#fff;border:1px solid var(--line);border-radius:15px;margin:0 0 20px;overflow:hidden;box-shadow:var(--shadow);scroll-margin-top:18px}
+    .inventory-head{padding:22px;background:linear-gradient(90deg,#082f63,#0d4b91);color:#fff}
+    .inventory-head h2{color:#fff}.inventory-head p{margin:5px 0 0;color:#dce9f8}
+    .inventory-wrap{overflow-x:auto}
+    .inventory table{width:100%;border-collapse:collapse;min-width:900px}
+    .inventory th{background:#edf3fa;color:var(--navy);text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;padding:11px 13px;border-bottom:1px solid var(--line)}
+    .inventory td{padding:11px 13px;vertical-align:top;border-bottom:1px solid #e8edf4;font-size:13px}
+    .inventory tr:last-child td{border-bottom:0}.inventory tr:hover td{background:#f8fbff}
+    .ref{white-space:nowrap;font-weight:850;color:var(--navy)}
+    .done{display:inline-block;border-radius:999px;background:var(--green-bg);color:var(--green);font-size:11px;font-weight:800;padding:3px 8px;white-space:nowrap}
+    .group-row td{background:#fff5d6!important;color:#694700;font-weight:850;text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+    .inventory-source{display:none}
+    .priority-register{padding:20px;background:#eef3f9}
+    .priority-block+.priority-block{margin-top:28px}
+    .priority-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:12px 15px;border-radius:11px;color:#fff}
+    .priority-title h3{margin:0;font-size:18px}.priority-title span{font-size:12px;font-weight:800;background:rgba(255,255,255,.17);border-radius:999px;padding:4px 9px}
+    .priority-critical{background:#9a2525}.priority-major{background:#a86600}.priority-important{background:#17619b}.priority-low{background:#526176}
+    .change-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 22px rgba(22,49,82,.08);margin-bottom:15px}
+    .change-head{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;padding:17px 19px;background:linear-gradient(90deg,#fff,#f7faff);border-bottom:1px solid var(--line)}
+    .change-num{display:grid;place-items:center;min-width:45px;height:39px;border-radius:10px;background:var(--navy);color:#fff;font-size:12px;font-weight:900}
+    .change-head h4{margin:0;color:var(--navy);font-size:18px;line-height:1.25}.change-head p{margin:3px 0 0;color:var(--muted);font-size:12px}
+    .change-body{display:grid;grid-template-columns:1.08fr .92fr;gap:15px;padding:16px 19px}
+    .change-panel{border:1px solid var(--line);border-radius:10px;padding:13px;background:#fff}
+    .change-panel h5{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--navy);margin:0 0 7px}.change-panel p{margin:0}
+    .click-list{margin:0;padding-left:21px}.click-list li{padding-left:2px}.click-list li+li{margin-top:7px}
+    .change-talk{background:var(--blue-bg);border-color:#c9dbf4}.change-why{margin-top:10px;background:var(--green-bg);border:1px solid #bee4ce;border-radius:8px;padding:9px 10px}.change-expected{margin-top:10px;background:var(--amber-bg);border:1px solid #ecd791;border-radius:8px;padding:9px 10px}
+    .change-code{grid-column:1/-1;background:#f8fafc;border-color:#cbd5e1}
+    .code-root{margin:0 0 9px;color:var(--muted);font-size:12px}.code-root code{color:#17385f;font-weight:800}
+    .code-table{width:100%;border-collapse:collapse;font-size:12px}.code-table th,.code-table td{border:1px solid #d8e1eb;padding:7px 8px;text-align:left;vertical-align:top}.code-table th{background:#e8eef6;color:var(--navy);font-size:10px;text-transform:uppercase;letter-spacing:.05em}.code-table td:first-child{width:43%;white-space:nowrap}.code-table code{background:#edf2f7;color:#12345a;font-size:11px}
+    .priority-tag{display:inline-block;border-radius:999px;padding:4px 9px;color:#fff;font-size:11px;font-weight:850;white-space:nowrap}.tag-critical{background:#9a2525}.tag-major{background:#a86600}.tag-important{background:#17619b}.tag-low{background:#526176}
+    .demo-evidence{display:inline-block;margin-top:8px;border:1px solid #9fc3ea;background:#edf6ff;color:#063b74;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:800}
+    .start-route{margin:0 0 13px;border:2px solid #9fc3ea;background:#f2f8ff;border-radius:10px;padding:12px}
+    .start-route h6{margin:0 0 8px;color:var(--navy);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+    .start-route+h5+h5{display:none}
+    .start-route ol{margin:0;padding-left:21px}.start-route li+li{margin-top:6px}
+    .route-note{margin-top:9px!important;padding:8px 10px;border-left:4px solid var(--gold);background:#fff9e8;color:#5c4700;font-size:12px}
+    .show-proof{margin-top:13px;border:2px solid #acd8be;background:#f1fbf5;border-radius:10px;padding:12px}
+    .show-proof h6{margin:0 0 8px;color:var(--green);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+    .show-proof ul{margin:0;padding-left:21px}.show-proof li+li{margin-top:6px}
+    .live-guide{margin-top:13px;border:2px solid #c8b5ea;background:#f8f5ff;border-radius:10px;padding:12px}
+    .live-guide h6{margin:0 0 9px;color:#56358f;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+    .live-guide dl{display:grid;grid-template-columns:132px 1fr;gap:7px 10px;margin:0}
+    .live-guide dt{font-weight:850;color:#56358f}.live-guide dd{margin:0}
+    .live-guide .boundary{color:#6c4d00;background:#fff9e8;border-radius:6px;padding:6px 8px}
+    .before-after{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0 0}
+    .before-after>div{border-radius:9px;padding:10px;border:1px solid var(--line);background:#fff}
+    .before-after .before{border-color:#e9c2c2;background:#fff4f4}.before-after .now{border-color:#bee4ce;background:#eefaf3}
+    .before-after strong{display:block;margin-bottom:4px}.before strong{color:#8b2525}.now strong{color:var(--green)}
+    .data-register-note{padding:14px 18px;background:#fff9e8;border-bottom:1px solid #ecd791;color:#5c4700}
+    .data-kind{display:inline-block;border-radius:999px;padding:3px 8px;background:#edf2f7;color:#29405e;font-size:11px;font-weight:800;white-space:nowrap}
+    .data-needed{color:#17385f}.safe-note{padding:14px 18px;background:#edf8f1;border-top:1px solid #bee4ce;color:#185d3b}
+    footer{padding:10px 28px 40px;color:var(--muted);text-align:center;font-size:12px}
+    @media(max-width:980px){.layout{grid-template-columns:1fr}.content,.scope,.change-body,.before-after{grid-template-columns:1fr}aside{position:relative;top:0;max-height:none}.summary-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:560px){.layout{padding:14px}.section-head{grid-template-columns:auto 1fr}.check{grid-column:2}.summary-grid{grid-template-columns:1fr}.content{padding:15px}.meta{padding:12px 15px}.code-table td:first-child{white-space:normal}.live-guide dl{grid-template-columns:1fr}.live-guide dd{margin-bottom:5px}}
+    @media print{body{background:#fff;font-size:11px}header{padding:24px}.layout{display:block;padding:0}.actions,aside,.check{display:none!important}.notice,.summary,section.demo,.change-card{box-shadow:none;break-inside:avoid;margin:12px 0}.content,.change-body{grid-template-columns:1fr 1fr}a{text-decoration:none;color:inherit}.priority-register{padding:0;background:#fff}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Client One · Corporate lending</div>
+    <h1>LOS client-demo walkthrough</h1>
+    <p>A presenter-ready guide to every major change delivered since the repository was cloned—what to click, what to say, what the client should see and why each control was required.</p>
+    <div class="actions">
+      <a class="btn primary" href="http://localhost:8001/los#dashboard" target="_blank" rel="noopener">Open live LOS on port 8001 ↗</a>
+      <button class="btn" type="button" onclick="window.print()">Print / Save PDF</button>
+      <a class="btn" href="#priority-critical">Start with critical changes ↓</a>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <h2>Client change register</h2>
+      <p>42 implemented changes · one list · highest to lowest priority</p>
+      <nav>
+        <a href="#change-register"><strong>All changes</strong></a>
+        <a href="#priority-critical">P0 · Critical (27)</a>
+        <a href="#priority-major">P1 · Major (7)</a>
+        <a href="#priority-important">P2 · Important (5)</a>
+        <a href="#priority-low">Supporting / Low (3)</a>
+        <a href="#demo-data-register"><strong>Demo / hardcoded data register</strong></a>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="notice"><strong>How to use each card:</strong> follow <strong>A</strong> to reach the correct page, <strong>B</strong> to open the feature, <strong>C</strong> for the on-screen checklist and <strong>D</strong> for the exact current seeded state, safest action and honest limitation. Finish with <strong>Earlier cloned application &rarr; What we added for the client</strong> and the suggested explanation. Keep this guide beside the LOS. Seeded cases demonstrate later stages without moving one case through all 25 queues. Submit, approve, rework, withdraw, drop and reset actions change local demo data.</div>
+      <div class="summary">
+        <h2>What changed since clone</h2>
+        <p>The starting CAM-oriented prototype was extended into a persistent, governed and auditable corporate LOS demo covering sourcing through Exit (approved), with honest simulated integrations and client-specification controls.</p>
+        <div class="summary-grid">
+          <div class="metric"><strong>25</strong><span>technical workflow steps</span></div>
+          <div class="metric"><strong>18</strong><span>configured business roles</span></div>
+          <div class="metric"><strong>15</strong><span>due-diligence checks</span></div>
+          <div class="metric"><strong>437/437</strong><span>tests passing, including 42-point demo readiness</span></div>
+        </div>
+      </div>
+
+      <section class="inventory" id="change-register">
+        <div class="inventory-head">
+          <h2>All implemented changes — Critical to Low</h2>
+          <p>Every change is presented in client-demo format and sorted by business priority: P0 Critical, P1 Major, P2 Important, then Supporting/Low. “Implemented” means complete for the self-contained demo; it does not imply a live bank integration or an approved bank policy formula.</p>
+        </div>
+        <div id="priorityRegister" class="priority-register" aria-live="polite"></div>
+        <div class="inventory-wrap inventory-source" aria-hidden="true">
+          <table>
+            <thead><tr><th>Reference</th><th>Change delivered</th><th>Why the client needed it</th><th>Where to demonstrate</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr class="group-row"><td colspan="5">Domain foundation and prospect sourcing</td></tr>
+              <tr><td class="ref">P0-01</td><td>Replaced the single-borrower/single-facility shape with application-owned parties, multiple facilities, projects and securities, while preserving the backward-compatible primary facility view.</td><td>Corporate lending must assess the full obligor group and facility-specific exposure.</td><td>Application → Workspaces → Parties, Facilities, Projects and Securities.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-01 / UAT-P1-4</td><td>Added party relationship, sourced address, individual/non-individual type, ownership, key-person role, party status, PAN/CIN and audited maintenance.</td><td>The client requires identifiable and accountable related-party records, not CAM-only names.</td><td>ABCE001 → Parties &amp; identity.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-02</td><td>Added entity-incorporated status, incorporation/constitution details, PAN/CIN/GSTIN verification state, NTB/ETB classification and a persistent customer-identity snapshot.</td><td>Prospect sourcing must establish the correct legal entity before appraisal begins.</td><td>RM → + New Application.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-02</td><td>Added entity/PAN/CIN LOS deduplication with match reasons and labelled core-banking demo results.</td><td>Prevents duplicate proposals and makes source provenance visible.</td><td>New Application → borrower identity and duplicate results.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">UAT-P0-4</td><td>Made sourcing decision and mandatory remarks compulsory, added conditional remarks for defer, and validated the selected Customer ID against available CBS/customer results.</td><td>Prevents incomplete sourcing decisions and incorrect CIF selection.</td><td>New Application → Decision and Customer ID fields.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-02</td><td>Added repeatable facility cards, product/nature/type, amount, tenor, ad-hoc attributes, project/funding details and prospect discussion.</td><td>Captures the complete initial funding request before IP appraisal.</td><td>New Application → Proposed facilities and Prospect discussion.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-03 / UAT-P1-6</td><td>Generated the IP Note from sourcing data and added LPFG Analyst, Senior Analyst and labelled CRAC recommendation assignments.</td><td>Preserves the preliminary appraisal and named ownership required by the client flow.</td><td>IP Note application → assignments and generated note.</td><td><span class="done">Done</span></td></tr>
+
+              <tr class="group-row"><td colspan="5">Facility, verification and evidence controls</td></tr>
+              <tr><td class="ref">P0-04</td><td>Added per-facility lifecycle fields, pricing/repayment attributes, limit IDs, loan accounts, next-review date, simulated LMS/exposure state and attributed change history.</td><td>Each sanctioned facility needs its own operational and review lifecycle.</td><td>Application → Facilities &amp; limits.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-05/06</td><td>Implemented all 15 due-diligence modules: MCA, CIBIL, CRIF, CRILC, litigation, EWS, fraud registry, CEIB, GSTIN, LEI, EDD, UDIN, KYC, name screening and MLRA.</td><td>The client requires a single governed verification inventory before credit approval.</td><td>PS/IP/AP Risk Maker → Pre-sanction checks.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">Reliability fix 1</td><td>Persisted due-diligence comments in the database and added a <code>dd_comment</code> audit event.</td><td>Reviewer comments must survive reload and remain attributable.</td><td>Open a check → add comment → reload → Audit trail.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">Reliability fix 2</td><td>Invalidated an approved compliance exception whenever its check is re-run, preserving the prior approval in exception history.</td><td>An exception for an old result must never approve a new screening result.</td><td>Check history → rerun after VP exception.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">Reliability fix 3</td><td>Made mandatory <code>unavailable</code> results block progression until Compliance VP approval under the active demo policy.</td><td>A provider failure must not be interpreted as a clean verification.</td><td>Due-diligence row with unavailable status.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">UAT-P0-2</td><td>Added 90-day name-screening/MLRA re-screening, 90-day exception expiry, submission re-blocking, dashboard reminders and overdue/lapsed escalations.</td><td>Screening evidence and exceptions must remain current throughout a long approval cycle.</td><td>Dashboard → Screening alerts; check expiry information.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">UAT-P0-3</td><td>Added party-level KYC, bureau, screening, rating, financial, document and expiring-exception evidence with coverage by party.</td><td>Application-level checks alone cannot prove that every promoter/guarantor was reviewed.</td><td>Parties &amp; identity → Party evidence.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">UAT-P1-8</td><td>Added per-check evidence upload/registry linkage, detailed EWS and LEI grids, and a UDIN verification grid that drives the result.</td><td>Detailed evidence is required for review rather than only a status label.</td><td>Pre-sanction checks → evidence / EWS / LEI / UDIN.</td><td><span class="done">Done</span></td></tr>
+
+              <tr class="group-row"><td colspan="5">Appraisal, project and commercial workspaces</td></tr>
+              <tr><td class="ref">P0-07</td><td>Added subject-wise CMA periods, audited/provisional/projected value classes, core financial rows, computed margins, reconciliation, maker-checker review and downloadable CMA.</td><td>Financial appraisal must be structured, reviewable and traceable to periods and subjects.</td><td>MRF001 → Workspaces → CMA.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-08</td><td>Added external/internal/group/adverse-event ratings, facility RAROC, recomputation and stale-input controls using clearly labelled demo calculations.</td><td>Risk grades and return must be governed and refreshed when inputs change.</td><td>MRF001 → Ratings &amp; RAROC.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-09</td><td>Added proposal background, banking arrangement, bond/loan exposure, sanctioned/disbursed/outstanding/LMS-committed values, LEF/EPM fields, breach exceptions and 12-month conduct history.</td><td>Approvers need consolidated exposure and conduct evidence, not narrative-only text.</td><td>MRF001 → Proposal &amp; exposure.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P1-01</td><td>Added multiple linked projects with TEV, cost, promoter contribution, means of finance, DCCO, risk register and cost/DCCO/scope change-to-reappraisal.</td><td>Project-finance changes can alter repayment capacity and approval validity.</td><td>Projects &amp; ESMS → Projects.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P1-02</td><td>Added ESMS excluded-activity checklist, mandatory remarks, A/B/C and CPCB categories, ESDD applicability, committee recommendation and generated approval note.</td><td>Environmental and social risks need an explicit governed gate.</td><td>Projects &amp; ESMS → ESMS checklist.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P1-03</td><td>Added a security master with facility linkage, values, valuation basis/date, charge priority, creation/perfection state, cover ratio and history.</td><td>Collateral coverage and perfection must be visible before approval/disbursement.</td><td>Workspaces → Securities.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P1-04</td><td>Added benchmark/spread pricing, proposed/recommended rates, other-bank comparison, justification, fee lifecycle, tentative schedule and pricing-change RAROC invalidation.</td><td>Commercial terms and risk-adjusted return must remain connected.</td><td>Proposal-stage case → Pricing &amp; fees.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P1-05</td><td>Added the External Work-Party register for LIA, LIE, Security Trustee, ESDD provider and Legal Loan Counsel with contact, phase, status and record linkage.</td><td>External advisers and their involvement must be attributable to the correct proposal.</td><td>Workspaces → External parties.</td><td><span class="done">Done</span></td></tr>
+
+              <tr class="group-row"><td colspan="5">Workflow, authority, documents and audit</td></tr>
+              <tr><td class="ref">P0-10</td><td>Expanded and aligned the route to 25 technical steps across Prospect, IP, AP, Post-Sanction and Disbursement with 18 roles and distinct maker/checker/VP/committee behavior.</td><td>Client stages and segregation of duties could not be represented by the original generic flow.</td><td>Any application → left stage rail and current-step card.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">UAT-P0-1</td><td>Added audited Withdraw, Drop, Propose Modification and Recommend for Modification actions plus reason-specific rework destinations.</td><td>Business outcomes and rework ownership must be explicit and reasoned.</td><td>MFL001/APOL001 → action area and rework dropdown.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-11</td><td>Added unified demo authority determination, deviations, distinct recommendation/sanction decisions and mandatory committee minutes when sanction differs.</td><td>Approval authority and deviations need evidence separate from the recommendation.</td><td>Committee case → decision pack / sanction controls.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-11 / P2-04</td><td>Added content-hashed approval snapshots across 14 governed domains, material-change accept/return gate and actor/role/decision audit evidence.</td><td>Approvers must be able to prove exactly which version they reviewed.</td><td>Workspaces → Approval package; Audit trail.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-12</td><td>Added stage-wise mandatory document checklist, logical document registry, automatic versioning, review status, evidence linkage and hard gates for required outputs.</td><td>Documents must not be overwritten or bypassed during approval.</td><td>Workspaces → Documents.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P1-06 / UAT-P1-7</td><td>Added downloadable Executive Summary, Due Diligence Report, ESMS note, Disbursement Memo, CMA, committee minutes, MCA/CIBIL/CRIF, CEIB, UDIN, drawdown records and labelled Annexure I/III/IV/VI/IX/XI/XIII/XIV templates.</td><td>The client requested identifiable stage outputs and annexure artefacts.</td><td>Documents → Generated outputs.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P2-01</td><td>Added the RUL-01…RUL-20 mandatory rule catalogue with applicability, trigger, severity, blocking behavior, exception/reset authority and live status.</td><td>Hard stops must be explainable and consistently enforced.</td><td>Workspaces → Mandatory rules.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P2-02 / UAT-P2-10</td><td>Added invalidations for PAN, ownership/group role, borrower rating, facility/pricing, projects, securities and post-approval governed changes, with resolution notes.</td><td>A changed source record must invalidate dependent conclusions instead of leaving stale approvals.</td><td>Application → Stale conclusions / material-change gate.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P2-03</td><td>Added role-specific queue visibility, actions, read-only reviews, reassignment/escalation and maker-checker/committee segregation.</td><td>Users should see and perform only work appropriate to their demo role.</td><td>Switch roles → My Queue → application actions.</td><td><span class="done">Done</span></td></tr>
+
+              <tr class="group-row"><td colspan="5">Post-sanction, disbursement and operational management</td></tr>
+              <tr><td class="ref">P0-13</td><td>Added sanction consent, per-facility execution, Facility Agreement Date, committed/executed/balance values, checker remarks, significant changes and Sanction Letter generation.</td><td>Sanction approval must be followed by controlled legal fulfilment.</td><td>INFY001 → Post-sanction workspace.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-14 / UAT-P2-11</td><td>Added full condition taxonomy, facility/party linkage, evidence, satisfy/defer/waive/reopen, checker approval, subsequent-tranche gate and recurring covenant test/breach/cure/reminder monitoring.</td><td>Conditions and covenants must be controlled before and after drawdown.</td><td>INFY001 → Conditions and covenant monitoring.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-15</td><td>Added disbursement CIF, limits, accounts, CBS security references, beneficiaries, fees/charges, repayment/interest, arrears, drawdown record and Interim SOP hard gate.</td><td>Operations requires a complete release-readiness record.</td><td>PNCR001 → Disbursement ops.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-15 / P0-16</td><td>Added content-hashed Disbursement Memo, invalidation on change, maker/checker/VP/final review checklists and accurate Exit (approved) semantics.</td><td>Final approval must be based on an unchanged operational record and must not claim settlement.</td><td>PNCR001 → memo, review panels and stage rail.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">UAT-P2-12</td><td>Added audited subsequent-tranche re-entry from Exit to Disbursement Maker with mandatory reason and all normal gates reapplied.</td><td>Later drawdowns require a new controlled review cycle.</td><td>Approved case → Request subsequent tranche.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P2-05 / UAT-P2-9</td><td>Changed SLA ageing to working days with a labelled holiday calendar; added reminders, aged-breach escalation, dashboard indicators and MIS reporting.</td><td>Management needs realistic turnaround and escalation visibility.</td><td>Dashboard and Management MIS.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">P0-17</td><td>Added a registry of 22 external adapters with honest <code>demo_data</code>/<code>not_connected</code> states, use purpose, invocation evidence and no fabricated success.</td><td>The no-API demo must clearly distinguish simulation from live bank data.</td><td>Dashboard → Integration registry.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">AI/CAM</td><td>Configured NVIDIA NIM assistance while preserving deterministic credit rules, document provenance, confidence, conflicts and human accept/override controls.</td><td>AI may assist analysis and narrative but must not become an untraceable credit decision-maker.</td><td>ABCE001 → Credit workspace / Copilot / CAM output.</td><td><span class="done">Done</span></td></tr>
+
+              <tr class="group-row"><td colspan="5">Verification and documentation</td></tr>
+              <tr><td class="ref">Specification</td><td>Created and reconciled <code>clientspec.md</code>, ordered gaps by severity, crossed out completed requirements and preserved genuine confirmation/production boundaries.</td><td>Prevents completed work from appearing open and prevents unconfirmed policies from being presented as bank-approved.</td><td>Repository root → clientspec.md.</td><td><span class="done">Done</span></td></tr>
+              <tr><td class="ref">Regression proof</td><td>Added governance, verification and UAT regression coverage; latest full run completed with 432 passing tests and zero failures.</td><td>Demonstrates that new controls did not break the established application behavior.</td><td>Presenter closing evidence; not a client UI action.</td><td><span class="done">Done</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="demo" id="prepare">
+        <div class="section-head"><span class="num">0</span><div><h2>Prepare a clean and truthful demo</h2><div class="subtitle">Confirm the application, seed state and presentation boundary.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Role: LOS Administrator only if reset is needed</span><span class="pill case">URL: localhost:8001/los</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Open the live LOS link above and use the demo group → user → role picker.</li><li>Confirm <strong>Pipeline Dashboard</strong> loads and shows eight seeded applications.</li><li>If the data was changed by an earlier rehearsal, sign in as <strong>LOS Administrator</strong> → <strong>Administration</strong> → <strong>Reset demo pipeline</strong>.</li><li>Return to the role needed for the first section.</li></ol><div class="warning"><strong>Reset warning:</strong> resetting re-seeds local demo applications and removes rehearsal changes. Do it before—not during—the client session.</div></div><div class="panel talk"><h3>What to say</h3><p>“This is a self-contained functional demo. External bank systems are represented through clearly labelled demo or not-connected adapters; unavailable data is never shown as a successful verification.”</p><div class="why"><strong>Why:</strong> The client will not provide external APIs or production data, so provenance and honest source status are essential.</div><div class="show"><strong>Expected:</strong> Dashboard, eight seeded cases and role-aware navigation are visible. PNCR002 is the dedicated Exit-approved showcase.</div></div></div>
+      </section>
+
+      <section class="demo" id="pipeline">
+        <div class="section-head"><span class="num">1</span><div><h2>Pipeline, queues and the client-aligned workflow</h2><div class="subtitle">Show the 19 business stages mapped to 25 controlled technical queues.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Any role</span><span class="pill case">Cases: all seeded applications</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Open <strong>Pipeline Dashboard</strong>.</li><li>Click stage bars to filter Prospect, IP, AP, Post-Sanction and Disbursement.</li><li>Open any application and expand the left-hand stage rail.</li><li>Open <strong>My Queue</strong> to show that work is filtered by the active role.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“The application now uses a 25-step, role-aware workflow covering Prospect Sourcing, In-Principle, Application Processing, Post-Sanction and Disbursement. Maker, checker, allocation, VP and committee responsibilities remain distinct.”</p><div class="why"><strong>Why:</strong> A generic approve/return flow could not represent the client’s segregation of duties or approval stages.</div><div class="show"><strong>Expected:</strong> Current step, assignee, SLA, role, stage rail and allowed actions are explicit.</div></div></div>
+      </section>
+
+      <section class="demo" id="sourcing">
+        <div class="section-head"><span class="num">2</span><div><h2>Prospect sourcing and customer identity</h2><div class="subtitle">Validated NTB/ETB sourcing, dedupe and governed application creation.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Ananya Rao · Prospect Sourcing Maker (RM)</span><span class="pill case">Use New Application; IHCL001 shows a saved draft</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Sign in under <strong>Sourcing &amp; Relationship</strong> as <strong>Ananya Rao</strong>.</li><li>Click <strong>+ New Application</strong>.</li><li>Select a borrower and review PAN/CIN/GSTIN, entity-incorporated status, NTB/ETB and the labelled core-banking result.</li><li>Review duplicate matches and Customer ID selection.</li><li>Add/remove facility cards and enter project/funding details and the prospect discussion.</li><li>Show that decision and mandatory remarks are required; a deferred decision also requires conditional remarks.</li></ol><div class="warning">Do not create a new draft unless you want to change demo data; showing the validation fields is enough.</div></div><div class="panel talk"><h3>What to say</h3><p>“Sourcing is no longer a loose borrower selection. Identity is stored, PAN/CIN duplication is checked, Customer ID must match the available CBS result, multiple facilities can be proposed, and the sourcing decision is auditable.”</p><div class="why"><strong>Why:</strong> This prevents incorrect CIF selection, duplicate applications and incomplete proposals entering appraisal.</div><div class="show"><strong>Expected:</strong> Required badges, source labels, duplicate results, facility cards and decision remarks.</div></div></div>
+      </section>
+
+      <section class="demo" id="domain">
+        <div class="section-head"><span class="num">3</span><div><h2>Parties, identity, facilities and limits</h2><div class="subtitle">A real multi-party, multi-facility application record with change history.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Ananya Rao or Neha Kulkarni</span><span class="pill case">ABCE001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Dashboard → open <strong>ABCE001</strong>.</li><li>In <strong>Workspaces</strong>, click <strong>Parties &amp; identity</strong>.</li><li>Show role, relationship, party type, ownership, sourced address, key-person role and party status.</li><li>Show the party evidence area and its party-specific coverage.</li><li>Click <strong>Facilities &amp; limits</strong> and show multiple facilities, pricing/repayment attributes, limit IDs, accounts and change history.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“The borrower is now the primary party in an application-owned party model. Promoters, sponsors, guarantors and group entities have their own identity and evidence. Facilities are separate governed records rather than one flat dictionary.”</p><div class="why"><strong>Why:</strong> Corporate credit decisions depend on the whole obligor group and facility-specific terms, not only the borrower name and total amount.</div><div class="show"><strong>Expected:</strong> Stable party/facility identifiers, relationship fields, evidence coverage and attributed edits.</div></div></div>
+      </section>
+
+      <section class="demo" id="checks">
+        <div class="section-head"><span class="num">4</span><div><h2>Fifteen governed due-diligence checks</h2><div class="subtitle">Persistent comments, evidence, exceptions, re-screening and party coverage.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">RM/Risk Analyst; Priya Raghavan for Compliance VP exceptions</span><span class="pill case">IHCL001 or ABCE001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Open an application at PS/IP/AP Risk Maker and scroll to <strong>Pre-sanction checks</strong>.</li><li>Show the 15 checks and the distinction between API/demo and manual execution.</li><li>Open a check to show result, source, timestamp, run history, comments and evidence references.</li><li>Show the detailed EWS/LEI grids and UDIN verification grid.</li><li>Point out that matched, failed, pending and mandatory unavailable results block submission.</li><li>Switch to <strong>Priya Raghavan · Compliance VP</strong> only if demonstrating a reason-mandatory exception.</li><li>Return to the dashboard and show <strong>Screening alerts</strong> for 90-day re-screening and expiring/lapsed exceptions.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“All 15 client checks have a governed lifecycle. Comments survive reload, evidence is attached to the exact check, re-running invalidates an old exception, and a 90-day overdue screening or expired exception re-blocks progression.”</p><div class="why"><strong>Why:</strong> A check label alone is not compliance evidence; the bank needs status, source, history, ownership, exception authority and expiry behavior.</div><div class="show"><strong>Expected:</strong> 15 check rows, blocking indicators, history, per-check evidence, party evidence and alert states.</div></div></div>
+      </section>
+
+      <section class="demo" id="projects">
+        <div class="section-head"><span class="num">5</span><div><h2>Projects, ESMS, securities and external work parties</h2><div class="subtitle">Linked appraisal records with change and completion controls.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Risk Analyst</span><span class="pill case">ABCE001 or MRF001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Application → <strong>Workspaces</strong> → <strong>Projects &amp; ESMS</strong>.</li><li>Show project/facility linkage, TEV, cost, means of finance, DCCO, risk register and change history.</li><li>Show that a cost/DCCO/scope change raises reappraisal.</li><li>Review the ESMS checklist, A/B/C category, ESDD fields and mandatory remarks for Yes/Not Available.</li><li>Open <strong>Securities</strong> for valuation, charge, priority, perfection and cover ratio.</li><li>Open <strong>External parties</strong> for LIA/LIE, Security Trustee, ESDD provider and legal counsel.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“Project, environmental, security and external-adviser information is now governed data. It is linked to the relevant facility and cannot be hidden inside narrative CAM text.”</p><div class="why"><strong>Why:</strong> Project-finance risk changes over time; reappraisal, environmental review and security perfection must be traceable.</div><div class="show"><strong>Expected:</strong> Project registers, ESMS remarks gate, linked securities and external-party assignments.</div></div></div>
+      </section>
+
+      <section class="demo" id="risk">
+        <div class="section-head"><span class="num">6</span><div><h2>CMA, ratings and RAROC governance</h2><div class="subtitle">Structured financial inputs and transparent, stale-aware risk calculations.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Neha Kulkarni · Risk Analyst</span><span class="pill case">MRF001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Open <strong>MRF001</strong>.</li><li>Workspaces → <strong>CMA</strong>: show borrower/promoter/sponsor/SPV/parent subjects, period type, values, computed margins, reconciliation and maker-checker review.</li><li>Workspaces → <strong>Ratings &amp; RAROC</strong>: show external, internal/group and adverse-event ratings.</li><li>Show facility-level RAROC inputs and recompute action.</li><li>Point out that pricing/facility/rating changes mark affected conclusions stale.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“CMA, rating and RAROC are now governed source records. Calculations are transparent and explicitly labelled demo models; changed inputs force recalculation rather than silently retaining an old result.”</p><div class="why"><strong>Why:</strong> Credit approval needs reproducible figures and freshness controls, not untraceable values embedded in a generated memo.</div><div class="show"><strong>Expected:</strong> Period tables, review state, rating history, RAROC outputs and stale/recompute warnings.</div></div></div>
+      </section>
+
+      <section class="demo" id="proposal">
+        <div class="section-head"><span class="num">7</span><div><h2>Proposal, exposure, banking, pricing and fees</h2><div class="subtitle">Facility economics and policy exceptions in one governed view.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Risk Analyst</span><span class="pill case">MRF001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Workspaces → <strong>Proposal &amp; exposure</strong>.</li><li>Show proposal background, banking arrangement, sanctioned/disbursed/outstanding/LMS-committed exposure and 12-month conduct rows.</li><li>Show the breach indicator and governed exception path.</li><li>Workspaces → <strong>Pricing &amp; fees</strong>.</li><li>Show benchmark plus spread, recommended/proposed rate, other-bank comparison, fees and tentative repayment schedule.</li><li>Point out that pricing change requires RAROC recomputation.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“Exposure, conduct and commercial terms are now connected to approval controls. Syndication requires Consortium, benchmark plus spread is enforced, and pricing changes refresh profitability.”</p><div class="why"><strong>Why:</strong> The proposal must show both credit risk and economic return, with visible policy breaches and controlled overrides.</div><div class="show"><strong>Expected:</strong> Exposure rows, conduct history, pricing components, fees and rule messages.</div></div></div>
+      </section>
+
+      <section class="demo" id="decisions">
+        <div class="section-head"><span class="num">8</span><div><h2>Stage-specific decisions, targeted rework and termination</h2><div class="subtitle">Audited workflow actions instead of one generic approval button.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Current maker/checker/committee role</span><span class="pill case">MFL001 shows returned work; APOL001 is at committee</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Open <strong>MFL001</strong> to show a returned application and its recorded reason.</li><li>At a checker or committee step, show the <strong>Rework destination</strong> dropdown.</li><li>Point out stage-specific actions: Submit, Approve, Sanction, Allocate, Rework and Reject.</li><li>At applicable steps, show <strong>Withdraw</strong>, <strong>Drop</strong>, <strong>Propose Modification</strong> or <strong>Recommend for Modification</strong>.</li><li>Show that termination and modification actions require a reason and are retained in the audit trail.</li></ol><div class="warning">Do not click Withdraw or Drop on a case needed later in the demo.</div></div><div class="panel talk"><h3>What to say</h3><p>“Reviewers can send work to the correct earlier step with a reason. Withdrawal, drop and modification are distinct business outcomes—not aliases for rejection—and every action records actor and acting role.”</p><div class="why"><strong>Why:</strong> The client specification requires precise process outcomes and accountable rework, especially around sanction and fulfilment.</div><div class="show"><strong>Expected:</strong> Role-specific buttons, destination selector, mandatory comment and audit event.</div></div></div>
+      </section>
+
+      <section class="demo" id="governance">
+        <div class="section-head"><span class="num">9</span><div><h2>Documents, mandatory rules and approval evidence</h2><div class="subtitle">Versioned outputs, hard gates and proof of exactly what was approved.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Risk Analyst or Committee</span><span class="pill case">APOL001 or MRF001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Workspaces → <strong>Documents</strong>: show stage checklist, logical document, versions, review state and generated artefacts.</li><li>Open/download Executive Summary, Due Diligence Report, CMA, ESMS note, MCA/CIBIL/CRIF, CEIB, UDIN, drawdown outputs and labelled annexure templates.</li><li>Workspaces → <strong>Mandatory rules</strong>: show RUL-01…RUL-20 with applicability, severity and current result.</li><li>Workspaces → <strong>Approval package</strong>: show domain hashes and the content-bound approval snapshot.</li><li>Show the material-change gate/invalidation when a governed record changes after approval.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“Documents are versioned and reviewed; required outputs block progression when missing. Each decision binds a snapshot of 14 governed domains, so later changes cannot silently alter what the approver saw.”</p><div class="why"><strong>Why:</strong> Approval evidence must be reproducible and changes after sanction must trigger reassessment.</div><div class="show"><strong>Expected:</strong> Registry versions, output buttons, rule status and snapshot hashes.</div></div></div>
+      </section>
+
+      <section class="demo" id="post-sanction">
+        <div class="section-head"><span class="num">10</span><div><h2>Post-sanction fulfilment and recurring covenants</h2><div class="subtitle">Consent, execution, conditions, waiver control and ongoing monitoring.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Farah Sheikh · Post Sanction Maker</span><span class="pill case">INFY001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Sign in as <strong>Farah Sheikh</strong> and open <strong>INFY001</strong>.</li><li>Open the post-sanction area and record/show sanction consent.</li><li>Review per-facility execution status, Facility Agreement Date, committed/executed amount and remaining balance.</li><li>Open Conditions: show CP, CS, subsequent-disbursement, financial, non-financial, general and facility-specific types.</li><li>Show evidence, satisfaction, deferral/waiver and checker approval.</li><li>Show covenant frequency, test result, breach/non-compliance, cure and overdue reminder.</li><li>Show the versioned Sanction Letter.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“Sanction is not treated as disbursement. Customer consent, facility execution and conditions are completed first. Waivers and deferrals require checker governance, and recurring covenants track breach, cure and overdue testing.”</p><div class="why"><strong>Why:</strong> The bank must prove that legal and credit conditions are met before funds are approved for release.</div><div class="show"><strong>Expected:</strong> Consent, facility agreement data, condition taxonomy, monitoring history and letter versions.</div></div></div>
+      </section>
+
+      <section class="demo" id="disbursement">
+        <div class="section-head"><span class="num">11</span><div><h2>Disbursement operations, four-level review and repeat tranche</h2><div class="subtitle">Operational readiness through Exit (approved), without claiming payment settlement.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Lakshmi Narayan → Rohit Saxena → Vikram Desai → Pooja Venkat</span><span class="pill case">PNCR001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Sign in as <strong>Lakshmi Narayan · Disbursement Maker</strong> and open <strong>PNCR001</strong>.</li><li>Workspaces → <strong>Disbursement ops</strong>: show CIF, limits, loan accounts, CBS security number, beneficiaries, fees, charges, interest, repayment and arrears.</li><li>Show the Interim SOP checklist and the In-Compliance gate.</li><li>Show the content-hashed Disbursement Memo; changing the record invalidates it until regenerated/reviewed.</li><li>Show the tranche and normal route through Checker, VP Review and Final Approver.</li><li>Explain that final approval produces <strong>Exit (approved)</strong>, not “paid” or “settled”.</li><li>On an approved exited application, show <strong>Request subsequent tranche</strong>; a mandatory reason reopens it at Disbursement Maker with all gates reapplied.</li></ol><div class="warning">Driving all four roles mutates PNCR001. For a non-mutating presentation, show the records and explain the seeded gate state.</div></div><div class="panel talk"><h3>What to say</h3><p>“The final operating record has explicit maker, checker, VP and approver gates. A repeat drawdown is a new governed cycle. The LOS records approval to release; it does not falsely claim that external payment settlement occurred.”</p><div class="why"><strong>Why:</strong> Disbursement is high-risk operational work requiring beneficiary, security, fee and instruction verification at multiple levels.</div><div class="show"><strong>Expected:</strong> Operational tables, SOP state, memo hash, review checklists, Exit wording and repeat-tranche control.</div></div></div>
+      </section>
+
+      <section class="demo" id="operations">
+        <div class="section-head"><span class="num">12</span><div><h2>Working-day SLA, alerts, MIS and integration truth</h2><div class="subtitle">Operational management controls and transparent system boundaries.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Any role for dashboard; Sunil Chopra for MIS narrative</span><span class="pill case">PNCR001 and other seeded cases</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Dashboard: show working-day SLA status, escalated cases and <strong>Screening alerts</strong>.</li><li>Show the <strong>Integration registry</strong> and its 22 adapters.</li><li>Explain <code>demo_data</code> versus <code>not_connected</code>; show last-used evidence where present.</li><li>Open <strong>Management MIS</strong>.</li><li>Show pipeline, ageing, turnaround, SLA breaches/escalations, decision quality, sanctions, conditions and copilot use.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“SLA is measured in working days against a labelled holiday calendar. Breaches age into escalation and appear in both the dashboard and MIS. Every external source declares whether it is simulated or not connected.”</p><div class="why"><strong>Why:</strong> Managers need actionable queues and truthful integration status; a demo must never imply that synthetic evidence came from a live bank system.</div><div class="show"><strong>Expected:</strong> SLA badges, escalation, screening alerts, MIS charts and adapter states.</div></div></div>
+      </section>
+
+      <section class="demo" id="ai">
+        <div class="section-head"><span class="num">13</span><div><h2>Credit assessment, CAM and governed AI assistance</h2><div class="subtitle">NVIDIA NIM assists the workflow while deterministic controls remain authoritative.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="meta"><span class="pill role">Neha Kulkarni · Risk Analyst</span><span class="pill case">ABCE001</span></div>
+        <div class="content"><div class="panel"><h3>Where to click</h3><ol><li>Open <strong>ABCE001</strong> and click <strong>Credit workspace ↗</strong>.</li><li>Show the credit assessment, financial analysis, policy results, observations, stress and repayment views.</li><li>Return to LOS and show document/AI prefill provenance, confidence, conflicts and user acceptance/override.</li><li>Show the copilot’s bounded task suggestions or ask for unresolved risks.</li><li>Open the Approval package/CAM output and point out evidence labels.</li></ol></div><div class="panel talk"><h3>What to say</h3><p>“NVIDIA NIM supports narrative assistance and task guidance, but approval gates, policy results and financial controls are deterministic. AI-suggested content retains source, confidence and human review.”</p><div class="why"><strong>Why:</strong> The client needs explainable assistance—not an autonomous credit decision or untraceable generated content.</div><div class="show"><strong>Expected:</strong> Traceable assessment, provenance labels, human overrides and generated CAM artefacts.</div></div></div>
+      </section>
+
+      <section class="demo" id="close">
+        <div class="section-head"><span class="num">14</span><div><h2>Close with proof and clear boundaries</h2><div class="subtitle">State what is verified, what is configurable and what is outside demo scope.</div></div><label class="check"><input type="checkbox"> Completed</label></div>
+        <div class="content"><div class="panel yes"><h3>Verified demo scope</h3><ul><li>End-to-end workflow from sourcing through Exit (approved).</li><li>Persistent multi-party/facility/project records and all governance workspaces.</li><li>Fifteen due-diligence checks, evidence, comments, exceptions and 90-day controls.</li><li>Approval, documents, conditions, covenants, disbursement and repeat tranche.</li><li>Audit events, working-day SLA, MIS and honest adapter states.</li><li><strong>437/437 automated tests passed</strong>, including the 42-change presentation-readiness contract.</li></ul></div><div class="panel no"><h3>Do not claim as production-ready</h3><ul><li>No live CBS/LMS/bureau/regulatory connections are supplied.</li><li>Authority matrices, formulas, policy thresholds and legal templates are labelled demo/configurable until the client confirms them.</li><li>Enterprise IAM, e-signature, antivirus, archival immutability, performance, resilience and disaster recovery remain production work.</li><li>Exit (approved) does not mean payment execution or settlement.</li></ul><div class="why"><strong>Closing line:</strong> “The functional journey is demo-complete; productionization begins when the bank confirms its authoritative policies, templates, integrations and non-functional requirements.”</div></div></div>
+      </section>
+      <section class="inventory" id="demo-data-register">
+        <div class="inventory-head"><h2>Demo / hardcoded data register</h2><p>What is synthetic or locally configured, where it comes from, where the client sees it, and what must replace it in production.</p></div>
+        <div class="data-register-note"><strong>Presenter rule:</strong> describe these as seeded demo data, configurable policy examples, or simulated integrations. Do not describe them as live bank, bureau, regulatory, legal, or market data.</div>
+        <div class="inventory-wrap"><table>
+          <thead><tr><th>Data / configuration</th><th>Classification</th><th>Current source file</th><th>Where visible in the UI</th><th class="data-needed">Production API / client data needed</th></tr></thead>
+          <tbody>
+            <tr><td>Five groups, 18 roles, fictitious users, 25 steps, actions and step SLA days</td><td><span class="data-kind">Demo configuration</span></td><td><code>config/los_workflow.yaml</code></td><td>Sign-in screen; Active group/role; stage rail; My Queue; SLA labels</td><td>SSO/IAM or Active Directory; approved users, roles, branches, delegations, workflow, maker-checker and service-level policy</td></tr>
+            <tr><td>Borrowers, company identity, PAN/CIN/GSTIN, group/director details, financials and conduct history</td><td><span class="data-kind">Synthetic / curated</span></td><td><code>src/data/company_catalog.py</code>, <code>src/data/demo_companies.py</code>, <code>src/data/synthetic_companies.py</code>, <code>src/data/real_companies.py</code></td><td>New Application borrower selector; Customer identity; CAM; financial/group/conduct views</td><td>CBS/CRM master, MCA, PAN/GST/CKYC, LMS, audited financial source, account-conduct warehouse and approved group master</td></tr>
+            <tr><td>Eight staged presentation applications and their evidence, exceptions, approvals, covenants and tranches</td><td><span class="data-kind">Seeded scenarios</span></td><td><code>src/los/service.py</code>: <code>DEMO_SEED</code>, <code>_seed_presentation_evidence</code>, <code>_seed_exit_showcase</code></td><td>Pipeline rows ABCE001, IHCL001, MFL001, MRF001, APOL001, INFY001, PNCR001 and PNCR002</td><td>Production LOS migration/origination feeds, case states, assignments, timestamps and historical audit evidence</td></tr>
+            <tr><td>CBS search, CIF/Customer ID choices and NTB/ETB result</td><td><span class="data-kind">Simulated integration</span></td><td><code>src/data/company_catalog.py</code>, <code>src/los/service.py</code>, <code>src/services/adapters.py</code></td><td>New Application &gt; Customer identity &amp; deduplication</td><td>CBS/CRM customer-search and CIF APIs, account relationships and approved NTB/ETB rules</td></tr>
+            <tr><td>Application dedupe candidates and PAN/CIN match reasons</td><td><span class="data-kind">Local computation</span></td><td><code>src/los/service.py</code>, <code>src/data/company_catalog.py</code></td><td>New Application &gt; LOS deduplication results</td><td>Customer/party master, PAN/CIN verification, LOS archive and approved fuzzy-match thresholds</td></tr>
+            <tr><td>Fifteen due-diligence definitions/results, grids, 90-day re-screening and unavailable-result policy</td><td><span class="data-kind">Demo controls/results</span></td><td><code>src/los/verification.py</code>, <code>src/data/mock_external_apis.py</code></td><td>Application &gt; Pre-sanction checks; Dashboard &gt; Screening alerts</td><td>MCA, PAN/KYC, GST, CIBIL, CRIF, CRILC, litigation, EWS, CFR, CEIB, LEI, UDIN, screening and MLRA sources; client-confirmed exception policy</td></tr>
+            <tr><td>Twenty-two integration names, purposes and <code>demo_data</code>/<code>not_connected</code> states</td><td><span class="data-kind">Adapter registry</span></td><td><code>src/services/adapters.py</code>, <code>config/external_apis.yaml</code></td><td>Dashboard &gt; Integration registry; verification source/evidence labels</td><td>Endpoint contracts, auth, certificates, network allow-list, sample payloads, consent, retry/SLA rules and production credentials</td></tr>
+            <tr><td>CMA rows and seeded financial values</td><td><span class="data-kind">Demo model</span></td><td><code>src/los/cma.py</code>, <code>src/data/*companies.py</code>, <code>src/los/service.py</code></td><td>Workspaces &gt; CMA; Documents &gt; CMA download</td><td>Approved CMA format/formulas, audited/provisional statements, projections, drawing-power/fund-flow rules and review tolerances</td></tr>
+            <tr><td>Ratings, adverse events, demo PD/LGD/EAD assumptions and RAROC hurdle/formula</td><td><span class="data-kind">Demo risk model</span></td><td><code>src/los/ratings.py</code>, <code>src/los/service.py</code></td><td>Workspaces &gt; Ratings &amp; RAROC</td><td>Approved scorecard/grade scale, rating feed, validated PD/LGD/EAD/capital method, cost of funds and hurdle rates</td></tr>
+            <tr><td>MCLR, spreads, fees and tentative repayment schedules</td><td><span class="data-kind">Demo pricing</span></td><td><code>src/los/pricing.py</code>, <code>src/los/service.py</code></td><td>Workspaces &gt; Facilities &amp; limits; Pricing &amp; fees</td><td>Treasury MCLR/EBLR/FTP, approved pricing grid, deviations, fee/tax master and LMS repayment conventions</td></tr>
+            <tr><td>Proposal, exposure, banking arrangement, conduct and breach examples</td><td><span class="data-kind">Seeded assessment</span></td><td><code>src/los/proposal.py</code>, <code>src/los/service.py</code></td><td>Workspaces &gt; Proposal &amp; exposure</td><td>CBS/LMS/FT/exposure warehouse, consortium data, regulatory/group limits and approved breach policy</td></tr>
+            <tr><td>Project/TEV/DCCO/risk examples and ESMS/ESDD checklist data</td><td><span class="data-kind">Seeded project data</span></td><td><code>src/los/projects.py</code>, <code>src/los/esms.py</code>, <code>src/los/service.py</code></td><td>Workspaces &gt; Projects &amp; ESMS</td><td>Project monitoring, TEV/LIE reports, milestones/COD, approved E&amp;S policy, CPCB/clearances and mitigation monitoring</td></tr>
+            <tr><td>Security values, links, charge priority and perfection examples</td><td><span class="data-kind">Seeded collateral</span></td><td><code>src/los/securities.py</code>, <code>src/los/service.py</code></td><td>Workspaces &gt; Securities</td><td>Collateral master, valuation, ROC/CERSAI, insurance, title/lien, perfection, release and substitution sources</td></tr>
+            <tr><td>External Work-Party roles and example appointments</td><td><span class="data-kind">Seeded vendor data</span></td><td><code>src/los/ewp.py</code>, <code>src/los/service.py</code></td><td>Workspaces &gt; External parties</td><td>Vendor master, empanelment/conflicts, appointment letters, deliverables and invoice/status integration</td></tr>
+            <tr><td>Authority examples, recommendations, deviations, snapshots and material-change rules</td><td><span class="data-kind">Demo governance</span></td><td><code>src/los/authority.py</code>, <code>src/los/snapshot.py</code>, <code>src/los/rules.py</code></td><td>Committee pack; Approval package; Mandatory rules; stale alerts</td><td>Approved authority/delegation matrix, committee quorum/voting/conflicts, deviations and versioned policy effective dates</td></tr>
+            <tr><td>Document checklist, outputs, annexures, letters and local sample metadata</td><td><span class="data-kind">Demo templates</span></td><td><code>src/los/docreg.py</code>, <code>src/los/letters.py</code>, <code>src/los/service.py</code>, <code>storage/documents/ABCE001/metadata.json</code></td><td>Workspaces &gt; Documents; Generated outputs; IP Note; Sanction Letter</td><td>Approved legal/CAM templates, DMS, taxonomy/retention, OCR/antivirus, signatory validation, e-sign and stamping</td></tr>
+            <tr><td>Consent/execution, condition templates, covenant tests, breaches, cures and dates</td><td><span class="data-kind">Seeded monitoring</span></td><td><code>src/los/post_sanction.py</code>, <code>src/los/service.py</code></td><td>INFY001 &gt; Post sanction &amp; disbursement</td><td>Sanction acceptance, document execution, LMS covenant diary, borrower submissions and waiver/exception authority</td></tr>
+            <tr><td>Disbursement record, CBS references, beneficiaries, fees, SOP, memo and reviews</td><td><span class="data-kind">Seeded operations</span></td><td><code>src/los/disops.py</code>, <code>src/los/service.py</code></td><td>PNCR001/PNCR002 &gt; Workspaces &gt; Disbursement ops</td><td>CBS/LMS limit/account/security, beneficiary validation, fees, payments/treasury, acknowledgements, settlement, reconciliation, retry and reversal</td></tr>
+            <tr><td>Mandatory rule catalogue, dependencies, benchmarks and demo outcomes</td><td><span class="data-kind">Demo rule policy</span></td><td><code>src/los/rules.py</code>, <code>config/rules.yaml</code>, <code>config/benchmarks.yaml</code></td><td>Workspaces &gt; Mandatory rules; banners and stale-conclusion messages</td><td>Approved policy catalogue, thresholds, sector benchmarks, exceptions, effective dates, owners and controlled rule deployment</td></tr>
+            <tr><td>NVIDIA NIM provider/model and generated CAM/copilot text</td><td><span class="data-kind">Configured external AI</span></td><td><code>config/llm_providers.yaml</code>, <code>src/core/llm_provider.py</code>, <code>src/los/copilot.py</code></td><td>AI connected badge; Copilot; Credit workspace (CAM)</td><td>Approved enterprise endpoint/model, secret via <code>NVIDIA_NIM_API_KEY</code>, prompt/model approval, DLP, logging, retention, evaluation and fallback policy. The secret is never shown or committed.</td></tr>
+            <tr><td>Expected automated scenario outcomes</td><td><span class="data-kind">Test-only</span></td><td><code>tests/test_los_demo_readiness.py</code>, <code>tests/test_los_uat_*.py</code>, <code>tests/test_los_*.py</code></td><td>Not UI business data; visible only as test evidence</td><td>Masked UAT datasets, client acceptance scenarios and signed business evidence</td></tr>
+          </tbody>
+        </table></div>
+        <div class="safe-note"><strong>Security boundary:</strong> credentials are environment secrets, not demo content. Never display an API key during the presentation. Production also needs secret rotation, vaulting, access controls and provider-side revocation.</div>
+      </section>
+    </main>
+  </div>
+  <footer>Client One LOS demo guide · generated from the implemented UI, workflow configuration, client specification and verified test baseline · 10 October 2026</footer>
+  <script>
+    const changeTitles = [
+      'Application-owned multi-party and multi-facility model',
+      'Complete related-party profile and audited maintenance',
+      'Legal-entity identity and NTB/ETB classification',
+      'PAN, CIN and application deduplication',
+      'Controlled sourcing decision and Customer ID validation',
+      'Complete prospect and proposed-facility capture',
+      'Client-aligned IP Note ownership and assignments',
+      'Per-facility lifecycle, limits and account references',
+      'All fifteen governed due-diligence checks',
+      'Persistent due-diligence comments',
+      'Exception reset after re-screening',
+      'Mandatory unavailable-result control',
+      'Ninety-day screening and exception-expiry control',
+      'Party-level verification and evidence coverage',
+      'Per-check evidence and detailed verification grids',
+      'Governed CMA and financial spreading',
+      'Ratings, adverse events and RAROC governance',
+      'Proposal, exposure, banking and conduct workspace',
+      'Project appraisal and change-driven reappraisal',
+      'ESMS and ESDD governed assessment',
+      'Security master and perfection lifecycle',
+      'Facility pricing, fees and repayment schedule',
+      'External Work-Party management',
+      'Twenty-five-step client-aligned workflow',
+      'Withdrawal, modification, drop and targeted rework',
+      'Unified authority, recommendation and sanction evidence',
+      'Approval snapshots and material-change control',
+      'Versioned document registry and mandatory gates',
+      'Complete downloadable output and annexure set',
+      'Live mandatory-rule catalogue',
+      'Cross-module dependency invalidations',
+      'Role-aware queues and segregation of duties',
+      'Post-sanction consent and facility execution',
+      'Condition lifecycle and recurring covenant monitoring',
+      'Complete Disbursement Maker operational record',
+      'Disbursement memo, multi-level review and correct Exit',
+      'Subsequent-tranche re-entry after Exit',
+      'Working-day SLA, escalation and MIS',
+      'Honest twenty-two-adapter integration registry',
+      'Governed NVIDIA NIM and CAM assistance',
+      'Reconciled client specification and implementation status',
+      'Full regression and UAT verification'
+    ];
+    const clickSteps = [
+      ['Sign in as <strong>Neha Kulkarni · Risk Analyst</strong>.','Open <strong>Pipeline Dashboard</strong> → select <strong>ABCE001</strong>.','Scroll to <strong>Workspaces</strong> and open <strong>Parties &amp; identity</strong>, <strong>Facilities &amp; limits</strong>, <strong>Projects &amp; ESMS</strong> and <strong>Securities</strong>.','Point out the separate IDs and linkages between each record.'],
+      ['Sign in as <strong>Neha Kulkarni · Risk Analyst</strong>.','Dashboard → open <strong>ABCE001</strong>.','Workspaces → <strong>Parties &amp; identity</strong>.','Review relationship, address source, ownership, key-person role and party status; click <strong>Evidence</strong> on a party to show its separate record.'],
+      ['Sign in under <strong>Sourcing &amp; Relationship</strong> as <strong>Ananya Rao</strong>.','Click <strong>+ New Application</strong>.','Select a borrower from <strong>Customer / borrower</strong>.','In <strong>Customer identity &amp; deduplication</strong>, show entity-incorporated, incorporation/constitution, PAN, CIN, GSTIN and NTB/ETB status.'],
+      ['Sign in as <strong>Ananya Rao · RM</strong> → <strong>+ New Application</strong>.','Select a borrower.','Review the <strong>LOS deduplication</strong> results below the identity details.','Point out each matching application and the displayed match reason (entity, PAN or CIN).'],
+      ['Sign in as <strong>Ananya Rao · RM</strong> → <strong>+ New Application</strong>.','Select the available <strong>Customer ID</strong>; explain that an unlisted CIF is rejected.','Scroll to <strong>Sourcing decision</strong>.','Select a decision and show <strong>Mandatory remarks</strong>; choose Defer only to show the additional conditional-remarks requirement.'],
+      ['Sign in as <strong>Ananya Rao · RM</strong> → <strong>+ New Application</strong>.','Scroll to <strong>Proposed facilities</strong> and click <strong>+ Add facility</strong>.','Show product, nature, facility type, amount, tenor and applicable attributes.','Scroll to <strong>Project / funding details</strong> and <strong>Prospect discussion</strong>.'],
+      ['Sign in as <strong>Neha Kulkarni · Risk Analyst</strong>.','Dashboard → open <strong>ABCE001</strong>.','Scroll to <strong>In-principle stage · IP Note</strong>.','Show <strong>LPFG Analyst</strong>, <strong>LPFG Senior Analyst</strong>, <strong>CRAC recommendation</strong> and the printable IP Note.'],
+      ['Sign in as <strong>Neha Kulkarni · Risk Analyst</strong> → open <strong>ABCE001</strong>.','Workspaces → <strong>Facilities &amp; limits</strong>.','Expand/edit a facility row.','Show pricing/repayment fields, limit ID, loan account/suffix, next-review date and the attributed change history.'],
+      ['Sign in as <strong>Ananya Rao</strong> and open <strong>IHCL001</strong>, or use <strong>ABCE001</strong> as Risk Analyst.','Scroll to <strong>Due diligence · governed workspace</strong> → <strong>Pre-sanction checks</strong>.','Click <strong>Run all API checks</strong>.','Use <strong>Record</strong> on a manual check and review all 15 named rows, sources, results and histories.'],
+      ['Open a case showing <strong>Pre-sanction checks</strong>.','Expand any check and choose the comment/record action.','Enter a comment and save it.','Reload the application, reopen the check, then open <strong>Activity &amp; audit</strong> to show the persisted comment event.'],
+      ['Open a matched/failed due-diligence check.','Switch role to <strong>Priya Raghavan · Compliance VP</strong> and record an exception with a reason.','Switch back to the check-owning role and click <strong>Re-run</strong> / <strong>Re-record</strong>.','Reopen history and show that the previous exception moved to invalidated exception history.'],
+      ['Open a mandatory check whose result is <strong>unavailable</strong>.','Point out the blocking note stating it is never treated as clear.','Switch to <strong>Priya Raghavan · Compliance VP</strong>.','Click <strong>Approve VP (unavailable)…</strong>, enter a reason and show the governed release.'],
+      ['Open <strong>Pipeline Dashboard</strong>.','Scroll to <strong>Screening alerts</strong>.','Show reminder rows for checks due within 14 days and escalation badges for overdue/lapsed items.','Open an alerted application → <strong>Pre-sanction checks</strong> and show the next re-screen/exception-expiry detail.'],
+      ['Sign in as <strong>Neha Kulkarni · Risk Analyst</strong> → open <strong>ABCE001</strong>.','Workspaces → <strong>Parties &amp; identity</strong>.','Click <strong>Evidence</strong> beside a related party.','Show KYC, CIBIL, CRIF, name screening, rating reference, CMA/financial reference, documents and the party exception field.'],
+      ['Open an application → <strong>Pre-sanction checks</strong>.','On a check, point to <strong>Attach…</strong> and the existing KYC evidence to show per-check linkage.','Locate <strong>EWS</strong> and <strong>LEI</strong>; on ABCE001 they are unavailable and have no stored grid rows, so show that state honestly.','On <strong>UDIN</strong>, click <strong>UDIN grid…</strong> and review the seeded verification record without saving.'],
+      ['Sign in as <strong>Neha Kulkarni · Risk Analyst</strong> → open <strong>MRF001</strong>.','Workspaces → <strong>CMA</strong>.','Select the subject and period/value class, then review the financial rows and computed margins.','Show reconciliation, <strong>Save review</strong> and the CMA download under <strong>Documents</strong>.'],
+      ['Open <strong>MRF001</strong> as Risk Analyst.','Workspaces → <strong>Ratings &amp; RAROC</strong>.','Review external ratings, internal/group rating and adverse-event entries.','In the facility RAROC table, show stale status and the <strong>Recompute</strong> action.'],
+      ['Open <strong>MRF001</strong> as Risk Analyst.','Workspaces → <strong>Proposal &amp; exposure</strong>.','Show proposal/background, banking arrangement and exposure rows.','Scroll through conduct history and point out the breach indicator and exception fields.'],
+      ['Open <strong>MRF001</strong> or <strong>ABCE001</strong>.','Workspaces → <strong>Projects &amp; ESMS</strong>.','Review project identity, facility linkage, TEV, project cost, means of finance, DCCO and risk register.','Open the change area and explain that <strong>Record change</strong> flags the project for reappraisal.'],
+      ['Open an IP/AP application → Workspaces → <strong>Projects &amp; ESMS</strong>.','Scroll from the project record to the <strong>ESMS</strong> checklist.','Show A/B/C and CPCB categories, ESDD fields and excluded-activity answers.','Select Yes/Not Available only to demonstrate the mandatory-remarks gate; show the ESMS note under Documents.'],
+      ['Open <strong>ABCE001</strong> or <strong>MRF001</strong>.','Workspaces → <strong>Securities</strong>.','Open a security row and show linked facilities, apportioned/proposed value and valuation date/basis.','Point out charge priority, creation/perfection state, cover ratio and history.'],
+      ['Open <strong>MRF001</strong>.','Workspaces → <strong>Pricing &amp; fees</strong>.','Review benchmark, spread, recommended/proposed rate, comparison and justification.','Scroll to fee rows and the tentative repayment schedule; explain the RAROC stale/recompute linkage.'],
+      ['Open <strong>MRF001</strong> or another IP/AP case.','Workspaces → <strong>External parties</strong>.','Review LIA, LIE, Security Trustee, ESDD provider and Legal Loan Counsel entries.','Show contact, phase, status and the linked project/facility/security context.'],
+      ['Open <strong>Pipeline Dashboard</strong> and select any application.','Use the left stage rail to expand <strong>PS</strong>, <strong>IP</strong>, <strong>AP</strong>, <strong>POS</strong> and <strong>DIS</strong>.','Review the 25 named steps and their maker/checker/allocation/VP/committee role labels.','Click <strong>My Queue</strong>, then switch roles to show role-specific work.'],
+      ['Open <strong>MFL001</strong> to show an existing return and reason.','At a checker/committee case, review <strong>Rework destination</strong> and the Comment field.','At applicable steps, point out <strong>Withdraw</strong>, <strong>Drop</strong>, <strong>Propose Modification</strong> and <strong>Recommend for Modification</strong>.','Do not execute a terminal action on a case required later in the demo.'],
+      ['Sign in as <strong>Credit Committee Secretariat</strong> → open <strong>APOL001</strong>.','Scroll to <strong>Review &amp; committee pack</strong>.','Show recommendation, authority result, deviations and unresolved risks.','In the current-step action area, show sanctioned amount and explain that a different amount requires committee minutes.'],
+      ['Open <strong>APOL001</strong> or another application with a snapshot.','Workspaces → <strong>Approval package</strong>.','Show the 14 governed domains, domain hashes and content hash.','Point to <strong>Material change</strong> / <strong>Stale conclusions</strong> and the Accept/Return or Resolve action without mutating the demo.'],
+      ['Open any active application.','Workspaces → <strong>Documents</strong>.','Review stage, document type, logical version, review status, reviewer and remarks.','Point out missing/unreviewed mandatory rows and the Review action that controls progression.'],
+      ['Open an application → Workspaces → <strong>Documents</strong>.','Scroll to <strong>Generated outputs</strong>.','Open Executive Summary, Due-diligence Report, ESMS note, CMA or Committee Minutes.','Show the MCA/CIBIL/CRIF, CEIB, UDIN, Drawdown and Annexure I/III/IV/VI/IX/XI/XIII/XIV buttons.'],
+      ['Open any application.','Workspaces → <strong>Mandatory rules</strong>.','Review rules <strong>RUL-01…RUL-20</strong>.','Point out applicability, pass/fail/not-applicable state, severity and the blocking reason.'],
+      ['Open an application with <strong>Stale conclusions — re-evaluation required</strong>.','Review the invalidation type, detail, actor and timestamp.','Explain triggers from ownership/group/rating/facility/project/security changes.','Click <strong>Resolve…</strong> only to show the mandatory resolution-note field; do not save during a read-only demo.'],
+      ['Use the header role picker to sign in as two different demo roles.','For each role, open <strong>My Queue</strong>.','Open the same application and compare visible actions/read-only state.','Use <strong>Reassign</strong> and <strong>Escalate</strong> panels only to explain their controlled inputs.'],
+      ['Sign in as <strong>Farah Sheikh · Post Sanction Maker</strong>.','Dashboard / My Queue → open <strong>INFY001</strong>.','Scroll to <strong>Post sanction &amp; disbursement</strong> and record/show sanction consent.','Review facility execution status, Facility Agreement Date, committed/executed/balance values and Sanction Letter versions.'],
+      ['Open <strong>INFY001</strong> as Post Sanction Maker.','Scroll to <strong>Post sanction &amp; disbursement</strong> → <strong>Conditions</strong>.','Review CP, CS, subsequent-disbursement, financial/non-financial and facility-specific conditions.','Scroll to <strong>Covenant monitoring</strong> and show Test: pass, Test: fail, Cure and overdue reminder states.'],
+      ['Sign in as <strong>Lakshmi Narayan · Disbursement Maker</strong>.','Dashboard → open <strong>PNCR001</strong>.','Workspaces → <strong>Disbursement ops</strong>.','Review CIF, limits, accounts, CBS Security Number, beneficiaries, fees/charges, repayment/interest, arrears and Interim SOP items.'],
+      ['Open <strong>PNCR001</strong> → Workspaces → <strong>Disbursement ops</strong>.','Scroll to <strong>Disbursement memo</strong> and show content hash, Regenerate and Mark reviewed actions.','Review the current-stage checklist, then explain the role sequence: Rohit Saxena → Vikram Desai → Pooja Venkat.','Use the left stage rail to show Checker, VP Review and Final Approver before Exit (approved).'],
+      ['Sign in as <strong>Lakshmi Narayan · Disbursement Maker</strong>.','Dashboard → open <strong>PNCR002</strong>, the dedicated <strong>Complete · Exit (approved)</strong> showcase.','Scroll to the completion card and show the approved first tranche.','Enter a reason in <strong>Subsequent tranche — reason</strong>; point out <strong>Request subsequent tranche</strong> and explain that it reopens at Disbursement Maker with all DIS gates reapplied.'],
+      ['Open <strong>Pipeline Dashboard</strong> and show SLA badges, escalated cases and Screening alerts.','Click <strong>Management MIS</strong> in the top navigation.','Review Pipeline by stage, Ageing, Turnaround and Live SLA breaches by role.','Scroll to decision quality, sanctions, conditions and copilot metrics.'],
+      ['Open <strong>Pipeline Dashboard</strong>.','Scroll below Screening alerts to <strong>Integration registry</strong>.','Review all adapter rows and compare <code>demo_data</code> with <code>not_connected</code>.','Point out source, label, client use, last-used time and call evidence.'],
+      ['Sign in as <strong>Neha Kulkarni · Risk Analyst</strong> → open <strong>ABCE001</strong>.','Click <strong>Credit workspace ↗</strong> for the assessment/CAM view.','Return to LOS and scroll to <strong>Documents &amp; AI prefill</strong> and <strong>Copilot · agentic assistant</strong>.','Show provenance/confidence, accept/override controls and explain that deterministic rules—not AI—control approval.'],
+      ['In the repository root, open <strong>clientspec.md</strong>.','Use the table of contents or search for <strong>GAP-P0</strong>, <strong>GAP-P1</strong> and <strong>GAP-P2</strong>.','Show struck-through completed lines and their dated implementation notes.','Finish at Sections 24.1 and 28 to distinguish demo completion from client-confirmation items.'],
+      ['At the top of this walkthrough, point to the <strong>437/437 tests passing</strong> metric and the dedicated 42-point readiness test.','If technical proof is requested, open a terminal in the repository root.','Run <code>.\\.venv\\Scripts\\python.exe -m pytest tests/test_los_demo_readiness.py -q</code> for the fast presentation contract, or <code>.\\.venv\\Scripts\\python.exe -m pytest tests -q</code> for the full suite.','Show the passing summary; avoid running the full suite during a short business demo unless requested.']
+    ];
+    const demoCases = [
+      'ABCE001 - 3 parties and 2 linked facilities','ABCE001 - complete party profiles and evidence','New Application / IHCL001 - stored legal identity','New Application - duplicate match reasons','IHCL001 / New Application - validated CIF and decision','IHCL001 / New Application - prospect and facility capture','ABCE001 - seeded IP Note assignments','ABCE001 - facility terms, IDs and history','ABCE001 - all 15 checks','ABCE001 - persisted KYC comment','ABCE001 - invalidated exception history','MFL001 - mandatory KYC unavailable state','MFL001 - overdue 90-day screening alert','ABCE001 - party KYC/bureau/screening evidence','ABCE001 - KYC evidence and UDIN grid','MRF001 - approved CMA periods','MRF001 - internal rating, adverse review and RAROC','MRF001 - consortium, conduct and breach exception','MRF001 - project and DCCO reappraisal','MRF001 - completed Category B ESMS','MRF001 - linked project security','MRF001 - pricing, fee and tentative schedule','MRF001 - all 5 work-party roles','Any case - complete 25-step rail','MFL001 - returned/rework history','APOL001 - current sanction committee case','APOL001 - 14-domain approval snapshot','ABCE001 / PNCR001 - versioned documents','MRF001 / PNCR001 - generated outputs and 8 annexures','MRF001 - live RUL-01 to RUL-20 catalogue','MFL001 - open ownership-change invalidation','Switch active roles - My Queue evidence','INFY001 - consent and executed facility','INFY001 - breach, cure and reminder examples','PNCR001 - complete operational record','PNCR001 - memo and four-role review route','PNCR002 - Exit-approved first tranche','Dashboard / MIS - seeded breach and escalation','Dashboard - 22 labelled adapters','ABCE001 - assessment start, Copilot and CAM','clientspec.md - reconciled implementation record','tests/test_los_demo_readiness.py - 42/42 contract'
+    ];
+    const demoCaseOverrides = {
+      6:'ABCE001 - IP Note assignment fields and seeded CRAC narrative',
+      10:'ABCE001 - exception invalidation lifecycle (controlled rehearsal)',
+      14:'ABCE001 - KYC evidence and seeded UDIN grid; EWS/LEI unavailable'
+    };
+    const accessProfiles = {
+      risk: ['If any user is already signed in, click <strong>Sign out</strong> in the upper-right corner.','On the first page, find the <strong>Credit &amp; Risk</strong> card (top middle) and click <strong>Select group &rarr;</strong>.','In <strong>Demo user</strong>, choose <strong>Neha Kulkarni &middot; HO</strong>.','In <strong>Role</strong>, confirm <strong>Risk Analyst (Risk Maker)</strong>, then click the blue <strong>Sign in</strong> button.'],
+      rm: ['If any user is already signed in, click <strong>Sign out</strong> in the upper-right corner.','On the first page, find the <strong>Sourcing &amp; Relationship</strong> card (top left) and click <strong>Select group &rarr;</strong>.','In <strong>Demo user</strong>, choose <strong>Ananya Rao &middot; MUM-001</strong>.','In <strong>Role</strong>, confirm <strong>Prospect Sourcing Maker (RM)</strong>, then click the blue <strong>Sign in</strong> button.'],
+      compliance: ['If any user is already signed in, click <strong>Sign out</strong> in the upper-right corner.','On the first page, open <strong>Credit &amp; Risk</strong> using <strong>Select group &rarr;</strong>.','Choose <strong>Priya Raghavan &middot; HO</strong> in <strong>Demo user</strong> and <strong>Compliance VP</strong> in <strong>Role</strong>.','Click <strong>Sign in</strong>. To show the check before VP action, first open it as Neha Kulkarni, sign out, then repeat these steps as Priya.'],
+      committee: ['If any user is already signed in, click <strong>Sign out</strong> in the upper-right corner.','On the first page, find <strong>Executive &amp; Committee</strong> (top right) and click <strong>Select group &rarr;</strong>.','Choose <strong>Credit Committee Secretariat &middot; HO</strong> in <strong>Demo user</strong>.','Confirm <strong>Sanction Committee</strong> in <strong>Role</strong>, then click <strong>Sign in</strong>.'],
+      post: ['If any user is already signed in, click <strong>Sign out</strong> in the upper-right corner.','On the first page, find <strong>Operations &amp; Fulfilment</strong> (bottom left) and click <strong>Select group &rarr;</strong>.','Choose <strong>Farah Sheikh &middot; MUM-OPS</strong> in <strong>Demo user</strong>.','Confirm <strong>Post Sanction Maker</strong> in <strong>Role</strong>, then click <strong>Sign in</strong>.'],
+      dis: ['If any user is already signed in, click <strong>Sign out</strong> in the upper-right corner.','On the first page, open <strong>Operations &amp; Fulfilment</strong> with <strong>Select group &rarr;</strong>.','Choose <strong>Lakshmi Narayan &middot; MUM-OPS</strong> in <strong>Demo user</strong>.','Confirm <strong>Disbursement Maker</strong> in <strong>Role</strong>, then click <strong>Sign in</strong>.'],
+      reviewer: ['If any user is already signed in, click <strong>Sign out</strong> in the upper-right corner.','On the first page, open <strong>Credit &amp; Risk</strong> with <strong>Select group &rarr;</strong>.','Choose <strong>Rahul Bansal &middot; HO</strong> in <strong>Demo user</strong> and click <strong>Sign in</strong>.','Rahul has two roles. Use the <strong>Active role</strong> dropdown near the top of the left sidebar to switch between <strong>CRP VP</strong> and <strong>Risk Reviewer</strong>.'],
+      local: ['No LOS sign-in is required for this proof.','Open File Explorer or the editor at <code>D:\\KPMG\\new3</code>.'],
+      terminal: ['No LOS sign-in is required for this proof.','Open PowerShell in <code>D:\\KPMG\\new3</code>.']
+    };
+    const accessKeys = ['risk','risk','rm','rm','rm','rm','risk','risk','risk','risk','compliance','compliance','risk','risk','risk','risk','risk','risk','risk','risk','risk','risk','risk','risk','risk','committee','committee','risk','risk','risk','risk','reviewer','post','post','dis','dis','dis','risk','risk','risk','local','terminal'];
+    const caseIds = ['ABCE001','ABCE001',null,null,null,null,'ABCE001','ABCE001','ABCE001','ABCE001','ABCE001','MFL001',null,'ABCE001','ABCE001','MRF001','MRF001','MRF001','MRF001','MRF001','MRF001','MRF001','MRF001','ABCE001','MFL001','APOL001','APOL001','ABCE001','MRF001','MRF001','MFL001',null,'INFY001','INFY001','PNCR001','PNCR001','PNCR002',null,null,'ABCE001',null,null];
+    const routeModes = ['case','case','new','new','new','new','case','case','case','case','case','case','dashboard','case','case','case','case','case','case','case','case','case','case','case','case','case','case','case','case','case','case','queue','case','case','case','case','case','mis','integrations','case','local','terminal'];
+    function startRoute(index){
+      const signIn=accessProfiles[accessKeys[index]] || accessProfiles.risk;
+      const mode=routeModes[index], id=caseIds[index];
+      let nav=[];
+      if(mode==='new') nav=['After sign-in, look at the dark-blue <strong>left sidebar</strong>.','Under the <strong>Origination</strong> heading, click <strong>New Application</strong>. This menu appears only for the RM role.'];
+      else if(mode==='case') nav=['After sign-in, click <strong>Pipeline Dashboard</strong> under <strong>Overview</strong> in the left sidebar.',`In the search box across the top, type <strong>${id}</strong> and press <strong>Enter</strong>.`,`Scroll down past the dashboard cards to the applications table. Click the entire row whose <strong>Loan ID</strong> is <strong>${id}</strong>; do not click a stage name.`,`The application opens with the stage rail on the left and its content on the right. Scroll in the right content area until the section named in the next steps appears.`];
+      else if(mode==='dashboard') nav=['After sign-in, click <strong>Pipeline Dashboard</strong> under <strong>Overview</strong> in the left sidebar.','Remain on the dashboard; the required panel is below the KPI and priority cards.'];
+      else if(mode==='integrations') nav=['After sign-in, click <strong>Pipeline Dashboard</strong> in the left sidebar.','In the right content area, scroll below <strong>Screening alerts</strong> to <strong>Integration registry</strong>.'];
+      else if(mode==='mis') nav=['After sign-in, click <strong>Pipeline Dashboard</strong> first to show the SLA badges.','Then click <strong>Management MIS</strong> under <strong>Overview</strong> in the left sidebar.'];
+      else if(mode==='queue') nav=['After sign-in, click <strong>My Queue</strong> under <strong>Overview</strong> in the left sidebar.','Use the <strong>Active role</strong> dropdown at the top of the left sidebar; after each role change, click <strong>My Queue</strong> again.'];
+      const handoffs={
+        10:['For the before/after proof, first use <strong>Credit &amp; Risk &rarr; Neha Kulkarni &rarr; Risk Analyst</strong> to open ABCE001 and inspect the check. Sign out, then use <strong>Credit &amp; Risk &rarr; Priya Raghavan &rarr; Compliance VP</strong> to approve the exception. Sign out and return as Neha to re-run it.'],
+        11:['First open MFL001 as <strong>Neha Kulkarni &middot; Risk Analyst</strong> to show the unavailable block. Sign out, then choose <strong>Credit &amp; Risk &rarr; Priya Raghavan &rarr; Compliance VP</strong> to show the governed VP release action.'],
+        35:['For each review stage, click <strong>Sign out</strong>, reopen <strong>Operations &amp; Fulfilment</strong>, and sign in as: <strong>Rohit Saxena &middot; Disbursement Checker</strong>, then <strong>Vikram Desai &middot; Disbursement VP</strong>, then <strong>Pooja Venkat &middot; Disbursement Approver</strong>. After each sign-in, use Pipeline Dashboard, search PNCR001, and click its row. Do not advance the seeded case during a read-only presentation.']
+      };
+      return [...signIn,...nav,...(handoffs[index]||[])];
+    }
+    const beforeStates = [
+      'The cloned application centred on one borrower and one primary facility, so group parties and facility-specific exposure were not represented as separate governed records.',
+      'Related parties were mostly names in the CAM context, without a complete maintained profile, evidence link or attributed history.',
+      'Legal identity and NTB/ETB classification were incomplete and were not carried as a controlled application record.',
+      'Duplicate detection did not clearly expose PAN, CIN and application match reasons to the RM.',
+      'A sourcing decision, remarks and selected Customer ID could be incomplete or inconsistent with the available customer result.',
+      'Prospect discussion, project funding and multiple proposed-facility attributes were too limited for corporate origination.',
+      'IP Note ownership, analyst assignments and recommendation fields did not match the client process.',
+      'Facility terms and bank references were treated too much like one aggregate record and lacked an attributed change trail.',
+      'The complete set of fifteen client checks was not available as one governed, blocking due-diligence workspace.',
+      'Due-diligence comments were transient and could disappear after reload.',
+      'An exception approved for an old screening result could remain attached after the check was run again.',
+      'A mandatory check marked unavailable could be treated as clear and allow progression.',
+      'Screening age and exception expiry did not create clear 90-day reminders, escalations and blocking controls.',
+      'Checks were primarily application/entity level and did not clearly prove coverage for every related party.',
+      'A check result did not consistently expose its detailed rows, source history and document evidence.',
+      'There was no governed CMA workspace with period data, reconciliation and maker-checker review.',
+      'External/internal ratings, adverse events and facility RAROC were not governed together with stale-input control.',
+      'Proposal, banking arrangement, total exposure and conduct breaches were fragmented or absent.',
+      'Project appraisal lacked a full linked record and material project changes did not force reappraisal.',
+      'Environmental and social assessment lacked the complete categorized checklist and mandatory-remark controls.',
+      'Security data did not cover linked facilities, value apportionment, charge priority, perfection and history as one lifecycle.',
+      'Pricing, fees, benchmark/spread controls and a tentative repayment schedule were incomplete.',
+      'LIA, LIE, trustee, ESDD provider and legal counsel were not managed as linked external work parties.',
+      'The original journey did not implement the complete client-aligned 25-step, 18-role maker-checker workflow.',
+      'Processing was mainly linear; withdrawal, drop, modification and targeted rework paths were incomplete.',
+      'Recommendation, sanction authority and deviation evidence were split and difficult to prove as one approval record.',
+      'Approvers had no immutable domain snapshot or visible stale-conclusion gate after a material change.',
+      'Documents behaved more like a file list, without governed logical versions, review status and mandatory gates.',
+      'The downloadable CAM support set and client annexures were incomplete.',
+      'Blocking rules existed in code but were not visible as an explainable live catalogue in the application.',
+      'Changes to ownership, rating, facility, project or security did not consistently invalidate dependent conclusions.',
+      'Users had limited role-aware queue proof and segregation-of-duties visibility.',
+      'Post-sanction consent, facility execution and agreement evidence were incomplete.',
+      'Conditions were not backed by a recurring covenant test, breach, cure and reminder lifecycle.',
+      'Disbursement was too tranche-focused and lacked the complete operational record needed by the maker.',
+      'Memo governance and the Checker, VP and Final Approver chain were incomplete, and completion semantics were unclear.',
+      'An approved application could not cleanly reopen for a subsequent tranche while reapplying disbursement controls.',
+      'SLA/MIS coverage was basic and did not clearly show working-day ageing, escalation and management evidence.',
+      'External-source mock data could be mistaken for a live integration because there was no honest adapter registry.',
+      'AI assistance was not presented with sufficiently clear provenance, human control and deterministic decision boundaries.',
+      'The specification contained outdated and contradictory open-gap statements after features were implemented.',
+      'The implementation lacked one presentation-readiness contract covering every client change alongside the regression suite.'
+    ];
+    const showProofs = [
+      ['In <strong>Parties &amp; identity</strong>, point to three separate party rows and their Party IDs.','In <strong>Facilities &amp; limits</strong>, point to both Facility IDs and their different amounts/terms.','Open Projects and Securities and show their facility links; explain that all records belong to one application.'],
+      ['Point to <strong>Relationship to the entity</strong>, sourced address, ownership/key-person role, type and party status.','Click the party evidence/control and show its separate verification references.','Save an allowed edit and show that the maintained value/history remains after reload.'],
+      ['On New Application, point to entity-incorporated status, constitution/incorporation date, PAN, CIN and GSTIN.','Show the displayed <strong>NTB/ETB</strong> result and its customer/CBS source context.','Explain that this identity becomes part of the application rather than remaining only in the CAM narrative.'],
+      ['Point to the <strong>LOS deduplication</strong> results below Customer identity.','Show the matched application/reference and the explicit match reason: entity, PAN or CIN.','Explain that the RM can identify an existing case before creating another application.'],
+      ['Show that Customer ID is selected only from the available result, not typed as an arbitrary CIF.','Point to required indicators on <strong>Sourcing decision</strong> and <strong>Mandatory remarks</strong>.','Select Defer without saving to show that conditional remarks become required.'],
+      ['Point to multiple rows under <strong>Proposed facilities</strong> and their product, nature, amount and tenor fields.','Show <strong>Project / funding details</strong> and <strong>Prospect discussion</strong>.','Explain that the RM now captures the proposal structure before formal credit assessment.'],
+      ['Point to LPFG Analyst, LPFG Senior Analyst and CRAC recommendation on the IP Note.','Show the prepared-by attribution and printable/downloadable note.','Use the stage rail to show where IP Note processing and review sit in the workflow.'],
+      ['Point to facility-specific pricing, repayment, limit ID, loan account/suffix and next-review date.','Show that each facility has its own record rather than sharing one application-level field set.','Point to the attributed change history with actor and timestamp.'],
+      ['Count/show all fifteen named check rows and their mandatory/manual/API labels.','Point to result, source, time, history and blocking state on representative checks.','Show the submission blocker when a mandatory check is not clear.'],
+      ['Expand a due-diligence check and point to the saved comment.','Reload the page and show that the same comment remains.','Open Activity &amp; audit and point to the <strong>dd_comment</strong> event as persistence proof.'],
+      ['Show the originally approved exception and its reason/history.','Re-run the check and point to the cleared live exception plus the entry under invalidated exception history.','Show that the blocker is active again until a new Compliance VP decision is recorded.'],
+      ['On MFL001, point to the mandatory KYC result <strong>unavailable</strong> and its blocking message.','As Compliance VP, show the <strong>Approve VP (unavailable)</strong> action and mandatory reason field.','Explain that the configured demo policy is VP approval, not silent passage.'],
+      ['On the Dashboard, point to the due-within-14-days and overdue screening alert rows.','Open MFL001 and show the last-screened date, 90-day due date and overdue/block state.','Point to exception-expiry information and explain that expired evidence cannot remain clear.'],
+      ['Open party Evidence and point to separate KYC, bureau, screening, rating, CMA/document and exception references.','Compare two parties to show that evidence is not inherited from the borrower.','Explain that each obligor/key party can be proved separately.'],
+      ['Point to EWS and LEI as unavailable on ABCE001; explain that their tables render only when a provider returns grid rows.','Open the UDIN grid and show its seeded document-wise verification record.','Use the existing KYC Evidence line and Attach control to show per-check linkage without changing data.'],
+      ['Point to the CMA subject, period and financial row values.','Show calculated margins/reconciliation and the maker-checker review status.','Open Documents and point to the generated CMA download registered against the application.'],
+      ['Point to external rating, internal/group rating and adverse-event entries.','In facility RAROC, show inputs, result, hurdle status and model label.','Change nothing; point to stale/recompute state to explain dependency governance.'],
+      ['Show proposal/background and banking arrangement, including consortium control where applicable.','Point to exposure rows and total/group context.','Show the conduct breach indicator and its exception/reason fields.'],
+      ['Point to project ID, linked facility, TEV, cost, means of finance, DCCO and risk register.','Show the project change area and the <strong>Record change</strong> control.','Explain that a material change marks appraisal conclusions stale and requires reappraisal.'],
+      ['Point to ESMS category, CPCB category, ESDD fields and excluded-activity answers.','Select a Yes/Not Available answer without saving and show the mandatory-remark validation.','Open Documents and point to the generated ESMS note.'],
+      ['Point to Security ID, security type/owner context, linked facilities and apportioned/proposed value.','Show valuation date/basis, charge priority and creation/perfection status.','Point to cover ratio and the security change history.'],
+      ['Point to recommended versus proposed benchmark/rate/spread and the justification.','Show fee rows and the tentative repayment schedule.','Point to the warning that a pricing change makes RAROC stale until recomputed.'],
+      ['Show all five work-party roles: LIA, LIE, Security Trustee, ESDD provider and Legal Loan Counsel.','Point to contact, phase, status and linked project/facility/security context.','Explain that external contributors are now traceable records, not narrative names.'],
+      ['Expand PS, IP, AP, POS and DIS in the left stage rail.','Point to the current step and the green/completed, amber/current and grey/future states.','Show the role label for maker, checker, allocation, VP and committee steps and compare with My Queue.'],
+      ['On MFL001, point to the return event, reason and selected rework destination.','At an applicable decision step, show Withdraw, Drop and Modification controls without executing them.','Explain that rework returns to a targeted owner instead of restarting the complete journey.'],
+      ['In the committee pack, point to recommendation, authority result, deviations and unresolved risks.','Show sanctioned amount and the committee-minutes requirement for a changed amount.','Point to actor/time evidence binding the decision to the authorized role.'],
+      ['Point to the 14 domain names, each domain hash and the overall content hash.','Show the material-change/stale-conclusion banner when current data differs from the snapshot.','Point to Accept/Return or Resolve and its mandatory governance note.'],
+      ['Point to document type, stage, logical version, review status, reviewer and remarks.','Show how another upload becomes a new version instead of an ambiguous duplicate filename.','Point to an unreviewed/missing mandatory document gate and the Review action.'],
+      ['Open two generated outputs to prove they download/render from application data.','Point to the due-diligence, ESMS, CMA and committee outputs.','Show the eight annexure buttons and their registry/version evidence.'],
+      ['Point to RUL-01 through RUL-20 in the Mandatory rules tab.','For representative rules, show applicability, severity, pass/fail/not-applicable and reason.','Explain that the visible result is the same server-side gate used at submission.'],
+      ['Point to the stale-conclusion banner and list the invalidated domain/reason.','Show actor, timestamp and triggering change type.','Open Resolve without saving and point to the mandatory resolution note.'],
+      ['As Rahul, show different items in My Queue for CRP VP and Risk Reviewer.','Open the same case under both roles and compare editable actions with read-only state.','Point to Reassign/Escalate inputs and explain that they are audited role controls.'],
+      ['On INFY001, point to sanction consent status/evidence.','Show facility agreement date and committed, executed and balance values.','Point to sanction-letter versions and facility execution status.'],
+      ['Show condition types: CP, CS, subsequent-disbursement, financial/non-financial and facility-specific.','In Covenant monitoring, point to a pass, a breach, a cure and an overdue reminder.','Explain how unresolved CPs block progression and recurring covenants remain monitored after sanction.'],
+      ['Point to CIF, limit/account identifiers and CBS Security Number.','Show beneficiaries, fee/non-fund charges, repayment, interest and arrears.','Point to every Interim SOP item and its compliance/remark status.'],
+      ['Point to the memo content hash, generated time, review state and Regenerate/Mark reviewed controls.','Show the current review checklist and the four DIS roles on the stage rail.','Explain that only final approval leads to <strong>Exit (approved)</strong>, not payment settlement.'],
+      ['On PNCR002, point to Complete / Exit (approved) and the approved first-tranche record.','Point to the reason field and <strong>Request subsequent tranche</strong> control.','Explain that reopening returns to Disbursement Maker and reapplies all DIS gates.'],
+      ['On Dashboard, point to SLA breach/escalation badges and Screening alerts.','In Management MIS, show pipeline, ageing, turnaround and breaches by role.','Point to decision quality, sanctions, conditions and copilot adoption metrics.'],
+      ['Count/show all 22 adapter rows.','Point to <code>demo_data</code> versus <code>not_connected</code>, purpose and last-used evidence.','State clearly that unavailable sources are never shown as successful live verification.'],
+      ['Point to the AI connected badge and a grounded Next best action.','Open Credit workspace and show assessment/CAM content, then return to provenance/confidence and accept/override controls.','Point to deterministic blockers/rules and explain that AI cannot submit, sanction or override them.'],
+      ['Open completed GAP sections and point to struck-through requirements plus dated implementation notes.','Show the demo-boundary/client-confirmation section for formulas, policies and integrations.','Explain that completed demo scope and production dependencies are now separated.'],
+      ['Run/show the 42-point readiness test passing.','Show the full regression total when requested.','Explain that tests cover persistence, gates and routes, while the live walkthrough proves presentation and usability.']
+    ];
+    const liveDemoGuides = [
+      {find:'ABCE001 &gt; right content area &gt; <strong>Workspaces</strong>. Use <strong>Parties &amp; identity</strong>, <strong>Facilities &amp; limits</strong>, <strong>Projects &amp; ESMS</strong> and <strong>Securities</strong>.',state:'ABCE001 currently has <strong>3 related parties</strong> and <strong>2 facilities</strong>; IDs and links are already seeded.',action:'Switch between the four tabs and point to IDs/linkages. No edit or save is required.',boundary:'These are labelled seeded demo records, not records fetched from a live CBS, collateral or project system.'},
+      {find:'ABCE001 &gt; Workspaces &gt; <strong>Parties &amp; identity</strong>. The party table and edit fields are in this tab; <strong>Evidence</strong> is in each party row Actions column.',state:'Three party rows are present. Profile/evidence content is stored separately for each party.',action:'Open <strong>Evidence</strong>, show the references, then close it. Avoid saving an edit during the client presentation.',boundary:'Party identity/evidence is demo data; production needs KYC, bureau, screening and customer-master sources.'},
+      {find:'Sign in as Ananya Rao &gt; left sidebar <strong>Origination</strong> &gt; <strong>New Application</strong> &gt; <strong>Customer identity &amp; deduplication</strong>.',state:'Identity fields populate only after a borrower is chosen from <strong>Customer / borrower</strong>.',action:'Choose a borrower and point to incorporation, constitution, PAN, CIN, GSTIN and NTB/ETB. Do not click Create.',boundary:'CBS customer-search and legal identity results are curated/simulated for this self-contained demo.'},
+      {find:'New Application &gt; select a borrower &gt; scroll within <strong>Customer identity &amp; deduplication</strong> to <strong>LOS deduplication</strong>.',state:'The result changes with the selected borrower and lists any local matching application with its match reason.',action:'Select borrowers only; show entity/PAN/CIN match reasons where returned. Do not create a duplicate application.',boundary:'This searches the local LOS demo records; production needs enterprise customer and historical LOS data.'},
+      {find:'New Application &gt; below customer identity, locate <strong>Customer ID</strong> and <strong>Sourcing decision</strong>.',state:'The Customer ID choices come from the displayed demo CBS result; decision and mandatory remarks are required.',action:'Select values to show validation, then leave without creating. Select Defer briefly to reveal conditional remarks.',boundary:'Do not claim a real CIF was validated; the current result comes from the demo customer catalog.'},
+      {find:'New Application &gt; <strong>Proposed facilities</strong>, then <strong>Project / funding details</strong> and <strong>Prospect discussion</strong>.',state:'A facility card is available and <strong>+ Add facility</strong> creates another unsaved proposal row.',action:'Show the fields and Add/Remove controls without submitting a new application.',boundary:'Values entered here are temporary until Create is used; creating changes the local demo dataset.'},
+      {find:'ABCE001 &gt; scroll below Copilot to <strong>In-principle stage &middot; IP Note</strong>.',state:'The CRAC narrative is seeded, but the visible LPFG Analyst/Senior Analyst assignment fields may currently be blank.',action:'Point to the two assignment fields, CRAC recommendation, prepared-by line and <strong>Printable view</strong>.',boundary:'Do not claim named analysts are already assigned when the UI shows a dash; the client committee vocabulary remains configurable.'},
+      {find:'ABCE001 &gt; Workspaces &gt; <strong>Facilities &amp; limits</strong>. Use <strong>Edit</strong> in a facility row for its full form.',state:'FAC-001 and FAC-002 are visible. FAC-001 shows MCLR + spread; both show repayment/review data.',action:'Point to both rows and open Edit only to display additional fields; cancel or leave without saving.',boundary:'Limit/account identifiers are demo values until CBS/LMS is connected.'},
+      {find:'ABCE001 &gt; immediately below the current-step action panel &gt; <strong>Due diligence &middot; governed workspace</strong> &gt; <strong>Pre-sanction checks</strong>.',state:'All 15 rows are visible. The summary currently reports completed checks with clear, failed and unavailable results.',action:'Scroll through the table and point to Check, Type, Status, Detail/evidence, History and Actions.',boundary:'API-labelled results are demo adapter results; unavailable providers remain visibly unavailable.'},
+      {find:'ABCE001 &gt; Pre-sanction checks &gt; <strong>KYC &mdash; identity &amp; address evidence</strong>.',state:'The KYC row already displays the persisted Neha Kulkarni comment and the ABCE KYC evidence pack.',action:'Show the comment, reload the page, return to KYC, then optionally open <strong>Activity &amp; audit</strong>.',boundary:'Adding a new comment/re-record changes the database; the seeded comment is sufficient for a read-only demo.'},
+      {find:'ABCE001 &gt; Pre-sanction checks &gt; a check carrying a VP exception, such as the seeded GSTIN exception.',state:'A current seeded exception is visible; a complete approve-then-re-run invalidation sequence is not pre-expanded on screen.',action:'Explain the lifecycle from the current exception. Rehearse the Priya-to-Neha sequence only if you intend to mutate and later reset demo data.',boundary:'Do not claim invalidation history is visible unless the sequence has actually been executed in this runtime.'},
+      {find:'MFL001 &gt; Pre-sanction checks &gt; mandatory <strong>KYC</strong> row; VP action is available only when signed in as Priya Raghavan.',state:'MFL001 is seeded with mandatory KYC unavailable and the progression block.',action:'Show the block as Neha. For read-only use, explain the Compliance VP action rather than approving it.',boundary:'The demo policy is <strong>VP approval</strong>; the client must confirm VP approval versus an absolute hard block.'},
+      {find:'Pipeline Dashboard &gt; <strong>Screening alerts</strong>; then open MFL001 &gt; Pre-sanction checks.',state:'MFL001 is the seeded overdue 90-day screening example.',action:'Point to the dashboard alert, then show the corresponding check due/overdue information in MFL001.',boundary:'Dates are seeded relative to the demo timeline; production scheduling needs the client calendar and policy.'},
+      {find:'ABCE001 &gt; Workspaces &gt; <strong>Parties &amp; identity</strong> &gt; party row &gt; <strong>Evidence</strong>.',state:'Party-specific KYC, bureau/screening, rating, financial/document and exception references are available in the evidence panel.',action:'Open two parties one after another and compare their evidence coverage; do not save.',boundary:'The links are seeded references, not live bureau or KYC responses.'},
+      {find:'ABCE001 &gt; <strong>Pre-sanction checks</strong>. Evidence controls are in the Detail/evidence column; <strong>UDIN grid&hellip;</strong> is on the UDIN row.',state:'KYC has visible linked evidence and UDIN has one seeded grid record. EWS and LEI are currently unavailable with no stored detailed grids.',action:'Show KYC evidence; click UDIN grid and review it without saving. Point to EWS/LEI unavailable status honestly.',boundary:'There is no EWS/LEI expand button. Do not claim those grids are visible on ABCE001; Run changes history and EWS has no conduct rows for this case.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>CMA</strong>. Generated CMA is under <strong>Documents</strong>.',state:'MRF001 contains seeded reviewed/approved CMA periods and calculated rows.',action:'Show subject, period, values, computed margins, reconciliation and review state; open the registered CMA output.',boundary:'The formulas and values are a labelled demo model, not the bank-approved CMA methodology.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>Ratings &amp; RAROC</strong>.',state:'External/internal rating, adverse review and facility-level RAROC examples are seeded.',action:'Point to model label, inputs, result, hurdle and stale/recompute control without changing values.',boundary:'PD, LGD, EAD, rating scale and hurdle are demo assumptions pending client-approved models.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>Proposal &amp; exposure</strong>.',state:'MRF001 contains consortium/banking, exposure, conduct and breach/exception examples.',action:'Show each subsection and point to the breach indicator plus governed exception fields.',boundary:'Exposure and conduct values are seeded; CBS/LMS/FT and regulatory limit feeds are not connected.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>Projects &amp; ESMS</strong> &gt; project portion.',state:'A project linked to the facility is seeded with TEV, cost, finance, DCCO and risk information.',action:'Point to the project record and the Record change control without saving a change.',boundary:'Recording a change mutates the case and may make conclusions stale; project monitoring feeds are not live.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>Projects &amp; ESMS</strong> &gt; ESMS portion below the project.',state:'MRF001 has a completed Category B ESMS/ESDD example.',action:'Show category, checklist, remarks and document output. Do not change an answer during the presentation.',boundary:'The checklist is configurable demo policy and does not replace client environmental approvals or monitoring.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>Securities</strong>.',state:'A project-linked security example with value, linkage and perfection fields is seeded.',action:'Open the record and point to linked facility, values, valuation, charge/perfection, cover and history.',boundary:'ROC/CERSAI, valuation and insurance evidence are demo references, not live confirmations.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>Pricing &amp; fees</strong>; facility benchmark also appears in <strong>Facilities &amp; limits</strong>.',state:'MRF001 contains benchmark/spread, fees and tentative schedule examples.',action:'Show recommended/proposed pricing, justification, fees and schedule without saving.',boundary:'MCLR, spreads, FTP/cost of funds and fee rules are illustrative until the client supplies approved data.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>External parties</strong>.',state:'All five configured work-party roles are represented in the seeded case.',action:'Point to role, name/contact, phase, status and linked record context.',boundary:'These are demo appointments; production needs the approved vendor/empanelment system.'},
+      {find:'Open any application; the complete stage rail is on the left of Application Detail. <strong>My Queue</strong> is in the main left sidebar.',state:'PS, IP, AP, POS and DIS contain 25 configured technical steps across 18 roles.',action:'Expand each stage and point to completed/current/future states; then open My Queue.',boundary:'Do not move one case through all steps live; seeded cases intentionally represent different points in the journey.'},
+      {find:'MFL001 &gt; workflow history/current action area; alternate actions appear only at applicable maker/checker/committee steps.',state:'MFL001 contains a seeded return/rework reason. Terminal/modified actions are role and step dependent.',action:'Show the existing return and available controls, but do not click Withdraw, Drop or Modification.',boundary:'Buttons that are not valid for the current role/step will not appear; executing a terminal action changes the seed.'},
+      {find:'APOL001 as Credit Committee Secretariat &gt; <strong>Review &amp; committee pack</strong> and current-step action area.',state:'APOL001 is seeded at the sanction committee with authority and decision evidence.',action:'Show recommendation, authority, deviations, risks, sanction amount and minutes requirement.',boundary:'The authority matrix and committee mechanics are demo-configured, not a client-approved delegation schedule.'},
+      {find:'APOL001 &gt; Workspaces &gt; <strong>Approval package</strong>.',state:'A 14-domain approval snapshot and hashes are seeded for the committee case.',action:'Show domain hashes, content hash and any material-change/stale status. Do not resolve or accept during the demo.',boundary:'A stale banner appears only when current governed data differs from the recorded snapshot.'},
+      {find:'ABCE001 or PNCR001 &gt; Workspaces &gt; <strong>Documents</strong>.',state:'The registry contains seeded/generated logical documents with version and review metadata.',action:'Point to type, stage, version, review state, reviewer and mandatory gate; avoid uploading/reviewing.',boundary:'There is no production DMS, e-sign, antivirus or stamping integration in this demo.'},
+      {find:'MRF001 or PNCR001 &gt; Workspaces &gt; <strong>Documents</strong> &gt; <strong>Generated outputs</strong>.',state:'The case exposes the applicable generated reports and labelled annexure buttons.',action:'Open one or two outputs in a new tab and return; point to the remaining buttons and registry entry.',boundary:'Annexures are demo templates until the client supplies approved legal/operations formats.'},
+      {find:'MRF001 &gt; Workspaces &gt; <strong>Mandatory rules</strong>.',state:'RUL-01 through RUL-20 are rendered with current applicability and result.',action:'Compare one passed, one failed and one not-applicable rule and its reason/severity.',boundary:'Visible outcomes are real demo server gates, but thresholds/policy wording require client approval.'},
+      {find:'MFL001 &gt; look for the <strong>Stale conclusions &mdash; re-evaluation required</strong> banner and invalidation details.',state:'MFL001 carries a seeded ownership-change invalidation.',action:'Point to trigger, affected conclusion, actor/time and Resolve field without saving.',boundary:'Resolving requires a real note and mutates the record; not every case shows an invalidation.'},
+      {find:'Sign in as Rahul Bansal &gt; left sidebar <strong>Active role</strong> dropdown and <strong>My Queue</strong>.',state:'Rahul has CRP VP and Risk Reviewer roles, making him the correct seeded persona for comparison.',action:'Switch the dropdown, reopen My Queue and compare visible work/actions; do not reassign.',boundary:'Queue contents depend on the current seeded step/assignee and may change after workflow actions.'},
+      {find:'INFY001 as Farah Sheikh &gt; scroll to <strong>Post sanction &amp; disbursement</strong>.',state:'Consent, facility execution values and sanction-letter evidence are seeded.',action:'Show consent, agreement date, committed/executed/balance values and letter version without saving.',boundary:'Execution is recorded in LOS demo data; no live LMS/legal/e-sign confirmation is connected.'},
+      {find:'INFY001 &gt; Post sanction &amp; disbursement &gt; <strong>Conditions</strong> and <strong>Covenant monitoring</strong>.',state:'The seed includes condition types plus breach, cure and reminder examples.',action:'Point to one pass, breach, cure and overdue reminder; avoid Test/Cure actions.',boundary:'Dates/results are demo monitoring history and do not come from production account monitoring.'},
+      {find:'PNCR001 as Lakshmi Narayan &gt; Workspaces &gt; <strong>Disbursement ops</strong>.',state:'The operational record is seeded; the memo review and two SOP items remain open intentionally.',action:'Show CBS references, beneficiary, fees, terms, arrears and SOP status without saving.',boundary:'No payment instruction, settlement or CBS acknowledgement is executed by this demo.'},
+      {find:'PNCR001 &gt; Disbursement ops &gt; <strong>Disbursement memo</strong>, review checklist and left DIS stage rail.',state:'The memo exists with a hash but is intentionally unreviewed; Checker/VP/Approver are future steps.',action:'Show hash and controls, then explain the role route. Do not regenerate, mark reviewed or advance.',boundary:'Exit (approved) means LOS approval only; it does not mean funds were paid or settled.'},
+      {find:'PNCR002 as Lakshmi Narayan &gt; completion card after opening the application.',state:'PNCR002 is the dedicated Complete / Exit (approved) case with an approved first tranche.',action:'Show the first tranche, reason field and Request subsequent tranche button without submitting.',boundary:'Requesting reopens the case and mutates the demo; use the visible control as proof.'},
+      {find:'<strong>Pipeline Dashboard</strong> for badges/alerts; left sidebar <strong>Management MIS</strong> for management views.',state:'Seeded breaches, escalation, ageing and decision/condition metrics are present.',action:'Point to dashboard badges, then open MIS and walk through each named section.',boundary:'SLA dates and holidays are demo-configured; production requires the client calendar and service standards.'},
+      {find:'Pipeline Dashboard &gt; scroll below <strong>Screening alerts</strong> to <strong>Integration registry</strong>.',state:'All 22 adapters are listed as <code>demo_data</code> or <code>not_connected</code>.',action:'Compare one of each state and point to purpose/last-used evidence.',boundary:'No row should be described as a live bank connection unless its state and real integration are changed.'},
+      {find:'ABCE001 &gt; <strong>Copilot &middot; agentic assistant</strong>; use <strong>Credit workspace &nearr;</strong> for CAM.',state:'The runtime shows AI connected and ABCE001 has a completed credit assessment/CAM.',action:'Show a Next best action, CAM/provenance and human confirm/override controls; avoid rerunning during a short demo.',boundary:'AI assists narrative/tasks only; deterministic gates remain authoritative and provider availability can vary.'},
+      {find:'Repository file <code>D:\\KPMG\\new3\\clientspec.md</code>; this is not an LOS screen.',state:'Completed requirements are struck through and accompanied by implementation-status notes; confirmation items remain open.',action:'Search GAP-P0, GAP-P1, GAP-P2 and the client-confirmation section.',boundary:'This is implementation traceability, not production acceptance or client sign-off.'},
+      {find:'PowerShell in <code>D:\\KPMG\\new3</code>; this is technical proof outside the LOS UI.',state:'The fast readiness contract and full regression suite are available in the repository.',action:'Run the focused readiness test during a technical discussion; show the previously verified full-suite result if time is limited.',boundary:'Automated tests prove coded behavior, not production integrations, client policy approval or every visual presentation detail.'}
+    ];
+    const codeEvidence = [
+      [
+        ['src/los/facilities.py','29-255','Added the multi-facility domain, validation, sanction, execution, tranche allocation and attributed history.'],
+        ['src/los/service.py','1789-1945','Added persistence and governed updates for application-owned parties, facilities, securities and projects.'],
+        ['src/ui/templates/los/application.html','302-580','Added the Workspaces UI for parties, facilities, projects and securities.']
+      ],
+      [
+        ['src/los/party_evidence.py','26-146','Added party-level verification state, evidence, exceptions and coverage calculation.'],
+        ['src/los/service.py','1789-1880','Added editable related-party identity, relationship, ownership and invalidation handling.'],
+        ['src/ui/templates/los/application.html','365-483','Added the Parties and identity editor and party-evidence view.']
+      ],
+      [
+        ['src/los/service.py','298-389','Added the persistent borrower identity snapshot and CBS/LOS identity comparison.'],
+        ['src/los/service.py','477-553','Added entity status, constitution, PAN/CIN/GSTIN and NTB/ETB capture during creation.'],
+        ['src/ui/templates/los/new.html','16-61','Added the Customer identity and deduplication form.']
+      ],
+      [
+        ['src/los/service.py','298-389','Added PAN, CIN and entity-based application deduplication with match reasons.'],
+        ['src/api/routers/los.py','590-613','Added borrower-directory and borrower-identity API endpoints.'],
+        ['src/ui/templates/los/new.html','16-61','Added visible CBS/customer and LOS duplicate-result panels.']
+      ],
+      [
+        ['src/api/routers/los.py','73-97','Added sourcing-decision, remarks and Customer ID request fields.'],
+        ['src/los/service.py','477-553','Added server-side mandatory decision/remarks and CBS Customer ID validation.'],
+        ['src/ui/templates/los/new.html','62-79','Added required decision and remarks controls in the creation UI.'],
+        ['tests/test_los_uat_p0.py','151-182','Added regression tests for mandatory sourcing inputs and Customer ID validation.']
+      ],
+      [
+        ['src/los/facilities.py','29-165','Added repeatable facility types, nature, amount, tenor, purpose and validation.'],
+        ['src/api/routers/los.py','31-97','Expanded application-creation models for multiple facilities and prospect fields.'],
+        ['src/ui/templates/los/new.html','81-175','Added repeatable Proposed facilities, project/funding and prospect-discussion inputs.']
+      ],
+      [
+        ['src/los/ip_note.py','88-234','Builds and renders the governed IP Note from accepted sourcing data.'],
+        ['src/los/service.py','1429-1505','Added IP Note generation and LPFG/CRAC assignment persistence.'],
+        ['src/ui/templates/los/application.html','1219-1227','Added LPFG Analyst, Senior Analyst and CRAC recommendation controls.']
+      ],
+      [
+        ['src/los/facilities.py','166-255','Added sanction, execution, drawdown allocation and facility change history.'],
+        ['src/los/service.py','1881-1890','Added governed per-facility update and dependent-conclusion invalidation.'],
+        ['src/ui/templates/los/application.html','314-364','Added facility pricing, repayment, limit/account and history fields.']
+      ],
+      [
+        ['src/los/verification.py','34-169','Defined all 15 due-diligence checks and deterministic check execution.'],
+        ['src/los/service.py','1161-1418','Added check execution, recording, evidence, exceptions, history and seeded states.'],
+        ['src/ui/templates/los/application.html','180-301','Added the consolidated Pre-sanction checks workspace.'],
+        ['tests/test_los_verification.py','18-77','Added verification inventory, blocking and deterministic-result tests.']
+      ],
+      [
+        ['src/los/service.py','1311-1326','Persists check comments and writes the dd_comment audit event.'],
+        ['src/api/routers/los.py','314-319','Exposes the due-diligence comment API endpoint.'],
+        ['tests/test_los_uat_p0.py','44-63','Proves comments survive reopening the service against the same database.']
+      ],
+      [
+        ['src/los/service.py','1192-1209','Invalidates the live exception on re-screen and preserves it in exception history.'],
+        ['src/los/service.py','1210-1310','Routes both API reruns and manual re-records through the invalidation behavior.'],
+        ['tests/test_los_uat_p0.py','64-111','Covers exception invalidation and invalid exception attempts.']
+      ],
+      [
+        ['src/los/verification.py','171-273','Adds the vp_approval policy and blocks unavailable mandatory checks until release.'],
+        ['src/los/service.py','1327-1350','Restricts and audits Compliance VP exception approval.'],
+        ['tests/test_los_uat_p0.py','112-150','Covers mandatory and non-mandatory unavailable-result behavior.']
+      ],
+      [
+        ['src/los/verification.py','177-273','Adds 90-day re-screening, exception expiry, warning and blocking calculations.'],
+        ['src/los/service.py','405-458','Adds dashboard screening reminders and overdue/lapsed alerts.'],
+        ['tests/test_los_uat_p1.py','145-215','Covers re-screen dates, expiry, blocking and rerun behavior.']
+      ],
+      [
+        ['src/los/party_evidence.py','26-146','Adds KYC, bureau, screening, rating, finance, documents and party exception evidence.'],
+        ['src/los/service.py','1843-1880','Adds party-evidence persistence and automatic screening linkage.'],
+        ['tests/test_los_uat_p1.py','216-321','Covers party evidence, VP control, coverage and new party fields.']
+      ],
+      [
+        ['src/los/service.py','1351-1409','Adds per-check document evidence and EWS, LEI and UDIN grid persistence.'],
+        ['src/api/routers/los.py','326-357','Adds evidence-attachment and detailed-grid API contracts/endpoints.'],
+        ['tests/test_los_uat_p1.py','367-416','Covers document evidence plus EWS, LEI and UDIN grids.']
+      ],
+      [
+        ['src/los/cma.py','22-120','Adds CMA subjects, value classes, rows, derived margins, view and reconciliation.'],
+        ['src/los/service.py','2061-2103','Adds CMA period entry and maker-checker review persistence.'],
+        ['src/ui/templates/los/application.html','581-678','Adds the CMA and Ratings/RAROC workspace UI.'],
+        ['tests/test_los_governance.py','156-222','Covers CMA entry, source periods, review and AP submission gate.']
+      ],
+      [
+        ['src/los/ratings.py','32-218','Adds external/internal/group ratings, adverse events, RAROC and staleness logic.'],
+        ['src/los/service.py','1990-2060','Adds rating, RAROC recompute and CRP-note workflows.'],
+        ['src/ui/templates/los/application.html','581-678','Adds ratings, adverse-events and facility RAROC controls.'],
+        ['tests/test_los_governance.py','325-394','Covers RAROC staleness, group ratings and CRP review.']
+      ],
+      [
+        ['src/los/proposal.py','20-177','Adds proposal, banking, conduct and exposure models with breach gates.'],
+        ['src/los/service.py','2104-2165','Adds proposal updates and labelled exposure fetch operations.'],
+        ['src/ui/templates/los/application.html','679-722','Adds Proposal and exposure workspace tables and forms.'],
+        ['tests/test_los_governance.py','223-257','Covers exposure fetching, consortium rule and breach exception.']
+      ],
+      [
+        ['src/los/projects.py','23-127','Adds linked project, TEV, cost, funding, DCCO, risk and change models.'],
+        ['src/los/service.py','1918-1945','Adds project saving and cost/DCCO/scope reappraisal events.'],
+        ['src/ui/templates/los/application.html','484-580','Adds Project and ESMS forms and change controls.'],
+        ['tests/test_los_governance.py','258-284','Covers project linkage, risks and change-driven reappraisal.']
+      ],
+      [
+        ['src/los/esms.py','24-94','Adds excluded-activity checklist, A/B/C categories, ESDD gate and approval note.'],
+        ['src/los/service.py','1946-1970','Adds governed ESMS persistence and generated-note registration.'],
+        ['src/ui/templates/los/application.html','484-580','Adds ESMS questionnaire, categories and mandatory remarks UI.'],
+        ['tests/test_los_governance.py','285-301','Covers Yes/Not Available remarks and category validation.']
+      ],
+      [
+        ['src/los/securities.py','22-99','Adds security master, multi-facility links, valuation, charge, perfection and cover.'],
+        ['src/los/service.py','1891-1917','Adds governed security persistence, history and dependency invalidation.'],
+        ['src/ui/templates/los/application.html','314-580','Adds Securities workspace alongside linked facility/project views.'],
+        ['tests/test_los_governance.py','302-324','Covers multi-facility security coverage and history.']
+      ],
+      [
+        ['src/los/pricing.py','23-126','Adds facility pricing, benchmark/spread gate, fees and tentative schedule.'],
+        ['src/los/service.py','2166-2199','Adds pricing, fee and schedule persistence with RAROC invalidation.'],
+        ['src/ui/templates/los/application.html','723-773','Adds Pricing and fees workspace controls.'],
+        ['tests/test_los_governance.py','325-355','Covers pricing hard gate and RAROC staleness.']
+      ],
+      [
+        ['src/los/ewp.py','17-50','Adds external work-party roles, lifecycle states and linked-record validation.'],
+        ['src/los/service.py','1971-1989','Adds External Work-Party persistence and audit events.'],
+        ['src/ui/templates/los/application.html','484-580','Adds the linked External parties workspace within project appraisal.'],
+        ['tests/test_los_governance.py','356-370','Covers external-party role and linkage behavior.']
+      ],
+      [
+        ['config/los_workflow.yaml','1-118','Defines the 25 technical steps, stage groups, roles, actions and SLA targets.'],
+        ['src/los/workflow.py','59-249','Loads, validates and transitions the role-aware workflow.'],
+        ['src/los/service.py','247-289','Builds the stage rail and role-filtered application list.'],
+        ['tests/test_los_workflow.py','35-147','Verifies lifecycle definition, VP gate, transitions and SLA.']
+      ],
+      [
+        ['src/los/workflow.py','30-49','Defines Withdrawn, Dropped, modification actions and mandatory comments.'],
+        ['src/los/workflow.py','154-236','Adds reason-specific rework destinations and alternate transitions.'],
+        ['src/los/service.py','554-733','Persists alternate decisions, destinations and audit evidence.'],
+        ['tests/test_los_uat_p1.py','41-144','Covers withdrawal, drop, modification and targeted rework.']
+      ],
+      [
+        ['src/los/authority.py','21-60','Adds labelled preliminary/final authority matrices and deviation records.'],
+        ['src/los/service.py','698-771','Records recommendation, sanction authority and differing-sanction evidence.'],
+        ['src/los/committee.py','24-75','Builds committee deviations and the governed decision pack.'],
+        ['tests/test_los_governance.py','83-155','Covers authority, snapshot and material-change controls.']
+      ],
+      [
+        ['src/los/snapshot.py','22-123','Adds 14-domain content hashes, snapshot deduplication and material-change review.'],
+        ['src/los/service.py','2329-2351','Exposes governed snapshot and material-change review operations.'],
+        ['src/ui/templates/los/application.html','936-1008','Adds Approval package hashes and Accept/Return controls.'],
+        ['tests/test_los_governance.py','83-155','Covers snapshot creation and material-change blocking.']
+      ],
+      [
+        ['src/los/docreg.py','22-165','Adds stage checklists, logical versions, review statuses and mandatory gates.'],
+        ['src/los/service.py','1045-1085','Adds non-overwriting upload and document-registry registration.'],
+        ['src/los/service.py','2317-2328','Adds review and document-view operations.'],
+        ['src/ui/templates/los/application.html','774-826','Adds Documents registry, review state and generated outputs UI.']
+      ],
+      [
+        ['src/los/service.py','2363-2581','Generates reports, check outputs, drawdown records and annexure artefacts.'],
+        ['src/api/routers/los.py','863-876','Adds generated-output and download endpoints.'],
+        ['src/ui/templates/los/application.html','803-826','Adds generated-output and annexure download controls.'],
+        ['tests/test_los_uat_p1.py','341-366','Covers newly generated and downloadable outputs.']
+      ],
+      [
+        ['src/los/rules.py','19-146','Defines RUL-01 through RUL-20 and computes live application status.'],
+        ['src/los/service.py','2352-2355','Adds the live mandatory-rule catalogue view.'],
+        ['src/ui/templates/los/application.html','917-935','Adds the Mandatory rules workspace table.'],
+        ['tests/test_los_governance.py','476-490','Covers rule catalogue and live integration registry exposure.']
+      ],
+      [
+        ['src/los/rules.py','72-87','Publishes the cross-module dependency catalogue.'],
+        ['src/los/service.py','1751-1788','Adds invalidation creation, audit evidence and resolution workflow.'],
+        ['src/los/service.py','1789-2038','Triggers invalidations from party, facility, project, security and rating changes.'],
+        ['tests/test_los_uat_p1.py','417-470','Covers ownership, group-role and rating dependency invalidation.']
+      ],
+      [
+        ['config/los_workflow.yaml','1-118','Maps the 18 demo roles to the 25 controlled workflow steps.'],
+        ['src/los/workflow.py','237-249','Enforces active-role and assignee permissions.'],
+        ['src/los/service.py','268-289','Filters My Queue by active role and assignment.'],
+        ['src/los/service.py','779-816','Adds controlled reassignment and escalation.']
+      ],
+      [
+        ['src/los/facilities.py','166-233','Adds per-facility sanction, execution and remaining-balance lifecycle.'],
+        ['src/los/service.py','1693-1741','Records sanction consent and facility agreement execution.'],
+        ['src/los/letters.py','24-170','Builds versioned, clearly labelled sanction documents.'],
+        ['src/ui/templates/los/application.html','1310-1416','Adds post-sanction consent, execution, conditions and letter controls.']
+      ],
+      [
+        ['src/los/post_sanction.py','24-193','Adds condition taxonomy, statuses and recurring covenant test/cure/reminder logic.'],
+        ['src/los/service.py','1541-1619','Adds condition and covenant persistence with checker control.'],
+        ['src/ui/templates/los/application.html','1417-1460','Adds Covenant monitoring actions and due-state display.'],
+        ['tests/test_los_uat_p1.py','471-551','Covers covenant breach, cure, reminders and service roundtrip.']
+      ],
+      [
+        ['src/los/disops.py','23-361','Adds CIF, limits, accounts, security refs, beneficiaries, fees, repayment, arrears and SOP gates.'],
+        ['src/los/service.py','2200-2250','Adds section-wise Disbursement Maker updates and validation.'],
+        ['src/ui/templates/los/application.html','827-916','Adds the Disbursement operations workspace.'],
+        ['tests/test_los_governance.py','418-449','Covers memo, SOP and CBS Security Number gates.']
+      ],
+      [
+        ['src/los/disops.py','288-403','Adds content hash, memo state and checker/final review checklists.'],
+        ['src/los/service.py','2251-2316','Adds memo generation/review and multi-level review gates.'],
+        ['src/los/workflow.py','24-32','Defines terminal states used by the corrected Exit semantics.'],
+        ['tests/test_los_governance.py','450-475','Covers checker and final-approver checklist gates.']
+      ],
+      [
+        ['src/los/service.py','1637-1692','Adds tranche requests and audited subsequent-tranche reopening at Disbursement Maker.'],
+        ['src/api/routers/los.py','467-484','Adds first and subsequent tranche API endpoints.'],
+        ['src/ui/templates/los/application.html','1461-1515','Adds tranche and repeat-drawdown controls.'],
+        ['tests/test_los_uat_p1.py','552-569','Covers post-Exit subsequent-tranche re-entry.']
+      ],
+      [
+        ['src/los/workflow.py','250-286','Adds working-day due dates, holiday handling and aged-breach escalation.'],
+        ['src/los/mis.py','20-106','Adds stage visits, ageing, turnaround, SLA and management summaries.'],
+        ['src/los/service.py','2656-2665','Builds the MIS response from all applications and events.'],
+        ['tests/test_los_workflow.py','100-147','Covers working-day SLA and escalation calculations.']
+      ],
+      [
+        ['src/services/adapters.py','24-76','Defines all 22 adapters and honest demo_data/not_connected invocation state.'],
+        ['src/los/service.py','2356-2362','Exposes registry state and recent invocation evidence.'],
+        ['src/ui/templates/los/dashboard.html','64-89','Adds the Integration registry dashboard card.'],
+        ['tests/test_los_governance.py','476-490','Covers adapter registry visibility and state.']
+      ],
+      [
+        ['config/llm_providers.yaml','1-50','Selects NVIDIA NIM and the configured 120B model through environment-backed credentials.'],
+        ['src/core/llm_provider.py','51-180','Adds OpenAI-compatible hosted-provider client reuse, retries and health behavior.'],
+        ['src/los/copilot.py','27-324','Adds governed next actions, drafts and record-grounded Q&A.'],
+        ['src/ui/templates/los/application.html','1054-1160','Adds Copilot and AI-prefill presentation and human controls.']
+      ],
+      [
+        ['clientspec.md','1-2107','Records the complete client specification, gap ordering, implementation status and production boundaries.'],
+        ['CLIENT_DEMO_WALKTHROUGH.html','98-684','Adds the client-presenter change register, click path, narrative and code-location evidence guide.'],
+        ['docs/LOS_FUNCTIONAL_FLOW.md','1-198','Updates the functional flow documentation for the expanded LOS journey.']
+      ],
+      [
+        ['tests/test_los_governance.py','1-501','Adds governance coverage for facilities, CMA, ratings, projects, ESMS, documents and disbursement.'],
+        ['tests/test_los_uat_p0.py','1-182','Adds P0 reliability and prospect-sourcing regression tests.'],
+        ['tests/test_los_uat_p1.py','1-569','Adds alternate workflow, expiry, party evidence, output, dependency and repeat-tranche tests.'],
+        ['tests/test_los_verification.py','1-77','Adds the 15-check verification contract and blocking tests.']
+      ]
+    ];
+    function changePriority(ref){
+      if (/P0-|Reliability/i.test(ref)) return 'critical';
+      if (/P1-|UAT-P1/i.test(ref)) return 'major';
+      if (/P2-|UAT-P2/i.test(ref)) return 'important';
+      return 'low';
+    }
+    function renderPriorityRegister(){
+      const root=document.getElementById('priorityRegister');
+      const rows=[...document.querySelectorAll('.inventory-source tbody tr')].filter(r=>r.querySelector('td.ref'));
+      const definitions={
+        critical:{label:'P0 — Critical client controls',note:'Required for a credible end-to-end client demo'},
+        major:{label:'P1 — Major functional completeness',note:'Major appraisal and operating workspaces'},
+        important:{label:'P2 — Important governance and operations',note:'Control strength, monitoring and usability'},
+        low:{label:'Supporting / Low-priority completion',note:'AI enablement, documentation and verification proof'}
+      };
+      Object.entries(definitions).forEach(([key,meta])=>{
+        const selected=rows.map((row,index)=>({row,index})).filter(x=>changePriority(x.row.querySelector('.ref').textContent.trim())===key);
+        const block=document.createElement('div'); block.className='priority-block'; block.id='priority-'+key;
+        block.innerHTML=`<div class="priority-title priority-${key}"><h3>${meta.label}</h3><span>${selected.length} implemented changes · ${meta.note}</span></div>`;
+        selected.forEach(({row,index},position)=>{
+          const cells=row.querySelectorAll('td');
+          const ref=cells[0].textContent.trim(), delivered=cells[1].innerHTML.trim(), why=cells[2].innerHTML.trim();
+          const rawSteps=clickSteps[index]||[cells[3].innerHTML.trim()];
+          const featureSteps=rawSteps.filter((s,i)=>!(i===0 && /^Sign in/i.test(s.replace(/<[^>]+>/g,''))));
+          const steps=featureSteps.map(s=>`<li>${s}</li>`).join('');
+          const route=startRoute(index).map(s=>`<li>${s}</li>`).join('');
+          const proof=(showProofs[index]||[]).map(s=>`<li>${s}</li>`).join('');
+          const before=beforeStates[index]||'This control was not available as a complete governed client-demo feature.';
+          const live=liveDemoGuides[index]||{find:'Follow the navigation above.',state:'Inspect the visible application state.',action:'Demonstrate without saving.',boundary:'Confirm production dependencies separately.'};
+          const evidence=(codeEvidence[index]||[]).map(item=>`<tr><td><code>${item[0]}:${item[1]}</code></td><td>${item[2]}</td></tr>`).join('');
+          const card=document.createElement('article'); card.className='change-card';
+          card.innerHTML=`
+            <div class="change-head">
+              <span class="change-num">${key==='critical'?'C':key==='major'?'M':key==='important'?'I':'L'}${String(position+1).padStart(2,'0')}</span>
+              <div><h4>${changeTitles[index]}</h4><p>${ref} · ${meta.label}</p><span class="demo-evidence">Demo case: ${demoCaseOverrides[index] || demoCases[index]}</span></div>
+              <span class="done">Implemented</span>
+            </div>
+            <div class="change-body">
+              <div class="change-panel">
+                <div class="start-route"><h6>A. Start from the LOS sign-in screen</h6><ol>${route}</ol><p class="route-note"><strong>Navigation check:</strong> use the left sidebar for Dashboard, Queue, MIS and New Application. After a case opens, use the left stage rail for workflow steps and scroll the right content area for Workspaces and action panels.</p></div>
+                <h5>B. Demonstrate this change</h5>
+                <h5>Where to click — step by step</h5><ol class="click-list">${steps}</ol>
+                <div class="show-proof"><h6>C. What to show on screen</h6><ul>${proof}</ul></div>
+                <div class="change-expected"><strong>Expected proof:</strong> ${changeTitles[index]} is visible with its applicable status, evidence or history.</div>
+              </div>
+              <div class="change-panel change-talk">
+                <h5>What to say</h5><p>“${delivered}”</p>
+                <div class="before-after"><div class="before"><strong>Earlier cloned application</strong>${before}</div><div class="now"><strong>What we added for the client</strong>${delivered}</div></div>
+                <div class="change-why"><strong>Why:</strong> ${why}</div>
+                <div class="live-guide"><h6>D. Exact current-demo location</h6><dl><dt>Find it</dt><dd>${live.find}</dd><dt>Current seeded state</dt><dd>${live.state}</dd><dt>Safe demo action</dt><dd>${live.action}</dd><dt>Honest boundary</dt><dd class="boundary">${live.boundary}</dd></dl></div>
+              </div>
+              <div class="change-panel change-code">
+                <h5>Codebase changes - files and current line locations</h5>
+                <p class="code-root">Repository root: <code>D:\\KPMG\\new3</code>. Line numbers refer to the current reviewed source and may move after later edits.</p>
+                <div class="table-scroll"><table class="code-table"><thead><tr><th>File and lines</th><th>What was added</th></tr></thead><tbody>${evidence}</tbody></table></div>
+              </div>
+            </div>`;
+          block.appendChild(card);
+        });
+        root.appendChild(block);
+      });
+    }
+    renderPriorityRegister();
+  </script>
+</body>
+</html>

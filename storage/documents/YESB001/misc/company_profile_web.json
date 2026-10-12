@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "YESB001",
+  "scraped_at": "2026-03-23T21:43:49.548098",
+  "profile": {
+    "entity_id": "YESB001",
+    "actual_company_name": "Yes Bank Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Yes Bank",
+      "description": "Indian private sector bank",
+      "extract": "Yes Bank is an Indian private sector bank, headquartered in Mumbai, catering to retail customers, MSMEs, and corporate clients. The bank was founded by Rana Kapoor and Ashok Kapur in 2003. Its network is spread across 300 districts in India and comprises 1,198 branches, 193 Business Correspondent Banking Outlets (BCBOs) and 1,287+ ATMs.",
+      "url": "https://en.wikipedia.org/wiki/Yes_Bank"
+    },
+    "official_website": {
+      "url": "https://www.yesbank.in/",
+      "title": null,
+      "description": null
+    }
+  }
+}

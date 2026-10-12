@@ -1,0 +1,674 @@
+[
+    {
+        "operation_id":  "af21c7a49b614ca3947b2f56a4b32b6e",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "INFY001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:19.273530",
+        "completed_at":  "2026-03-23T21:42:20.305056",
+        "summary":  "Generated 21 artifacts for INFY001",
+        "details":  {
+                        "company_name":  "Infosys Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "23a24645ed794e6d82259e2af4f43a27",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "APOL001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:20.305838",
+        "completed_at":  "2026-03-23T21:42:21.179163",
+        "summary":  "Generated 21 artifacts for APOL001",
+        "details":  {
+                        "company_name":  "Apollo Hospitals Enterprise Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "869849f3b0ac4756aa6aaa161158453d",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "TSTL001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:21.184279",
+        "completed_at":  "2026-03-23T21:42:29.826212",
+        "summary":  "Generated 21 artifacts for TSTL001",
+        "details":  {
+                        "company_name":  "Tata Steel Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "5c21442585594c59b43ecbd6a8512d48",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "REIL001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:29.831767",
+        "completed_at":  "2026-03-23T21:42:38.274979",
+        "summary":  "Generated 21 artifacts for REIL001",
+        "details":  {
+                        "company_name":  "Reliance Industries Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "0af91c676a5542e49189223321b4e137",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "ADPT001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:38.280484",
+        "completed_at":  "2026-03-23T21:42:47.172590",
+        "summary":  "Generated 21 artifacts for ADPT001",
+        "details":  {
+                        "company_name":  "Adani Ports and Special Economic Zone Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "4495c592167c4c7ea0d148cf7065716e",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "BJFN001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:47.178589",
+        "completed_at":  "2026-03-23T21:42:48.116660",
+        "summary":  "Generated 21 artifacts for BJFN001",
+        "details":  {
+                        "company_name":  "Bajaj Finance Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "d4b694ed52804d4e9e75eb80b62fd23b",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "CIPL001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:48.122286",
+        "completed_at":  "2026-03-23T21:42:56.890545",
+        "summary":  "Generated 21 artifacts for CIPL001",
+        "details":  {
+                        "company_name":  "Cipla Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "1c12c5f43aa743519ebe12d336a71acc",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "DLFR001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:56.897050",
+        "completed_at":  "2026-03-23T21:43:05.705006",
+        "summary":  "Generated 21 artifacts for DLFR001",
+        "details":  {
+                        "company_name":  "DLF Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "ca22563b63a34a6499918c0cbe82a2f2",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "JSWL001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:43:05.711590",
+        "completed_at":  "2026-03-23T21:43:14.489741",
+        "summary":  "Generated 21 artifacts for JSWL001",
+        "details":  {
+                        "company_name":  "JSW Steel Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "46e511af493d4ab3814edabeb7c5fc5e",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "MRUT001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:43:14.496488",
+        "completed_at":  "2026-03-23T21:43:23.198905",
+        "summary":  "Generated 21 artifacts for MRUT001",
+        "details":  {
+                        "company_name":  "Maruti Suzuki India Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "5c108e7534674755b029f45d781f0779",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "TITN001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:43:23.206288",
+        "completed_at":  "2026-03-23T21:43:31.984040",
+        "summary":  "Generated 21 artifacts for TITN001",
+        "details":  {
+                        "company_name":  "Titan Company Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "469274135bc74f4d8f8d024f3d5d22c2",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "NTPC001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:43:31.989921",
+        "completed_at":  "2026-03-23T21:43:41.010707",
+        "summary":  "Generated 21 artifacts for NTPC001",
+        "details":  {
+                        "company_name":  "NTPC Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "5354ee6db5dc47ee9cc290e550dcb05e",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "YESB001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:43:41.016794",
+        "completed_at":  "2026-03-23T21:43:49.594394",
+        "summary":  "Generated 21 artifacts for YESB001",
+        "details":  {
+                        "company_name":  "Yes Bank Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "7edbe9b8b1724248be2b1cfb4f4b6ad2",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "DRRD001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:43:49.600822",
+        "completed_at":  "2026-03-23T21:43:50.744099",
+        "summary":  "Generated 21 artifacts for DRRD001",
+        "details":  {
+                        "company_name":  "Dr. Reddy\u0027s Laboratories Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "72532e6ac3d94801a2d300d211009e76",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "IHCL001",
+        "status":  "success",
+        "started_at":  "2026-03-23T21:43:50.751103",
+        "completed_at":  "2026-03-23T21:43:52.067355",
+        "summary":  "Generated 21 artifacts for IHCL001",
+        "details":  {
+                        "company_name":  "The Indian Hotels Company Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  true,
+                        "source":  "web_download"
+                    }
+    },
+    {
+        "operation_id":  "ef5d1b20c09e4368bf592e0b6c39eeb4",
+        "operation_type":  "bulk_company_generation",
+        "entity_id":  null,
+        "status":  "success",
+        "started_at":  "2026-03-23T21:42:19.260235",
+        "completed_at":  "2026-03-23T21:43:52.073576",
+        "summary":  "Bulk generation: 15 generated, 0 skipped, 0 failed",
+        "details":  {
+                        "generated":  [
+                                          {
+                                              "entity_id":  "INFY001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "APOL001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "TSTL001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "REIL001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "ADPT001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "BJFN001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "CIPL001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "DLFR001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "JSWL001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "MRUT001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "TITN001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "NTPC001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "YESB001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "DRRD001",
+                                              "files_generated":  21
+                                          },
+                                          {
+                                              "entity_id":  "IHCL001",
+                                              "files_generated":  21
+                                          }
+                                      ],
+                        "skipped":  [
+
+                                    ],
+                        "failed":  [
+
+                                   ],
+                        "force_refresh":  true
+                    }
+    },
+    {
+        "operation_id":  "18cd5ce9195846aca4bda25661c0813a",
+        "operation_type":  "single_company_generation",
+        "entity_id":  "INFY001",
+        "status":  "success",
+        "started_at":  "2026-03-26T16:29:32.139514",
+        "completed_at":  "2026-03-26T16:29:33.326522",
+        "summary":  "Generated 21 artifacts for INFY001",
+        "details":  {
+                        "company_name":  "Infosys Limited",
+                        "files_generated":  [
+                                                "exchange/nse_live_quote.json",
+                                                "misc/company_profile_web.json",
+                                                "financials/audited_financial_statements.pdf",
+                                                "financials/annual_report_fy2024.pdf",
+                                                "financials/provisional_financials_fy2025.xlsx",
+                                                "exchange/quarterly_results_q3fy2025.pdf",
+                                                "kyc\\pan_card.pdf",
+                                                "kyc\\certificate_of_incorporation.pdf",
+                                                "kyc\\board_resolution_borrowing.pdf",
+                                                "ratings\\credit_rating_report.pdf",
+                                                "collateral\\valuation_report.pdf",
+                                                "request\\request_note.pdf",
+                                                "exchange\\corporate_governance_report.pdf",
+                                                "gst\\gstr3b_summary.pdf",
+                                                "gst\\gstr1_summary.pdf",
+                                                "bureau\\commercial_bureau_report.pdf",
+                                                "banking\\existing_facility_details.pdf",
+                                                "banking\\bank_statement_6m.pdf",
+                                                "banking\\sanction_letter.pdf",
+                                                "financials/web_scraped_financials.json",
+                                                "metadata.json"
+                                            ],
+                        "force_refresh":  false,
+                        "source":  "web_download"
+                    }
+    }
+]

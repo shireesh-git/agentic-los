@@ -1,0 +1,99 @@
+<!-- Management MIS: pipeline, turnaround, SLA, decision quality, sanctions, conditions and copilot adoption -->
+<section x-show="page === 'mis'">
+  <div class="los-page-head">
+    <div>
+      <h1>Management MIS</h1>
+      <p class="text-muted" x-text="'Computed from the applications and the audit trail · as of ' + fmtDateTime(mis?.as_of) + ' · ' + (mis?.note || '')"></p>
+    </div>
+    <button class="btn btn-outline" @click="loadMis()">Refresh</button>
+  </div>
+  <p class="empty-state card" x-show="!mis">Loading the MIS…</p>
+
+  <div x-show="mis">
+    <div class="los-kpis">
+      <template x-for="k in misCards()" :key="k.label">
+        <div class="los-kpi" :class="k.cls"><span x-text="k.label"></span><strong x-text="k.value"></strong><em x-text="k.sub"></em></div>
+      </template>
+    </div>
+
+    <div class="los-mis-grid">
+      <div class="card">
+        <div class="summary-table-head"><h3>Pipeline by stage</h3><span class="text-muted">Active applications · proposed amount</span></div>
+        <div class="los-hbars"><template x-for="p in mis?.pipeline || []" :key="p.stage">
+          <div class="los-hbar"><span x-text="p.stage"></span>
+            <div class="los-hbar-track"><div :style="'width:' + misPct(p.amount_cr, (mis?.pipeline || []).map(x => x.amount_cr)) + '%'"></div></div>
+            <strong x-text="p.count + ' · ' + fmtCr(p.amount_cr)"></strong></div>
+        </template></div>
+      </div>
+      <div class="card">
+        <div class="summary-table-head"><h3>Ageing of active applications</h3><span class="text-muted">Days since creation</span></div>
+        <div class="los-hbars"><template x-for="a in mis?.ageing || []" :key="a.bucket">
+          <div class="los-hbar"><span x-text="a.bucket"></span>
+            <div class="los-hbar-track"><div :style="'width:' + misPct(a.count, (mis?.ageing || []).map(x => x.count)) + '%'"></div></div>
+            <strong x-text="a.count"></strong></div>
+        </template></div>
+      </div>
+      <div class="card">
+        <div class="summary-table-head"><h3>Turnaround by stage</h3><span class="text-muted">Average days, applications that have left the stage</span></div>
+        <div class="los-hbars"><template x-for="t in mis?.tat_stages || []" :key="t.stage">
+          <div class="los-hbar"><span x-text="t.stage"></span>
+            <div class="los-hbar-track"><div :style="'width:' + misPct(t.avg_days, (mis?.tat_stages || []).map(x => x.avg_days)) + '%'"></div></div>
+            <strong x-text="t.avg_days + 'd · ' + t.applications + ' app(s)'"></strong></div>
+        </template></div>
+      </div>
+      <div class="card">
+        <div class="summary-table-head"><h3>Live SLA breaches by role</h3><span class="text-muted">Where work is waiting past its SLA</span></div>
+        <p class="text-muted" x-show="!(mis?.breaches_by_role || []).length">No live SLA breaches.</p>
+        <div class="los-hbars"><template x-for="b in mis?.breaches_by_role || []" :key="b.role">
+          <div class="los-hbar los-hbar-bad"><span x-text="b.role"></span>
+            <div class="los-hbar-track"><div :style="'width:' + misPct(b.count, (mis?.breaches_by_role || []).map(x => x.count)) + '%'"></div></div>
+            <strong x-text="b.count"></strong></div>
+        </template></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="summary-table-head"><h3>Turnaround and SLA compliance by step</h3><span class="text-muted">Completed step visits</span></div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Stage</th><th>Step</th><th>Visits</th><th>Average days</th><th>SLA (days)</th><th>Within SLA</th></tr></thead>
+          <tbody><template x-for="t in mis?.tat_steps || []" :key="t.id">
+            <tr><td class="text-muted" x-text="t.stage"></td><td x-text="t.step"></td><td x-text="t.visits"></td>
+              <td x-text="t.avg_days"></td><td x-text="t.sla_days"></td>
+              <td><span class="badge sm" :class="t.within_sla_pct >= 80 ? 'badge-green' : t.within_sla_pct >= 50 ? 'badge-amber' : 'badge-red'" x-text="t.within_sla_pct + '%'"></span></td></tr>
+          </template></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="los-mis-grid">
+      <div class="card">
+        <div class="summary-table-head"><h3>Decision quality</h3><span class="text-muted">Review and committee steps</span></div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Step</th><th>Approved</th><th>Returned</th><th>Rejected</th><th>Return rate</th></tr></thead>
+            <tbody><template x-for="d in mis?.decisions || []" :key="d.id">
+              <tr><td><span x-text="d.step"></span> <span class="badge sm badge-grey" x-text="d.stage"></span></td><td x-text="d.approved"></td><td x-text="d.returned"></td><td x-text="d.rejected"></td>
+                <td x-text="d.return_rate_pct + '%'"></td></tr>
+            </template></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="summary-table-head"><h3>Sanctions, conditions and copilot</h3></div>
+        <div class="los-kv">
+          <span>In-principle sanctions</span><strong x-text="mis?.sanctions?.ip"></strong>
+          <span>Final sanctions</span><strong x-text="mis?.sanctions?.final"></strong>
+          <span>Differing from recommendation</span><strong x-text="mis?.sanctions?.deviating"></strong>
+          <span>Below the amount requested</span><strong x-text="mis?.sanctions?.below_request"></strong>
+          <span>Open conditions precedent</span><strong x-text="mis?.conditions?.cp_open"></strong>
+          <span>Overdue conditions subsequent</span><strong x-text="mis?.conditions?.cs_overdue"></strong>
+          <span>Waived / deferred</span><strong x-text="mis?.conditions?.waived + ' / ' + mis?.conditions?.deferred"></strong>
+          <span>Copilot tasks run</span><strong x-text="mis?.copilot?.tasks_run"></strong>
+          <span>Copilot questions</span><strong x-text="mis?.copilot?.questions"></strong>
+          <span>Applications using the copilot</span><strong x-text="mis?.copilot?.applications"></strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

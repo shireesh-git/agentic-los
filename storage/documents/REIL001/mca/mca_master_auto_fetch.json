@@ -1,0 +1,38 @@
+{
+  "source": "mca",
+  "record_type": "company_master",
+  "entity_key": "L17110MH1973PLC019786",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "company_name": "Reliable Energy Industries Ltd",
+    "cin": "L17110MH1973PLC019786",
+    "status": "Active",
+    "company_class": "Public",
+    "company_category": "Limited by Shares",
+    "sub_category": "Non-govt company",
+    "date_of_incorporation": "1973-05-08",
+    "registered_state": "Maharashtra",
+    "registered_office": "Maker Chambers IV, Nariman Point, Mumbai 400021",
+    "authorized_capital_inr": 150000000000,
+    "paid_up_capital_inr": 67660000000,
+    "listing_status": "Listed",
+    "listed_exchange": "BSE, NSE",
+    "email": "investor@reliableenergy.com",
+    "last_agm_date": "2025-08-12",
+    "last_bs_date": "2025-03-31",
+    "number_of_members": 3200000,
+    "whether_AOCI": "No",
+    "industrial_class": "Manufacture of refined petroleum products",
+    "nic_code": "1920",
+    "puc_nof_ratio": 0.451,
+    "compliance_status": {
+      "annual_return_filed": true,
+      "balance_sheet_filed": true,
+      "charges_satisfied": 8,
+      "charges_open": 18,
+      "last_filing_date": "2025-10-28"
+    }
+  }
+}

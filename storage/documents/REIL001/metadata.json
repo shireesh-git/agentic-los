@@ -1,0 +1,39 @@
+{
+  "entity_id": "REIL001",
+  "company_name": "Reliance Industries Limited",
+  "data_source": "synthetic_canonical_plus_web",
+  "last_updated": "2026-03-23T21:42:38.274979",
+  "fiscal_years_available": [
+    "FY2023",
+    "FY2024",
+    "FY2025"
+  ],
+  "documents": [
+    "exchange/nse_live_quote.json",
+    "misc/company_profile_web.json",
+    "financials/audited_financial_statements.pdf",
+    "financials/annual_report_fy2024.pdf",
+    "financials/provisional_financials_fy2025.xlsx",
+    "exchange/quarterly_results_q3fy2025.pdf",
+    "kyc\\pan_card.pdf",
+    "kyc\\certificate_of_incorporation.pdf",
+    "kyc\\board_resolution_borrowing.pdf",
+    "ratings\\credit_rating_report.pdf",
+    "collateral\\valuation_report.pdf",
+    "request\\request_note.pdf",
+    "exchange\\corporate_governance_report.pdf",
+    "gst\\gstr3b_summary.pdf",
+    "gst\\gstr1_summary.pdf",
+    "bureau\\commercial_bureau_report.pdf",
+    "banking\\existing_facility_details.pdf",
+    "banking\\bank_statement_6m.pdf",
+    "banking\\sanction_letter.pdf",
+    "financials/web_scraped_financials.json"
+  ],
+  "nse_symbol": "RELENERGY",
+  "bse_code": "500325",
+  "web_profile_sources": [
+    "wikipedia",
+    "official_website"
+  ]
+}

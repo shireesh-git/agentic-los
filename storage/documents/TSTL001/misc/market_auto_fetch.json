@@ -1,0 +1,30 @@
+{
+  "source": "market",
+  "record_type": "news_sentiment",
+  "source_status": "success",
+  "payload": {
+    "entity_id": "TSTL001",
+    "company_name": "Tara Steels Industries Ltd",
+    "overall_sentiment": "Positive",
+    "sentiment_score": 0.72,
+    "news_items": [
+      {
+        "headline": "Tara Steels Q3 profit up 15%",
+        "source": "Economic Times",
+        "date": "2025-01-28",
+        "sentiment": "Positive",
+        "score": 0.85
+      },
+      {
+        "headline": "Steel sector outlook positive",
+        "source": "Mint",
+        "date": "2025-01-15",
+        "sentiment": "Positive",
+        "score": 0.78
+      }
+    ],
+    "market_cap_cr": 215000,
+    "pe_ratio": 12.5,
+    "current_price": 168.25
+  }
+}

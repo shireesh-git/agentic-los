@@ -1,0 +1,200 @@
+{
+  "source": "NSE India API (Live)",
+  "fetched_at": "2026-03-23T21:43:51.010349",
+  "entity_id": "IHCL001",
+  "data": {
+    "info": {
+      "symbol": "INDHOTEL",
+      "companyName": "The Indian Hotels Company Limited",
+      "industry": "Hotels & Resorts",
+      "activeSeries": [
+        "EQ",
+        "T0"
+      ],
+      "debtSeries": [],
+      "isFNOSec": true,
+      "isCASec": false,
+      "isSLBSec": true,
+      "isDebtSec": false,
+      "isSuspended": false,
+      "tempSuspendedSeries": [
+        "D1",
+        "N4",
+        "W1"
+      ],
+      "isETFSec": false,
+      "isDelisted": false,
+      "isin": "INE053A01029",
+      "slb_isin": "INE053A01029",
+      "listingDate": "1996-07-03",
+      "isMunicipalBond": false,
+      "isHybridSymbol": false,
+      "segment": "EQUITY",
+      "isTop10": false,
+      "identifier": "INDHOTELEQN"
+    },
+    "metadata": {
+      "series": "EQ",
+      "symbol": "INDHOTEL",
+      "isin": "INE053A01029",
+      "status": "Listed",
+      "listingDate": "03-Jul-1996",
+      "industry": "Hotels & Resorts",
+      "lastUpdateTime": "23-Mar-2026 16:00:00",
+      "pdSectorPe": 46.05,
+      "pdSymbolPe": 41.53,
+      "pdSectorInd": "NIFTY NEXT 50",
+      "pdSectorIndAll": [
+        "NIFTY NEXT 50",
+        "NIFTY500 MULTICAP INFRASTRUCTURE 50:30:20",
+        "NIFTY100 ENHANCED ESG",
+        "NIFTY 100",
+        "NIFTY 200",
+        "NIFTY 500",
+        "NIFTY INDIA CONSUMPTION",
+        "NIFTY INDIA CORPORATE GROUP INDEX - TATA GROUP",
+        "NIFTY INDIA CORPORATE GROUP INDEX - TATA GROUP 25% CAP",
+        "NIFTY INDIA FPI 150",
+        "NIFTY INDIA NEW AGE CONSUMPTION",
+        "NIFTY INDIA SELECT 5 CORPORATE GROUPS (MAATR)",
+        "NIFTY INDIA TOURISM",
+        "NIFTY INFRASTRUCTURE",
+        "NIFTY NON-CYCLICAL CONSUMER",
+        "NIFTY TOTAL MARKET",
+        "NIFTY100 EQUAL WEIGHT",
+        "NIFTY500 EQUAL WEIGHT",
+        "NIFTY500 LARGEMIDSMALL EQUAL-CAP WEIGHTED",
+        "NIFTY500 MULTICAP 50:25:25",
+        "NIFTY LARGEMIDCAP 250",
+        "NIFTY100 ESG"
+      ]
+    },
+    "securityInfo": {
+      "boardStatus": "Main",
+      "tradingStatus": "Active",
+      "tradingSegment": "Normal Market",
+      "sessionNo": "-",
+      "slb": "Yes",
+      "classOfShare": "Equity",
+      "derivatives": "Yes",
+      "surveillance": {
+        "surv": null,
+        "desc": null
+      },
+      "faceValue": 1,
+      "issuedSize": 1423432227
+    },
+    "sddDetails": {
+      "SDDAuditor": "-",
+      "SDDStatus": "-"
+    },
+    "currentMarketType": "NM",
+    "priceInfo": {
+      "lastPrice": 583.95,
+      "change": -31.59999999999991,
+      "pChange": -5.133620339533736,
+      "previousClose": 615.55,
+      "open": 610.55,
+      "close": 582.45,
+      "vwap": 588.52,
+      "stockIndClosePrice": 0,
+      "lowerCP": "524.25",
+      "upperCP": "640.65",
+      "pPriceBand": "No Band",
+      "basePrice": 615.55,
+      "intraDayHighLow": {
+        "min": 580.85,
+        "max": 611,
+        "value": 583.95
+      },
+      "weekHighLow": {
+        "min": 580.85,
+        "minDate": "23-Mar-2026",
+        "max": 858,
+        "maxDate": "25-Mar-2025",
+        "value": 583.95
+      },
+      "iNavValue": null,
+      "checkINAV": false,
+      "tickSize": 0.05,
+      "ieq": ""
+    },
+    "industryInfo": {
+      "macro": "Consumer Discretionary",
+      "sector": "Consumer Services",
+      "industry": "Leisure Services",
+      "basicIndustry": "Hotels & Resorts"
+    },
+    "preOpenMarket": {
+      "preopen": [
+        {
+          "price": 609.85,
+          "buyQty": 3,
+          "sellQty": 0
+        },
+        {
+          "price": 610,
+          "buyQty": 1254,
+          "sellQty": 0
+        },
+        {
+          "price": 610.05,
+          "buyQty": 100,
+          "sellQty": 0
+        },
+        {
+          "price": 610.1,
+          "buyQty": 45,
+          "sellQty": 0
+        },
+        {
+          "price": 610.55,
+          "buyQty": 197,
+          "sellQty": 0,
+          "iep": true
+        },
+        {
+          "price": 611,
+          "buyQty": 0,
+          "sellQty": 11
+        },
+        {
+          "price": 612,
+          "buyQty": 0,
+          "sellQty": 851
+        },
+        {
+          "price": 612.5,
+          "buyQty": 0,
+          "sellQty": 7
+        },
+        {
+          "price": 612.8,
+          "buyQty": 0,
+          "sellQty": 30
+        },
+        {
+          "price": 613,
+          "buyQty": 0,
+          "sellQty": 1001
+        }
+      ],
+      "ato": {
+        "buy": 0,
+        "sell": 0
+      },
+      "IEP": 610.55,
+      "totalTradedVolume": 5133,
+      "finalPrice": 610.55,
+      "finalQuantity": 5133,
+      "lastUpdateTime": "23-Mar-2026 09:07:24",
+      "totalBuyQuantity": 16825,
+      "totalSellQuantity": 23723,
+      "atoBuyQty": 0,
+      "atoSellQty": 0,
+      "Change": -5,
+      "perChange": -0.81,
+      "prevClose": 615.55
+    }
+  }
+}

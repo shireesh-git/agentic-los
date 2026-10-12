@@ -1,0 +1,18 @@
+{
+  "source": "epfo",
+  "record_type": "compliance",
+  "entity_key": "AAACI3456C",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "\u2014",
+    "establishment_code": "XXAAAC0099999",
+    "active_members": 500,
+    "total_members": 620,
+    "monthly_contribution_lakhs": 10.0,
+    "compliance_status": "Regular",
+    "pending_challan": 0,
+    "last_challan_date": "2026-02-15"
+  }
+}

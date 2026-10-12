@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "CIPL001",
+  "scraped_at": "2026-03-23T21:42:56.851671",
+  "profile": {
+    "entity_id": "CIPL001",
+    "actual_company_name": "Cipla Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Cipla",
+      "description": "Indian multinational pharmaceutical company",
+      "extract": "Cipla Limited is an Indian multinational pharmaceutical company headquartered in Mumbai. Cipla primarily focuses on developing medication to treat respiratory disease, cardiovascular disease, arthritis, diabetes, depression, paediatric and various other medical conditions. Cipla has 47 manufacturing locations across the world and sells its products in 86 countries. It is the third-largest drug producer in India.",
+      "url": "https://en.wikipedia.org/wiki/Cipla"
+    },
+    "official_website": {
+      "url": "https://www.cipla.com/",
+      "title": null,
+      "description": null
+    }
+  }
+}

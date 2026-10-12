@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "BJFN001",
+  "scraped_at": "2026-03-23T21:42:48.070717",
+  "profile": {
+    "entity_id": "BJFN001",
+    "actual_company_name": "Bajaj Finance Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Bajaj Finance",
+      "description": "Indian financial services company",
+      "extract": "Bajaj Finance Limited (BFL) is an Indian deposit-taking non-banking financial company (NBFC-UL) headquartered in Pune. It has 110.64 million customers and holds assets under management worth \u20b9462,250 crore (US$55\u00a0billion), as of September 2025.",
+      "url": "https://en.wikipedia.org/wiki/Bajaj_Finance"
+    },
+    "official_website": {
+      "url": "https://www.bajajfinserv.in/",
+      "title": "Bajaj Finserv: Loans, Cards, Insurance, Investments, Payments and more",
+      "description": "Bajaj Finserv is India\u2019s most diversified non-banking finance company. Visit the website to learn about our products. Get instant approval on loans, shop on EMIs, make an investment, get insurance and pay your bills."
+    }
+  }
+}

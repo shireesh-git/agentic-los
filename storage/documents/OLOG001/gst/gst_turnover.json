@@ -1,0 +1,18 @@
+{
+  "source": "gstin",
+  "record_type": "turnover",
+  "entity_key": "AABCO3456J",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "29AABCO3456J1Z1",
+    "legal_name": "Omega Logistics Pvt Ltd",
+    "aggregate_turnover_fy2024_cr": 575.0,
+    "aggregate_turnover_fy2023_cr": 518.0,
+    "aggregate_turnover_fy2022_cr": 470.0,
+    "filing_status": "GSTR-3B on-time 92%",
+    "last_return_filed": "February 2026",
+    "pending_returns": 0
+  }
+}

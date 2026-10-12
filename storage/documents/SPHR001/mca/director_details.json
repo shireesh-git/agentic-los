@@ -1,0 +1,61 @@
+{
+  "source": "mca",
+  "record_type": "director_master",
+  "entity_key": "U24230GJ2012PTC068945",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "directors": [
+      {
+        "din": "00334455",
+        "name": "Dr. Harish Patel",
+        "designation": "Managing Director",
+        "date_of_appointment": "2012-06-10",
+        "status": "Active",
+        "shareholding_pct": 42.0,
+        "remuneration_lakhs": 220,
+        "other_companies": [
+          "Sunrise Biotech Pvt Ltd",
+          "Sunrise Formulations Pvt Ltd",
+          "Sunrise Medicare Pvt Ltd",
+          "Global Health Exports LLC"
+        ],
+        "pan": "AAFHP1234G",
+        "nationality": "Indian",
+        "dob": "1958-12-03"
+      },
+      {
+        "din": "00334456",
+        "name": "Meera H. Patel",
+        "designation": "Director",
+        "date_of_appointment": "2012-06-10",
+        "status": "Active",
+        "shareholding_pct": 28.0,
+        "remuneration_lakhs": 120,
+        "other_companies": [
+          "Sunrise Biotech Pvt Ltd",
+          "Sunrise Medicare Pvt Ltd"
+        ],
+        "pan": "AAFMP1234H",
+        "nationality": "Indian",
+        "dob": "1962-08-19"
+      },
+      {
+        "din": "00334457",
+        "name": "Kiran Shah",
+        "designation": "Director \u2014 Finance",
+        "date_of_appointment": "2016-04-01",
+        "status": "Active",
+        "shareholding_pct": 5.0,
+        "remuneration_lakhs": 85,
+        "other_companies": [
+          "Sunrise Formulations Pvt Ltd"
+        ],
+        "pan": "AKYKS1234I",
+        "nationality": "Indian",
+        "dob": "1970-04-07"
+      }
+    ]
+  }
+}

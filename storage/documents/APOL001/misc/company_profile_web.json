@@ -1,0 +1,18 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "APOL001",
+  "scraped_at": "2026-03-23T21:42:21.120318",
+  "profile": {
+    "entity_id": "APOL001",
+    "actual_company_name": "Apollo Hospitals Enterprise Limited",
+    "sources": [
+      "wikipedia"
+    ],
+    "wikipedia": {
+      "title": "Apollo Hospitals",
+      "description": "Indian hospital chain",
+      "extract": "Apollo Hospitals Enterprise Limited is an Indian multinational healthcare group headquartered in Chennai. It is the largest for-profit private hospital network in India, with a network of 71 owned and managed hospitals. Along with the eponymous hospital chain, the company also operates pharmacies, primary care and diagnostic centres, telehealth clinics, and digital healthcare services among others through its subsidiaries.",
+      "url": "https://en.wikipedia.org/wiki/Apollo_Hospitals"
+    }
+  }
+}

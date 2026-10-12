@@ -1,0 +1,42 @@
+{
+  "source": "rating",
+  "record_type": "latest_action",
+  "entity_key": "SPHR001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "rating_agency": "CARE",
+    "long_term_rating": "CARE A- (Stable)",
+    "short_term_rating": "CARE A2+",
+    "outlook": "Stable",
+    "last_action": "Reaffirmed",
+    "action_date": "2025-09-25",
+    "history": [
+      {
+        "date": "2025-09-25",
+        "action": "Reaffirmed",
+        "rating": "A-",
+        "outlook": "Stable"
+      },
+      {
+        "date": "2024-09-22",
+        "action": "Reaffirmed",
+        "rating": "A-",
+        "outlook": "Stable"
+      }
+    ],
+    "rationale_summary": "The rating reflects Sunrise Pharma's established track record in API manufacturing, healthy operating margins (20.7% EBITDA), and low leverage (D/E 0.75x). The stable outlook factors in consistent revenue growth and diversified product portfolio. Rating constrained by group complexity (4 entities) and FDA warning on group entity.",
+    "key_rating_drivers": [
+      "Established API manufacturer with WHO-GMP certified facilities",
+      "Healthy EBITDA margin at 20.7% above pharma median",
+      "Low leverage: D/E at 0.75x, comfortable debt service",
+      "Group complexity: 4 entities, FDA warning on Sunrise Biotech",
+      "Unlisted \u2014 limited access to equity capital markets"
+    ],
+    "rating_sensitivity": {
+      "upgrade": "Resolution of group entity FDA issue, revenue >\u20b9500 Cr, listing",
+      "downgrade": "FDA action on main entity, D/E >1.5x, or group entity SMA-2/NPA"
+    }
+  }
+}

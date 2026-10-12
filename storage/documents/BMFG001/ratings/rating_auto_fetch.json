@@ -1,0 +1,54 @@
+{
+  "source": "rating",
+  "record_type": "latest_action",
+  "entity_key": "BMFG001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "rating_agency": "CRISIL",
+    "long_term_rating": "CRISIL A+ (Stable)",
+    "short_term_rating": "CRISIL A1",
+    "outlook": "Stable",
+    "last_action": "Reaffirmed",
+    "action_date": "2025-10-20",
+    "history": [
+      {
+        "date": "2025-10-20",
+        "action": "Reaffirmed",
+        "rating": "A+",
+        "outlook": "Stable"
+      },
+      {
+        "date": "2024-10-18",
+        "action": "Reaffirmed",
+        "rating": "A+",
+        "outlook": "Stable"
+      },
+      {
+        "date": "2023-10-15",
+        "action": "Upgraded",
+        "rating": "A+",
+        "outlook": "Stable"
+      },
+      {
+        "date": "2022-10-12",
+        "action": "Reaffirmed",
+        "rating": "A",
+        "outlook": "Positive"
+      }
+    ],
+    "rationale_summary": "The rating continues to reflect Bharat Manufacturing's established market position in precision engineering, diversified revenue base across auto, defence and industrial segments, healthy operating margins (24.2% EBITDA), and comfortable leverage (Debt/Equity 1.03x). Rating stability supported by order book of ~2.5x FY2024 revenue and improving working capital cycle. The outlook is stable.",
+    "key_rating_drivers": [
+      "Established market position with 15+ years track record",
+      "Diversified revenue across 3 segments reducing concentration risk",
+      "Healthy EBITDA margin at 24.2% (FY2024), above industry median",
+      "Comfortable leverage \u2014 Debt/Equity at 1.03x",
+      "Adequate liquidity with undrawn credit lines of \u20b945 Cr"
+    ],
+    "rating_sensitivity": {
+      "upgrade": "Sustained revenue growth >15% with EBITDA margin >25% and D/E <0.8x",
+      "downgrade": "Revenue decline >10% or EBITDA margin <18% or D/E >1.5x"
+    }
+  }
+}

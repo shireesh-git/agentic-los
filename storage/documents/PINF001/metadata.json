@@ -1,0 +1,97 @@
+{
+  "entity_id": "PINF001",
+  "created_at": "2026-03-14T12:09:05.225290",
+  "document_index": {
+    "kyc/pan_card.txt": {
+      "filename": "pan_card.txt",
+      "category": "kyc",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.229822"
+    },
+    "kyc/certificate_of_incorporation.txt": {
+      "filename": "certificate_of_incorporation.txt",
+      "category": "kyc",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.233002"
+    },
+    "kyc/gst_registration.txt": {
+      "filename": "gst_registration.txt",
+      "category": "kyc",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.237002"
+    },
+    "financials/audited_bs_fy2024.txt": {
+      "filename": "audited_bs_fy2024.txt",
+      "category": "financials",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.241516"
+    },
+    "mca/company_master.json": {
+      "filename": "company_master.json",
+      "category": "mca",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.245516"
+    },
+    "mca/director_details.json": {
+      "filename": "director_details.json",
+      "category": "mca",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.251250"
+    },
+    "mca/charges_register.json": {
+      "filename": "charges_register.json",
+      "category": "mca",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.255761"
+    },
+    "gst/gstin_profile.json": {
+      "filename": "gstin_profile.json",
+      "category": "gst",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.260280"
+    },
+    "gst/gst_turnover.json": {
+      "filename": "gst_turnover.json",
+      "category": "gst",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.264318"
+    },
+    "bureau/commercial_bureau_report.json": {
+      "filename": "commercial_bureau_report.json",
+      "category": "bureau",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.269747"
+    },
+    "bureau/crilc_report.json": {
+      "filename": "crilc_report.json",
+      "category": "bureau",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.273828"
+    },
+    "ratings/credit_rating.json": {
+      "filename": "credit_rating.json",
+      "category": "ratings",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.278916"
+    },
+    "misc/market_intelligence.json": {
+      "filename": "market_intelligence.json",
+      "category": "misc",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.282426"
+    },
+    "legal/epfo_compliance.json": {
+      "filename": "epfo_compliance.json",
+      "category": "legal",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.288099"
+    },
+    "financials/itr_filing_status.json": {
+      "filename": "itr_filing_status.json",
+      "category": "financials",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.292619"
+    }
+  },
+  "fetch_status": {}
+}

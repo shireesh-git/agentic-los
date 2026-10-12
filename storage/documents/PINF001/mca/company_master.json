@@ -1,0 +1,38 @@
+{
+  "source": "mca",
+  "record_type": "company_master",
+  "entity_key": "L45200DL2005PLC134567",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "company_name": "Pinnacle Infra Projects Ltd",
+    "cin": "L45200DL2005PLC134567",
+    "status": "Active",
+    "company_class": "Public",
+    "company_category": "Limited by Shares",
+    "sub_category": "Non-govt company",
+    "date_of_incorporation": "2005-08-22",
+    "registered_state": "Delhi",
+    "registered_office": "502, Nehru Place, New Delhi 110019",
+    "authorized_capital_inr": 20000000000,
+    "paid_up_capital_inr": 12500000000,
+    "listing_status": "Listed",
+    "listed_exchange": "NSE",
+    "email": "corp@pinnacleinfra.com",
+    "last_agm_date": "2025-09-15",
+    "last_bs_date": "2025-03-31",
+    "number_of_members": 28431,
+    "whether_AOCI": "No",
+    "industrial_class": "Construction of roads and railways",
+    "nic_code": "4210",
+    "puc_nof_ratio": 0.625,
+    "compliance_status": {
+      "annual_return_filed": true,
+      "balance_sheet_filed": true,
+      "charges_satisfied": 0,
+      "charges_open": 5,
+      "last_filing_date": "2025-11-15"
+    }
+  }
+}

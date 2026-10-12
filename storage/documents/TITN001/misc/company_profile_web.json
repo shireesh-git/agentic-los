@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "TITN001",
+  "scraped_at": "2026-03-23T21:43:31.930309",
+  "profile": {
+    "entity_id": "TITN001",
+    "actual_company_name": "Titan Company Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Titan Company",
+      "description": "Indian multinational jeweller and watchmaker",
+      "extract": "Titan Company Limited is an Indian fashion accessories company that mainly manufactures items such as jewellery, watches and eyewear. Part of the Tata Group and started as a joint venture with TIDCO, the company has its corporate headquarters in Electronic City, Bangalore, and registered office in Hosur, Tamil Nadu.",
+      "url": "https://en.wikipedia.org/wiki/Titan_Company"
+    },
+    "official_website": {
+      "url": "https://www.titancompany.in/",
+      "title": "Titan Company Ltd.",
+      "description": "Welcome to Titan&#039;s home on the internet. We&#039;ve grown into India&#039;s leading lifestyle company by creating elevating experiences for the people we touch."
+    }
+  }
+}

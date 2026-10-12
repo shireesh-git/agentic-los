@@ -1,0 +1,42 @@
+{
+  "source": "market",
+  "record_type": "intelligence",
+  "entity_key": "PINF001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "overall_sentiment": "negative",
+    "sentiment_score": -0.58,
+    "news_count_last_90d": 22,
+    "positive_count": 3,
+    "neutral_count": 5,
+    "negative_count": 14,
+    "top_themes": [
+      "project delays",
+      "cost overruns",
+      "rating downgrade watch",
+      "salary delays",
+      "NHAI contract termination",
+      "promoter pledge"
+    ],
+    "reputation_risk_score": "high",
+    "market_position": "Mid-tier \u2014 market share declining",
+    "industry_outlook": "Mixed \u2014 infra capex up but competition intensifying",
+    "peer_comparison": {
+      "rank_in_sector": 18,
+      "out_of": 30,
+      "key_competitors": [
+        "L&T",
+        "Dilip Buildcon",
+        "NCC Ltd"
+      ]
+    },
+    "esg_score": {
+      "environment": "C+",
+      "social": "C",
+      "governance": "C-",
+      "overall": "C"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "source": "epfo",
+  "record_type": "compliance",
+  "entity_key": "AABCS9012H",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Sunrise Pharma Pvt Ltd",
+    "establishment_code": "GJVAD0034567",
+    "active_members": 420,
+    "total_members": 480,
+    "monthly_contribution_lakhs": 8.5,
+    "compliance_status": "Regular",
+    "pending_challan": 0,
+    "last_challan_date": "2026-02-15"
+  }
+}

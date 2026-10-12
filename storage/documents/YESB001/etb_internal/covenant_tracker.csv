@@ -1,0 +1,6 @@
+period,covenant,required,actual,status
+Q1-FY2025,Capital Adequacy >= 15%,15.0,17.8,Compliant
+Q2-FY2025,Capital Adequacy >= 15%,15.0,17.4,Compliant
+Q3-FY2025,GNPA Ratio <= 3.0%,3.0,2.8,Compliant
+Q4-FY2025,GNPA Ratio <= 3.0%,3.0,3.5,Breach
+Q4-FY2025,Max Cheque Returns <= 5/qtr,5,12,Breach

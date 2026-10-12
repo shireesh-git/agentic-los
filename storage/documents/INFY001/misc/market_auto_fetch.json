@@ -1,0 +1,23 @@
+{
+  "source": "market",
+  "record_type": "news_sentiment",
+  "entity_key": "INFY001",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "overall_sentiment": "positive",
+    "sentiment_score": 0.55,
+    "news_count_last_90d": 35,
+    "positive_count": 20,
+    "neutral_count": 10,
+    "negative_count": 5,
+    "top_themes": [
+      "deal wins",
+      "generative AI services",
+      "margin guidance",
+      "attrition moderation"
+    ],
+    "reputation_risk_score": "low"
+  }
+}

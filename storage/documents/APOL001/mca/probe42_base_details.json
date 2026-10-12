@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "old_identifier": null,
+    "api_version": "1.0",
+    "last_updated": "2026-03-13"
+  },
+  "data": {
+    "entity_identifier": "L85110TN1979PLC008035",
+    "legal_name": "APOLLO HOSPITALS ENTERPRISE LIMITED",
+    "status": "Active",
+    "date_of_incorporation": "1979-12-05",
+    "registered_address": {
+      "address_line": "19 BISHOP GARDENS   R A PURAM ",
+      "city": "CHENNAI",
+      "pincode": "600028",
+      "state": "Tamil Nadu"
+    }
+  }
+}

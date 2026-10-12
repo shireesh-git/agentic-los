@@ -1,0 +1,304 @@
+{
+  "00 GET /": {
+    "status": 200,
+    "media": "text/html",
+    "empty": false
+  },
+  "01 GET /api/health": {
+    "status": 200,
+    "keys": [
+      "active_llm",
+      "cases_analysed",
+      "companies",
+      "database",
+      "engines_enabled",
+      "probe42",
+      "status",
+      "storage",
+      "version"
+    ]
+  },
+  "02 GET /api/enums": {
+    "status": 200,
+    "keys": [
+      "borrower_types",
+      "case_types",
+      "facility_types",
+      "sectors"
+    ]
+  },
+  "03 GET /api/dashboard": {
+    "status": 200,
+    "keys": [
+      "grade_distribution",
+      "metrics",
+      "portfolio",
+      "recent_cases",
+      "workflow_status"
+    ]
+  },
+  "04 GET /api/companies": {
+    "status": 200,
+    "keys": [
+      "companies"
+    ]
+  },
+  "05 GET /api/cases": {
+    "status": 200,
+    "keys": [
+      "cases"
+    ]
+  },
+  "06 GET /api/cases/MFL001": {
+    "status": 404,
+    "keys": [
+      "detail"
+    ]
+  },
+  "07 GET /api/config": {
+    "status": 200,
+    "keys": [
+      "approval",
+      "benchmarks",
+      "external_apis",
+      "llm_providers",
+      "los_workflow",
+      "rules",
+      "settings"
+    ]
+  },
+  "08 GET /api/config/rules": {
+    "status": 200,
+    "keys": [
+      "credit_challenges",
+      "credit_observations",
+      "credit_reassessment",
+      "hard_rules",
+      "policy_thresholds",
+      "recommendation",
+      "repayment_analysis",
+      "scoring",
+      "stress_testing"
+    ]
+  },
+  "09 GET /api/engines": {
+    "status": 200,
+    "keys": [
+      "engines"
+    ]
+  },
+  "10 GET /api/llm/providers": {
+    "status": 200,
+    "keys": [
+      "active_provider",
+      "narrative_mode",
+      "providers"
+    ]
+  },
+  "11 GET /api/agents": {
+    "status": 200,
+    "keys": [
+      "agents"
+    ]
+  },
+  "12 GET /api/companies/MFL001/hierarchy": {
+    "status": 200,
+    "keys": [
+      "entity_id",
+      "group_name",
+      "group_net_worth_cr",
+      "group_revenue_cr",
+      "group_total_debt_cr",
+      "hierarchy"
+    ]
+  },
+  "13 GET /api/companies/MFL001/documents": {
+    "status": 200,
+    "keys": [
+      "categories",
+      "entity_id",
+      "exists"
+    ]
+  },
+  "14 GET /api/companies/MFL001/document-operations": {
+    "status": 200,
+    "keys": [
+      "entity_id",
+      "operations"
+    ]
+  },
+  "15 GET /api/document-operations": {
+    "status": 200,
+    "keys": [
+      "entity_id",
+      "limit",
+      "operations"
+    ]
+  },
+  "16 GET /api/companies/MFL001/data-gaps": {
+    "status": 200,
+    "keys": [
+      "categories_empty",
+      "categories_with_docs",
+      "data_sources",
+      "entity_id",
+      "hidden_legacy_files",
+      "hidden_system_files",
+      "provider",
+      "required_missing_documents",
+      "source_gaps",
+      "total_files",
+      "upload_coverage_pct",
+      "web_crawl_article_count",
+      "web_crawl_available"
+    ]
+  },
+  "17 GET /api/companies/MFL001/extraction": {
+    "status": 200,
+    "keys": [
+      "document_count",
+      "documents",
+      "entity_id",
+      "financials",
+      "message",
+      "status"
+    ]
+  },
+  "18 GET /api/companies/MFL001/etb-analytics": {
+    "status": 404,
+    "keys": [
+      "detail"
+    ]
+  },
+  "19 GET /api/companies/MFL001/fraud-analysis": {
+    "status": 404,
+    "keys": [
+      "detail"
+    ]
+  },
+  "20 GET /api/chat/sessions": {
+    "status": 200,
+    "keys": [
+      "sessions"
+    ]
+  },
+  "21 GET /api/companies/NOPE999/hierarchy": {
+    "status": 404,
+    "keys": [
+      "detail"
+    ]
+  },
+  "22 POST /api/cases/MFL001/run": {
+    "status": 200,
+    "keys": [
+      "composite_score",
+      "entity_id",
+      "narrative_mode",
+      "pipeline_log",
+      "recommendation",
+      "risk_grade",
+      "status"
+    ]
+  },
+  "23 GET /api/cases": {
+    "status": 200,
+    "keys": [
+      "cases"
+    ]
+  },
+  "24 GET /api/cases/MFL001": {
+    "status": 200,
+    "keys": [
+      "cam_text",
+      "case_type",
+      "challenges",
+      "company_name",
+      "composite_score",
+      "conditions",
+      "conduct_score",
+      "covenants_proposed",
+      "data_provider",
+      "documents_changed",
+      "entity_id",
+      "exceptions",
+      "facility_type",
+      "fact_pack",
+      "final_cam",
+      "financial_score",
+      "governance_score",
+      "investigations",
+      "market_score",
+      "narrative_mode",
+      "observations",
+      "pipeline_log",
+      "rationale",
+      "reassessment",
+      "recommendation",
+      "repayment_analysis",
+      "requested_amount_cr",
+      "risk_grade",
+      "run_at",
+      "run_id",
+      "sector",
+      "stress_test",
+      "tier1_decisions"
+    ]
+  },
+  "25 GET /api/cases/MFL001/cam": {
+    "status": 200,
+    "keys": [
+      "cam_text"
+    ]
+  },
+  "26 GET /api/cases/MFL001/cam-html": {
+    "status": 200,
+    "media": "text/html",
+    "empty": false
+  },
+  "27 GET /api/cases/MFL001/cam-pdf": {
+    "status": 200,
+    "media": "application/pdf",
+    "empty": false
+  },
+  "28 GET /api/cases/MFL001/one-pager": {
+    "status": 200,
+    "media": "text/html",
+    "empty": false
+  },
+  "29 PUT /api/cases/MFL001/comments": {
+    "status": 200,
+    "keys": [
+      "comments",
+      "status"
+    ]
+  },
+  "30 GET /api/cases/MFL001/comments": {
+    "status": 200,
+    "keys": [
+      "comments"
+    ]
+  },
+  "31 PUT /api/cases/MFL001/cam-section-edits": {
+    "status": 200,
+    "keys": [
+      "edits",
+      "status"
+    ]
+  },
+  "32 GET /api/cases/MFL001/cam-section-edits": {
+    "status": 200,
+    "keys": [
+      "edits"
+    ]
+  },
+  "33 GET /api/dashboard": {
+    "status": 200,
+    "keys": [
+      "grade_distribution",
+      "metrics",
+      "portfolio",
+      "recent_cases",
+      "workflow_status"
+    ]
+  }
+}

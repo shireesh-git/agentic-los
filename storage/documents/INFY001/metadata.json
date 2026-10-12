@@ -1,0 +1,19 @@
+{
+  "entity_id": "INFY001",
+  "source": "dms",
+  "last_fetched": "2026-10-07T16:14:37.215319",
+  "total_documents": 50,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "legal",
+    "collateral",
+    "ratings",
+    "gst",
+    "mca",
+    "banking",
+    "exchange",
+    "request"
+  ]
+}

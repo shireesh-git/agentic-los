@@ -1,0 +1,9 @@
+{
+  "source": "NSE India API (Live)",
+  "fetched_at": "2026-03-23T21:43:18.785248",
+  "entity_id": "MRUT001",
+  "data": {
+    "error": {},
+    "message": "TypeError: Cannot read properties of undefined (reading 'length')"
+  }
+}

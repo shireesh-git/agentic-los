@@ -1,0 +1,15 @@
+{
+  "source": "rating_agency",
+  "entity_key": "PNCR001",
+  "as_of_date": "2026-04-06T08:51:02",
+  "source_status": "success",
+  "payload": {
+    "rating_agency": "CARE",
+    "long_term_rating": "AA-",
+    "short_term_rating": "A1+",
+    "outlook": "Stable",
+    "last_action": "Reaffirmed",
+    "action_date": "2025-11-15",
+    "rationale": "Strong order book at 3.2x revenue, healthy EBITDA margins, experienced promoter group with 17+ years track record in road EPC."
+  }
+}

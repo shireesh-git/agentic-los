@@ -1,0 +1,45 @@
+{
+  "source": "mca",
+  "record_type": "charges",
+  "entity_key": "L29100MH2008PLC185432",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "total_charges": 3,
+    "open_charges": 2,
+    "satisfied_charges": 1,
+    "charges": [
+      {
+        "charge_id": "10012345",
+        "charge_holder": "State Bank of India",
+        "amount_inr": 4250000000,
+        "date_created": "2020-06-15",
+        "date_modified": "2024-03-10",
+        "status": "Open",
+        "assets": "Plant & Machinery, Factory Land at MIDC Pune",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10012346",
+        "charge_holder": "HDFC Bank Ltd",
+        "amount_inr": 2800000000,
+        "date_created": "2021-09-10",
+        "date_modified": "2023-09-10",
+        "status": "Open",
+        "assets": "Inventory, Book Debts, Current Assets",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10012347",
+        "charge_holder": "ICICI Bank Ltd",
+        "amount_inr": 1500000000,
+        "date_created": "2019-03-20",
+        "date_modified": "2024-01-15",
+        "status": "Satisfied",
+        "assets": "Vehicle fleet",
+        "charge_holder_type": "Bank"
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "source": "mca_v3",
+  "entity_key": "L45201DL1999PLC195937",
+  "as_of_date": "2026-04-06T08:51:02",
+  "source_status": "success",
+  "payload": {
+    "charges": [
+      {
+        "charge_id": "CHG-001",
+        "holder": "State Bank of India",
+        "amount_cr": 2500.0,
+        "date_created": "2022-03-15",
+        "status": "Open",
+        "assets": "Toll collection rights \u2014 Agra-Lucknow section"
+      },
+      {
+        "charge_id": "CHG-002",
+        "holder": "HDFC Bank",
+        "amount_cr": 800.0,
+        "date_created": "2023-07-20",
+        "status": "Open",
+        "assets": "Construction equipment fleet"
+      }
+    ]
+  }
+}

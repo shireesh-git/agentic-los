@@ -1,0 +1,34 @@
+{
+  "source": "bureau",
+  "record_type": "commercial_report",
+  "source_status": "success",
+  "payload": {
+    "pan": "AABCT1234F",
+    "company_name": "Tara Steels Industries Ltd",
+    "cibil_rank": 2,
+    "credit_score": 78,
+    "credit_facilities": [
+      {
+        "lender": "State Bank of India",
+        "facility_type": "Term Loan",
+        "sanctioned_amount": 30000000000,
+        "outstanding": 22000000000,
+        "overdue_amount": 0,
+        "dpd_status": "STD"
+      },
+      {
+        "lender": "ICICI Bank",
+        "facility_type": "Working Capital",
+        "sanctioned_amount": 15000000000,
+        "outstanding": 11000000000,
+        "overdue_amount": 0,
+        "dpd_status": "STD"
+      }
+    ],
+    "total_exposure": 45000000000,
+    "total_outstanding": 33000000000,
+    "total_overdue": 0,
+    "wilful_defaulter": false,
+    "suit_filed_status": "No Suit Filed"
+  }
+}

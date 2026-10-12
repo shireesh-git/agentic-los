@@ -1,0 +1,36 @@
+# Delegation of powers: who may decide a credit case.
+#
+# PLACEHOLDER VALUES — replace with your bank's board-approved delegation
+# matrix before relying on them.
+#
+# A case is routed to the first (lowest) level whose limit covers the requested
+# amount and whose allowed grades include the case's risk grade. Levels are
+# listed from lowest to highest authority.
+authority_levels:
+  - id: branch_credit_committee
+    name: Branch Credit Committee
+    max_amount_cr: 25
+    allowed_risk_grades: [A, B]
+  - id: zonal_credit_committee
+    name: Zonal Credit Committee
+    max_amount_cr: 100
+    allowed_risk_grades: [A, B, C]
+  - id: head_office_credit_committee
+    name: Head Office Credit Committee
+    max_amount_cr: 500
+    allowed_risk_grades: [A, B, C, D]
+  - id: board_credit_committee
+    name: Board Credit Committee
+    max_amount_cr: null        # no upper limit
+    allowed_risk_grades: [A, B, C, D, E]
+
+# Approving a case the system recommends to DECLINE is a deviation and must be
+# decided this many levels above the normal authority.
+deviation_escalation_levels: 1
+
+# Roles that may prepare and submit a case (makers).
+maker_roles: [relationship_manager, credit_analyst]
+
+# Turnaround time: a submitted case waiting longer than this many days for a
+# decision is flagged as overdue on Summary and Approvals. PLACEHOLDER VALUE.
+decision_tat_days: 3

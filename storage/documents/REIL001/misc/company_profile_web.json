@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "REIL001",
+  "scraped_at": "2026-03-23T21:42:38.228339",
+  "profile": {
+    "entity_id": "REIL001",
+    "actual_company_name": "Reliance Industries Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Reliance Industries",
+      "description": "Indian multinational conglomerate",
+      "extract": "Reliance Industries Limited is an Indian multinational conglomerate headquartered in Mumbai. Its businesses include energy, petrochemicals, natural gas, retail, entertainment, telecommunications, mass media, and textiles. Reliance is the largest public company in India by market capitalisation and revenue, and the 86th largest company worldwide. It is India's largest private tax payer and largest exporter, accounting for 7% of India's total merchandise exports.",
+      "url": "https://en.wikipedia.org/wiki/Reliance_Industries"
+    },
+    "official_website": {
+      "url": "https://www.ril.com/",
+      "title": "Reliance Industries Limited \u2013 Petroleum Refining &amp; Marketing | Retail Markets | Telecom | Petrochemicals | Hydrocarbon Exploration &amp; Production | New Energy | Jio True 5G | Reliance Shares",
+      "description": "Reliance Industries Limited is a Fortune 500 company and the largest private sector corporation in India. Our activities span hydrocarbon exploration and production, petroleum refining and marketing, petrochemicals, retail markets, new energy, and telecom (Jio True 5G). Our vision has pushed us to achieve global leadership in many of our businesses \u2013 including our position as the largest polyester yarn and fibre producer in the world"
+    }
+  }
+}

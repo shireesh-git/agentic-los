@@ -1,0 +1,47 @@
+{
+  "source": "epfo_auto_fetch",
+  "entity_key": "PNCR001",
+  "as_of_date": "2026-04-06T08:55:00",
+  "payload": {
+    "establishment_name": "PNC Infratech Limited",
+    "establishment_code": "UPAGRXXXX",
+    "total_employees": 12500,
+    "active_members": 11800,
+    "compliance_status": "Regular",
+    "last_filing_month": "Feb-2026",
+    "monthly_contribution_lakhs": 185,
+    "challan_status_6m": [
+      {
+        "month": "Sep-2025",
+        "paid": true,
+        "amount_lakhs": 178
+      },
+      {
+        "month": "Oct-2025",
+        "paid": true,
+        "amount_lakhs": 180
+      },
+      {
+        "month": "Nov-2025",
+        "paid": true,
+        "amount_lakhs": 182
+      },
+      {
+        "month": "Dec-2025",
+        "paid": true,
+        "amount_lakhs": 184
+      },
+      {
+        "month": "Jan-2026",
+        "paid": true,
+        "amount_lakhs": 183
+      },
+      {
+        "month": "Feb-2026",
+        "paid": true,
+        "amount_lakhs": 185
+      }
+    ],
+    "no_pending_dues": true
+  }
+}

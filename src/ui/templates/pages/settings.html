@@ -1,0 +1,212 @@
+<section x-show="page==='settings'" x-cloak>
+  <div class="page-header"><h1>Settings</h1></div>
+
+  <div class="tabs">
+    <button :class="{'tab-active':settingsTab==='llm'}" @click="settingsTab='llm'">LLM Provider</button>
+    <button :class="{'tab-active':settingsTab==='engines'}" @click="settingsTab='engines'">Engines</button>
+    <button :class="{'tab-active':settingsTab==='benchmarks'}" @click="settingsTab='benchmarks'">Benchmarks</button>
+    <button :class="{'tab-active':settingsTab==='rules'}" @click="settingsTab='rules'">Rules</button>
+  </div>
+
+  <!-- LLM Tab -->
+  <div x-show="settingsTab==='llm'" class="card" style="margin-top:1rem">
+    <h3>LLM Configuration</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Active Provider</label>
+        <select class="input" x-model="llmActive">
+          <template x-for="p in llmProviders" :key="p.id">
+            <option :value="p.id" x-text="p.name + (p.id===activeProvider?' (current)':'')"></option>
+          </template>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Narrative Mode</label>
+        <select class="input" x-model="narrativeMode">
+          <option value="template">Template (fast, deterministic)</option>
+          <option value="llm">LLM (AI-generated narrative)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex; gap:0.75rem; margin-top:1rem">
+      <button class="btn btn-primary" @click="setLLM()">Save</button>
+      <button class="btn btn-secondary" @click="testLLM()">Test Connection</button>
+    </div>
+    <div x-show="llmTestResult" class="card" style="margin-top:1rem; background:var(--bg-card-alt)">
+      <strong>Test Result:</strong> <span x-text="llmTestResult"></span>
+    </div>
+    <div style="margin-top:1.5rem">
+      <h4>Available Providers</h4>
+      <table class="data-table">
+        <thead><tr><th>Provider</th><th>Model</th><th>Status</th></tr></thead>
+        <tbody>
+          <template x-for="p in llmProviders" :key="p.name">
+            <tr>
+              <td x-text="p.name"></td>
+              <td x-text="p.model||'--'"></td>
+              <td><span class="badge" :class="p.id===activeProvider?'badge-green':'badge-info'"
+                        x-text="p.id===activeProvider?'active':'available'"></span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Engines Tab -->
+  <div x-show="settingsTab==='engines'" class="card" style="margin-top:1rem">
+    <h3>Engine Registry</h3>
+    <table class="data-table">
+      <thead><tr><th>Engine</th><th>Description</th><th>Status</th><th>Toggle</th></tr></thead>
+      <tbody>
+        <template x-for="e in engines" :key="e.name">
+          <tr>
+            <td><code x-text="e.name"></code></td>
+            <td x-text="e.description"></td>
+            <td><span class="badge" :class="e.enabled?'badge-green':'badge-red'"
+                      x-text="e.enabled?'enabled':'disabled'"></span></td>
+            <td>
+              <label class="toggle">
+                <input type="checkbox" :checked="e.enabled" @change="toggleEngine(e.name)">
+                <span class="toggle-slider"></span>
+              </label>
+            </td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Benchmarks Tab -->
+  <div x-show="settingsTab==='benchmarks'" class="card" style="margin-top:1rem">
+    <h3>Sector Benchmarks</h3>
+    <div class="config-toolbar">
+      <select class="input" x-model="cfgSector" @change="loadBenchmarkSector()">
+        <template x-for="s in Object.keys(cfg.benchmarks?.sectors||{})" :key="s">
+          <option :value="s" x-text="s"></option>
+        </template>
+      </select>
+      <button class="btn btn-primary" @click="saveBenchmarks()">Save</button>
+    </div>
+    <div class="benchmark-grid" x-show="cfgSectorData">
+      <template x-for="[k,v] in Object.entries(cfgSectorData||{})" :key="k">
+        <div class="card benchmark-card">
+          <div class="benchmark-head">
+            <div class="section-kicker">Metric Thresholds</div>
+            <h4 x-text="titleCase(k)"></h4>
+          </div>
+          <div class="benchmark-thresholds">
+            <template x-for="(threshold, idx) in (Array.isArray(v) ? v : [v])" :key="k + '-' + idx">
+              <div class="form-group">
+                <label x-text="thresholdLabel(idx)"></label>
+                <input class="input" type="number" step="0.01" x-model.number="cfgSectorData[k][idx]">
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Rules Tab -->
+  <div x-show="settingsTab==='rules'" class="card" style="margin-top:1rem">
+    <h3>Policy Rules</h3>
+    <p class="text-muted" style="margin-bottom:1rem">Saved rule changes are applied to subsequent pipeline runs and recommendation generation.</p>
+    <div class="form-grid" x-show="cfg.rules">
+      <template x-for="[cat, rules] in Object.entries(cfg.rules||{})" :key="cat">
+        <div class="card config-section-card" style="background:var(--bg-card-alt); grid-column:span 2">
+          <div class="surface-heading" style="margin-bottom:1rem">
+            <div>
+              <div class="section-kicker">Policy Group</div>
+              <h4 x-text="titleCase(cat)"></h4>
+            </div>
+          </div>
+          <div class="form-grid config-rule-grid">
+            <template x-for="[k,v] in Object.entries(rules)" :key="k">
+              <div class="config-field-shell" :class="configFieldType(v)==='object' ? 'config-field-shell-span' : ''">
+                <template x-if="configFieldType(v) === 'object'">
+                  <div class="card nested-config-card">
+                    <div class="section-kicker">Nested Rules</div>
+                    <h5 x-text="titleCase(k)"></h5>
+                    <div class="form-grid config-sub-grid">
+                      <template x-for="[subKey, subValue] in Object.entries(v || {})" :key="k + '-' + subKey">
+                        <div class="config-field-shell" :class="configFieldType(subValue) === 'object' ? 'config-field-shell-span' : ''">
+                          <template x-if="configFieldType(subValue) === 'object'">
+                            <div class="card nested-config-card nested-config-card-deep">
+                              <div class="section-kicker">Rule Values</div>
+                              <h6 x-text="titleCase(subKey)"></h6>
+                              <div class="form-grid config-leaf-grid">
+                                <template x-for="[leafKey, leafValue] in Object.entries(subValue || {})" :key="k + '-' + subKey + '-' + leafKey">
+                                  <div class="form-group">
+                                    <label x-text="titleCase(leafKey)"></label>
+                                    <template x-if="configFieldType(leafValue) === 'boolean'">
+                                      <label class="inline-toggle config-inline-toggle">
+                                        <input type="checkbox" :checked="cfg.rules[cat][k][subKey][leafKey]" @change="cfg.rules[cat][k][subKey][leafKey] = $event.target.checked">
+                                        <span class="inline-toggle-indicator"></span>
+                                        <span class="inline-toggle-label" x-text="cfg.rules[cat][k][subKey][leafKey] ? 'Enabled' : 'Disabled'"></span>
+                                      </label>
+                                    </template>
+                                    <template x-if="configFieldType(leafValue) !== 'boolean'">
+                                      <input class="input"
+                                             :type="configFieldType(leafValue) === 'number' ? 'number' : 'text'"
+                                             :step="configFieldType(leafValue) === 'number' ? '0.01' : null"
+                                             :value="configFieldValue(leafValue)"
+                                             @input="applyConfigInput(cfg.rules[cat][k][subKey], leafKey, $event.target.value)">
+                                    </template>
+                                  </div>
+                                </template>
+                              </div>
+                            </div>
+                          </template>
+                          <template x-if="configFieldType(subValue) !== 'object'">
+                            <div class="form-group">
+                              <label x-text="titleCase(subKey)"></label>
+                              <template x-if="configFieldType(subValue) === 'boolean'">
+                                <label class="inline-toggle config-inline-toggle">
+                                  <input type="checkbox" :checked="cfg.rules[cat][k][subKey]" @change="cfg.rules[cat][k][subKey] = $event.target.checked">
+                                  <span class="inline-toggle-indicator"></span>
+                                  <span class="inline-toggle-label" x-text="cfg.rules[cat][k][subKey] ? 'Enabled' : 'Disabled'"></span>
+                                </label>
+                              </template>
+                              <template x-if="configFieldType(subValue) !== 'boolean'">
+                                <input class="input"
+                                       :type="configFieldType(subValue) === 'number' ? 'number' : 'text'"
+                                       :step="configFieldType(subValue) === 'number' ? '0.01' : null"
+                                       :value="configFieldValue(subValue)"
+                                       @input="applyConfigInput(cfg.rules[cat][k], subKey, $event.target.value)">
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="configFieldType(v) !== 'object'">
+                  <div class="form-group">
+                    <label x-text="titleCase(k)"></label>
+                    <template x-if="configFieldType(v) === 'boolean'">
+                      <label class="inline-toggle config-inline-toggle">
+                        <input type="checkbox" :checked="cfg.rules[cat][k]" @change="cfg.rules[cat][k] = $event.target.checked">
+                        <span class="inline-toggle-indicator"></span>
+                        <span class="inline-toggle-label" x-text="cfg.rules[cat][k] ? 'Enabled' : 'Disabled'"></span>
+                      </label>
+                    </template>
+                    <template x-if="configFieldType(v) !== 'boolean'">
+                      <input class="input"
+                             :type="configFieldType(v) === 'number' ? 'number' : 'text'"
+                             :step="configFieldType(v) === 'number' ? '0.01' : null"
+                             :value="configFieldValue(v)"
+                             @input="applyConfigInput(cfg.rules[cat], k, $event.target.value)">
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+    <button class="btn btn-primary" @click="saveRules()" style="margin-top:1rem">Save Rules</button>
+  </div>
+</section>

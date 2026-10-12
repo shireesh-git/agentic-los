@@ -1,0 +1,9 @@
+{
+  "source": "NSE India API (Live)",
+  "fetched_at": "2026-03-23T21:43:36.391692",
+  "entity_id": "NTPC001",
+  "data": {
+    "error": {},
+    "message": "TypeError: Cannot read properties of undefined (reading 'length')"
+  }
+}

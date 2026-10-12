@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "MRUT001",
+  "scraped_at": "2026-03-23T21:43:23.146147",
+  "profile": {
+    "entity_id": "MRUT001",
+    "actual_company_name": "Maruti Suzuki India Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Maruti Suzuki",
+      "description": "Indian automobile manufacturer company",
+      "extract": "Maruti Suzuki India Limited is the Indian subsidiary of Japanese automaker Suzuki Motor Corporation. It is the largest automobile manufacturer in India, specialising in small cars. The company was established by the Government of India as Maruti Udyog Limited in February 1981 as a joint venture with Suzuki, the latter becoming the first Japanese automaker, as well as the first major foreign automaker, to invest in India.",
+      "url": "https://en.wikipedia.org/wiki/Maruti_Suzuki"
+    },
+    "official_website": {
+      "url": "https://www.marutisuzuki.com/",
+      "title": "Maruti Suzuki India Corporate - Discover Arena, NEXA cars, Commercial and True Value",
+      "description": "Explore Maruti Suzuki India and get exclusive information on hatchbacks, sedans, SUVs, strong hybrid cars, S-CNG cars, latest offers and more. Explore channels like NEXA, Arena, Commercial and True Value."
+    }
+  }
+}

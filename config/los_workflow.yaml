@@ -1,0 +1,118 @@
+# Corporate LOS workflow — groups, roles, demo users, stages and steps.
+#
+# DEMO CONFIGURATION. Users are fictitious; sign-in is a demo picker (no passwords).
+# Steps run in the order listed within a stage, and stages in the order listed.
+#
+# Step kinds:
+#   maker       prepares the work and submits it (submit)
+#   checker     reviews the maker's work (approve | return | reject)
+#   vp_review   read-only VP approval gate: endorses or reworks (submit | return)
+#   allocation  assigns the work to a person in the next role (allocate)
+#   committee   decides (sanction | return | reject)
+# sla_days: calendar days allowed in the step before it is flagged as an SLA breach.
+
+groups:
+  - id: sourcing
+    name: Sourcing & Relationship
+    description: Initiate and manage prospect loan applications through the sourcing stages.
+    roles: [ps_maker, lpf_vp]
+  - id: credit
+    name: Credit & Risk
+    description: Credit appraisal, risk assessment, internal rating and allocation decisions.
+    roles: [crp_evp, crp_vp, risk_analyst, risk_reviewer, post_risk_maker, compliance_vp]
+  - id: committee
+    name: Executive & Committee
+    description: EVP-level recommendations and final sanction authority for large exposures.
+    roles: [evp_recommender, recommendations_committee, sanction_committee]
+  - id: operations
+    name: Operations & Fulfilment
+    description: Post-sanction documentation, verification and disbursement processing.
+    roles: [pos_maker, pos_checker, dis_maker, dis_checker, dis_vp, dis_approver]
+  - id: admin
+    name: System Administration
+    description: Users, groups, roles, audit logs and configuration.
+    roles: [los_admin]
+
+roles:
+  ps_maker: Prospect Sourcing Maker (RM)
+  lpf_vp: LPF VP
+  crp_evp: CRP EVP
+  crp_vp: CRP VP
+  risk_analyst: Risk Analyst (Risk Maker)
+  risk_reviewer: Risk Reviewer
+  post_risk_maker: Post Risk Rating Maker
+  compliance_vp: Compliance VP
+  evp_recommender: EVP Recommender
+  recommendations_committee: Recommendations Committee
+  sanction_committee: Sanction Committee
+  pos_maker: Post Sanction Maker
+  pos_checker: Post Sanction Checker
+  dis_maker: Disbursement Maker
+  dis_checker: Disbursement Checker
+  dis_vp: Disbursement VP
+  dis_approver: Disbursement Approver
+  los_admin: LOS System Admin
+
+users:
+  - {id: u_rm1, name: Ananya Rao, email: ananya.rao@demo.bank, branch: MUM-001, roles: [ps_maker]}
+  - {id: u_rm2, name: Karan Malhotra, email: karan.malhotra@demo.bank, branch: DEL-001, roles: [ps_maker]}
+  - {id: u_lpf, name: Vivek Iyer, email: vivek.iyer@demo.bank, branch: MUM-001, roles: [lpf_vp]}
+  - {id: u_cevp, name: Meera Krishnan, email: meera.krishnan@demo.bank, branch: HO, roles: [crp_evp]}
+  - {id: u_cvp, name: Rahul Bansal, email: rahul.bansal@demo.bank, branch: HO, roles: [crp_vp, risk_reviewer]}
+  - {id: u_ra1, name: Neha Kulkarni, email: neha.kulkarni@demo.bank, branch: HO, roles: [risk_analyst]}
+  - {id: u_ra2, name: Arjun Menon, email: arjun.menon@demo.bank, branch: HO, roles: [risk_analyst, post_risk_maker]}
+  - {id: u_compvp, name: Priya Raghavan, email: priya.raghavan@demo.bank, branch: HO, roles: [compliance_vp]}
+  - {id: u_evp, name: Sunil Chopra, email: sunil.chopra@demo.bank, branch: HO, roles: [evp_recommender]}
+  - {id: u_rc, name: Recommendations Committee Secretariat, email: recom@demo.bank, branch: HO, roles: [recommendations_committee]}
+  - {id: u_cc, name: Credit Committee Secretariat, email: committee@demo.bank, branch: HO, roles: [sanction_committee]}
+  - {id: u_posm, name: Farah Sheikh, email: farah.sheikh@demo.bank, branch: MUM-OPS, roles: [pos_maker]}
+  - {id: u_posc, name: Gautam Das, email: gautam.das@demo.bank, branch: MUM-OPS, roles: [pos_checker]}
+  - {id: u_dism, name: Lakshmi Narayan, email: lakshmi.narayan@demo.bank, branch: MUM-OPS, roles: [dis_maker]}
+  - {id: u_disc, name: Rohit Saxena, email: rohit.saxena@demo.bank, branch: MUM-OPS, roles: [dis_checker]}
+  - {id: u_disvp, name: Vikram Desai, email: vikram.desai@demo.bank, branch: MUM-OPS, roles: [dis_vp]}
+  - {id: u_disa, name: Pooja Venkat, email: pooja.venkat@demo.bank, branch: MUM-OPS, roles: [dis_approver]}
+  - {id: u_admin, name: LOS Administrator, email: los.admin@demo.bank, branch: HO, roles: [los_admin]}
+
+stages:
+  - id: PS
+    name: Prospect Sourcing
+    # Client One stage 1 has no separate review: Prospect Submit goes straight to
+    # IP Note Processing (the LPF VP review now sits in the IP stage, client stage 3).
+    steps:
+      - {id: ps_maker, name: Prospect Sourcing, role: ps_maker, kind: maker, sla_days: 5}
+  - id: IP
+    name: In-Principle
+    steps:
+      - {id: ip_note, name: IP Note Processing, role: ps_maker, kind: maker, sla_days: 3}
+      - {id: ip_note_review, name: IP Note VP Review, role: lpf_vp, kind: checker, sla_days: 2}
+      - {id: ip_crp_evp, name: CRP EVP Allocation, role: crp_evp, kind: allocation, sla_days: 1, allocates_to: crp_vp}
+      - {id: ip_crp_vp, name: CRP VP Allocation, role: crp_vp, kind: allocation, sla_days: 1, allocates_to: risk_analyst}
+      - {id: ip_risk_maker, name: Risk Maker (Credit Assessment), role: risk_analyst, kind: maker, sla_days: 7}
+      - {id: ip_risk_review, name: CRP VP Risk Review, role: risk_reviewer, kind: checker, sla_days: 3}
+      - {id: ip_evp, name: IP Note EVP Recommendation, role: evp_recommender, kind: checker, sla_days: 2}
+      - {id: ip_sanction, name: IP Sanction Committee, role: sanction_committee, kind: committee, sla_days: 5}
+  - id: AP
+    name: Application Processing
+    steps:
+      - {id: ap_note, name: Application Note Processing, role: ps_maker, kind: maker, sla_days: 5}
+      - {id: ap_review, name: LPF VP AP Review, role: lpf_vp, kind: checker, sla_days: 2}
+      - {id: ap_crp_vp, name: CRP VP Allocation, role: crp_vp, kind: allocation, sla_days: 1, allocates_to: risk_analyst}
+      - {id: ap_risk_maker, name: Risk Maker (Credit Reassessment), role: risk_analyst, kind: maker, sla_days: 5}
+      - {id: ap_risk_review, name: Risk Review, role: risk_reviewer, kind: checker, sla_days: 3}
+      - {id: ap_post_rating, name: Post Risk Rating Processing, role: post_risk_maker, kind: maker, sla_days: 2}
+      - {id: ap_rating_vp, name: Post-Rating VP Review, role: crp_vp, kind: checker, sla_days: 1}
+      - {id: ap_evp, name: EVP Recommendation, role: evp_recommender, kind: checker, sla_days: 2}
+      - {id: ap_recommend, name: Recommendations Committee, role: recommendations_committee, kind: committee, sla_days: 2}
+      - {id: ap_sanction, name: Committee Sanction, role: sanction_committee, kind: committee, sla_days: 5}
+  - id: POS
+    name: Post Sanction
+    steps:
+      - {id: pos_maker, name: Post Sanction Maker, role: pos_maker, kind: maker, sla_days: 5}
+      - {id: pos_checker, name: Post Sanction Checker, role: pos_checker, kind: checker, sla_days: 2}
+  - id: DIS
+    name: Disbursement
+    steps:
+      - {id: dis_maker, name: Disbursement Maker, role: dis_maker, kind: maker, sla_days: 2}
+      - {id: dis_checker, name: Disbursement Checker, role: dis_checker, kind: checker, sla_days: 1}
+      - {id: dis_vp_review, name: Disbursement VP Review, role: dis_vp, kind: vp_review, sla_days: 1}
+      - {id: dis_approver, name: Disbursement Approver, role: dis_approver, kind: checker, sla_days: 1}

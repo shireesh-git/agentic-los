@@ -1,0 +1,63 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+
+# ── Virtual environments ─────────────────────────────────────────────────────
+.venv/
+venv/
+ENV/
+
+# ── Test / lint caches and coverage ──────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# ── Secrets and local environment (see .env.example) ─────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Editors, IDEs and AI-assistant workspace config ──────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+.continue/
+.agents/
+CLAUDE.local.md
+
+# ── OS files ─────────────────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# ── Runtime data (created by the app) ────────────────────────────────────────
+runtime-db/
+storage/cache/
+output/
+synthetic-assets/
+downloaded document/
+refer/
+
+# ── Browser automation / scratch artifacts ───────────────────────────────────
+.playwright-cli/
+playwright-report/
+test-results/
+*.log
+test_output.txt
+test_results.txt
+test_pipeline.txt
+e2e_log.txt
+
+# ── Postman environments (may contain secrets) ───────────────────────────────
+postman/*environment*.json

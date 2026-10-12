@@ -1,0 +1,40 @@
+{
+  "source": "mca",
+  "record_type": "director_master",
+  "entity_key": "U63090KA2010PTC052345",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "directors": [
+      {
+        "din": "00556677",
+        "name": "K. Ramesh Reddy",
+        "designation": "Managing Director",
+        "date_of_appointment": "2010-03-25",
+        "status": "Active",
+        "shareholding_pct": 52.0,
+        "remuneration_lakhs": 150,
+        "other_companies": [
+          "Omega Transport Solutions Pvt Ltd"
+        ],
+        "pan": "AZYKR1234J",
+        "nationality": "Indian",
+        "dob": "1972-06-30"
+      },
+      {
+        "din": "00556678",
+        "name": "Lakshmi R. Reddy",
+        "designation": "Director",
+        "date_of_appointment": "2010-03-25",
+        "status": "Active",
+        "shareholding_pct": 30.0,
+        "remuneration_lakhs": 80,
+        "other_companies": [],
+        "pan": "AZYKL1234K",
+        "nationality": "Indian",
+        "dob": "1975-02-14"
+      }
+    ]
+  }
+}

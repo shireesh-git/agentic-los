@@ -1,0 +1,28 @@
+{
+  "entity_id": "ABCE001",
+  "period": "FY2026",
+  "note": "Stress results for the demo borrower with the default scenarios in config/rules.yaml.",
+  "scenarios": {
+    "base": {
+      "severity": "HIGH",
+      "metrics": {"ebitda_cr": 268.0, "operating_cash_flow_cr": 45.0, "dscr": 1.19, "interest_coverage_ratio": 2.34,
+                  "debt_to_ebitda": 4.1, "ocf_to_debt_pct": 4.1, "current_ratio": 1.15},
+      "breaches": ["dscr", "debt_to_ebitda", "current_ratio", "debtor_days"],
+      "new_breaches": []
+    },
+    "downside": {
+      "severity": "HIGH",
+      "metrics": {"ebitda_cr": 234.84, "operating_cash_flow_cr": -30.47, "dscr": 1.03, "interest_coverage_ratio": 1.76,
+                  "debt_to_ebitda": 4.91, "ocf_to_debt_pct": -2.6, "current_ratio": 1.14, "additional_borrowing_cr": 53.11},
+      "breaches": ["dscr", "interest_coverage_ratio", "debt_to_ebitda", "current_ratio", "debtor_days"],
+      "new_breaches": ["interest_coverage_ratio"]
+    },
+    "severe": {
+      "severity": "CRITICAL",
+      "metrics": {"ebitda_cr": 174.76, "operating_cash_flow_cr": -128.19, "dscr": 0.77, "interest_coverage_ratio": 0.98,
+                  "debt_to_ebitda": 6.92, "ocf_to_debt_pct": -10.6, "current_ratio": 1.14, "additional_borrowing_cr": 109.45},
+      "breaches": ["dscr", "interest_coverage_ratio", "debt_to_ebitda", "current_ratio", "ebitda_margin_pct", "debtor_days"],
+      "new_breaches": ["interest_coverage_ratio", "ebitda_margin_pct"]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "source": "rating",
+  "record_type": "latest_action",
+  "entity_key": "INFY001",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "rating_agency": "CRISIL",
+    "long_term_rating": "AAA",
+    "short_term_rating": "A1+",
+    "outlook": "Stable",
+    "last_action": "Reaffirmed",
+    "action_date": "2025-12-12",
+    "rationale_summary": "Net-cash balance sheet, diversified revenue base, strong operating margins. Asset-light model with best-in-class free cash flow conversion."
+  }
+}

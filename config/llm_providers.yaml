@@ -1,0 +1,125 @@
+active_provider: nvidia_nim
+narrative:
+  mode: llm
+  max_tokens_per_section: 2500
+  # The CAM system prompt and per-section prompts live in code:
+  # SYSTEM_PROMPT / CAM_SECTIONS in src/engines/cam_llm_renderer.py (bump PROMPT_VERSION on change).
+  max_tokens: 16000
+  temperature: 0.15
+  # CAM sections written at the same time. A provider can lower this with its own
+  # max_parallel_sections (see ollama). Hosted providers retry rate-limit and
+  # server errors with backoff; set max_retries on a provider to change the
+  # default of 4.
+  max_parallel_sections: 4
+  # Output limits (tokens) for short, table-led sections, overriding
+  # max_tokens_per_section. A limit is a ceiling, not a target: it saves time only
+  # when the model would otherwise run on. Each sits well above what the section's
+  # instructions ask for; raise one if the log shows
+  # "<provider> output hit the N-token limit". Unlisted sections keep their own limit.
+  section_max_tokens:
+    compliance: 1800
+    security_collateral: 1800
+    conduct: 1500
+    benchmarking: 1500
+    social_media: 1500
+providers:
+  mock:
+    name: Mock (Deterministic)
+    type: mock
+    description: Template-based rendering — no API calls, fully deterministic
+  openai:
+    name: OpenAI GPT-4
+    type: openai
+    model: gpt-4
+    api_key_env: OPENAI_API_KEY
+    temperature: 0.1
+    max_tokens: 8000
+  nvidia_nim:
+    name: NVIDIA NIM
+    type: openai                        # NIM serves an OpenAI-compatible API
+    model: nvidia/nemotron-3-super-120b-a12b
+    model_env: NVIDIA_NIM_MODEL
+    base_url: https://integrate.api.nvidia.com/v1
+    base_url_env: NVIDIA_NIM_BASE_URL   # overrides base_url when set
+    api_key_env: NVIDIA_NIM_API_KEY     # set in .env.local (never committed)
+    temperature: 0.15
+    max_tokens: 4000
+    # Per request; timeouts are retried (max_retries, default 4). Long sections from a
+    # reasoning model on NIM's shared endpoint can take several minutes — 60s was too short.
+    timeout_seconds: 60
+    timeout_seconds_env: NVIDIA_NIM_TIMEOUT_SECONDS
+    # Sections written at once. NIM's free endpoint throttles bursts; 2 keeps retries rare.
+    max_parallel_sections: 2
+    # Nemotron can emit a separate thinking pass. Disable it for CAM sections so the
+    # response budget is used for the client-facing narrative.
+    chat_template_kwargs:
+      enable_thinking: false
+  anthropic:
+    name: Anthropic Claude
+    type: anthropic
+    model: claude-sonnet-4-20250514
+    api_key_env: ANTHROPIC_API_KEY
+    temperature: 0.1
+    max_tokens: 8000
+  azure_openai:
+    name: Azure OpenAI
+    type: azure_openai
+    deployment: gpt-4
+    api_key_env: AZURE_OPENAI_API_KEY
+    endpoint_env: AZURE_OPENAI_ENDPOINT
+    api_version: 2024-02-15-preview
+    temperature: 0.1
+    max_tokens: 8000
+  vertex_ai_gemini:
+    name: Gemini (Vertex AI)
+    type: vertex_ai_gemini
+    model: gemini-2.0-flash
+    project: kmark-489115
+    location: us-central1
+    api_key_env: GOOGLE_API_KEY
+    temperature: 0.15
+    max_tokens: 4000
+  ollama:
+    name: Ollama (Local)
+    type: ollama
+    # Install first:  ollama pull qwen2.5:3b   (~1.9 GB; fastest of the local models on CPU)
+    model: qwen2.5:3b
+    base_url: http://localhost:11434    # OLLAMA_HOST env var overrides this
+    temperature: 0.15
+    max_tokens: 4000
+    num_ctx: 8192                       # starting context window (tokens)
+    max_num_ctx: 32768                  # grown per prompt up to this, so long sections are never truncated
+    # Reasoning models (qwen3, deepseek-r1) "think" before answering by default; set
+    # think: false for those. Leave unset for non-thinking models like qwen2.5.
+    # Responses are streamed, so this is the longest *silence* allowed (e.g. while a long
+    # prompt is read), not a cap on the whole section: a slow but working section finishes.
+    timeout_seconds: 1800
+    # One section at a time: a local model queues parallel requests anyway, and
+    # each section's num_ctx can differ, which forces model reloads and extra RAM.
+    max_parallel_sections: 1
+    # Keep the model loaded this long after the last call (CAM sections and chat),
+    # so the next run or chat reply skips a cold load. While loaded it holds about
+    # 2 GB of RAM plus its context; 0 unloads at once, remove for Ollama's 5m default.
+    keep_alive: 15m
+    chat_timeout_seconds: 600           # per Financial Advisor chat reply
+    # Route table-led CAM sections to a smaller, faster model; the rest use `model`.
+    # Routed sections run first as one group and that model is then unloaded, so the run
+    # switches model once and both are never in RAM together. verify_figures: a routed
+    # section whose figures are not all in its data is rewritten by `model`.
+    # Not needed while `model` is already qwen2.5:3b; to use it, set `model` back to a
+    # larger model (e.g. qwen3:8b with think: false) and enable this.
+    model_routing:
+      enabled: false
+      verify_figures: true
+      routes:
+        qwen2.5:3b:
+          - group_shareholders
+          - directors_kmp
+          - external_rating
+          - compliance
+          - conduct
+          - core_banking
+          - social_media
+          - benchmarking
+          - security_collateral
+          - terms_conditions

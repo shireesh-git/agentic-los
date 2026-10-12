@@ -1,0 +1,20 @@
+{
+  "entity_id": "ABCE001",
+  "proposal": "New working capital limit of ₹250.00 Cr",
+  "note": "Credit Challenge Agent output for the demo borrower with all observations NEW and all investigations OPEN. Order = severity, then area.",
+  "expected": [
+    {"challenge_id": "CHL-ABCE001-FACILITY_AMOUNT_CYCLE", "category": "Facility amount", "severity": "HIGH",
+     "metrics": {"nwc_increase_from_cycle_cr": 251.2, "trade_nwc_at_prior_cycle_cr": 310.8, "requested_limit_cr": 250.0}},
+    {"challenge_id": "CHL-ABCE001-REPAYMENT_CAPACITY", "category": "Repayment capacity", "severity": "HIGH",
+     "metrics": {"dscr": 1.19, "free_cash_flow_cr": -365.0}},
+    {"challenge_id": "CHL-ABCE001-WORKING_CAPITAL_DP", "category": "Working-capital requirement", "severity": "HIGH",
+     "metrics": {"total_dp_cr": 452.25, "eligible_receivables_break_even_cr": 317.33}},
+    {"challenge_id": "CHL-ABCE001-LEVERAGE", "category": "Leverage", "severity": "HIGH",
+     "metrics": {"pro_forma_debt_cr": 1350.0, "pro_forma_debt_to_ebitda": 5.04}},
+    {"challenge_id": "CHL-ABCE001-POLICY_EXCEPTIONS", "category": "Policy exceptions", "severity": "HIGH", "metrics": {}},
+    {"challenge_id": "CHL-ABCE001-UNRESOLVED_INVESTIGATIONS", "category": "Unresolved investigations", "severity": "HIGH",
+     "metrics": {}},
+    {"challenge_id": "CHL-ABCE001-FINANCIAL_PERFORMANCE", "category": "Financial performance", "severity": "MEDIUM",
+     "metrics": {"revenue_growth_pct": 18.2, "projected_avg_ebitda_margin_pct": 14.53}}
+  ]
+}

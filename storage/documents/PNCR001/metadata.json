@@ -1,0 +1,19 @@
+{
+  "entity_id": "PNCR001",
+  "source": "dms",
+  "last_fetched": "2026-10-06T20:52:08.474782",
+  "total_documents": 51,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "legal",
+    "collateral",
+    "ratings",
+    "gst",
+    "mca",
+    "banking",
+    "exchange",
+    "request"
+  ]
+}

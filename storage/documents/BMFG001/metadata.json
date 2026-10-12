@@ -1,0 +1,19 @@
+{
+  "entity_id": "BMFG001",
+  "source": "dms",
+  "last_fetched": "2026-03-23T14:19:11.812843",
+  "total_documents": 42,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "legal",
+    "collateral",
+    "ratings",
+    "gst",
+    "mca",
+    "banking",
+    "exchange",
+    "request"
+  ]
+}

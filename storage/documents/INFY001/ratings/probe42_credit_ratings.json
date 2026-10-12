@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "old_identifier": null,
+    "api_version": "1.0",
+    "last_updated": "2026-03-02"
+  },
+  "data": [
+    {
+      "rating_agency": "crisil",
+      "rating_date": "2025-06-26",
+      "rating_details": [
+        {
+          "instrument": "Commercial Paper",
+          "currency": "INR",
+          "amount": 0,
+          "rating": "A1+",
+          "action": "Reaffirmed",
+          "outlook": null,
+          "remarks": null
+        },
+        {
+          "instrument": "Long Term Debt Programme",
+          "currency": "INR",
+          "amount": 0,
+          "rating": "AAA",
+          "action": "Reaffirmed",
+          "outlook": "Stable",
+          "remarks": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+# ─── Core Framework ──────────────────────────────────────────
+fastapi>=0.109.0
+uvicorn[standard]>=0.25.0
+pyyaml>=6.0
+jinja2>=3.1.0
+python-multipart>=0.0.6
+aiofiles>=23.0
+httpx>=0.25.0
+
+# ─── Document Generation (PDF / Excel) ──────────────────────
+reportlab>=4.1.0
+openpyxl>=3.1.0
+
+# ─── Document Extraction ────────────────────────────────────
+pdfplumber>=0.11.0
+
+# ─── OCR & Document Intelligence (USP) ──────────────────────
+PyMuPDF>=1.24.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# ─── LLM Providers ──────────────────────────────────────────
+google-genai>=1.0.0
+google-cloud-aiplatform>=1.40.0
+openai>=1.55.0          # OpenAI and OpenAI-compatible APIs (NVIDIA NIM)

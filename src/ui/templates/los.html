@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#003366">
+  <title>Corporate LOS</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23003366'/%3E%3Cpath d='M32 14 49 32 32 50 15 32Z' fill='%23c9a227'/%3E%3C/svg%3E">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <link rel="stylesheet" href="/static/css/los.css">
+</head>
+<body class="los-body">
+<div x-data="losApp()" x-cloak>
+
+  <!-- ═══ Sign-in: choose a group, then a demo user and role ═══ -->
+  <section class="los-signin" x-show="!session">
+    <div class="los-signin-head">
+      <div class="los-logo">LOS</div>
+      <h1>Corporate Loan Origination System</h1>
+      <p x-text="signinGroup ? 'Sign in to ' + signinGroup.name : 'Select your group to continue'"></p>
+    </div>
+
+    <div class="los-group-grid" x-show="!signinGroup">
+      <template x-for="g in directory.groups || []" :key="g.id">
+        <button type="button" class="los-group-card" @click="pickGroup(g)">
+          <div class="los-group-title"><strong x-text="g.name"></strong><span x-text="g.roles.length + ' role' + (g.roles.length === 1 ? '' : 's')"></span></div>
+          <p x-text="g.description"></p>
+          <div class="los-chips"><template x-for="r in g.roles" :key="r"><span class="chip-soft" x-text="roleName(r)"></span></template></div>
+          <span class="los-link">Select group →</span>
+        </button>
+      </template>
+    </div>
+
+    <div class="card los-signin-card" x-show="signinGroup">
+      <div class="summary-table-head">
+        <h3 x-text="signinGroup?.name"></h3>
+        <button class="btn btn-sm btn-ghost" @click="signinGroup = null">Change group</button>
+      </div>
+      <label class="los-field">Demo user
+        <select class="input" x-model="signinUser" @change="signinRole = groupRolesOf(signinUser)[0] || ''">
+          <option value="">Select…</option>
+          <template x-for="u in groupUsers()" :key="u.id"><option :value="u.id" x-text="u.name + ' · ' + u.branch"></option></template>
+        </select>
+      </label>
+      <label class="los-field">Role
+        <select class="input" x-model="signinRole" :disabled="!signinUser">
+          <template x-for="r in groupRolesOf(signinUser)" :key="r"><option :value="r" x-text="roleName(r)"></option></template>
+        </select>
+      </label>
+      <button class="btn btn-primary los-wide" :disabled="!signinUser || !signinRole" @click="signIn()">Sign in</button>
+      <p class="text-muted los-note" x-text="directory.note + ' No password is needed in this demo.'"></p>
+    </div>
+  </section>
+
+  <!-- ═══ Signed-in shell ═══ -->
+  <div class="los-shell" x-show="session">
+    <aside class="los-sidebar">
+      <div class="los-brand"><div class="los-logo sm">LOS</div><div><strong>Corporate LOS</strong><span>Enterprise portal</span></div></div>
+      <div class="los-side-label">Active group</div>
+      <div class="los-side-group" x-text="session?.group?.name"></div>
+      <div class="los-side-label">Active role</div>
+      <select class="input los-role-select" :value="session?.role" @change="switchRole($event.target.value)">
+        <template x-for="r in session?.user?.roles || []" :key="r"><option :value="r" :selected="r === session?.role" x-text="roleName(r)"></option></template>
+      </select>
+      <nav class="los-nav">
+        <div class="los-side-label">Overview</div>
+        <button :class="{'on': page === 'dashboard'}" @click="go('dashboard')">Pipeline Dashboard</button>
+        <button :class="{'on': page === 'queue'}" @click="go('queue')">My Queue <span class="tab-count" x-show="dash.kpis?.my_queue" x-text="dash.kpis?.my_queue"></span></button>
+        <button :class="{'on': page === 'mis'}" @click="go('mis')">Management MIS</button>
+        <div class="los-side-label">Origination</div>
+        <button :class="{'on': page === 'new'}" @click="go('new')" x-show="session?.role === 'ps_maker'">New Application</button>
+        <button :class="{'on': page === 'app'}" @click="current && go('app/' + current.application_id)" :disabled="!current">Application Detail</button>
+        <div class="los-side-label">Governance</div>
+        <button :class="{'on': page === 'audit'}" @click="go('audit')">Audit Trail</button>
+        <button :class="{'on': page === 'admin'}" @click="go('admin')" x-show="session?.role === 'los_admin'">Administration</button>
+        <a class="los-nav-ext" href="/" target="_blank" rel="noopener">Credit workspace (CAM) ↗</a>
+      </nav>
+      <div class="los-side-user"><div class="los-avatar" x-text="initials(session?.user?.name)"></div>
+        <div><strong x-text="session?.user?.name"></strong><span x-text="session?.user?.branch + ' · ' + session?.role_name"></span></div></div>
+    </aside>
+
+    <main class="los-main">
+      <header class="los-topbar">
+        <div class="search-bar los-search"><input type="search" placeholder="Search by Loan ID or borrower…" x-model="query" @keydown.enter="go('dashboard'); loadApps()"></div>
+        <span class="los-sla-pill" x-show="dash.kpis?.sla_breached" x-text="dash.kpis?.sla_breached + ' SLA breach' + (dash.kpis?.sla_breached === 1 ? '' : 'es')"></span>
+        <div class="los-top-user"><strong x-text="session?.user?.name"></strong><span x-text="session?.role_name"></span></div>
+        <button class="btn btn-sm btn-outline" @click="signOut()">Sign out</button>
+      </header>
+
+      <div class="los-page">
+        <!-- include: los/dashboard.html -->
+        <!-- include: los/application.html -->
+        <!-- include: los/new.html -->
+        <!-- include: los/admin.html -->
+        <!-- include: los/mis.html -->
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" :class="toastType" x-show="toast" x-text="toast" x-transition></div>
+</div>
+<script src="/static/js/los/los.js"></script>
+</body>
+</html>

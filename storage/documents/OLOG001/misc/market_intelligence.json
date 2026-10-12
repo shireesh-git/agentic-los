@@ -1,0 +1,41 @@
+{
+  "source": "market",
+  "record_type": "intelligence",
+  "entity_key": "OLOG001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "overall_sentiment": "mixed",
+    "sentiment_score": 0.1,
+    "news_count_last_90d": 6,
+    "positive_count": 3,
+    "neutral_count": 1,
+    "negative_count": 2,
+    "top_themes": [
+      "warehouse expansion",
+      "service quality concerns",
+      "3PL growth",
+      "fleet modernisation",
+      "client retention issues"
+    ],
+    "reputation_risk_score": "medium",
+    "market_position": "Growing \u2014 regional 3PL player expanding pan-India",
+    "industry_outlook": "Strong \u2014 Indian logistics market CAGR 10-12%",
+    "peer_comparison": {
+      "rank_in_sector": 22,
+      "out_of": 50,
+      "key_competitors": [
+        "Delhivery",
+        "TCI Express",
+        "Gati-KWE"
+      ]
+    },
+    "esg_score": {
+      "environment": "C+",
+      "social": "B-",
+      "governance": "B-",
+      "overall": "B-"
+    }
+  }
+}

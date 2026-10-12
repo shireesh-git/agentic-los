@@ -1,0 +1,38 @@
+{
+  "source": "mca",
+  "record_type": "company_master",
+  "entity_key": "L27100MH1907PLC000260",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "company_name": "Tara Steels Industries Ltd",
+    "cin": "L27100MH1907PLC000260",
+    "status": "Active",
+    "company_class": "Public",
+    "company_category": "Limited by Shares",
+    "sub_category": "Non-govt company",
+    "date_of_incorporation": "1907-08-26",
+    "registered_state": "Maharashtra",
+    "registered_office": "Bombay House, 24 Homi Mody Street, Mumbai 400001",
+    "authorized_capital_inr": 15000000000,
+    "paid_up_capital_inr": 12214000000,
+    "listing_status": "Listed",
+    "listed_exchange": "BSE, NSE",
+    "email": "info@tarasteels.com",
+    "last_agm_date": "2025-08-22",
+    "last_bs_date": "2025-03-31",
+    "number_of_members": 185000,
+    "whether_AOCI": "No",
+    "industrial_class": "Manufacture of basic iron and steel",
+    "nic_code": "2410",
+    "puc_nof_ratio": 0.814,
+    "compliance_status": {
+      "annual_return_filed": true,
+      "balance_sheet_filed": true,
+      "charges_satisfied": 5,
+      "charges_open": 12,
+      "last_filing_date": "2025-11-15"
+    }
+  }
+}

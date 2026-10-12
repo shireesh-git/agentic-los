@@ -1,0 +1,33 @@
+{
+  "entity_id": "ABCE001",
+  "company_name": "ABC Engineering & Infrastructure Ltd.",
+  "comparison": {"from_period": "FY2025", "to_period": "FY2026"},
+  "note": "Designed outcome of src/data/demo_companies.py. Values are the engine's 'trigger.observed' fields; see docs/CREDIT_OBSERVATIONS.md for the derivation.",
+  "expected": [
+    {"rule_id": "WC_DETERIORATION", "severity": "HIGH",
+     "observed": {"receivables_growth_pct": 52.1, "revenue_growth_pct": 18.2, "growth_gap_pp": 33.9}},
+    {"rule_id": "EARNINGS_CASH_CONVERSION", "severity": "HIGH",
+     "observed": {"ebitda_growth_pct": 1.5, "ocf_growth_pct": -76.3, "ocf_to_ebitda_pct": 16.8}},
+    {"rule_id": "LEVERAGE_INCREASE", "severity": "HIGH",
+     "observed": {"debt_growth_pct": 71.9, "ebitda_growth_pct": 1.5, "growth_gap_pp": 70.4,
+                  "debt_to_ebitda": 4.1, "debt_to_ebitda_change": 1.68}},
+    {"rule_id": "DEBT_SERVICING_PRESSURE", "severity": "HIGH",
+     "observed": {"dscr": 1.19, "interest_coverage_ratio": 2.34, "breaches": ["DSCR"]}},
+    {"rule_id": "RECEIVABLE_COLLECTION", "severity": "HIGH",
+     "observed": {"debtor_days": 103.01, "increase_days": 23.0}},
+    {"rule_id": "DATA_RELIABILITY", "severity": "HIGH",
+     "evidence_refs": ["XSRC_GST_REVENUE_MISMATCH"]},
+    {"rule_id": "SECTOR_UNDERPERFORMANCE", "severity": "HIGH",
+     "observed": {"worse_than_peer": 11, "weakest_band": 3, "below_median": 8}},
+    {"rule_id": "POLICY_DEVIATION", "severity": "HIGH",
+     "breached_thresholds": ["min_dscr", "min_current_ratio", "max_debt_to_ebitda", "min_roe_pct", "max_debtor_days"]},
+    {"rule_id": "INVENTORY_BUILDUP", "severity": "MEDIUM",
+     "observed": {"inventory_days": 42.99, "increase_days": 17.9, "increase_pct": 71.3}},
+    {"rule_id": "MARGIN_COMPRESSION", "severity": "MEDIUM",
+     "observed": {"ebitda_margin_pct": 12.9, "decline_bps": 210}},
+    {"rule_id": "LIQUIDITY_STRESS", "severity": "MEDIUM",
+     "observed": {"current_ratio": 1.15, "decline": 0.3}},
+    {"rule_id": "FINANCIAL_DISTRESS", "severity": "LOW",
+     "observed": {"altman_z_score": 2.29, "decline": 0.72, "zone": "grey"}}
+  ]
+}

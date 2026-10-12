@@ -1,0 +1,845 @@
+{
+  "info": {
+    "name": "CAM Intelligence Platform — Full Suite + Mock Server",
+    "description": "Complete API collection for CAM Intelligence Platform.\n\nIncludes:\n- Platform APIs (Dashboard, Cases, Companies, Config, LLM, Engines, Agents)\n- Smart Onboarding (PAN/GST/Name auto-fetch)\n- 360° Company View\n- Document Management\n- External Systems Mock APIs (MCA, GSTIN, Bureau, Rating, Market, CRILC, EPFO, ITR)\n\nMock Server: Import this collection and create a Postman Mock Server to simulate all external system APIs for integration testing.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "cam-platform-full-suite-v2"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8001", "type": "string" },
+    { "key": "mockUrl", "value": "https://{{mockServerId}}.mock.pstmn.io", "type": "string" },
+    { "key": "entityId", "value": "BMFG001", "type": "string" },
+    { "key": "cin", "value": "L29100MH2008PLC185432", "type": "string" },
+    { "key": "pan", "value": "AABCB1234F", "type": "string" },
+    { "key": "gstin", "value": "27AABCB1234F1Z5", "type": "string" },
+    { "key": "cin_tata_steel", "value": "L27100MH1907PLC000260", "type": "string" },
+    { "key": "cin_reliance", "value": "L17110MH1973PLC019786", "type": "string" },
+    { "key": "cin_infosys", "value": "L85110KA1981PLC013115", "type": "string" },
+    { "key": "cin_adani_ports", "value": "L63090GJ1998PLC034182", "type": "string" },
+    { "key": "cin_bajaj_fin", "value": "L65910MH1987PLC042961", "type": "string" },
+    { "key": "cin_cipla", "value": "L24239MH1935PLC002380", "type": "string" },
+    { "key": "pan_tata_steel", "value": "AAACT1234A", "type": "string" },
+    { "key": "pan_reliance", "value": "AAACR2345B", "type": "string" },
+    { "key": "pan_infosys", "value": "AAACI3456C", "type": "string" },
+    { "key": "pan_bajaj_fin", "value": "AABCB5678E", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health & Info",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/health"
+          },
+          "response": [
+            {
+              "name": "200 — Healthy",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/health" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"healthy\",\n  \"version\": \"1.0.0\",\n  \"timestamp\": \"2025-01-15T10:00:00\",\n  \"companies_loaded\": 4,\n  \"cases_completed\": 0\n}"
+            }
+          ]
+        },
+        {
+          "name": "Enum Values",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/enums"
+          },
+          "response": [
+            {
+              "name": "200 — Enums",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/enums" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"sectors\": [\"manufacturing\", \"infrastructure\", \"pharmaceuticals\", \"logistics\"],\n  \"borrower_types\": [\"listed\", \"unlisted\", \"public_sector\", \"private_sector\"],\n  \"case_types\": [\"NTB\", \"renewal\", \"enhancement\", \"review\"],\n  \"facility_types\": [\"term_loan\", \"working_capital\", \"letter_of_credit\", \"bank_guarantee\", \"overdraft\"]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/dashboard"
+          },
+          "response": [
+            {
+              "name": "200 — Dashboard",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/dashboard" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"total_companies\": 4,\n  \"total_cases\": 0,\n  \"grade_distribution\": {},\n  \"recommendation_distribution\": {},\n  \"avg_score\": 0,\n  \"recent_cases\": []\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🏢 Companies",
+      "item": [
+        {
+          "name": "List Companies",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/companies"
+          },
+          "response": [
+            {
+              "name": "200 — Company List",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/companies" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"count\": 4,\n  \"companies\": [\n    { \"entity_id\": \"BMFG001\", \"company_name\": \"Bharat Manufacturing Ltd\" },\n    { \"entity_id\": \"PINF001\", \"company_name\": \"Pinnacle Infra Projects Pvt Ltd\" },\n    { \"entity_id\": \"SPHR001\", \"company_name\": \"Sapphire Pharma Ltd\" },\n    { \"entity_id\": \"OLOG001\", \"company_name\": \"OmniLog Solutions Pvt Ltd\" }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Add Company (Manual)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/companies",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"entity_id\": \"TEST001\",\n  \"company_name\": \"Test Corp Pvt Ltd\",\n  \"sector\": \"manufacturing\",\n  \"case_type\": \"NTB\",\n  \"facility_type\": \"term_loan\",\n  \"amount_requested_cr\": 50,\n  \"purpose\": \"Capacity expansion\",\n  \"line_items\": {\n    \"revenue\": 100,\n    \"ebitda\": 20,\n    \"pat\": 10,\n    \"total_debt\": 30,\n    \"net_worth\": 40,\n    \"total_assets\": 80,\n    \"current_assets\": 25,\n    \"current_liabilities\": 15\n  }\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 — Company Added",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/companies" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"created\",\n  \"entity_id\": \"TEST001\",\n  \"message\": \"Company 'Test Corp Pvt Ltd' added with 1 financial year(s)\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Company",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/companies/{{entityId}}"
+          },
+          "response": [
+            {
+              "name": "200 — Deleted",
+              "originalRequest": { "method": "DELETE", "url": "{{baseUrl}}/api/companies/{{entityId}}" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"deleted\",\n  \"entity_id\": \"BMFG001\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "⚡ Smart Onboard",
+      "item": [
+        {
+          "name": "Resolve Company (Preview)",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/resolve",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"AABCB1234F\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 — Resolved by PAN",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/resolve" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"cin\": \"L29100MH2005PLC155555\",\n  \"pan\": \"AABCB1234F\",\n  \"gstin\": \"27AABCB1234F1Z5\",\n  \"entity_id\": \"BMFG001\",\n  \"company_name\": \"Bharat Manufacturing Ltd\"\n}"
+            },
+            {
+              "name": "200 — Resolved by GSTIN",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/resolve" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"cin\": \"L29100MH2005PLC155555\",\n  \"pan\": \"AABCB1234F\",\n  \"gstin\": \"27AABCB1234F1Z5\",\n  \"entity_id\": \"BMFG001\",\n  \"company_name\": \"Bharat Manufacturing Ltd\"\n}"
+            },
+            {
+              "name": "200 — Resolved by Company Name",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/resolve" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"cin\": \"U72200KA2012PTC088888\",\n  \"pan\": \"AADCO4567P\",\n  \"gstin\": \"29AADCO4567P1Z3\",\n  \"entity_id\": \"OLOG001\",\n  \"company_name\": \"OmniLog Solutions Pvt Ltd\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Smart Onboard — by PAN",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/onboard",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"AABCB1234F\",\n  \"facility_type\": \"term_loan\",\n  \"amount_requested_cr\": 150\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 — Onboarded",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/onboard" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"onboarded\",\n  \"entity_id\": \"BMFG001\",\n  \"company_name\": \"Bharat Manufacturing Ltd\",\n  \"message\": \"Company onboarded from PAN AABCB1234F. Fetched 10 external sources.\",\n  \"source_summary\": {\n    \"mca_master\": \"success\",\n    \"mca_directors\": \"success\",\n    \"mca_charges\": \"success\",\n    \"gstin\": \"success\",\n    \"gst_turnover\": \"success\",\n    \"bureau\": \"success\",\n    \"rating\": \"success\",\n    \"market\": \"success\",\n    \"crilc\": \"success\",\n    \"epfo\": \"success\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Smart Onboard — by GSTIN",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/onboard",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"27AABCB1234F1Z5\",\n  \"facility_type\": \"working_capital\",\n  \"amount_requested_cr\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "Smart Onboard — by Company Name",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/onboard",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"Sapphire Pharma\",\n  \"facility_type\": \"working_capital\",\n  \"amount_requested_cr\": 75\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔄 360° View",
+      "item": [
+        {
+          "name": "360° Company View",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/companies/{{entityId}}/360"
+          },
+          "response": [
+            {
+              "name": "200 — 360 View",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/companies/{{entityId}}/360" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"entity_id\": \"BMFG001\",\n  \"overview\": {\n    \"company_name\": \"Bharat Manufacturing Ltd\",\n    \"cin\": \"L29100MH2005PLC155555\",\n    \"pan\": \"AABCB1234F\",\n    \"status\": \"Active\"\n  },\n  \"financial_health\": {\n    \"gst_turnover_trend\": [],\n    \"key_ratios\": {}\n  },\n  \"credit_risk\": {\n    \"bureau\": {},\n    \"rating\": {},\n    \"policy\": {}\n  },\n  \"market_intelligence\": {\n    \"sentiment\": {},\n    \"esg\": {}\n  },\n  \"compliance\": {\n    \"documents\": {}\n  },\n  \"sell_perspective\": {\n    \"deal_attractiveness\": \"Strong\",\n    \"pricing_guidance\": {},\n    \"cross_sell_opportunities\": [],\n    \"wallet_share_potential\": {}\n  },\n  \"red_flags\": [],\n  \"executive_summary\": {\n    \"risk_grade\": \"B\",\n    \"composite_score\": 72,\n    \"narrative\": \"...\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📋 Cases & Analysis",
+      "item": [
+        {
+          "name": "List All Cases",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/cases"
+          },
+          "response": [
+            {
+              "name": "200 — Cases",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/cases" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"cases\": [\n    {\n      \"entity_id\": \"BMFG001\",\n      \"company_name\": \"Bharat Manufacturing Ltd\",\n      \"composite_score\": 72,\n      \"grade\": \"B\",\n      \"recommendation\": \"approve\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Case Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/cases/{{entityId}}"
+          },
+          "response": [
+            {
+              "name": "200 — Case Detail",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/cases/{{entityId}}" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"entity_id\": \"BMFG001\",\n  \"company_name\": \"Bharat Manufacturing Ltd\",\n  \"composite_score\": 72,\n  \"grade\": \"B\",\n  \"recommendation\": \"approve\",\n  \"fact_pack\": {},\n  \"cam_text\": \"## Credit Appraisal Memorandum...\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get CAM Text",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/cases/{{entityId}}/cam"
+          }
+        },
+        {
+          "name": "Run Analysis — Single",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/cases/{{entityId}}/run"
+          },
+          "response": [
+            {
+              "name": "200 — Analysis Complete",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/cases/{{entityId}}/run" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"entity_id\": \"BMFG001\",\n  \"company_name\": \"Bharat Manufacturing Ltd\",\n  \"composite_score\": 72,\n  \"grade\": \"B\",\n  \"recommendation\": \"approve\",\n  \"pipeline_log\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Run All — Pipeline",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/pipeline/run-all"
+          },
+          "response": [
+            {
+              "name": "200 — All Analysed",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/pipeline/run-all" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"results\": [\n    { \"entity_id\": \"BMFG001\", \"company_name\": \"Bharat Manufacturing Ltd\", \"grade\": \"B\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"PINF001\", \"company_name\": \"Pinnacle Infra Projects Ltd\", \"grade\": \"C\", \"recommendation\": \"conditional_approve\" },\n    { \"entity_id\": \"SPHR001\", \"company_name\": \"Sunrise Pharma Pvt Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"OLOG001\", \"company_name\": \"Omega Logistics Pvt Ltd\", \"grade\": \"D\", \"recommendation\": \"refer\" },\n    { \"entity_id\": \"TSTL001\", \"company_name\": \"Tara Steels Industries Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"REIL001\", \"company_name\": \"Reliable Energy Industries Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"INFY001\", \"company_name\": \"Infotech Systems Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"ADPT001\", \"company_name\": \"Advik Ports & SEZ Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"BJFN001\", \"company_name\": \"Bajrang Finance Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"CIPL001\", \"company_name\": \"Ciplex Pharmaceuticals Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"DLFR001\", \"company_name\": \"Delhi Land & Realty Ltd\", \"grade\": \"D\", \"recommendation\": \"refer\" },\n    { \"entity_id\": \"JSWL001\", \"company_name\": \"JSW Alloys & Steel Ltd\", \"grade\": \"B\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"MRUT001\", \"company_name\": \"Maruti Auto Industries Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"TITN001\", \"company_name\": \"Titan Luxe Retail Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"NTPC001\", \"company_name\": \"National Thermal Power Corp Ltd\", \"grade\": \"A\", \"recommendation\": \"approve\" },\n    { \"entity_id\": \"YESB001\", \"company_name\": \"Yashwant Commercial Bank Ltd\", \"grade\": \"D\", \"recommendation\": \"refer\" }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📁 Documents",
+      "item": [
+        {
+          "name": "List Company Documents",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/companies/{{entityId}}/documents"
+          },
+          "response": [
+            {
+              "name": "200 — Document List",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/companies/{{entityId}}/documents" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"entity_id\": \"BMFG001\",\n  \"categories\": {\n    \"kyc\": { \"files\": [\"pan_card.txt\", \"certificate_of_incorporation.txt\"], \"expected\": [\"pan_card\", \"certificate_of_incorporation\", \"gst_registration\", \"board_resolution\"], \"completeness_pct\": 50.0 },\n    \"financials\": { \"files\": [\"fy2024_audited_statement.txt\"], \"expected\": [\"audited_balance_sheet\", \"profit_loss_statement\", \"cash_flow_statement\"], \"completeness_pct\": 33.3 },\n    \"bureau\": { \"files\": [\"commercial_bureau_report.json\"], \"expected\": [\"commercial_bureau_report\", \"director_cibil\"], \"completeness_pct\": 50.0 }\n  },\n  \"total_files\": 4,\n  \"overall_completeness_pct\": 28.5\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Document",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/companies/{{entityId}}/documents/kyc/pan_card.txt"
+          }
+        },
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/companies/{{entityId}}/documents/kyc",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"director_id_proof.txt\",\n  \"content\": \"Director KYC verification document content\\nName: Rajesh Kumar\\nDIN: 01234567\"\n}"
+            }
+          },
+          "response": [
+            {
+              "name": "200 — Uploaded",
+              "originalRequest": { "method": "POST", "url": "{{baseUrl}}/api/companies/{{entityId}}/documents/kyc" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"stored\",\n  \"path\": \"BMFG001/kyc/director_id_proof.txt\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Config",
+      "item": [
+        {
+          "name": "Get All Config",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/config"
+          }
+        },
+        {
+          "name": "Get Config Section",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/config/benchmarks"
+          }
+        },
+        {
+          "name": "Update Benchmarks",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/config/benchmarks",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sectors\": {\n    \"manufacturing\": {\n      \"current_ratio\": { \"good\": 1.5, \"acceptable\": 1.2, \"poor\": 0.8 }\n    }\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Rules",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/config/rules",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hard_rules\": {},\n  \"covenants\": {}\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🤖 LLM & Engines",
+      "item": [
+        {
+          "name": "Get LLM Providers",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/llm/providers"
+          }
+        },
+        {
+          "name": "Set Active LLM",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/llm/active",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"ollama\",\n  \"narrative_mode\": \"llm\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Test LLM Connection",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/llm/test"
+          }
+        },
+        {
+          "name": "List Engines",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/engines"
+          }
+        },
+        {
+          "name": "Toggle Engine",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/engines/ratio_engine/toggle"
+          }
+        },
+        {
+          "name": "List Agents",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/agents"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏛️ External Mock — MCA (Ministry of Corporate Affairs)",
+      "description": "Mock endpoints simulating MCA V3 API responses. Use with Postman Mock Server for integration testing.",
+      "item": [
+        {
+          "name": "MCA Company Master",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/mca/company/{{cin}}"
+          },
+          "response": [
+            {
+              "name": "200 — Bharat Manufacturing",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/company/L29100MH2005PLC155555" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"company_master\",\n  \"entity_key\": \"L29100MH2005PLC155555\",\n  \"as_of_date\": \"2025-01-15\",\n  \"payload_version\": \"3.1\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"cin\": \"L29100MH2005PLC155555\",\n    \"company_name\": \"Bharat Manufacturing Ltd\",\n    \"roc\": \"ROC-Mumbai\",\n    \"registration_number\": \"155555\",\n    \"category\": \"Company limited by Shares\",\n    \"sub_category\": \"Indian Non-Government Company\",\n    \"class\": \"Public\",\n    \"date_of_incorporation\": \"2005-03-15\",\n    \"authorized_capital_inr\": 5000000000,\n    \"paid_up_capital_inr\": 3500000000,\n    \"listing_status\": \"Listed\",\n    \"listed_exchange\": \"BSE,NSE\",\n    \"status\": \"Active\",\n    \"last_agm_date\": \"2024-09-28\",\n    \"last_bs_date\": \"2024-03-31\",\n    \"registered_address\": \"Plot 42, MIDC Industrial Area, Andheri East, Mumbai 400093\",\n    \"registered_state\": \"Maharashtra\",\n    \"email\": \"corporate@bharatmfg.co.in\",\n    \"industrial_class\": \"Manufacture of fabricated metal products\",\n    \"nic_code\": \"25\",\n    \"pan\": \"AABCB1234F\"\n  }\n}"
+            },
+            {
+              "name": "200 — Pinnacle Infra",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/company/L45200DL2005PLC134567" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"company_master\",\n  \"entity_key\": \"L45200DL2005PLC134567\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"cin\": \"L45200DL2005PLC134567\",\n    \"company_name\": \"Pinnacle Infra Projects Ltd\",\n    \"status\": \"Active\",\n    \"listing_status\": \"Listed\",\n    \"pan\": \"AABCP5678G\",\n    \"registered_state\": \"Delhi\",\n    \"date_of_incorporation\": \"2005-08-22\",\n    \"authorized_capital_inr\": 20000000000,\n    \"paid_up_capital_inr\": 12500000000\n  }\n}"
+            },
+            {
+              "name": "200 — Tara Steels (Tata Steel inspired)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/company/L27100MH1907PLC000260" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"company_master\",\n  \"entity_key\": \"L27100MH1907PLC000260\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"cin\": \"L27100MH1907PLC000260\",\n    \"company_name\": \"Tara Steels Industries Ltd\",\n    \"roc\": \"ROC-Mumbai\",\n    \"category\": \"Company limited by Shares\",\n    \"class\": \"Public\",\n    \"date_of_incorporation\": \"1907-08-26\",\n    \"authorized_capital_inr\": 150000000000,\n    \"paid_up_capital_inr\": 122000000000,\n    \"listing_status\": \"Listed\",\n    \"listed_exchange\": \"BSE,NSE\",\n    \"status\": \"Active\",\n    \"registered_state\": \"Maharashtra\",\n    \"registered_address\": \"Bombay House, 24 Homi Mody Street, Mumbai 400001\",\n    \"pan\": \"AAACT1234A\",\n    \"industrial_class\": \"Manufacture of basic iron and steel\",\n    \"nic_code\": \"24\"\n  }\n}"
+            },
+            {
+              "name": "200 — Infotech Systems (Infosys inspired)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/company/L85110KA1981PLC013115" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"company_master\",\n  \"entity_key\": \"L85110KA1981PLC013115\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"cin\": \"L85110KA1981PLC013115\",\n    \"company_name\": \"Infotech Systems Ltd\",\n    \"roc\": \"ROC-Bangalore\",\n    \"category\": \"Company limited by Shares\",\n    \"class\": \"Public\",\n    \"date_of_incorporation\": \"1981-07-02\",\n    \"authorized_capital_inr\": 480000000000,\n    \"paid_up_capital_inr\": 210000000000,\n    \"listing_status\": \"Listed\",\n    \"listed_exchange\": \"BSE,NSE,NYSE\",\n    \"status\": \"Active\",\n    \"registered_state\": \"Karnataka\",\n    \"registered_address\": \"Electronics City, Hosur Road, Bengaluru 560100\",\n    \"pan\": \"AAACI3456C\",\n    \"industrial_class\": \"Computer programming and consultancy\",\n    \"nic_code\": \"62\"\n  }\n}"
+            },
+            {
+              "name": "200 — Bajrang Finance (Bajaj Finance inspired)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/company/L65910MH1987PLC042961" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"company_master\",\n  \"entity_key\": \"L65910MH1987PLC042961\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"cin\": \"L65910MH1987PLC042961\",\n    \"company_name\": \"Bajrang Finance Ltd\",\n    \"roc\": \"ROC-Pune\",\n    \"category\": \"Company limited by Shares\",\n    \"class\": \"Public\",\n    \"date_of_incorporation\": \"1987-03-25\",\n    \"authorized_capital_inr\": 100000000000,\n    \"paid_up_capital_inr\": 60000000000,\n    \"listing_status\": \"Listed\",\n    \"listed_exchange\": \"BSE,NSE\",\n    \"status\": \"Active\",\n    \"registered_state\": \"Maharashtra\",\n    \"registered_address\": \"Akurdi, Pune 411035\",\n    \"pan\": \"AABCB5678E\",\n    \"industrial_class\": \"Non-banking financial intermediation\",\n    \"nic_code\": \"64\"\n  }\n}"
+            },
+            {
+              "name": "200 — Reliable Energy (Reliance inspired)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/company/L17110MH1973PLC019786" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"company_master\",\n  \"entity_key\": \"L17110MH1973PLC019786\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"cin\": \"L17110MH1973PLC019786\",\n    \"company_name\": \"Reliable Energy Industries Ltd\",\n    \"roc\": \"ROC-Mumbai\",\n    \"category\": \"Company limited by Shares\",\n    \"class\": \"Public\",\n    \"date_of_incorporation\": \"1973-05-08\",\n    \"authorized_capital_inr\": 1500000000000,\n    \"paid_up_capital_inr\": 676000000000,\n    \"listing_status\": \"Listed\",\n    \"listed_exchange\": \"BSE,NSE\",\n    \"status\": \"Active\",\n    \"registered_state\": \"Maharashtra\",\n    \"registered_address\": \"Maker Chambers IV, Nariman Point, Mumbai 400021\",\n    \"pan\": \"AAACR2345B\",\n    \"industrial_class\": \"Manufacture of refined petroleum products\",\n    \"nic_code\": \"19\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "MCA Directors",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/mca/directors/{{cin}}"
+          },
+          "response": [
+            {
+              "name": "200 — Directors",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/directors/L29100MH2005PLC155555" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"directors\",\n  \"entity_key\": \"L29100MH2005PLC155555\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"directors\": [\n      {\n        \"din\": \"01234567\",\n        \"name\": \"Vikram Bharat\",\n        \"designation\": \"Managing Director\",\n        \"appointment_date\": \"2005-03-15\",\n        \"shareholding_pct\": 28.5,\n        \"other_companies_count\": 3,\n        \"disqualifications\": []\n      },\n      {\n        \"din\": \"01234568\",\n        \"name\": \"Priya Bharat\",\n        \"designation\": \"Whole Time Director\",\n        \"appointment_date\": \"2008-07-01\",\n        \"shareholding_pct\": 15.0,\n        \"other_companies_count\": 2,\n        \"disqualifications\": []\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 — Tara Steels Directors",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/directors/L27100MH1907PLC000260" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"directors\",\n  \"entity_key\": \"L27100MH1907PLC000260\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"directors\": [\n      { \"din\": \"00102345\", \"name\": \"Natarajan Chandrasekaran\", \"designation\": \"Chairman\", \"appointment_date\": \"2017-02-21\", \"other_companies_count\": 8 },\n      { \"din\": \"03083605\", \"name\": \"TV Narendran\", \"designation\": \"CEO & MD\", \"appointment_date\": \"2013-09-19\", \"other_companies_count\": 5 },\n      { \"din\": \"01234590\", \"name\": \"Koushik Chatterjee\", \"designation\": \"Executive Director & CFO\", \"appointment_date\": \"2010-01-01\", \"other_companies_count\": 4 }\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 — Infotech Systems Directors",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/directors/L85110KA1981PLC013115" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"directors\",\n  \"entity_key\": \"L85110KA1981PLC013115\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"directors\": [\n      { \"din\": \"07318031\", \"name\": \"Salil Parekh\", \"designation\": \"CEO & MD\", \"appointment_date\": \"2018-01-02\", \"other_companies_count\": 2 },\n      { \"din\": \"00027022\", \"name\": \"Nandan Nilekani\", \"designation\": \"Non-Executive Chairman\", \"appointment_date\": \"2017-08-24\", \"other_companies_count\": 4 },\n      { \"din\": \"08614630\", \"name\": \"Nilanjan Roy\", \"designation\": \"CFO\", \"appointment_date\": \"2019-03-01\", \"other_companies_count\": 1 }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "MCA Charges",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/mca/charges/{{cin}}"
+          },
+          "response": [
+            {
+              "name": "200 — Charges",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/mca/charges/L29100MH2005PLC155555" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MCA_V3\",\n  \"record_type\": \"charges\",\n  \"entity_key\": \"L29100MH2005PLC155555\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"total_charges\": 3,\n    \"open_charges\": 2,\n    \"satisfied_charges\": 1,\n    \"charges\": [\n      {\n        \"charge_id\": \"CHG-001\",\n        \"charge_holder\": \"State Bank of India\",\n        \"date_of_creation\": \"2019-06-15\",\n        \"amount_inr\": 2000000000,\n        \"status\": \"Open\",\n        \"property_description\": \"All movable and immovable properties\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🧾 External Mock — GSTIN",
+      "description": "Mock endpoints simulating GST Network API responses.",
+      "item": [
+        {
+          "name": "GSTIN Details",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/gstin/{{gstin}}"
+          },
+          "response": [
+            {
+              "name": "200 — GSTIN Details",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/gstin/27AABCB1234F1Z5" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"GSTN\",\n  \"record_type\": \"gstin_details\",\n  \"entity_key\": \"27AABCB1234F1Z5\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"gstin\": \"27AABCB1234F1Z5\",\n    \"legal_name\": \"Bharat Manufacturing Ltd\",\n    \"trade_name\": \"Bharat Manufacturing\",\n    \"status\": \"Active\",\n    \"registration_date\": \"2017-07-01\",\n    \"state_code\": \"27\",\n    \"state_name\": \"Maharashtra\",\n    \"business_type\": \"Regular\",\n    \"gst_compliance_rating\": \"Good\",\n    \"return_filing\": {\n      \"gstr1_recent_month\": \"2024-12\",\n      \"gstr3b_recent_month\": \"2024-12\",\n      \"filing_frequency\": \"Monthly\",\n      \"defaults_last_12m\": 0\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "GST Turnover (by PAN)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/gst-turnover/{{pan}}"
+          },
+          "response": [
+            {
+              "name": "200 — Turnover",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/gst-turnover/AABCB1234F" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"GSTN\",\n  \"record_type\": \"gst_turnover\",\n  \"entity_key\": \"AABCB1234F\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AABCB1234F\",\n    \"aggregate_turnover\": [\n      { \"fy\": \"2023-24\", \"turnover_cr\": 850.0, \"gstr1_total_cr\": 840.0, \"gstr3b_total_cr\": 845.0 },\n      { \"fy\": \"2022-23\", \"turnover_cr\": 780.0, \"gstr1_total_cr\": 770.0, \"gstr3b_total_cr\": 775.0 },\n      { \"fy\": \"2021-22\", \"turnover_cr\": 720.0, \"gstr1_total_cr\": 710.0, \"gstr3b_total_cr\": 715.0 }\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 — GST Turnover — Tara Steels",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/gst-turnover/AAACT1234A" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"GSTN\",\n  \"record_type\": \"gst_turnover\",\n  \"entity_key\": \"AAACT1234A\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AAACT1234A\",\n    \"aggregate_turnover\": [\n      { \"fy\": \"2025-26\", \"turnover_cr\": 245000.0, \"gstr1_total_cr\": 243500.0, \"gstr3b_total_cr\": 244200.0 },\n      { \"fy\": \"2024-25\", \"turnover_cr\": 228000.0 },\n      { \"fy\": \"2023-24\", \"turnover_cr\": 215000.0 }\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 — GST Turnover — Infotech Systems",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/gst-turnover/AAACI3456C" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"GSTN\",\n  \"record_type\": \"gst_turnover\",\n  \"entity_key\": \"AAACI3456C\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AAACI3456C\",\n    \"aggregate_turnover\": [\n      { \"fy\": \"2025-26\", \"turnover_cr\": 165000.0, \"gstr1_total_cr\": 164200.0, \"gstr3b_total_cr\": 164800.0 },\n      { \"fy\": \"2024-25\", \"turnover_cr\": 153000.0 },\n      { \"fy\": \"2023-24\", \"turnover_cr\": 146000.0 }\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📊 External Mock — Bureau & Rating",
+      "description": "Mock endpoints for Credit Bureau and Rating Agency APIs.",
+      "item": [
+        {
+          "name": "Bureau Commercial Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/bureau/{{pan}}"
+          },
+          "response": [
+            {
+              "name": "200 — Bureau Report",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/bureau/AABCB1234F" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"CIBIL_COMMERCIAL\",\n  \"record_type\": \"commercial_bureau\",\n  \"entity_key\": \"AABCB1234F\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AABCB1234F\",\n    \"credit_score\": 745,\n    \"score_band\": \"Good\",\n    \"total_facilities\": 8,\n    \"total_lenders\": 4,\n    \"total_exposure_cr\": 320.0,\n    \"fund_based_cr\": 250.0,\n    \"non_fund_based_cr\": 70.0,\n    \"dpd_status\": \"Standard\",\n    \"sma_category\": null,\n    \"worst_status_12m\": \"Standard\",\n    \"overdue_amount_cr\": 0.0,\n    \"enquiries_last_6m\": 2,\n    \"facility_details\": [\n      {\n        \"lender\": \"State Bank of India\",\n        \"facility_type\": \"Term Loan\",\n        \"sanctioned_cr\": 150.0,\n        \"outstanding_cr\": 120.0,\n        \"dpd\": 0,\n        \"status\": \"Standard\"\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 — Bureau — Tara Steels",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/bureau/AAACT1234A" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"CIBIL_COMMERCIAL\",\n  \"record_type\": \"commercial_bureau\",\n  \"entity_key\": \"AAACT1234A\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AAACT1234A\",\n    \"credit_score\": 810,\n    \"score_band\": \"Excellent\",\n    \"total_facilities\": 45,\n    \"total_lenders\": 22,\n    \"total_exposure_cr\": 85000.0,\n    \"fund_based_cr\": 62000.0,\n    \"non_fund_based_cr\": 23000.0,\n    \"dpd_status\": \"Standard\",\n    \"worst_status_12m\": \"Standard\",\n    \"overdue_amount_cr\": 0.0,\n    \"enquiries_last_6m\": 4\n  }\n}"
+            },
+            {
+              "name": "200 — Bureau — Infotech Systems",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/bureau/AAACI3456C" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"CIBIL_COMMERCIAL\",\n  \"record_type\": \"commercial_bureau\",\n  \"entity_key\": \"AAACI3456C\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AAACI3456C\",\n    \"credit_score\": 835,\n    \"score_band\": \"Excellent\",\n    \"total_facilities\": 12,\n    \"total_lenders\": 6,\n    \"total_exposure_cr\": 15000.0,\n    \"fund_based_cr\": 8000.0,\n    \"non_fund_based_cr\": 7000.0,\n    \"dpd_status\": \"Standard\",\n    \"worst_status_12m\": \"Standard\",\n    \"overdue_amount_cr\": 0.0,\n    \"enquiries_last_6m\": 1\n  }\n}"
+            },
+            {
+              "name": "200 — Bureau — Bajrang Finance",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/bureau/AABCB5678E" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"CIBIL_COMMERCIAL\",\n  \"record_type\": \"commercial_bureau\",\n  \"entity_key\": \"AABCB5678E\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AABCB5678E\",\n    \"credit_score\": 825,\n    \"score_band\": \"Excellent\",\n    \"total_facilities\": 60,\n    \"total_lenders\": 30,\n    \"total_exposure_cr\": 250000.0,\n    \"fund_based_cr\": 200000.0,\n    \"non_fund_based_cr\": 50000.0,\n    \"dpd_status\": \"Standard\",\n    \"worst_status_12m\": \"Standard\",\n    \"overdue_amount_cr\": 0.0,\n    \"enquiries_last_6m\": 8\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Rating Action",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/rating/{{entityId}}"
+          },
+          "response": [
+            {
+              "name": "200 — Rating",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/rating/BMFG001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"RATING_AGENCY\",\n  \"record_type\": \"rating_action\",\n  \"entity_key\": \"BMFG001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"BMFG001\",\n    \"agency\": \"CRISIL\",\n    \"long_term\": \"AA-\",\n    \"short_term\": \"A1+\",\n    \"outlook\": \"Stable\",\n    \"last_action\": \"Reaffirmed\",\n    \"action_date\": \"2024-10-15\",\n    \"key_drivers\": [\n      \"Strong market position in fabricated metals\",\n      \"Diversified product portfolio and client base\",\n      \"Healthy financial risk profile\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "200 — Rating — Tara Steels (AA)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/rating/TSTL001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"RATING_AGENCY\",\n  \"record_type\": \"rating_action\",\n  \"entity_key\": \"TSTL001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"TSTL001\",\n    \"agency\": \"CRISIL\",\n    \"long_term\": \"AA\",\n    \"short_term\": \"A1+\",\n    \"outlook\": \"Stable\",\n    \"last_action\": \"Reaffirmed\",\n    \"action_date\": \"2025-01-20\",\n    \"key_drivers\": [\"Global scale\", \"Diversified operations\", \"Tata Group support\", \"High capex phase\"]\n  }\n}"
+            },
+            {
+              "name": "200 — Rating — Infotech Systems (AAA)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/rating/INFY001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"RATING_AGENCY\",\n  \"record_type\": \"rating_action\",\n  \"entity_key\": \"INFY001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"INFY001\",\n    \"agency\": \"CRISIL\",\n    \"long_term\": \"AAA\",\n    \"short_term\": \"A1+\",\n    \"outlook\": \"Stable\",\n    \"last_action\": \"Reaffirmed\",\n    \"action_date\": \"2025-02-10\",\n    \"key_drivers\": [\"Market leadership in IT services\", \"Strong cash generation\", \"Negligible debt\", \"Diversified client base\"]\n  }\n}"
+            },
+            {
+              "name": "200 — Rating — Delhi Land (BBB, Negative)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/rating/DLFR001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"RATING_AGENCY\",\n  \"record_type\": \"rating_action\",\n  \"entity_key\": \"DLFR001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"DLFR001\",\n    \"agency\": \"ICRA\",\n    \"long_term\": \"BBB\",\n    \"short_term\": \"A3+\",\n    \"outlook\": \"Negative\",\n    \"last_action\": \"Downgraded\",\n    \"action_date\": \"2025-01-05\",\n    \"key_drivers\": [\"High leverage\", \"Cyclical real estate exposure\", \"Weak cash flows\", \"Unsold inventory risk\"]\n  }\n}"
+            },
+            {
+              "name": "200 — Rating — Yashwant Bank (BBB-, Watch)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/rating/YESB001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"RATING_AGENCY\",\n  \"record_type\": \"rating_action\",\n  \"entity_key\": \"YESB001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"YESB001\",\n    \"agency\": \"ICRA\",\n    \"long_term\": \"BBB-\",\n    \"short_term\": \"A3\",\n    \"outlook\": \"Watch Developing\",\n    \"last_action\": \"Revised from BB+\",\n    \"action_date\": \"2025-02-28\",\n    \"key_drivers\": [\"Capital infusion post reconstruction\", \"Improving asset quality\", \"Residual legacy stress\", \"Rebuilding franchise\"]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🌐 External Mock — Market & Compliance",
+      "description": "Mock endpoints for Market Intelligence, CRILC, EPFO, and ITR filing.",
+      "item": [
+        {
+          "name": "Market Intelligence",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/market/{{entityId}}"
+          },
+          "response": [
+            {
+              "name": "200 — Market Intel",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/market/BMFG001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MARKET_INTEL\",\n  \"record_type\": \"market_intelligence\",\n  \"entity_key\": \"BMFG001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"BMFG001\",\n    \"sentiment\": {\n      \"overall\": \"Positive\",\n      \"score\": 0.72,\n      \"news_count_90d\": 15,\n      \"positive\": 10,\n      \"negative\": 2,\n      \"neutral\": 3,\n      \"top_themes\": [\"capacity expansion\", \"export growth\", \"new product lines\"]\n    },\n    \"market_position\": \"Top-25 fabricated metals manufacturer\",\n    \"industry_outlook\": \"Stable with moderate growth expected\",\n    \"reputation_risk\": \"Low\"\n  }\n}"
+            },
+            {
+              "name": "200 — Market — Tara Steels",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/market/TSTL001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MARKET_INTEL\",\n  \"record_type\": \"market_intelligence\",\n  \"entity_key\": \"TSTL001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"TSTL001\",\n    \"sentiment\": {\n      \"overall\": \"Positive\",\n      \"score\": 0.68,\n      \"news_count_90d\": 85,\n      \"positive\": 52,\n      \"negative\": 15,\n      \"neutral\": 18,\n      \"top_themes\": [\"Kalinganagar expansion\", \"European operations\", \"green steel\", \"commodity pricing\"]\n    },\n    \"market_position\": \"India's largest steel producer\",\n    \"industry_outlook\": \"Positive — infrastructure-driven demand\",\n    \"reputation_risk\": \"Low\"\n  }\n}"
+            },
+            {
+              "name": "200 — Market — Infotech Systems",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/market/INFY001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MARKET_INTEL\",\n  \"record_type\": \"market_intelligence\",\n  \"entity_key\": \"INFY001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"INFY001\",\n    \"sentiment\": {\n      \"overall\": \"Positive\",\n      \"score\": 0.78,\n      \"news_count_90d\": 120,\n      \"positive\": 85,\n      \"negative\": 10,\n      \"neutral\": 25,\n      \"top_themes\": [\"AI services growth\", \"margin expansion\", \"large deal wins\", \"digital transformation\"]\n    },\n    \"market_position\": \"Second largest Indian IT services company\",\n    \"industry_outlook\": \"Stable — AI-driven discretionary recovery\",\n    \"reputation_risk\": \"Low\"\n  }\n}"
+            },
+            {
+              "name": "200 — Market — Delhi Land (Negative)",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/market/DLFR001" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"MARKET_INTEL\",\n  \"record_type\": \"market_intelligence\",\n  \"entity_key\": \"DLFR001\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"entity_id\": \"DLFR001\",\n    \"sentiment\": {\n      \"overall\": \"Negative\",\n      \"score\": 0.32,\n      \"news_count_90d\": 40,\n      \"positive\": 8,\n      \"negative\": 22,\n      \"neutral\": 10,\n      \"top_themes\": [\"debt concerns\", \"stalled projects\", \"regulatory issues\", \"promoter pledge\"]\n    },\n    \"market_position\": \"Leading Delhi NCR real estate developer\",\n    \"industry_outlook\": \"Mixed — luxury recovering, mid-segment uncertain\",\n    \"reputation_risk\": \"High\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "CRILC Report",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/crilc/{{pan}}"
+          },
+          "response": [
+            {
+              "name": "200 — CRILC",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/crilc/AABCB1234F" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"RBI_CRILC\",\n  \"record_type\": \"crilc_report\",\n  \"entity_key\": \"AABCB1234F\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AABCB1234F\",\n    \"total_exposure_cr\": 350.0,\n    \"sma_category\": null,\n    \"asset_classification\": \"Standard\",\n    \"wilful_defaulter\": false,\n    \"fraud_reported\": false,\n    \"suit_filed\": false,\n    \"reporting_banks\": 5\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "EPFO Compliance",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/epfo/{{pan}}"
+          },
+          "response": [
+            {
+              "name": "200 — EPFO",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/epfo/AABCB1234F" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"EPFO\",\n  \"record_type\": \"epfo_compliance\",\n  \"entity_key\": \"AABCB1234F\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AABCB1234F\",\n    \"establishment_code\": \"MHBAN0012345\",\n    \"total_employees\": 2800,\n    \"compliance_status\": \"Regular\",\n    \"last_payment_month\": \"2024-12\",\n    \"defaults_last_12m\": 0,\n    \"employee_trend\": [\n      { \"year\": 2024, \"count\": 2800 },\n      { \"year\": 2023, \"count\": 2600 },\n      { \"year\": 2022, \"count\": 2400 }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "ITR Filing Status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/external/itr/{{pan}}"
+          },
+          "response": [
+            {
+              "name": "200 — ITR",
+              "originalRequest": { "method": "GET", "url": "{{baseUrl}}/api/external/itr/AABCB1234F" },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"source\": \"INCOMETAX\",\n  \"record_type\": \"itr_filing\",\n  \"entity_key\": \"AABCB1234F\",\n  \"source_status\": \"success\",\n  \"payload\": {\n    \"pan\": \"AABCB1234F\",\n    \"filings\": [\n      { \"ay\": \"2024-25\", \"itr_form\": \"ITR-6\", \"filing_date\": \"2024-10-31\", \"status\": \"Filed-Verified\", \"total_income_cr\": 68.5, \"tax_paid_cr\": 17.3 },\n      { \"ay\": \"2023-24\", \"itr_form\": \"ITR-6\", \"filing_date\": \"2023-10-28\", \"status\": \"Filed-Verified\", \"total_income_cr\": 55.2, \"tax_paid_cr\": 13.9 }\n    ],\n    \"compliance_status\": \"Regular\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

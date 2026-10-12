@@ -1,0 +1,79 @@
+{
+  "title": "Debt Repayment Schedule — PNC Infratech Limited",
+  "as_of_date": "2026-03-31",
+  "currency": "INR Crores",
+  "facilities": [
+    {
+      "lender": "SBI",
+      "type": "Term Loan",
+      "original": 2800,
+      "outstanding": 2240,
+      "rate_pct": 8.95,
+      "repayment": "Quarterly",
+      "maturity": "Mar 2029",
+      "annual_repayment": [
+        560,
+        560,
+        560,
+        560
+      ]
+    },
+    {
+      "lender": "PNB",
+      "type": "Term Loan",
+      "original": 1600,
+      "outstanding": 1380,
+      "rate_pct": 9.25,
+      "repayment": "Quarterly",
+      "maturity": "Jun 2030",
+      "annual_repayment": [
+        276,
+        276,
+        276,
+        276,
+        276
+      ]
+    },
+    {
+      "lender": "HDFC Bank",
+      "type": "CC/OD",
+      "original": 1200,
+      "outstanding": 890,
+      "rate_pct": 9.1,
+      "repayment": "Revolving",
+      "maturity": "Rolling"
+    },
+    {
+      "lender": "Axis Bank",
+      "type": "CC/OD",
+      "original": 600,
+      "outstanding": 410,
+      "rate_pct": 9.05,
+      "repayment": "Revolving",
+      "maturity": "Rolling"
+    }
+  ],
+  "total_outstanding": 4920,
+  "annual_debt_service": {
+    "FY2027": {
+      "principal": 836,
+      "interest": 610,
+      "total": 1446
+    },
+    "FY2028": {
+      "principal": 836,
+      "interest": 535,
+      "total": 1371
+    },
+    "FY2029": {
+      "principal": 836,
+      "interest": 460,
+      "total": 1296
+    },
+    "FY2030": {
+      "principal": 552,
+      "interest": 385,
+      "total": 937
+    }
+  }
+}

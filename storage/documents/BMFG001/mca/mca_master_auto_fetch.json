@@ -1,0 +1,38 @@
+{
+  "source": "mca",
+  "record_type": "company_master",
+  "entity_key": "L29100MH2008PLC185432",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "company_name": "Bharat Manufacturing Ltd",
+    "cin": "L29100MH2008PLC185432",
+    "status": "Active",
+    "company_class": "Public",
+    "company_category": "Limited by Shares",
+    "sub_category": "Non-govt company",
+    "date_of_incorporation": "2008-04-15",
+    "registered_state": "Maharashtra",
+    "registered_office": "Plot 45, MIDC Industrial Area, Pune 411018",
+    "authorized_capital_inr": 10000000000,
+    "paid_up_capital_inr": 6250000000,
+    "listing_status": "Listed",
+    "listed_exchange": "BSE, NSE",
+    "email": "info@bharatmanufacturing.com",
+    "last_agm_date": "2025-09-28",
+    "last_bs_date": "2025-03-31",
+    "number_of_members": 42856,
+    "whether_AOCI": "No",
+    "industrial_class": "Manufacturing of machinery and equipment",
+    "nic_code": "2819",
+    "puc_nof_ratio": 0.625,
+    "compliance_status": {
+      "annual_return_filed": true,
+      "balance_sheet_filed": true,
+      "charges_satisfied": 1,
+      "charges_open": 2,
+      "last_filing_date": "2025-10-30"
+    }
+  }
+}

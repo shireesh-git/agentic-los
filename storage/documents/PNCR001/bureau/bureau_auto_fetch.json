@@ -1,0 +1,15 @@
+{
+  "source": "bureau",
+  "entity_key": "AABCP1234R",
+  "as_of_date": "2026-04-06T08:51:02",
+  "source_status": "success",
+  "payload": {
+    "credit_score": 742,
+    "dpd_status": "Standard",
+    "total_exposure_cr": 6282.0,
+    "lender_count": 8,
+    "suit_filed_amount_cr": 0.0,
+    "wilful_defaulter_flag": false,
+    "sma_status": "SMA-0"
+  }
+}

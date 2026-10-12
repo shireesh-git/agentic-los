@@ -1,0 +1,111 @@
+<!-- Pipeline dashboard and My Queue (same list; the queue shows the work waiting for the active role) -->
+<section x-show="page === 'dashboard' || page === 'queue'">
+  <div class="los-page-head">
+    <div>
+      <h1 x-text="page === 'queue' ? 'My Queue' : 'Pipeline Dashboard'"></h1>
+      <p class="text-muted" x-text="page === 'queue' ? 'Applications waiting for ' + session?.role_name + ' — assigned to you or unassigned'
+        : 'Corporate loan origination · as of ' + fmtDateTime(dash.as_of)"></p>
+    </div>
+    <button class="btn btn-primary" x-show="session?.role === 'ps_maker'" @click="go('new')">+ New Application</button>
+  </div>
+
+  <div class="los-kpis" x-show="page === 'dashboard'">
+    <template x-for="k in kpiCards()" :key="k.label">
+      <div class="los-kpi" :class="k.cls"><span x-text="k.label"></span><strong x-text="k.value"></strong><em x-text="k.sub"></em></div>
+    </template>
+  </div>
+
+  <div class="card los-copilot" x-show="digest && session">
+    <div class="summary-table-head"><h3>Copilot — your priorities</h3><span class="text-muted" x-text="digest?.summary"></span></div>
+    <ol class="los-cop-list" x-show="(digest?.items || []).length">
+      <template x-for="i in (digest?.items || []).slice(0, 6)" :key="i.application_id">
+        <li :class="'los-cop-' + (i.sla_breached ? 'high' : (i.top_action?.priority || 'low'))">
+          <div class="los-cop-text">
+            <strong><a href="#" @click.prevent="go('app/' + i.application_id)" x-text="i.borrower_name"></a>
+              <span class="text-muted" x-text="' · ' + i.step_name + ' · ' + i.application_id"></span>
+              <span class="badge sm badge-red" x-show="i.sla_breached">SLA breached</span></strong>
+            <span x-text="i.top_action?.title"></span>
+          </div>
+          <button class="btn btn-sm btn-outline" @click="go('app/' + i.application_id)">Open</button>
+        </li>
+      </template>
+    </ol>
+  </div>
+
+  <div class="card" x-show="page === 'dashboard'">
+    <div class="summary-table-head"><h3>Stage distribution</h3><span class="text-muted">Active applications by stage</span></div>
+    <div class="los-stage-bars">
+      <template x-for="s in dash.stages || []" :key="s.id">
+        <button type="button" class="los-stage-bar" :class="{'on': stageFilter === s.id}" @click="stageFilter = stageFilter === s.id ? '' : s.id; loadApps()">
+          <strong x-text="s.count"></strong>
+          <div class="los-bar"><div :style="'height:' + barHeight(s.count) + '%'"></div></div>
+          <span x-text="s.name"></span>
+        </button>
+      </template>
+    </div>
+  </div>
+
+  <div class="card" x-show="page === 'dashboard'" x-init="loadIntegrations()">
+    <div class="summary-table-head"><h3>Screening alerts</h3><span class="text-muted">90-day re-screening and Compliance VP exception expiries — reminders and escalations</span></div>
+    <p class="text-muted los-small" x-show="!(dash.screening_alerts || []).length">No screening alerts — every re-screening and exception is current.</p>
+    <table class="data-table" x-show="(dash.screening_alerts || []).length">
+      <thead><tr><th>Application</th><th>Alerts</th></tr></thead>
+      <tbody><template x-for="a in dash.screening_alerts || []" :key="a.application_id">
+        <tr :class="a.overdue ? 'los-dd-bad' : ''">
+          <td><a href="#" @click.prevent="go('app/' + a.application_id)" x-text="a.borrower_name"></a> <span class="text-muted los-small" x-text="a.application_id"></span>
+            <span class="badge sm badge-red" x-show="a.overdue">escalation</span></td>
+          <td class="los-small"><template x-for="(it, ii) in a.items" :key="ii"><div x-text="it"></div></template></td>
+        </tr>
+      </template></tbody>
+    </table>
+  </div>
+
+  <div class="card" x-show="page === 'dashboard'" x-init="loadIntegrations()">
+    <div class="summary-table-head"><h3>Integration registry</h3><span class="text-muted">Honest state of every source — no live system is connected in this demo</span></div>
+    <p class="text-muted los-small" x-show="integrations" x-text="integrations.note"></p>
+    <table class="data-table" x-show="integrations">
+      <thead><tr><th>Source</th><th>State</th><th>Label</th><th>Used for</th><th>Last used</th></tr></thead>
+      <tbody><template x-for="a in integrations?.adapters || []" :key="a.key">
+        <tr>
+          <td><strong x-text="a.source"></strong> <span class="text-muted los-small" x-text="a.key"></span></td>
+          <td><span class="badge sm" :class="a.state === 'demo_data' ? 'badge-amber' : a.state === 'not_connected' ? 'badge-grey' : 'badge-green'" x-text="a.state"></span></td>
+          <td class="los-small" x-text="a.label"></td>
+          <td class="los-small" x-text="a.client_use || ''"></td>
+          <td class="los-small" x-text="a.last_used_at || '—'" :title="'calls: ' + (a.calls || 0)"></td>
+        </tr>
+      </template></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="los-filters" x-show="page === 'dashboard'">
+      <template x-for="f in statusFilters" :key="f.id">
+        <button type="button" class="los-filter" :class="{'on': statusFilter === f.id}" @click="statusFilter = f.id; loadApps()" x-text="f.label"></button>
+      </template>
+      <span class="text-muted los-count" x-text="apps.length + ' application' + (apps.length === 1 ? '' : 's')"></span>
+    </div>
+    <p class="empty-state" x-show="!apps.length" x-text="page === 'queue' ? 'Nothing is waiting for your role.' : 'No applications match.'"></p>
+    <div class="table-scroll" x-show="apps.length">
+      <table class="data-table los-table">
+        <thead><tr><th>Loan ID</th><th>Borrower</th><th>Facility</th><th class="num">Amount (₹ Cr)</th><th>Current step</th><th>Status</th><th>Assignee</th><th>SLA</th><th>Priority</th></tr></thead>
+        <tbody>
+          <template x-for="a in apps" :key="a.application_id">
+            <tr class="los-row" @click="go('app/' + a.application_id)">
+              <td><strong class="los-id" x-text="a.application_id"></strong></td>
+              <td><span x-text="a.borrower_name"></span><div class="text-muted los-sub" x-text="titleCase(a.sector)"></div></td>
+              <td x-text="titleCase(a.facility?.facility_type)"></td>
+              <td class="num" x-text="fmtAmount(a.amount_cr)"></td>
+              <td><span x-text="a.step?.name || 'Complete'"></span><div class="text-muted los-sub" x-text="a.step?.stage_name || ''"></div></td>
+              <td><span class="badge sm" :class="statusCls(a.status)" x-text="statusLabel(a.status)"></span>
+                <span class="badge sm badge-red" x-show="a.escalated">Escalated</span></td>
+              <td x-text="a.assignee_name || '—'"></td>
+              <td><span class="los-sla" :class="slaCls(a.sla)" x-text="slaText(a.sla)"></span></td>
+              <td><span class="badge sm" :class="a.priority === 'High' ? 'badge-amber' : 'badge-grey'" x-text="a.priority"></span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="text-muted los-note" x-text="dash.note"></p>
+</section>

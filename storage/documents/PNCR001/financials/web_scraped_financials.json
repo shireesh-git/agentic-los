@@ -1,0 +1,36 @@
+{
+  "source": "screener_in",
+  "entity_key": "PNCR001",
+  "as_of_date": "2026-04-06T08:51:02",
+  "source_status": "success",
+  "payload": {
+    "FY2025": {
+      "revenue_cr": 8650.0,
+      "ebitda_cr": 2004.0,
+      "pat_cr": 909.0,
+      "total_debt_cr": 8025.0,
+      "equity_cr": 5180.0
+    },
+    "FY2024": {
+      "revenue_cr": 7956.0,
+      "ebitda_cr": 1585.0,
+      "pat_cr": 658.0,
+      "total_debt_cr": 6282.0,
+      "equity_cr": 4350.0
+    },
+    "FY2023": {
+      "revenue_cr": 7208.0,
+      "ebitda_cr": 1489.0,
+      "pat_cr": 580.0,
+      "total_debt_cr": 4793.0,
+      "equity_cr": 3820.0
+    },
+    "FY2022": {
+      "revenue_cr": 5620.0,
+      "ebitda_cr": 1166.0,
+      "pat_cr": 442.0,
+      "total_debt_cr": 3670.0,
+      "equity_cr": 3280.0
+    }
+  }
+}

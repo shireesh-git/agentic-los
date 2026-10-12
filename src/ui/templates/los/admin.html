@@ -1,0 +1,37 @@
+<!-- Audit trail (all applications) and administration (LOS System Admin) -->
+<section x-show="page === 'audit'">
+  <div class="los-page-head"><div><h1>Audit Trail</h1><p class="text-muted">Every workflow action across all applications, newest first.</p></div></div>
+  <div class="card">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>When</th><th>Application</th><th>Action</th><th>By</th><th>From → To</th><th>Comment</th></tr></thead>
+        <tbody>
+          <template x-for="e in auditEvents" :key="e.event_id">
+            <tr><td x-text="fmtDateTime(e.at)"></td>
+              <td><button type="button" class="link-btn" @click="go('app/' + e.application_id)" x-text="e.application_id"></button></td>
+              <td x-text="actionPast(e.action)"></td>
+              <td x-text="e.actor_name + (e.actor_role_name ? ' · ' + e.actor_role_name : '')"></td>
+              <td class="text-muted" x-text="(e.from_step_name || '') + (e.to_step_name && e.to_step_name !== e.from_step_name ? ' → ' + e.to_step_name : '')"></td>
+              <td x-text="e.comment || ''"></td></tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section x-show="page === 'admin'">
+  <div class="los-page-head"><div><h1>Administration</h1><p class="text-muted">Groups, roles and demo users (from config/los_workflow.yaml).</p></div>
+    <button class="btn btn-outline" :disabled="busy" @click="resetDemo()">Reset demo pipeline</button></div>
+  <div class="los-admin-grid">
+    <template x-for="g in directory.groups || []" :key="g.id">
+      <div class="card">
+        <h3 x-text="g.name"></h3>
+        <template x-for="r in g.roles" :key="r">
+          <div class="los-admin-role"><strong x-text="roleName(r)"></strong>
+            <span class="text-muted" x-text="usersWithRole(r).map(u => u.name).join(', ')"></span></div>
+        </template>
+      </div>
+    </template>
+  </div>
+</section>

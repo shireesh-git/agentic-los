@@ -1,0 +1,20 @@
+{
+  "source": "rbi_crilc",
+  "entity_key": "PNCR001",
+  "as_of_date": "2026-03-31",
+  "payload": {
+    "total_exposure_cr": 7850,
+    "fund_based_cr": 6200,
+    "non_fund_based_cr": 1550,
+    "derivative_exposure_cr": 100,
+    "sma_category": "SMA-0",
+    "dpd_bucket": "0",
+    "asset_classification": "Standard",
+    "provision_pct": 0.4,
+    "lender_count": 8,
+    "consortium_lead": "State Bank of India",
+    "wilful_defaulter": false,
+    "fraud_flag": false,
+    "restructured": false
+  }
+}

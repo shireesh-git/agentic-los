@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "DRRD001",
+  "scraped_at": "2026-03-23T21:43:50.706393",
+  "profile": {
+    "entity_id": "DRRD001",
+    "actual_company_name": "Dr. Reddy's Laboratories Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Dr. Reddy's Laboratories",
+      "description": "Indian multinational pharmaceutical company",
+      "extract": "Dr. Reddy's Laboratories Ltd. is an Indian multinational pharmaceutical company based in Hyderabad, with U.S. headquarters in East Brunswick, New Jersey. The company was founded by Kallam Anji Reddy, who previously worked in the mentor institute Indian Drugs and Pharmaceuticals Limited. Dr. Reddy manufactures and markets a wide range of pharmaceuticals in India and overseas. The company produces over 190 medications, 60 active pharmaceutical ingredients (APIs) for drug manufacture, diagnostic kits, critical care, and biotechnology.",
+      "url": "https://en.wikipedia.org/wiki/Dr._Reddy's_Laboratories"
+    },
+    "official_website": {
+      "url": "https://www.drreddys.com/",
+      "title": "Dr. Reddy&#x27;s - Good Health Can&#x27;t Wait",
+      "description": "Accelerating access to affordable and innovative medicines"
+    }
+  }
+}

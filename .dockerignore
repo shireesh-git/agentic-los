@@ -1,0 +1,31 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+.git/
+.gitignore
+*.md
+!IDEA.MD
+tests/
+postman/
+output/
+runtime-db/
+downloaded document/*
+!downloaded document/CAM/
+.pytest_cache/
+.mypy_cache/
+node_modules/
+*.log
+
+# Local tooling, browser artifacts and secrets
+.claude/
+.continue/
+.playwright-cli/
+.env
+.env.*
+!.env.example

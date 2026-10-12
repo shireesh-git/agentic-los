@@ -1,0 +1,91 @@
+{
+  "entity_id": "OLOG001",
+  "created_at": "2026-03-14T12:09:05.360739",
+  "document_index": {
+    "kyc/pan_card.txt": {
+      "filename": "pan_card.txt",
+      "category": "kyc",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.365254"
+    },
+    "kyc/certificate_of_incorporation.txt": {
+      "filename": "certificate_of_incorporation.txt",
+      "category": "kyc",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.369666"
+    },
+    "financials/audited_bs_fy2024.txt": {
+      "filename": "audited_bs_fy2024.txt",
+      "category": "financials",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.373373"
+    },
+    "mca/company_master.json": {
+      "filename": "company_master.json",
+      "category": "mca",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.376467"
+    },
+    "mca/director_details.json": {
+      "filename": "director_details.json",
+      "category": "mca",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.382243"
+    },
+    "mca/charges_register.json": {
+      "filename": "charges_register.json",
+      "category": "mca",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.386749"
+    },
+    "gst/gstin_profile.json": {
+      "filename": "gstin_profile.json",
+      "category": "gst",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.391385"
+    },
+    "gst/gst_turnover.json": {
+      "filename": "gst_turnover.json",
+      "category": "gst",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.395892"
+    },
+    "bureau/commercial_bureau_report.json": {
+      "filename": "commercial_bureau_report.json",
+      "category": "bureau",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.400328"
+    },
+    "bureau/crilc_report.json": {
+      "filename": "crilc_report.json",
+      "category": "bureau",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.404374"
+    },
+    "ratings/credit_rating.json": {
+      "filename": "credit_rating.json",
+      "category": "ratings",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.408896"
+    },
+    "misc/market_intelligence.json": {
+      "filename": "market_intelligence.json",
+      "category": "misc",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.413899"
+    },
+    "legal/epfo_compliance.json": {
+      "filename": "epfo_compliance.json",
+      "category": "legal",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.418185"
+    },
+    "financials/itr_filing_status.json": {
+      "filename": "itr_filing_status.json",
+      "category": "financials",
+      "source": "upload",
+      "indexed_at": "2026-03-14T12:09:05.422750"
+    }
+  },
+  "fetch_status": {}
+}

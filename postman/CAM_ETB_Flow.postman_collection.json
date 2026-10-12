@@ -1,0 +1,160 @@
+{
+  "info": {
+    "name": "CAM Platform — ETB (Existing-To-Bank) Flow",
+    "description": "ETB conduct-heavy renewal / enhancement flow.\n\nSequence:\n1. Identify ETB customer → Pull internal conduct data\n2. Fetch existing limits, utilisation, overdue history\n3. Compare declared vs actual (GST, Bureau)\n4. Benchmark current vs prior period\n5. Exchange & governance refresh\n6. Enhancement / renewal decision rules\n7. CAM Refresh with LLM narrative\n\n**ETB Key Decision Levers:**\n- Conduct score (cheque returns, overdue frequency, covenant breaches)\n- Turnover deviation from projections\n- Rating migration since last review\n- Collateral coverage change\n- Regulatory / adverse media triggers\n\n**ETB Document Checklist:**\n- QIS / stock statement (last 3 months)\n- Latest provisional financials (current FY)\n- Annual review note from RM\n- Insurance validity certificate\n- Security creation / CERSAI confirmation\n- Valuation report (if collateral reappraisal)\n- Board resolution for enhanced limits\n- Covenant compliance certificate",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8001"},
+    {"key": "cin", "value": "L29100MH2008PLC185432"},
+    {"key": "pan", "value": "AABCB1234F"},
+    {"key": "gstin", "value": "27AABCB1234F1Z5"},
+    {"key": "entity_id", "value": "BMFG001"}
+  ],
+  "item": [
+    {
+      "name": "1. Customer Identification",
+      "description": "Identify ETB customer and load existing relationship data",
+      "item": [
+        {
+          "name": "List All Companies",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies", "host": ["{{baseUrl}}"], "path": ["api", "companies"]}}
+        },
+        {
+          "name": "List Executed Companies Only",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies?executed_only=true", "host": ["{{baseUrl}}"], "path": ["api", "companies"], "query": [{"key": "executed_only", "value": "true"}]}}
+        },
+        {
+          "name": "Get Existing Case Result (Prior Review)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}"]}}
+        },
+        {
+          "name": "360° Historical View",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/360", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "360"]}}
+        }
+      ]
+    },
+    {
+      "name": "2. Internal Conduct & Exposure",
+      "description": "Fetch existing limits, utilisation, overdue, cheque returns",
+      "item": [
+        {
+          "name": "ETB Analytics (Conduct Score)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/etb", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "etb"]}}
+        },
+        {
+          "name": "Fraud Detection Check",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/fraud", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "fraud"]}}
+        },
+        {
+          "name": "MCA Charges Register (Existing Security)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/mca/charges/{{cin}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "mca", "charges", "{{cin}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "3. External Refresh (Compare Declared vs Actual)",
+      "description": "Cross-validate borrower declarations with independent sources",
+      "item": [
+        {
+          "name": "Bureau Report (Refresh)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/bureau/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "bureau", "{{pan}}"]}}
+        },
+        {
+          "name": "GST Turnover (Compare vs Projections)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/gst-turnover/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "gst-turnover", "{{pan}}"]}}
+        },
+        {
+          "name": "GSTIN Status Check",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/gstin/{{gstin}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "gstin", "{{gstin}}"]}}
+        },
+        {
+          "name": "Credit Rating Migration",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/rating/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "rating", "{{entity_id}}"]}}
+        },
+        {
+          "name": "RBI CRILC Record",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/crilc/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "crilc", "{{pan}}"]}}
+        },
+        {
+          "name": "ITR Filing Status",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/itr/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "itr", "{{pan}}"]}}
+        },
+        {
+          "name": "EPFO Compliance (Workforce Stability)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/epfo/{{pan}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "epfo", "{{pan}}"]}}
+        },
+        {
+          "name": "CRILC PDF Report",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/crilc/{{pan}}/pdf", "host": ["{{baseUrl}}"], "path": ["api", "external", "crilc", "{{pan}}", "pdf"]}}
+        }
+      ]
+    },
+    {
+      "name": "4. Governance & Market Signals",
+      "description": "Exchange filings, governance, and market intelligence refresh",
+      "item": [
+        {
+          "name": "Exchange Financial Results",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/exchange/financial-results/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "exchange", "financial-results", "{{entity_id}}"]}}
+        },
+        {
+          "name": "Exchange Governance Filings",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/exchange/governance/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "exchange", "governance", "{{entity_id}}"]}}
+        },
+        {
+          "name": "Market News Sentiment",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/market/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "market", "{{entity_id}}"]}}
+        },
+        {
+          "name": "Social Reputation Signals",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/external/social/reputation/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "external", "social", "reputation", "{{entity_id}}"]}}
+        }
+      ]
+    },
+    {
+      "name": "5. Document Refresh & Extraction",
+      "description": "Upload latest QIS / provisionals and extract via OCR",
+      "item": [
+        {
+          "name": "List Existing Documents",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/documents", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "documents"]}}
+        },
+        {
+          "name": "Run OCR Extraction (Updated Docs)",
+          "request": {"method": "POST", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/extract", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "extract"]}}
+        }
+      ]
+    },
+    {
+      "name": "6. Re-Run Pipeline & CAM Refresh",
+      "description": "Re-run analysis with refreshed data and generate updated CAM",
+      "item": [
+        {
+          "name": "Run Pipeline (Re-Analysis)",
+          "request": {"method": "POST", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/run", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "run"]}}
+        },
+        {
+          "name": "Get Updated Case Result",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}"]}}
+        },
+        {
+          "name": "View Refreshed CAM Report",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/cam-html", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "cam-html"]}}
+        },
+        {
+          "name": "Download Updated CAM PDF",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/cam-pdf", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "cam-pdf"]}}
+        },
+        {
+          "name": "One-Pager Memo (Refreshed)",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/cases/{{entity_id}}/one-pager", "host": ["{{baseUrl}}"], "path": ["api", "cases", "{{entity_id}}", "one-pager"]}}
+        },
+        {
+          "name": "Updated 360° View",
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/companies/{{entity_id}}/360", "host": ["{{baseUrl}}"], "path": ["api", "companies", "{{entity_id}}", "360"]}}
+        }
+      ]
+    }
+  ]
+}

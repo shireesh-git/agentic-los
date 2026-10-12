@@ -1,0 +1,71 @@
+{
+  "source": "mca",
+  "record_type": "director_master",
+  "entity_key": "L29100MH2008PLC185432",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "directors": [
+      {
+        "din": "00112233",
+        "name": "Rajesh K. Mehta",
+        "designation": "Managing Director",
+        "date_of_appointment": "2008-04-15",
+        "status": "Active",
+        "shareholding_pct": 28.5,
+        "remuneration_lakhs": 450,
+        "other_companies": [
+          "Bharat Auto Parts Pvt Ltd (U29100MH2010PTC001234)"
+        ],
+        "pan": "AAFPM1234A",
+        "nationality": "Indian",
+        "dob": "1968-03-12"
+      },
+      {
+        "din": "00112234",
+        "name": "Sunita R. Mehta",
+        "designation": "Whole-time Director",
+        "date_of_appointment": "2010-07-01",
+        "status": "Active",
+        "shareholding_pct": 18.2,
+        "remuneration_lakhs": 280,
+        "other_companies": [
+          "Bharat Tooling Pvt Ltd (U28900MH2011PTC002345)"
+        ],
+        "pan": "AAFPS1234B",
+        "nationality": "Indian",
+        "dob": "1972-07-22"
+      },
+      {
+        "din": "00112235",
+        "name": "Amit Deshmukh",
+        "designation": "Independent Director",
+        "date_of_appointment": "2018-09-15",
+        "status": "Active",
+        "shareholding_pct": 0,
+        "remuneration_lakhs": 15,
+        "other_companies": [
+          "HDFC Securities Ltd",
+          "L&T Infra Ltd"
+        ],
+        "pan": "AAKPD1234C",
+        "nationality": "Indian",
+        "dob": "1965-11-08"
+      },
+      {
+        "din": "00112236",
+        "name": "Kavita Sharma",
+        "designation": "CFO (KMP)",
+        "date_of_appointment": "2019-03-01",
+        "status": "Active",
+        "shareholding_pct": 0.5,
+        "remuneration_lakhs": 180,
+        "other_companies": [],
+        "pan": "BBKPS1234D",
+        "nationality": "Indian",
+        "dob": "1975-01-25"
+      }
+    ]
+  }
+}

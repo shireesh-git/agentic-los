@@ -1,0 +1,35 @@
+{
+  "source": "mca",
+  "record_type": "charges",
+  "entity_key": "U63090KA2010PTC052345",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "total_charges": 2,
+    "open_charges": 2,
+    "satisfied_charges": 0,
+    "charges": [
+      {
+        "charge_id": "10045678",
+        "charge_holder": "Our Bank (Lead)",
+        "amount_inr": 1100000000,
+        "date_created": "2019-06-15",
+        "date_modified": "2025-03-15",
+        "status": "Open",
+        "assets": "All current assets, Vehicle fleet",
+        "charge_holder_type": "Bank"
+      },
+      {
+        "charge_id": "10045679",
+        "charge_holder": "Kotak Mahindra Bank",
+        "amount_inr": 530000000,
+        "date_created": "2021-11-10",
+        "date_modified": "2024-11-10",
+        "status": "Open",
+        "assets": "Warehouse at Whitefield Industrial Area",
+        "charge_holder_type": "Bank"
+      }
+    ]
+  }
+}

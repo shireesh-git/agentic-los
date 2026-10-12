@@ -1,0 +1,41 @@
+{
+  "source": "market",
+  "record_type": "intelligence",
+  "entity_key": "BMFG001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "overall_sentiment": "positive",
+    "sentiment_score": 0.72,
+    "news_count_last_90d": 14,
+    "positive_count": 10,
+    "neutral_count": 3,
+    "negative_count": 1,
+    "top_themes": [
+      "order wins",
+      "capacity expansion",
+      "rating affirmation",
+      "export growth",
+      "margin improvement"
+    ],
+    "reputation_risk_score": "low",
+    "market_position": "Strong \u2014 Top 5 in precision engineering segment",
+    "industry_outlook": "Positive \u2014 driven by defence indigenisation and EV transition",
+    "peer_comparison": {
+      "rank_in_sector": 4,
+      "out_of": 25,
+      "key_competitors": [
+        "Bharat Forge",
+        "Sundaram Fasteners",
+        "Minda Industries"
+      ]
+    },
+    "esg_score": {
+      "environment": "B+",
+      "social": "B",
+      "governance": "A-",
+      "overall": "B+"
+    }
+  }
+}

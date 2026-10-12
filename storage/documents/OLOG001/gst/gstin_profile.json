@@ -1,0 +1,36 @@
+{
+  "source": "gstin",
+  "record_type": "registration",
+  "entity_key": "29AABCO3456J1Z1",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "29AABCO3456J1Z1",
+    "legal_name": "Omega Logistics Pvt Ltd",
+    "trade_name": "OMEGA LOGISTICS",
+    "pan": "AABCO3456J",
+    "registration_date": "2017-07-01",
+    "status": "Active",
+    "state": "Karnataka",
+    "taxpayer_type": "Regular",
+    "constitution": "Private Limited Company",
+    "nature_of_business": [
+      "Freight",
+      "Warehousing"
+    ],
+    "aggregate_turnover_fy2024_cr": 575.0,
+    "aggregate_turnover_fy2023_cr": 518.0,
+    "aggregate_turnover_fy2022_cr": 470.0,
+    "filing_frequency": "Monthly",
+    "compliance": {
+      "gstr1_filed_on_time_pct": 100,
+      "gstr3b_filed_on_time_pct": 92,
+      "pending_returns": 0,
+      "last_gstr3b_filed": "February 2026",
+      "last_gstr1_filed": "February 2026"
+    },
+    "itc_claimed_fy2024_cr": 42.1,
+    "tax_paid_fy2024_cr": 28.7
+  }
+}

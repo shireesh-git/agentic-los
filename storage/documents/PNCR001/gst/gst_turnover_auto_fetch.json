@@ -1,0 +1,13 @@
+{
+  "source": "gstin",
+  "entity_key": "AABCP1234R",
+  "as_of_date": "2026-04-06T08:51:02",
+  "source_status": "success",
+  "payload": {
+    "fy2025_turnover_cr": 8650.0,
+    "fy2024_turnover_cr": 7956.0,
+    "fy2023_turnover_cr": 7208.0,
+    "filing_status": "Filed on Time",
+    "annual_returns_filed": true
+  }
+}

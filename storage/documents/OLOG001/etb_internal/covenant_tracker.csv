@@ -1,0 +1,13 @@
+period,covenant,required,actual,status
+Q1-FY2024,DSCR >= 1.20x,1.20,1.35,Compliant
+Q2-FY2024,DSCR >= 1.20x,1.20,1.28,Compliant
+Q3-FY2024,DSCR >= 1.20x,1.20,1.15,Breach
+Q4-FY2024,DSCR >= 1.20x,1.20,1.10,Breach
+Q1-FY2025,DSCR >= 1.20x,1.20,1.22,Compliant
+Q2-FY2025,DSCR >= 1.20x,1.20,1.18,Breach
+Q1-FY2024,D/E <= 2.00x,2.00,1.38,Compliant
+Q2-FY2024,D/E <= 2.00x,2.00,1.42,Compliant
+Q3-FY2024,D/E <= 2.00x,2.00,1.48,Compliant
+Q4-FY2024,D/E <= 2.00x,2.00,1.48,Compliant
+Q1-FY2025,Current Ratio >= 1.10x,1.10,1.05,Breach
+Q2-FY2025,Current Ratio >= 1.10x,1.10,1.08,Breach

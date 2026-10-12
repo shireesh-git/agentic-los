@@ -1,0 +1,41 @@
+{
+  "source": "market",
+  "record_type": "intelligence",
+  "entity_key": "SPHR001",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "overall_sentiment": "mixed",
+    "sentiment_score": -0.15,
+    "news_count_last_90d": 8,
+    "positive_count": 3,
+    "neutral_count": 2,
+    "negative_count": 3,
+    "top_themes": [
+      "FDA warning (group entity)",
+      "group entity default",
+      "API market recovery",
+      "WHO-GMP certification",
+      "export order win"
+    ],
+    "reputation_risk_score": "medium",
+    "market_position": "Niche \u2014 strong in API intermediates",
+    "industry_outlook": "Positive \u2014 China+1 strategy benefiting Indian API makers",
+    "peer_comparison": {
+      "rank_in_sector": 12,
+      "out_of": 40,
+      "key_competitors": [
+        "Laurus Labs",
+        "Granules India",
+        "Aarti Drugs"
+      ]
+    },
+    "esg_score": {
+      "environment": "B",
+      "social": "B+",
+      "governance": "B-",
+      "overall": "B"
+    }
+  }
+}

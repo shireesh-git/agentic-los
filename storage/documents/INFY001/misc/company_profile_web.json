@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "INFY001",
+  "scraped_at": "2026-03-26T16:29:33.277671",
+  "profile": {
+    "entity_id": "INFY001",
+    "actual_company_name": "Infosys Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Infosys",
+      "description": "Indian multinational technology company",
+      "extract": "Infosys Limited is an Indian multinational technology company that offers information technology, business consulting, and outsourcing services. Founded in 1981 by seven engineers, the company is headquartered in Bengaluru and considered one of the Big Six Indian IT companies.",
+      "url": "https://en.wikipedia.org/wiki/Infosys"
+    },
+    "official_website": {
+      "url": "https://www.infosys.com/",
+      "title": "Infosys - Consulting | IT Services | Digital Transformation",
+      "description": "Infosys is a global leader in next-generation digital services and consulting."
+    }
+  }
+}

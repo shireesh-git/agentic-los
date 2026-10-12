@@ -1,0 +1,20 @@
+{
+  "source": "gstin",
+  "entity_key": "09AABCP1234R1Z6",
+  "as_of_date": "2026-04-06T08:51:02",
+  "source_status": "success",
+  "payload": {
+    "gstin": "09AABCP1234R1Z6",
+    "legal_name": "PNC ROADS & INFRA LIMITED",
+    "trade_name": "PNC ROADS",
+    "registration_date": "2017-07-01",
+    "status": "Active",
+    "type": "Regular",
+    "state": "Uttar Pradesh",
+    "constitution": "Public Limited Company",
+    "nature_of_business": [
+      "Construction",
+      "Works Contract"
+    ]
+  }
+}

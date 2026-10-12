@@ -1,0 +1,51 @@
+{
+  "source": "mca",
+  "record_type": "director_master",
+  "entity_key": "L85110TN1979PLC008035",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "directors": [
+      {
+        "din": "00003964",
+        "name": "Dr. Prathap C. Reddy",
+        "designation": "Executive Chairman",
+        "date_of_appointment": "1979-01-18",
+        "status": "Active",
+        "other_companies": [
+          "Apollo Health & Lifestyle Ltd",
+          "Apollo Pharmacy"
+        ]
+      },
+      {
+        "din": "00001873",
+        "name": "Suneeta Reddy",
+        "designation": "Managing Director",
+        "date_of_appointment": "2015-06-01",
+        "status": "Active",
+        "other_companies": [
+          "Apollo Munich Health Insurance"
+        ]
+      },
+      {
+        "din": "00056809",
+        "name": "Shobana Kamineni",
+        "designation": "Executive Vice Chairperson",
+        "date_of_appointment": "2015-06-01",
+        "status": "Active",
+        "other_companies": [
+          "Apollo Life Science Institute"
+        ]
+      },
+      {
+        "din": "05171022",
+        "name": "Krishnan Akhileswaran",
+        "designation": "CFO & Whole-Time Director",
+        "date_of_appointment": "2020-01-15",
+        "status": "Active",
+        "other_companies": []
+      }
+    ]
+  }
+}

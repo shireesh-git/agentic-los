@@ -1,0 +1,239 @@
+{
+  "metadata": {
+    "old_identifier": null,
+    "api_version": "1.0",
+    "last_updated": "2026-02-25"
+  },
+  "data": {
+    "vitals": {
+      "legal_name": "APOLLO HOSPITALS ENTERPRISE LIMITED",
+      "status": "Active",
+      "active_compliance": "ACTIVE compliant",
+      "listing_status": "Listed",
+      "entity_identifier": "L85110TN1979PLC008035",
+      "type_of_entity": "Public Limited Indian Non-Government Company",
+      "pan_of_entity": "AAACA5443N",
+      "date_of_incorporation": "1979-12-05",
+      "paid_up_capital": 718923285,
+      "sum_of_charges": 34787260000,
+      "registered_address": {
+        "address_line": "19 BISHOP GARDENS   R A PURAM ",
+        "city": "CHENNAI",
+        "state": "Tamil Nadu",
+        "pincode": "600028"
+      },
+      "website": "https://www.apollohospitals.com/",
+      "email": "lakshminarayana_r@apollohospitals.com",
+      "phone": "04428293896",
+      "lei_code": "3358005YT7JQCWYLTG43",
+      "lei_status": "ISSUED",
+      "active_epfo_establishments_count": 27,
+      "name_history": null,
+      "last_agm_date": "2025-08-29",
+      "last_fin_year_end": "2025-03-31"
+    },
+    "industry_segment": {
+      "industry": "Healthcare",
+      "segments": [
+        "Multi Speciality Hospitals"
+      ]
+    },
+    "directors": [
+      {
+        "din": "00003654",
+        "name": "PRATAP CHANDRA REDDY",
+        "designation": "Whole-time director"
+      },
+      {
+        "din": "08235560",
+        "name": "PUDUGRAMAM MURALI DORAISWAMY",
+        "designation": "Director"
+      },
+      {
+        "din": "00001835",
+        "name": "RAMA BIJAPURKAR",
+        "designation": "Director"
+      },
+      {
+        "din": "00001873",
+        "name": "SUNEETA REDDY",
+        "designation": "Managing Director"
+      },
+      {
+        "din": "00003836",
+        "name": "SHOBANA KAMINENI",
+        "designation": "Director"
+      },
+      {
+        "din": null,
+        "name": "SANKARANARAYANAN MUTHU KRISHNAN",
+        "designation": "Company Secretary"
+      },
+      {
+        "din": null,
+        "name": "AKHILESWARAN KRISHNAN",
+        "designation": "CFO"
+      },
+      {
+        "din": "00001871",
+        "name": "PREETHA REDDY",
+        "designation": "Whole-time director"
+      },
+      {
+        "din": "00006285",
+        "name": "KONDA SANGITA REDDY",
+        "designation": "Whole-time director"
+      },
+      {
+        "din": "00139274",
+        "name": "VELAGAPUDI KAVITHA DUTT",
+        "designation": "Director"
+      },
+      {
+        "din": "00287260",
+        "name": "BHASKARA MANDAVILLI NAGESWARA RAO",
+        "designation": "Director"
+      },
+      {
+        "din": "00074842",
+        "name": "SOM MITTAL",
+        "designation": "Director"
+      }
+    ],
+    "key_indicators": {
+      "revenue_range": "More than 1000 cr.",
+      "profit_range": "More than 5 cr.",
+      "employee_count_range": "More than 5000",
+      "probe_score": 5,
+      "has_pending_cases_against_company": true,
+      "has_bureau_defaults": false,
+      "gst_filing_after_due_date": true,
+      "epf_payment_after_due_date": true
+    },
+    "active_gstins": {
+      "active_gstins_count": 40,
+      "details": [
+        {
+          "gstin": "37AAACA5443N5ZD"
+        },
+        {
+          "gstin": "37AAACA5443N4ZE"
+        },
+        {
+          "gstin": "37AAACA5443N3ZF"
+        },
+        {
+          "gstin": "37AAACA5443N1ZH"
+        },
+        {
+          "gstin": "22AAACA5443N3ZQ"
+        },
+        {
+          "gstin": "22AAACA5443N2ZR"
+        },
+        {
+          "gstin": "07AAACA5443N2ZJ"
+        },
+        {
+          "gstin": "07AAACA5443N3ZI"
+        },
+        {
+          "gstin": "07AAACA5443N1ZK"
+        },
+        {
+          "gstin": "24AAACA5443N1ZO"
+        },
+        {
+          "gstin": "24AAACA5443N2ZN"
+        },
+        {
+          "gstin": "24AAACA5443N3ZM"
+        },
+        {
+          "gstin": "06AAACA5443N1ZM"
+        },
+        {
+          "gstin": "01AAACA5443N1ZW"
+        },
+        {
+          "gstin": "20AAACA5443N2ZV"
+        },
+        {
+          "gstin": "29AAACA5443N5ZA"
+        },
+        {
+          "gstin": "29AAACA5443N6Z9"
+        },
+        {
+          "gstin": "29AAACA5443N2ZD"
+        },
+        {
+          "gstin": "32AAACA5443N2ZQ"
+        },
+        {
+          "gstin": "23AAACA5443N2ZP"
+        },
+        {
+          "gstin": "23AAACA5443N1ZQ"
+        },
+        {
+          "gstin": "27AAACA5443N1ZI"
+        },
+        {
+          "gstin": "27AAACA5443N2ZH"
+        },
+        {
+          "gstin": "27AAACA5443N3ZG"
+        },
+        {
+          "gstin": "17AAACA5443N1ZJ"
+        },
+        {
+          "gstin": "21AAACA5443N2ZT"
+        },
+        {
+          "gstin": "21AAACA5443N3ZS"
+        },
+        {
+          "gstin": "34AAACA5443N2ZM"
+        },
+        {
+          "gstin": "08AAACA5443N1ZI"
+        },
+        {
+          "gstin": "33AAACA5443N2ZO"
+        },
+        {
+          "gstin": "33AAACA5443N4ZM"
+        },
+        {
+          "gstin": "33AAACA5443N3ZN"
+        },
+        {
+          "gstin": "33AAACA5443N5ZL"
+        },
+        {
+          "gstin": "36AAACA5443N4ZG"
+        },
+        {
+          "gstin": "36AAACA5443N3ZH"
+        },
+        {
+          "gstin": "36AAACA5443N2ZI"
+        },
+        {
+          "gstin": "36AAACA5443N1ZJ"
+        },
+        {
+          "gstin": "09AAACA5443N2ZF"
+        },
+        {
+          "gstin": "09AAACA5443N1ZG"
+        },
+        {
+          "gstin": "19AAACA5443N1ZF"
+        }
+      ]
+    }
+  }
+}

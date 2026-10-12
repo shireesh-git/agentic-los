@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "IHCL001",
+  "scraped_at": "2026-03-23T21:43:52.023423",
+  "profile": {
+    "entity_id": "IHCL001",
+    "actual_company_name": "The Indian Hotels Company Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Indian Hotels Company Limited",
+      "description": "Hotel hospitality company",
+      "extract": "The Indian Hotels Company Limited (IHCL) is an Indian multinational hospitality company that manages a portfolio of hotels, resorts, jungle safaris, palaces, spas and in-flight catering services. The company is part of India's Tata Group. IHCL was founded in 1902 by Jamsetji Tata and is headquartered in Mumbai where its flagship hotel Taj Mahal Palace Hotel is also located.",
+      "url": "https://en.wikipedia.org/wiki/Indian_Hotels_Company_Limited"
+    },
+    "official_website": {
+      "url": "https://www.ihcltata.com/",
+      "title": null,
+      "description": "Explore The Indian Hotels Company Limited, home to iconic hotel brands like Taj, SeleQtions, Vivanta, Gateway, am\u00e3 Stays &amp; Trails, Ginger, Qmin and TajSATS. Experience world-class hospitality."
+    }
+  }
+}

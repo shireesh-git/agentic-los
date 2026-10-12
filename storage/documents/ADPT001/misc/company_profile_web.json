@@ -1,0 +1,24 @@
+{
+  "source": "web_profile_scrape",
+  "entity_id": "ADPT001",
+  "scraped_at": "2026-03-23T21:42:47.130719",
+  "profile": {
+    "entity_id": "ADPT001",
+    "actual_company_name": "Adani Ports and Special Economic Zone Limited",
+    "sources": [
+      "wikipedia",
+      "official_website"
+    ],
+    "wikipedia": {
+      "title": "Adani Ports & SEZ",
+      "description": "Indian multinational port operator and logistics company",
+      "extract": "Adani Ports and Special Economic Zone Limited (APSEZ) is an Indian multinational port operator and logistics company, part of Adani Group. APSEZ is India's largest private port operator with a network of 12 ports and terminals, including India's first port-based SEZ at Mundra and the first deep water transshipment port at Thiruvananthapuram.",
+      "url": "https://en.wikipedia.org/wiki/Adani_Ports_%26_SEZ"
+    },
+    "official_website": {
+      "url": "https://www.adaniports.com/",
+      "title": "Adani Ports and SEZ Ltd",
+      "description": "Adani Ports and SEZ Ltd is India&#39;s largest integrated ports and logistics company | Ports &amp; Terminals - Cargo handling expertise for Dry, Liquid, Crude and Container Cargo | Industrial Land | End-to-End Logistics | Dredging"
+    }
+  }
+}

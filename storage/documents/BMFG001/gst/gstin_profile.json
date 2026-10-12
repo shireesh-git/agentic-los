@@ -1,0 +1,36 @@
+{
+  "source": "gstin",
+  "record_type": "registration",
+  "entity_key": "27AABCB1234F1Z5",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "27AABCB1234F1Z5",
+    "legal_name": "Bharat Manufacturing Ltd",
+    "trade_name": "BHARAT MFG",
+    "pan": "AABCB1234F",
+    "registration_date": "2017-07-01",
+    "status": "Active",
+    "state": "Maharashtra",
+    "taxpayer_type": "Regular",
+    "constitution": "Public Limited Company",
+    "nature_of_business": [
+      "Manufacturing",
+      "Export"
+    ],
+    "aggregate_turnover_fy2024_cr": 1842.0,
+    "aggregate_turnover_fy2023_cr": 1615.0,
+    "aggregate_turnover_fy2022_cr": 1490.0,
+    "filing_frequency": "Monthly",
+    "compliance": {
+      "gstr1_filed_on_time_pct": 100,
+      "gstr3b_filed_on_time_pct": 100,
+      "pending_returns": 0,
+      "last_gstr3b_filed": "February 2026",
+      "last_gstr1_filed": "February 2026"
+    },
+    "itc_claimed_fy2024_cr": 312.5,
+    "tax_paid_fy2024_cr": 78.4
+  }
+}

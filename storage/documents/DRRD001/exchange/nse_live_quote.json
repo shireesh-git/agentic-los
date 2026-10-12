@@ -1,0 +1,206 @@
+{
+  "source": "NSE India API (Live)",
+  "fetched_at": "2026-03-23T21:43:49.712165",
+  "entity_id": "DRRD001",
+  "data": {
+    "info": {
+      "symbol": "DRREDDY",
+      "companyName": "Dr. Reddy's Laboratories Limited",
+      "industry": "Pharmaceuticals",
+      "activeSeries": [
+        "EQ",
+        "T0"
+      ],
+      "debtSeries": [],
+      "isFNOSec": true,
+      "isCASec": false,
+      "isSLBSec": true,
+      "isDebtSec": false,
+      "isSuspended": false,
+      "tempSuspendedSeries": [
+        "N1"
+      ],
+      "isETFSec": false,
+      "isDelisted": false,
+      "isin": "INE089A01031",
+      "slb_isin": "INE089A01031",
+      "listingDate": "2003-05-30",
+      "isMunicipalBond": false,
+      "isHybridSymbol": false,
+      "segment": "EQUITY",
+      "isTop10": false,
+      "identifier": "DRREDDYEQN"
+    },
+    "metadata": {
+      "series": "EQ",
+      "symbol": "DRREDDY",
+      "isin": "INE089A01031",
+      "status": "Listed",
+      "listingDate": "30-May-2003",
+      "industry": "Pharmaceuticals",
+      "lastUpdateTime": "23-Mar-2026 16:00:00",
+      "pdSectorPe": 19.68,
+      "pdSymbolPe": 19.68,
+      "pdSectorInd": "NIFTY 50",
+      "pdSectorIndAll": [
+        "NIFTY 50",
+        "NIFTY500 SHARIAH",
+        "NIFTY ALPHA QUALITY VALUE LOW-VOLATILITY 30",
+        "NIFTY LARGEMIDCAP 250",
+        "NIFTY QUALITY LOW-VOLATILITY 30",
+        "NIFTY100 QUALITY 30",
+        "NIFTY50 EQUAL WEIGHT",
+        "NIFTY 100",
+        "NIFTY 200",
+        "NIFTY 500",
+        "NIFTY HEALTHCARE INDEX",
+        "NIFTY INDIA FPI 150",
+        "NIFTY INDIA MANUFACTURING",
+        "NIFTY LOW VOLATILITY 50",
+        "NIFTY PHARMA",
+        "NIFTY SHARIAH 25",
+        "NIFTY TOTAL MARKET",
+        "NIFTY100 EQUAL WEIGHT",
+        "NIFTY100 LOW VOLATILITY 30",
+        "NIFTY50 SHARIAH",
+        "NIFTY50 VALUE 20",
+        "NIFTY500 EQUAL WEIGHT",
+        "NIFTY500 HEALTHCARE",
+        "NIFTY500 LARGEMIDSMALL EQUAL-CAP WEIGHTED",
+        "NIFTY500 LOW VOLATILITY 50",
+        "NIFTY500 MULTICAP 50:25:25",
+        "NIFTY500 MULTICAP INDIA MANUFACTURING 50:30:20",
+        "NIFTY500 MULTIFACTOR MQVLV 50",
+        "NIFTY ALPHA LOW-VOLATILITY 30",
+        "NIFTY ALPHA QUALITY LOW-VOLATILITY 30"
+      ]
+    },
+    "securityInfo": {
+      "boardStatus": "Main",
+      "tradingStatus": "Active",
+      "tradingSegment": "Normal Market",
+      "sessionNo": "-",
+      "slb": "Yes",
+      "classOfShare": "Equity",
+      "derivatives": "Yes",
+      "surveillance": {
+        "surv": null,
+        "desc": null
+      },
+      "faceValue": 1,
+      "issuedSize": 834643020
+    },
+    "sddDetails": {
+      "SDDAuditor": "-",
+      "SDDStatus": "-"
+    },
+    "currentMarketType": "NM",
+    "priceInfo": {
+      "lastPrice": 1248.8,
+      "change": -50.100000000000136,
+      "pChange": -3.8571098621910953,
+      "previousClose": 1298.9,
+      "open": 1293,
+      "close": 1253.3,
+      "vwap": 1270.06,
+      "stockIndClosePrice": 0,
+      "lowerCP": "1128.00",
+      "upperCP": "1378.60",
+      "pPriceBand": "No Band",
+      "basePrice": 1298.9,
+      "intraDayHighLow": {
+        "min": 1244.2,
+        "max": 1293,
+        "value": 1248.8
+      },
+      "weekHighLow": {
+        "min": 1020,
+        "minDate": "07-Apr-2025",
+        "max": 1379.7,
+        "maxDate": "12-Jun-2025",
+        "value": 1248.8
+      },
+      "iNavValue": null,
+      "checkINAV": false,
+      "tickSize": 0.1,
+      "ieq": ""
+    },
+    "industryInfo": {
+      "macro": "Healthcare",
+      "sector": "Healthcare",
+      "industry": "Pharmaceuticals & Biotechnology",
+      "basicIndustry": "Pharmaceuticals"
+    },
+    "preOpenMarket": {
+      "preopen": [
+        {
+          "price": 1290,
+          "buyQty": 108,
+          "sellQty": 0
+        },
+        {
+          "price": 1290.1,
+          "buyQty": 10,
+          "sellQty": 0
+        },
+        {
+          "price": 1290.5,
+          "buyQty": 20,
+          "sellQty": 0
+        },
+        {
+          "price": 1291.6,
+          "buyQty": 2,
+          "sellQty": 0
+        },
+        {
+          "price": 1292.4,
+          "buyQty": 202,
+          "sellQty": 0
+        },
+        {
+          "price": 1293,
+          "buyQty": 0,
+          "sellQty": 122,
+          "iep": true
+        },
+        {
+          "price": 1294,
+          "buyQty": 0,
+          "sellQty": 60
+        },
+        {
+          "price": 1294.9,
+          "buyQty": 0,
+          "sellQty": 500
+        },
+        {
+          "price": 1295,
+          "buyQty": 0,
+          "sellQty": 107
+        },
+        {
+          "price": 1295.1,
+          "buyQty": 0,
+          "sellQty": 5
+        }
+      ],
+      "ato": {
+        "buy": 0,
+        "sell": 0
+      },
+      "IEP": 1293,
+      "totalTradedVolume": 7271,
+      "finalPrice": 1293,
+      "finalQuantity": 7271,
+      "lastUpdateTime": "23-Mar-2026 09:07:15",
+      "totalBuyQuantity": 8871,
+      "totalSellQuantity": 15139,
+      "atoBuyQty": 0,
+      "atoSellQty": 0,
+      "Change": -5.9,
+      "perChange": -0.45,
+      "prevClose": 1298.9
+    }
+  }
+}

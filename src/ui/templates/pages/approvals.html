@@ -1,0 +1,43 @@
+<section x-show="page==='approvals'" x-cloak>
+  <div class="page-header">
+    <div>
+      <h1>Approvals</h1>
+      <p class="page-subtitle">Cases submitted for a decision, for the authority level you choose. Cases waiting longer than <strong x-text="decisionTatDays + ' days'"></strong> are marked overdue.</p>
+    </div>
+    <select class="input approvals-role" x-model="approvalRole" @change="loadApprovalQueue()">
+      <option value="">Choose your authority level</option>
+      <template x-for="level in approvalLevels" :key="level.id">
+        <option :value="level.id" x-text="level.name"></option>
+      </template>
+    </select>
+  </div>
+
+  <div class="card">
+    <div class="table-scroll" x-show="approvalQueue.length">
+      <table class="data-table summary-table">
+        <thead><tr>
+          <th>Borrower</th><th class="num">Amount</th><th>Grade</th><th>System view</th>
+          <th>Submitted by</th><th>Waiting</th><th></th>
+        </tr></thead>
+        <tbody>
+          <template x-for="q in approvalQueue" :key="q.entity_id">
+            <tr class="row-link" @click="openWorkspace(q.entity_id, 'decision')">
+              <td><strong x-text="displayCompanyName(q.company_name || q.entity_id)"></strong></td>
+              <td class="num" x-text="formatCurrencyCr(q.requested_amount_cr || 0)"></td>
+              <td><span class="badge" :class="gradeCls(q.risk_grade)" x-text="q.risk_grade || '--'"></span></td>
+              <td><span class="badge" :class="recCls(q.system_recommendation)" x-text="fmtRec(q.system_recommendation || '')"></span></td>
+              <td x-text="q.submitted_by || '--'"></td>
+              <td :class="isOverdue(q.updated_at) ? 'text-red' : 'text-muted'">
+                    <span x-text="ageLabel(q.updated_at)"></span>
+                    <span class="badge badge-red" x-show="isOverdue(q.updated_at)">Overdue</span>
+                  </td>
+              <td class="action-cell"><button class="btn btn-sm btn-primary" @click.stop="openWorkspace(q.entity_id, 'decision')">Review</button></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <p class="empty-state" x-show="!approvalQueue.length"
+       x-text="approvalRole ? 'Nothing is waiting for this authority level.' : 'Choose your authority level to see the cases waiting for your decision.'"></p>
+  </div>
+</section>

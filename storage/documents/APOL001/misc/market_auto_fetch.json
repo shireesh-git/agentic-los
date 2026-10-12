@@ -1,0 +1,24 @@
+{
+  "source": "market",
+  "record_type": "news_sentiment",
+  "entity_key": "APOL001",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "overall_sentiment": "positive",
+    "sentiment_score": 0.74,
+    "news_count_last_90d": 35,
+    "positive_count": 26,
+    "neutral_count": 6,
+    "negative_count": 3,
+    "top_themes": [
+      "revenue crosses \u20b921000Cr",
+      "hospital ARPOB expansion",
+      "Apollo 24|7 digital growth 100M users",
+      "ICRA AA+ reaffirmation",
+      "new hospital openings in Pune and Kolkata"
+    ],
+    "reputation_risk_score": "low"
+  }
+}

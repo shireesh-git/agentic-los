@@ -1,0 +1,64 @@
+{
+  "source": "bureau",
+  "record_type": "commercial_report",
+  "entity_key": "AABCO3456J",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Omega Logistics Pvt Ltd",
+    "credit_score": 688,
+    "score_band": "BBB",
+    "score_description": "Average \u2014 Moderate risk",
+    "total_exposure_cr": 248.0,
+    "total_lenders": 2,
+    "dpd_status": "SMA-0",
+    "max_dpd_last_12m": 32,
+    "max_dpd_last_24m": 32,
+    "worst_status_12m": "SMA-1",
+    "worst_status_24m": "SMA-1",
+    "suit_filed_amount_cr": 0.0,
+    "wilful_defaulter": false,
+    "fraud_flag": false,
+    "rbi_defaulter_list": false,
+    "enquiries_last_6m": 4,
+    "enquiries_last_12m": 7,
+    "facilities": [
+      {
+        "lender": "Our Bank",
+        "type": "CC",
+        "sanction_date": "2019-06-15",
+        "limit_cr": 110.0,
+        "outstanding_cr": 105.6,
+        "dpd": 0,
+        "classification": "Standard"
+      },
+      {
+        "lender": "Our Bank",
+        "type": "TL",
+        "sanction_date": "2020-03-20",
+        "limit_cr": 85.0,
+        "outstanding_cr": 62.5,
+        "dpd": 15,
+        "classification": "SMA-0"
+      },
+      {
+        "lender": "Kotak",
+        "type": "CC",
+        "sanction_date": "2021-11-10",
+        "limit_cr": 53.0,
+        "outstanding_cr": 48.0,
+        "dpd": 0,
+        "classification": "Standard"
+      }
+    ],
+    "payment_history_36m": "000000000001000010000100001000000000",
+    "overdue_summary": {
+      "current": 201.6,
+      "1_30_dpd": 46.4,
+      "31_60_dpd": 0,
+      "61_90_dpd": 0,
+      "above_90_dpd": 0
+    }
+  }
+}

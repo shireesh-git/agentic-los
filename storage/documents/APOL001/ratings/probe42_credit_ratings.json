@@ -1,0 +1,201 @@
+{
+  "metadata": {
+    "old_identifier": null,
+    "api_version": "1.0",
+    "last_updated": "2026-02-25"
+  },
+  "data": [
+    {
+      "rating_agency": "crisil",
+      "rating_date": "2026-01-27",
+      "rating_details": [
+        {
+          "instrument": "Non Convertible Debenture",
+          "currency": "INR",
+          "amount": 190000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Proposed Rupee Term Loan",
+          "currency": "INR",
+          "amount": 3580000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 1000000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 1000000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 3130000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 3000000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 2320000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 3000000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 3360000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 720000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 3500000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Rupee Term Loan",
+          "currency": "INR",
+          "amount": 390000000,
+          "rating": "AA+",
+          "action": "Reaffirmed",
+          "outlook": "Positive",
+          "remarks": null
+        },
+        {
+          "instrument": "Working Capital Demand Loan",
+          "currency": "INR",
+          "amount": 1500000000,
+          "rating": "A1+",
+          "action": "Reaffirmed",
+          "outlook": null,
+          "remarks": null
+        },
+        {
+          "instrument": "Working Capital Demand Loan",
+          "currency": "INR",
+          "amount": 1500000000,
+          "rating": "A1+",
+          "action": "Reaffirmed",
+          "outlook": null,
+          "remarks": null
+        }
+      ]
+    },
+    {
+      "rating_agency": "india_ratings",
+      "rating_date": "2025-01-24",
+      "rating_details": [
+        {
+          "instrument": "Fund Based Working Capital limit",
+          "currency": "INR",
+          "amount": 2400000000,
+          "rating": "AA+",
+          "action": "Affirmed",
+          "outlook": "Stable",
+          "remarks": null
+        },
+        {
+          "instrument": "Non Convertible Debenture",
+          "currency": "INR",
+          "amount": 1050000000,
+          "rating": null,
+          "action": "Withdrawn",
+          "outlook": null,
+          "remarks": null
+        },
+        {
+          "instrument": "Proposed Non Convertible Debenture",
+          "currency": "INR",
+          "amount": 1450000000,
+          "rating": null,
+          "action": "Withdrawn",
+          "outlook": null,
+          "remarks": null
+        },
+        {
+          "instrument": "Proposed Term Loan",
+          "currency": "INR",
+          "amount": 1280000000,
+          "rating": "AA+",
+          "action": "Affirmed",
+          "outlook": "Stable",
+          "remarks": null
+        },
+        {
+          "instrument": "Term Loan",
+          "currency": "INR",
+          "amount": 13320000000,
+          "rating": "AA+",
+          "action": "Affirmed",
+          "outlook": "Stable",
+          "remarks": null
+        },
+        {
+          "instrument": "Term Loan",
+          "currency": "INR",
+          "amount": 4470000000,
+          "rating": "AA+",
+          "action": "Assigned",
+          "outlook": "Stable",
+          "remarks": null
+        }
+      ]
+    }
+  ]
+}

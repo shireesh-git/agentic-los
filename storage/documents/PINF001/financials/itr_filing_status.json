@@ -1,0 +1,20 @@
+{
+  "source": "income_tax",
+  "record_type": "itr_status",
+  "entity_key": "AABCP5678G",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Pinnacle Infra Projects Ltd",
+    "assessment_year": "AY 2025-26",
+    "itr_form": "ITR-6",
+    "date_filed": "2025-11-30",
+    "filing_status": "Filed after due date (belated)",
+    "total_income_cr": 24.5,
+    "tax_paid_cr": 6.5,
+    "refund_status": "Nil",
+    "outstanding_demand_cr": 2.8,
+    "tds_credit_26as_cr": 32.1
+  }
+}

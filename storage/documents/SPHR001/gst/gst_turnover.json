@@ -1,0 +1,18 @@
+{
+  "source": "gstin",
+  "record_type": "turnover",
+  "entity_key": "AABCS9012H",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "24AABCS9012H1Z2",
+    "legal_name": "Sunrise Pharma Pvt Ltd",
+    "aggregate_turnover_fy2024_cr": 418.0,
+    "aggregate_turnover_fy2023_cr": 382.0,
+    "aggregate_turnover_fy2022_cr": 348.0,
+    "filing_status": "GSTR-3B on-time 100%",
+    "last_return_filed": "February 2026",
+    "pending_returns": 0
+  }
+}

@@ -1,0 +1,1026 @@
+{
+  "data": [
+    {
+      "name": "GOVIND VAIDIRAM IYER",
+      "din": "00169343",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "U67120MH1984PTC034234",
+            "legal_name": "STOCKPOLE INVESTMENTS PVT LTD",
+            "company_status": "Strike Off",
+            "paid_up_capital": 100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1984-10-10",
+            "designation": "Director",
+            "date_of_appointment": "2005-04-29",
+            "date_of_appointment_for_current_designation": "2005-04-29",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U26109GJ1992PTC017357",
+            "legal_name": "OPTISURGICARE (INDIA) PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 3500000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1992-03-24",
+            "designation": "Director",
+            "date_of_appointment": "2000-05-27",
+            "date_of_appointment_for_current_designation": "2000-05-27",
+            "date_of_cessation": "2015-06-01"
+          },
+          {
+            "cin": "U25209MH1979PTC021560",
+            "legal_name": "ASHLAND PLASTICS PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1979-08-16",
+            "designation": "Director",
+            "date_of_appointment": "2000-09-30",
+            "date_of_appointment_for_current_designation": "2000-09-30",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U65990MH1987PTC043776",
+            "legal_name": "COMTRADE LEASING AND INVESTMENT (INDIA) PVT LTD",
+            "company_status": "Active",
+            "paid_up_capital": 102000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1987-06-15",
+            "designation": "Director",
+            "date_of_appointment": "2005-04-29",
+            "date_of_appointment_for_current_designation": "2005-04-29",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U74140DL1995PTC073246",
+            "legal_name": "EGON ZEHNDER INTERNATIONAL PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 15000020,
+            "sum_of_charges": 80000000,
+            "incorporation_date": "1995-10-17",
+            "designation": "Director",
+            "date_of_appointment": "2010-03-04",
+            "date_of_appointment_for_current_designation": "2011-02-28",
+            "date_of_cessation": "2022-10-31"
+          },
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2023-01-12",
+            "date_of_appointment_for_current_designation": "2023-03-31",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U65990MH1987PTC044403",
+            "legal_name": "LAGOON INVESTMENTS PRIVATE LIMITED",
+            "company_status": "Strike Off",
+            "paid_up_capital": 108000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1987-08-18",
+            "designation": "Director",
+            "date_of_appointment": "2005-04-29",
+            "date_of_appointment_for_current_designation": "2005-04-29",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U93000KA2012NPL066853",
+            "legal_name": "SVP PHILANTHROPY FOUNDATION",
+            "company_status": "Active",
+            "paid_up_capital": 0,
+            "sum_of_charges": 0,
+            "incorporation_date": "2012-11-22",
+            "designation": "Director",
+            "date_of_appointment": "2012-11-27",
+            "date_of_appointment_for_current_designation": "2013-06-29",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U91110KA2000NPL151182",
+            "legal_name": "GIVE FOUNDATION",
+            "company_status": "Active",
+            "paid_up_capital": 25200,
+            "sum_of_charges": 0,
+            "incorporation_date": "2000-04-28",
+            "designation": "Director",
+            "date_of_appointment": "2017-07-28",
+            "date_of_appointment_for_current_designation": "2018-09-28",
+            "date_of_cessation": "2024-12-31"
+          },
+          {
+            "cin": "U80301DL2022NPL393046",
+            "legal_name": "KARMAYOGI BHARAT",
+            "company_status": "Active",
+            "paid_up_capital": 400000000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2022-01-31",
+            "designation": "Director",
+            "date_of_appointment": "2022-01-31",
+            "date_of_appointment_for_current_designation": "2023-12-06",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U88900MH2024NPL436658",
+            "legal_name": "ICVA FOUNDATION",
+            "company_status": "Active",
+            "paid_up_capital": null,
+            "sum_of_charges": 0,
+            "incorporation_date": "2024-12-18",
+            "designation": "Director",
+            "date_of_appointment": "2024-12-18",
+            "date_of_appointment_for_current_designation": "2024-12-18",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": [
+          {
+            "cin": "ABZ-5724",
+            "legal_name": "GVI Associates LLP",
+            "company_status": "Active",
+            "paid_up_capital": null,
+            "total_obligation_of_contribution": 1050000,
+            "incorporation_date": "2022-12-22",
+            "designation": "Designated Partner",
+            "date_of_appointment": null,
+            "date_of_appointment_for_current_designation": "2022-12-22",
+            "date_of_cessation": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "HELENE MARIE JACQUELINE MADELEINE AURIOL POTIER",
+      "din": "10166891",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2023-05-26",
+            "date_of_appointment_for_current_designation": "2023-06-28",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": null
+      }
+    },
+    {
+      "name": "SALIL SATISH PAREKH",
+      "din": "01876159",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "U72200TN1999PTC042096",
+            "legal_name": "THESYS TECHNOLOGIES PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 6700200,
+            "sum_of_charges": 0,
+            "incorporation_date": "1999-03-19",
+            "designation": "Director",
+            "date_of_appointment": "2010-11-23",
+            "date_of_appointment_for_current_designation": "2011-09-30",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U72300MH1988PTC047841",
+            "legal_name": "PUNE SOFTWARE PARK PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 50000000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1988-06-27",
+            "designation": "Director",
+            "date_of_appointment": "2007-03-27",
+            "date_of_appointment_for_current_designation": "2007-03-27",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U72200MH1992PTC197069",
+            "legal_name": "CAPGEMINI INDIA PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 68989800,
+            "sum_of_charges": 0,
+            "incorporation_date": "1992-09-29",
+            "designation": "Director",
+            "date_of_appointment": "2007-03-22",
+            "date_of_appointment_for_current_designation": "2007-11-01",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U85110PN1993PLC145950",
+            "legal_name": "CAPGEMINI TECHNOLOGY SERVICES INDIA LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 592712960,
+            "sum_of_charges": 705278926,
+            "incorporation_date": "1993-12-27",
+            "designation": "Director",
+            "date_of_appointment": "2017-05-04",
+            "date_of_appointment_for_current_designation": "2017-09-27",
+            "date_of_cessation": "2017-12-06"
+          },
+          {
+            "cin": "U99999MH1997PTC109864",
+            "legal_name": "CAPGEMINI CONSULTING INDIA PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 792432000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1997-08-05",
+            "designation": "Director",
+            "date_of_appointment": "2007-10-11",
+            "date_of_appointment_for_current_designation": "2008-06-27",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Managing Director",
+            "date_of_appointment": "2018-01-02",
+            "date_of_appointment_for_current_designation": "2018-01-02",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": null
+      }
+    },
+    {
+      "name": "BOBBY KANUBHAI PARIKH",
+      "din": "00019437",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "U74140DL2005PTC140314",
+            "legal_name": "TAXAND ADVISORS PRIVATE LIMITED",
+            "company_status": "Strike Off",
+            "paid_up_capital": 100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2005-09-02",
+            "designation": "Director",
+            "date_of_appointment": "2012-01-18",
+            "date_of_appointment_for_current_designation": "2016-09-30",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U74140MH1997NPL111167",
+            "legal_name": "YOUNG PRESIDENTS ORGANIZATION (MUMBAI CHAPTER)",
+            "company_status": "Active",
+            "paid_up_capital": 0,
+            "sum_of_charges": 0,
+            "incorporation_date": "1997-10-08",
+            "designation": "Director",
+            "date_of_appointment": "2008-07-01",
+            "date_of_appointment_for_current_designation": "2008-07-01",
+            "date_of_cessation": "2014-07-01"
+          },
+          {
+            "cin": "U66010DL2000PLC107880",
+            "legal_name": "AVIVA LIFE INSURANCE COMPANY INDIA LTD",
+            "company_status": "Active",
+            "paid_up_capital": 21899000000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2000-09-25",
+            "designation": "Director",
+            "date_of_appointment": "2009-11-17",
+            "date_of_appointment_for_current_designation": "2014-11-19",
+            "date_of_cessation": "2022-11-18"
+          },
+          {
+            "cin": "U74140DL2006PTC154434",
+            "legal_name": "BG DATALINKS PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2006-10-05",
+            "designation": "Director",
+            "date_of_appointment": "2006-10-05",
+            "date_of_appointment_for_current_designation": "2012-01-18",
+            "date_of_cessation": "2023-12-26"
+          },
+          {
+            "cin": "L11100GJ2005PLC048030",
+            "legal_name": "RELIANCE PETROLEUM LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 44999868750,
+            "sum_of_charges": 0,
+            "incorporation_date": "2005-10-24",
+            "designation": "Director",
+            "date_of_appointment": "2006-02-25",
+            "date_of_appointment_for_current_designation": "2006-02-25",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U45400HR2008PLC068302",
+            "legal_name": "SEMBCORP GREEN INFRA LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 3492100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2008-04-03",
+            "designation": "Director",
+            "date_of_appointment": "2011-02-19",
+            "date_of_appointment_for_current_designation": "2012-09-28",
+            "date_of_cessation": "2019-07-08"
+          },
+          {
+            "cin": "U40101HR2010PLC070260",
+            "legal_name": "GREEN INFRA WIND VENTURES LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 1960300000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2010-12-28",
+            "designation": "Director",
+            "date_of_appointment": "2014-09-08",
+            "date_of_appointment_for_current_designation": "2014-09-08",
+            "date_of_cessation": "2015-08-17"
+          },
+          {
+            "cin": "L65991MH1994PLC080811",
+            "legal_name": "ADITYA BIRLA SUN LIFE AMC LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 1443928145,
+            "sum_of_charges": 102500000,
+            "incorporation_date": "1994-09-05",
+            "designation": "Director",
+            "date_of_appointment": "2012-02-03",
+            "date_of_appointment_for_current_designation": "2012-07-24",
+            "date_of_cessation": "2022-02-02"
+          },
+          {
+            "cin": "U68200MH2023PTC406104",
+            "legal_name": "K RAHEJA CORP INVESTMENT MANAGERS PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 300000000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2023-07-07",
+            "designation": "Director",
+            "date_of_appointment": "2023-07-11",
+            "date_of_appointment_for_current_designation": "2023-09-20",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U24119KA2016PLC093936",
+            "legal_name": "BIOCON BIOLOGICS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 18198713230,
+            "sum_of_charges": 95436558080,
+            "incorporation_date": "2016-06-08",
+            "designation": "Director",
+            "date_of_appointment": "2019-08-01",
+            "date_of_appointment_for_current_designation": "2020-07-24",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U40103HR2008PLC095648",
+            "legal_name": "SEIL ENERGY INDIA LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 37456522740,
+            "sum_of_charges": 46649568737,
+            "incorporation_date": "2008-01-08",
+            "designation": "Director",
+            "date_of_appointment": "2018-02-02",
+            "date_of_appointment_for_current_designation": "2018-02-02",
+            "date_of_cessation": "2020-09-01"
+          },
+          {
+            "cin": "U74100DL2004PTC440745",
+            "legal_name": "BMR BUSINESS SOLUTIONS PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 853200,
+            "sum_of_charges": 0,
+            "incorporation_date": "2004-12-16",
+            "designation": "Director",
+            "date_of_appointment": "2012-01-18",
+            "date_of_appointment_for_current_designation": "2012-09-30",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2020-07-15",
+            "date_of_appointment_for_current_designation": "2021-06-19",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L24234KA1978PLC003417",
+            "legal_name": "BIOCON LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 8104538865,
+            "sum_of_charges": 2076348000,
+            "incorporation_date": "1978-11-29",
+            "designation": "Director",
+            "date_of_appointment": "2018-07-27",
+            "date_of_appointment_for_current_designation": "2018-07-27",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L65100MH2009PLC268160",
+            "legal_name": "INDOSTAR CAPITAL FINANCE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 1615372660,
+            "sum_of_charges": 62930854000,
+            "incorporation_date": "2009-07-21",
+            "designation": "Director",
+            "date_of_appointment": "2011-08-01",
+            "date_of_appointment_for_current_designation": "2025-05-24",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L15140MH1933PLC002030",
+            "legal_name": "HINDUSTAN UNILEVER LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 2349591262,
+            "sum_of_charges": 0,
+            "incorporation_date": "1933-10-17",
+            "designation": "Director",
+            "date_of_appointment": "2025-12-01",
+            "date_of_appointment_for_current_designation": "2026-01-06",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": [
+          {
+            "cin": "AAA-8799",
+            "legal_name": "BMR & ASSOCIATES LLP",
+            "company_status": "Active",
+            "paid_up_capital": null,
+            "total_obligation_of_contribution": 57800000,
+            "incorporation_date": "2012-04-16",
+            "designation": "Designated Partner",
+            "date_of_appointment": "2012-04-16",
+            "date_of_appointment_for_current_designation": "2012-09-15",
+            "date_of_cessation": "2017-08-31"
+          },
+          {
+            "cin": "AAL-7947",
+            "legal_name": "AVAANA CAPITAL ADVISORS LLP",
+            "company_status": "Active",
+            "paid_up_capital": null,
+            "total_obligation_of_contribution": 13333,
+            "incorporation_date": "2018-01-22",
+            "designation": "Designated Partner",
+            "date_of_appointment": null,
+            "date_of_appointment_for_current_designation": "2018-02-21",
+            "date_of_cessation": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "CHITRA NAYAK",
+      "din": "09101763",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2021-03-25",
+            "date_of_appointment_for_current_designation": "2021-06-19",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": null
+      }
+    },
+    {
+      "name": "MICHAEL NELSON GIBBS",
+      "din": "08177291",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "U72200KA2002PLC030310",
+            "legal_name": "INFOSYS BPM LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 338280000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2002-04-03",
+            "designation": "Director",
+            "date_of_appointment": "2019-07-10",
+            "date_of_appointment_for_current_designation": "2020-07-09",
+            "date_of_cessation": "2022-08-16"
+          },
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2018-07-13",
+            "date_of_appointment_for_current_designation": "2018-08-22",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": null
+      }
+    },
+    {
+      "name": "NANDAN MOHAN NILEKANI",
+      "din": "00041245",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "U65999KA1978PTC041236",
+            "legal_name": "R. TEHMURASP INVESTMENT COMPANY PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 590000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1978-11-03",
+            "designation": "Director",
+            "date_of_appointment": "2017-06-30",
+            "date_of_appointment_for_current_designation": "2017-08-18",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U74900KA2014NPL077892",
+            "legal_name": "EKSTEP FOUNDATION",
+            "company_status": "Active",
+            "paid_up_capital": 100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2014-12-23",
+            "designation": "Director",
+            "date_of_appointment": "2014-12-23",
+            "date_of_appointment_for_current_designation": "2014-12-23",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U74990KA2008NPL078948",
+            "legal_name": "INDIAN INSTITUTE FOR HUMAN SETTLEMENTS",
+            "company_status": "Active",
+            "paid_up_capital": 13950000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2008-12-23",
+            "designation": "Director",
+            "date_of_appointment": "2014-06-16",
+            "date_of_appointment_for_current_designation": "2014-09-30",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U70200KA2009PTC084479",
+            "legal_name": "PJPA REALITY PRIVATE LIMITED",
+            "company_status": "Strike Off",
+            "paid_up_capital": 100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2009-01-14",
+            "designation": "Director",
+            "date_of_appointment": "2015-01-23",
+            "date_of_appointment_for_current_designation": "2015-09-29",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U65929KA2016PTC138292",
+            "legal_name": "AVANTI MICROFINANCE PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 395161070,
+            "sum_of_charges": 0,
+            "incorporation_date": "2016-10-07",
+            "designation": "Director",
+            "date_of_appointment": "2016-10-07",
+            "date_of_appointment_for_current_designation": "2016-10-07",
+            "date_of_cessation": "2024-03-29"
+          },
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2017-08-24",
+            "date_of_appointment_for_current_designation": "2017-10-07",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U64920KA2016PTC138355",
+            "legal_name": "AVANTI FINANCE PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 5474369480,
+            "sum_of_charges": 10862000000,
+            "incorporation_date": "2016-08-01",
+            "designation": "Director",
+            "date_of_appointment": "2016-08-01",
+            "date_of_appointment_for_current_designation": "2016-08-01",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": null
+      }
+    },
+    {
+      "name": "SUNDARAM DAMODARANNAIR",
+      "din": "00016304",
+      "din_status": "Approved",
+      "network": {
+        "companies": [
+          {
+            "cin": "L30007TN1995PLC032941",
+            "legal_name": "TVS ELECTRONICS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 186503180,
+            "sum_of_charges": 1560000000,
+            "incorporation_date": "1995-09-15",
+            "designation": "Director",
+            "date_of_appointment": "2009-07-30",
+            "date_of_appointment_for_current_designation": "2015-08-06",
+            "date_of_cessation": "2020-08-08"
+          },
+          {
+            "cin": "U51900MH1963PLC012667",
+            "legal_name": "UNILEVER INDIA EXPORTS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 29750020,
+            "sum_of_charges": 3700000,
+            "incorporation_date": "1963-06-26",
+            "designation": "Director",
+            "date_of_appointment": "2004-10-28",
+            "date_of_appointment_for_current_designation": "2004-10-28",
+            "date_of_cessation": "2009-07-13"
+          },
+          {
+            "cin": "U65991TN2007PLC064133",
+            "legal_name": "TVS CAPITAL FUNDS LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 48864000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2007-06-28",
+            "designation": "Managing Director",
+            "date_of_appointment": "2009-06-13",
+            "date_of_appointment_for_current_designation": "2009-07-10",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L15140MH1933PLC002030",
+            "legal_name": "HINDUSTAN UNILEVER LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 2349591262,
+            "sum_of_charges": 0,
+            "incorporation_date": "1933-10-17",
+            "designation": "Whole-time director",
+            "date_of_appointment": "1999-03-23",
+            "date_of_appointment_for_current_designation": "1999-03-23",
+            "date_of_cessation": "2009-07-03"
+          },
+          {
+            "cin": "U66000MH2009PLC190546",
+            "legal_name": "SBI GENERAL INSURANCE COMPANY LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 2238675670,
+            "sum_of_charges": 0,
+            "incorporation_date": "2009-02-24",
+            "designation": "Director",
+            "date_of_appointment": "2014-12-12",
+            "date_of_appointment_for_current_designation": "2017-12-12",
+            "date_of_cessation": "2022-12-12"
+          },
+          {
+            "cin": "U74899DL1995PTC065815",
+            "legal_name": "SCHNEIDER ELECTRIC INDIA PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 4910595840,
+            "sum_of_charges": 0,
+            "incorporation_date": "1995-02-24",
+            "designation": "Director",
+            "date_of_appointment": "2020-10-23",
+            "date_of_appointment_for_current_designation": "2021-04-27",
+            "date_of_cessation": "2026-01-31"
+          },
+          {
+            "cin": "U99999MH1986PLC040298",
+            "legal_name": "SBI CAPITAL MARKETS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 580337110,
+            "sum_of_charges": 15200000000,
+            "incorporation_date": "1986-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2002-05-22",
+            "date_of_appointment_for_current_designation": "2002-05-22",
+            "date_of_cessation": "2014-09-05"
+          },
+          {
+            "cin": "L24239MH1924PLC001151",
+            "legal_name": "GLAXOSMITHKLINE PHARMACEUTICALS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 1694060340,
+            "sum_of_charges": 218700000,
+            "incorporation_date": "1924-11-13",
+            "designation": "Director",
+            "date_of_appointment": "2009-07-27",
+            "date_of_appointment_for_current_designation": "2020-03-30",
+            "date_of_cessation": "2025-03-29"
+          },
+          {
+            "cin": "U22300DL2007PTC167650",
+            "legal_name": "9.9 GROUP PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 655170,
+            "sum_of_charges": 0,
+            "incorporation_date": "2007-09-01",
+            "designation": "Nominee Director",
+            "date_of_appointment": "2010-05-12",
+            "date_of_appointment_for_current_designation": "2010-05-12",
+            "date_of_cessation": "2019-03-25"
+          },
+          {
+            "cin": "U24247MH2008PTC188539",
+            "legal_name": "LAKME LEVER PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 359075470,
+            "sum_of_charges": 0,
+            "incorporation_date": "2008-12-01",
+            "designation": "Director",
+            "date_of_appointment": "2008-12-01",
+            "date_of_appointment_for_current_designation": "2008-12-01",
+            "date_of_cessation": "2009-06-02"
+          },
+          {
+            "cin": "U85110TN2010PTC075352",
+            "legal_name": "MAXIVISION EYE HOSPITALS PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 38399690,
+            "sum_of_charges": 823790000,
+            "incorporation_date": "2010-04-15",
+            "designation": "Director",
+            "date_of_appointment": "2011-09-28",
+            "date_of_appointment_for_current_designation": "2011-09-28",
+            "date_of_cessation": "2018-03-23"
+          },
+          {
+            "cin": "U80101TN1995PTC092947",
+            "legal_name": "MAXIVISION LASER CENTRE PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 40000000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1995-10-30",
+            "designation": "Director",
+            "date_of_appointment": "2011-09-11",
+            "date_of_appointment_for_current_designation": "2011-09-20",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U15491MH1927PTC136604",
+            "legal_name": "CAPGEMINI BUSINESS SERVICES (INDIA) PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 500000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1927-11-17",
+            "designation": "Director",
+            "date_of_appointment": "2006-10-11",
+            "date_of_appointment_for_current_designation": "2006-10-11",
+            "date_of_cessation": "2009-08-04"
+          },
+          {
+            "cin": "U66000MH2014PLC260291",
+            "legal_name": "ZURICH KOTAK GENERAL INSURANCE COMPANY (INDIA) LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 10727280190,
+            "sum_of_charges": 0,
+            "incorporation_date": "2014-12-20",
+            "designation": "Director",
+            "date_of_appointment": "2024-06-18",
+            "date_of_appointment_for_current_designation": "2024-06-18",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U24246MH1981PLC261125",
+            "legal_name": "PONDS EXPORTS LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 19900000,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-05-26",
+            "designation": "Director",
+            "date_of_appointment": "2008-08-01",
+            "date_of_appointment_for_current_designation": "2009-06-17",
+            "date_of_cessation": "2009-07-13"
+          },
+          {
+            "cin": "U70100KA2007PTC085237",
+            "legal_name": "BROOKEFIELDS REAL ESTATES AND PROJECTS PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 129460000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2007-10-01",
+            "designation": "Director",
+            "date_of_appointment": "2008-03-03",
+            "date_of_appointment_for_current_designation": "2008-03-28",
+            "date_of_cessation": "2009-07-13"
+          },
+          {
+            "cin": "U51900MH2008PTC184184",
+            "legal_name": "TRENT HYPERMARKET PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 2404001420,
+            "sum_of_charges": 0,
+            "incorporation_date": "2008-07-01",
+            "designation": "Director",
+            "date_of_appointment": "2015-03-27",
+            "date_of_appointment_for_current_designation": "2015-08-04",
+            "date_of_cessation": "2017-03-26"
+          },
+          {
+            "cin": "U65100TN2004PTC052667",
+            "legal_name": "TVS WEALTH PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 90100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2004-03-04",
+            "designation": "Director",
+            "date_of_appointment": "2016-12-28",
+            "date_of_appointment_for_current_designation": "2017-05-12",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U74110PN2007PLC172292",
+            "legal_name": "FIORA BUSINESS SUPPORT SERVICES LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 21390259,
+            "sum_of_charges": 0,
+            "incorporation_date": "2007-07-18",
+            "designation": "Director",
+            "date_of_appointment": "2013-04-12",
+            "date_of_appointment_for_current_designation": "2013-08-05",
+            "date_of_cessation": "2016-02-09"
+          },
+          {
+            "cin": "U65993TN2004PTC054696",
+            "legal_name": "TVS INVESTMENTS PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 75887260,
+            "sum_of_charges": 0,
+            "incorporation_date": "2004-11-22",
+            "designation": "Director",
+            "date_of_appointment": "2019-06-29",
+            "date_of_appointment_for_current_designation": "2019-09-21",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L52600MH2012PLC230136",
+            "legal_name": "FSN E-COMMERCE VENTURES LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 2863058056,
+            "sum_of_charges": 1780000000,
+            "incorporation_date": "2012-04-24",
+            "designation": "Alternate Director",
+            "date_of_appointment": "2016-09-09",
+            "date_of_appointment_for_current_designation": "2016-09-09",
+            "date_of_cessation": "2016-11-09"
+          },
+          {
+            "cin": "U85100MH2019PTC323937",
+            "legal_name": "OM ABODE INNOVATION CENTRE PRIVATE LIMITED",
+            "company_status": "Strike Off",
+            "paid_up_capital": 100000,
+            "sum_of_charges": 0,
+            "incorporation_date": "2019-04-10",
+            "designation": "Additional Director",
+            "date_of_appointment": "2019-07-02",
+            "date_of_appointment_for_current_designation": "2019-07-02",
+            "date_of_cessation": "2020-03-31"
+          },
+          {
+            "cin": "L85110TG2006PLC051845",
+            "legal_name": "MEDPLUS HEALTH SERVICES LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 240109284,
+            "sum_of_charges": 110000000,
+            "incorporation_date": "2006-11-30",
+            "designation": "Additional Director",
+            "date_of_appointment": "2011-03-15",
+            "date_of_appointment_for_current_designation": "2017-01-17",
+            "date_of_cessation": "2017-12-15"
+          },
+          {
+            "cin": "L26940GJ1936PLC149771",
+            "legal_name": "ACC LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 1877872630,
+            "sum_of_charges": 0,
+            "incorporation_date": "1936-08-01",
+            "designation": "Director",
+            "date_of_appointment": "2019-03-22",
+            "date_of_appointment_for_current_designation": "2019-03-22",
+            "date_of_cessation": "2022-09-16"
+          },
+          {
+            "cin": "L85110KA1981PLC013115",
+            "legal_name": "INFOSYS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 20273374065,
+            "sum_of_charges": 0,
+            "incorporation_date": "1981-07-02",
+            "designation": "Director",
+            "date_of_appointment": "2017-07-14",
+            "date_of_appointment_for_current_designation": "2017-10-07",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U67190MH2006PLC159411",
+            "legal_name": "CREDILA FINANCIAL SERVICES LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 2187877150,
+            "sum_of_charges": 528355195000,
+            "incorporation_date": "2006-02-01",
+            "designation": "Director",
+            "date_of_appointment": "2024-03-20",
+            "date_of_appointment_for_current_designation": "2024-03-20",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U65191TN1994PTC028851",
+            "legal_name": "TVS CAPITAL FUNDS PRIVATE LIMITED",
+            "company_status": "Amalgamated",
+            "paid_up_capital": 277747180,
+            "sum_of_charges": 0,
+            "incorporation_date": "1994-10-07",
+            "designation": "Director",
+            "date_of_appointment": "2013-08-05",
+            "date_of_appointment_for_current_designation": "2020-07-01",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "U64990TN2023PTC158507",
+            "legal_name": "TVS CAPITAL FUNDS PRIVATE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 277768860,
+            "sum_of_charges": 0,
+            "incorporation_date": "2023-02-13",
+            "designation": "Director",
+            "date_of_appointment": "2024-08-06",
+            "date_of_appointment_for_current_designation": "2024-09-06",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L31900MH2015PLC262254",
+            "legal_name": "CROMPTON GREAVES CONSUMER ELECTRICALS LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 1287829750,
+            "sum_of_charges": 9750000000,
+            "incorporation_date": "2015-02-25",
+            "designation": "Director",
+            "date_of_appointment": "2015-08-26",
+            "date_of_appointment_for_current_designation": "2025-10-19",
+            "date_of_cessation": null
+          },
+          {
+            "cin": "L31900GJ2011PLC064420",
+            "legal_name": "SCHNEIDER ELECTRIC INFRASTRUCTURE LIMITED",
+            "company_status": "Active",
+            "paid_up_capital": 2198208070,
+            "sum_of_charges": 0,
+            "incorporation_date": "2011-03-12",
+            "designation": "Director",
+            "date_of_appointment": "2025-10-24",
+            "date_of_appointment_for_current_designation": "2025-12-11",
+            "date_of_cessation": null
+          }
+        ],
+        "llps": [
+          {
+            "cin": "AAF-2933",
+            "legal_name": "DPVL VENTURES LLP",
+            "company_status": "Active",
+            "paid_up_capital": null,
+            "total_obligation_of_contribution": 2526571178,
+            "incorporation_date": "2015-12-09",
+            "designation": "Designated Partner",
+            "date_of_appointment": "2015-12-09",
+            "date_of_appointment_for_current_designation": "2015-12-09",
+            "date_of_cessation": "2020-10-30"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "generated_at": "2026-03-30T12:58:25Z"
+  }
+}

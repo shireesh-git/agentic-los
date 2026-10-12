@@ -1,0 +1,17 @@
+{
+  "entity_id": "IHCL001",
+  "source": "dms",
+  "last_fetched": "2026-10-07T17:53:44.227667",
+  "total_documents": 23,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "collateral",
+    "ratings",
+    "gst",
+    "banking",
+    "exchange",
+    "request"
+  ]
+}

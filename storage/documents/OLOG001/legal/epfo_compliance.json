@@ -1,0 +1,18 @@
+{
+  "source": "epfo",
+  "record_type": "compliance",
+  "entity_key": "AABCO3456J",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Omega Logistics Pvt Ltd",
+    "establishment_code": "KABAN0045678",
+    "active_members": 620,
+    "total_members": 750,
+    "monthly_contribution_lakhs": 12.0,
+    "compliance_status": "Regular",
+    "pending_challan": 0,
+    "last_challan_date": "2026-02-15"
+  }
+}

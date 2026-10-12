@@ -1,0 +1,28 @@
+{
+  "source": "rating_agency",
+  "record_type": "credit_rating",
+  "source_status": "success",
+  "payload": {
+    "entity_id": "TSTL001",
+    "company_name": "Tara Steels Industries Ltd",
+    "ratings": [
+      {
+        "agency": "CRISIL",
+        "instrument": "Long Term Bank Facilities",
+        "rating": "CRISIL AA/Stable",
+        "previous_rating": "CRISIL AA-/Positive",
+        "action": "Upgraded",
+        "date": "2024-08-15",
+        "amount_rated_cr": 45000
+      },
+      {
+        "agency": "ICRA",
+        "instrument": "Commercial Paper",
+        "rating": "ICRA A1+",
+        "action": "Reaffirmed",
+        "date": "2024-06-20",
+        "amount_rated_cr": 5000
+      }
+    ]
+  }
+}

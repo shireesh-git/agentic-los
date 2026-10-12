@@ -1,0 +1,51 @@
+<section x-show="page==='cases'" x-cloak>
+  <div class="page-header">
+    <div>
+      <h1>Cases</h1>
+      <p class="page-subtitle">Every borrower, its latest analysis and where it stands.</p>
+    </div>
+    <div class="header-actions">
+      <button class="link-btn" x-show="tableSort.cases" @click="clearSort('cases')">Clear sort</button>
+      <input class="input cases-search" type="search" x-model="casesQuery" placeholder="Search borrower, ID or sector" aria-label="Search cases">
+      <button class="btn btn-ghost btn-sm" @click="exportCasesCsv()"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-download"/></svg> Export to Excel</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-scroll">
+      <table class="data-table summary-table" x-show="caseListRows().length">
+        <thead><tr>
+          <th :aria-sort="ariaSort('cases','borrower')"><button type="button" class="th-sort" @click="toggleSort('cases','borrower')">Borrower <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','borrower')"/></svg></button></th><th :aria-sort="ariaSort('cases','type')"><button type="button" class="th-sort" @click="toggleSort('cases','type')">Type <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','type')"/></svg></button></th><th class="num" :aria-sort="ariaSort('cases','amount')"><button type="button" class="th-sort" @click="toggleSort('cases','amount')">Amount <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','amount')"/></svg></button></th><th :aria-sort="ariaSort('cases','grade')"><button type="button" class="th-sort" @click="toggleSort('cases','grade')">Grade <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','grade')"/></svg></button></th><th class="num" :aria-sort="ariaSort('cases','score')"><button type="button" class="th-sort" @click="toggleSort('cases','score')">Score <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','score')"/></svg></button></th>
+          <th :aria-sort="ariaSort('cases','view')"><button type="button" class="th-sort" @click="toggleSort('cases','view')">System view <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','view')"/></svg></button></th><th :aria-sort="ariaSort('cases','status')"><button type="button" class="th-sort" @click="toggleSort('cases','status')">Status <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','status')"/></svg></button></th><th :aria-sort="ariaSort('cases','run')"><button type="button" class="th-sort" @click="toggleSort('cases','run')">Last run <svg class="icon" width="16" height="16" aria-hidden="true"><use :href="sortIcon('cases','run')"/></svg></button></th><th></th>
+        </tr></thead>
+        <tbody>
+          <template x-for="c in caseListRows()" :key="c.entity_id">
+            <tr :class="{ 'row-link': caseMap[c.entity_id] }" @click="caseMap[c.entity_id] && viewCase(c.entity_id)">
+              <td>
+                <strong x-text="displayCompanyName(c.company_name)"></strong>
+                <span class="row-sub" x-text="c.entity_id + ' · ' + titleCase(c.sector)"></span>
+              </td>
+              <td x-text="caseTypeLabel(c.case_type)"></td>
+              <td class="num" x-text="formatCurrencyCr(c.requested_amount_cr)"></td>
+              <td><span class="badge" :class="gradeCls(caseMap[c.entity_id]?.risk_grade)" x-text="caseMap[c.entity_id]?.risk_grade || '--'"></span></td>
+              <td class="num" x-text="displayScore(caseMap[c.entity_id]?.composite_score)"></td>
+              <td><span class="badge" :class="recCls(caseMap[c.entity_id]?.recommendation)" x-text="fmtRec(caseMap[c.entity_id]?.recommendation) || '--'"></span></td>
+              <td>
+                <span class="badge" x-show="portfolioRow(c.entity_id)?.workflow_status" :class="workflowStatusClass(portfolioRow(c.entity_id)?.workflow_status)" x-text="workflowLabel(portfolioRow(c.entity_id)?.workflow_status)"></span>
+                <span class="badge badge-amber" x-show="lastRunStatus(portfolioRow(c.entity_id) || {}) === 'running'">Run in progress</span>
+                <span class="badge badge-red" x-show="lastRunStatus(portfolioRow(c.entity_id) || {}) === 'failed'" :title="portfolioRow(c.entity_id)?.last_run?.error || ''">Last run failed</span>
+                <span class="badge badge-grey" x-show="!portfolioRow(c.entity_id)">Not run</span>
+              </td>
+              <td class="text-muted" x-text="caseMap[c.entity_id]?.run_at ? formatRunTime(caseMap[c.entity_id].run_at) : '--'"></td>
+              <td class="action-cell">
+                <button class="btn btn-sm btn-outline" @click.stop="runCaseFromList(c.entity_id)" :disabled="pipelineRunning"
+                        x-text="caseMap[c.entity_id] ? 'Re-run' : 'Run'"></button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <p class="empty-state" x-show="!caseListRows().length" x-text="casesQuery ? 'No borrower matches this search.' : 'No borrowers yet. Use + Create New CAM to add the first one.'"></p>
+  </div>
+</section>

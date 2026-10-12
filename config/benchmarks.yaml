@@ -1,0 +1,115 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Sector Peer Benchmarks — Edit Here, No Code Changes Needed
+# Format per metric: [p25, median, p75]
+# To add a new sector: copy an existing block and modify values
+# ═══════════════════════════════════════════════════════════════════════
+
+version: "benchmark_v1"
+
+higher_is_worse:
+  - debt_to_equity
+  - debt_to_ebitda
+  - debtor_days
+  - inventory_days
+  - working_capital_cycle
+  - tol_tnw
+
+higher_is_better:
+  - current_ratio
+  - interest_coverage_ratio
+  - net_profit_margin
+  - ebitda_margin
+  - return_on_equity
+  - return_on_assets
+  - asset_turnover
+  - dscr
+  - payable_days
+
+sectors:
+  manufacturing:
+    current_ratio:            [1.15, 1.35, 1.65]
+    debt_to_equity:           [0.60, 0.95, 1.40]
+    debt_to_ebitda:           [1.50, 2.20, 3.20]
+    interest_coverage_ratio:  [3.50, 5.00, 7.50]
+    net_profit_margin:        [0.04, 0.08, 0.12]
+    ebitda_margin:            [0.12, 0.18, 0.24]
+    return_on_equity:         [0.10, 0.16, 0.25]
+    return_on_assets:         [0.04, 0.07, 0.11]
+    asset_turnover:           [0.80, 1.05, 1.30]
+    debtor_days:              [45.0, 60.0, 80.0]
+    inventory_days:           [30.0, 45.0, 65.0]
+    payable_days:             [35.0, 50.0, 70.0]
+    working_capital_cycle:    [30.0, 55.0, 80.0]
+    dscr:                     [1.20, 1.50, 2.00]
+    tol_tnw:                  [1.00, 1.60, 2.50]
+
+  infrastructure:
+    current_ratio:            [0.95, 1.15, 1.40]
+    debt_to_equity:           [1.20, 1.80, 2.80]
+    debt_to_ebitda:           [2.50, 3.50, 5.00]
+    interest_coverage_ratio:  [1.80, 2.80, 4.00]
+    net_profit_margin:        [0.02, 0.06, 0.10]
+    ebitda_margin:            [0.10, 0.16, 0.22]
+    return_on_equity:         [0.06, 0.12, 0.18]
+    return_on_assets:         [0.02, 0.05, 0.08]
+    asset_turnover:           [0.50, 0.75, 1.00]
+    debtor_days:              [60.0, 90.0, 130.0]
+    inventory_days:           [15.0, 25.0, 40.0]
+    payable_days:             [50.0, 75.0, 100.0]
+    working_capital_cycle:    [20.0, 45.0, 80.0]
+    dscr:                     [1.00, 1.25, 1.60]
+    tol_tnw:                  [1.80, 2.80, 4.00]
+
+  pharma:
+    current_ratio:            [1.20, 1.50, 1.90]
+    debt_to_equity:           [0.40, 0.80, 1.30]
+    debt_to_ebitda:           [1.00, 1.80, 2.80]
+    interest_coverage_ratio:  [3.00, 5.50, 9.00]
+    net_profit_margin:        [0.06, 0.10, 0.16]
+    ebitda_margin:            [0.16, 0.22, 0.28]
+    return_on_equity:         [0.12, 0.18, 0.28]
+    return_on_assets:         [0.06, 0.10, 0.15]
+    asset_turnover:           [0.70, 0.90, 1.15]
+    debtor_days:              [50.0, 70.0, 95.0]
+    inventory_days:           [40.0, 55.0, 75.0]
+    payable_days:             [40.0, 55.0, 75.0]
+    working_capital_cycle:    [40.0, 65.0, 95.0]
+    dscr:                     [1.30, 1.70, 2.20]
+    tol_tnw:                  [0.80, 1.30, 2.00]
+
+  logistics:
+    current_ratio:            [1.00, 1.20, 1.45]
+    debt_to_equity:           [1.00, 1.60, 2.50]
+    debt_to_ebitda:           [2.00, 2.80, 4.00]
+    interest_coverage_ratio:  [2.00, 3.00, 4.50]
+    net_profit_margin:        [0.02, 0.04, 0.07]
+    ebitda_margin:            [0.10, 0.15, 0.20]
+    return_on_equity:         [0.08, 0.14, 0.22]
+    return_on_assets:         [0.03, 0.05, 0.08]
+    asset_turnover:           [0.90, 1.15, 1.45]
+    debtor_days:              [50.0, 70.0, 95.0]
+    inventory_days:           [5.0, 10.0, 20.0]
+    payable_days:             [40.0, 55.0, 75.0]
+    working_capital_cycle:    [10.0, 25.0, 45.0]
+    dscr:                     [1.10, 1.35, 1.70]
+    tol_tnw:                  [1.50, 2.50, 3.80]
+
+  # Road & Highway Construction — EPC Contractors
+  # Higher leverage tolerance (asset-heavy BOT concessions), longer debtor days
+  # (government clients like NHAI), strong EBITDA margins for EPC projects.
+  construction_epc:
+    current_ratio:            [0.90, 1.10, 1.35]
+    debt_to_equity:           [1.30, 1.90, 3.00]
+    debt_to_ebitda:           [2.80, 3.80, 5.50]
+    interest_coverage_ratio:  [1.50, 2.50, 3.80]
+    net_profit_margin:        [0.04, 0.08, 0.12]
+    ebitda_margin:            [0.14, 0.20, 0.26]
+    return_on_equity:         [0.08, 0.14, 0.20]
+    return_on_assets:         [0.03, 0.06, 0.09]
+    asset_turnover:           [0.40, 0.60, 0.85]
+    debtor_days:              [55.0, 75.0, 110.0]
+    inventory_days:           [40.0, 65.0, 90.0]
+    payable_days:             [55.0, 80.0, 110.0]
+    working_capital_cycle:    [25.0, 55.0, 90.0]
+    dscr:                     [1.00, 1.20, 1.50]
+    tol_tnw:                  [2.00, 3.00, 4.50]

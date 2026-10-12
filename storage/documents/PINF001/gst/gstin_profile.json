@@ -1,0 +1,36 @@
+{
+  "source": "gstin",
+  "record_type": "registration",
+  "entity_key": "07AABCP5678G1Z8",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "07AABCP5678G1Z8",
+    "legal_name": "Pinnacle Infra Projects Ltd",
+    "trade_name": "PINNACLE INFRA",
+    "pan": "AABCP5678G",
+    "registration_date": "2017-07-01",
+    "status": "Active",
+    "state": "Delhi",
+    "taxpayer_type": "Regular",
+    "constitution": "Public Limited Company",
+    "nature_of_business": [
+      "Works Contract",
+      "Construction"
+    ],
+    "aggregate_turnover_fy2024_cr": 2180.0,
+    "aggregate_turnover_fy2023_cr": 2540.0,
+    "aggregate_turnover_fy2022_cr": 2380.0,
+    "filing_frequency": "Monthly",
+    "compliance": {
+      "gstr1_filed_on_time_pct": 83,
+      "gstr3b_filed_on_time_pct": 75,
+      "pending_returns": 2,
+      "last_gstr3b_filed": "December 2025",
+      "last_gstr1_filed": "December 2025"
+    },
+    "itc_claimed_fy2024_cr": 385.2,
+    "tax_paid_fy2024_cr": 45.6
+  }
+}

@@ -1,0 +1,243 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Policy Rules & Thresholds — Edit Here, No Code Changes Needed
+# ═══════════════════════════════════════════════════════════════════════
+
+hard_rules:
+  wilful_defaulter:
+    enabled: true
+    description: "Borrower must not be flagged as Wilful Defaulter"
+  company_active:
+    enabled: true
+    description: "Company status must be Active in MCA records"
+  no_critical_exceptions:
+    enabled: true
+    description: "No unresolved CRITICAL validation exceptions"
+  kyc_complete:
+    enabled: true
+    applies_to: "NTB"
+    description: "KYC package must be complete for NTB"
+  bureau_status:
+    enabled: true
+    blocked_statuses:
+      - "SMA-2"
+      - "Substandard"
+      - "Doubtful"
+      - "Loss"
+    description: "Bureau status must not be SMA-2 or worse"
+  min_vintage:
+    enabled: true
+    applies_to: "NTB"
+    min_years: 3
+    description: "Company must be at least 3 years old for NTB"
+
+scoring:
+  base_financial_score: 70
+  base_conduct_score: 75
+  base_governance_score: 70
+  base_market_score: 70
+  benchmark_penalty_high: 8
+  benchmark_penalty_medium: 4
+  benchmark_bonus_per_better: 2
+  financial_penalties:
+    icr_critical: { threshold: 1.5, penalty: 15 }
+    icr_warning: { threshold: 2.0, penalty: 8 }
+    icr_bonus: { threshold: 4.0, bonus: 5 }
+    de_critical: { threshold: 3.0, penalty: 10 }
+    de_warning: { threshold: 2.0, penalty: 5 }
+    cr_critical: { threshold: 1.0, penalty: 10 }
+    cr_warning: { threshold: 1.1, penalty: 5 }
+    dscr_critical: { threshold: 1.0, penalty: 15 }
+    dscr_warning: { threshold: 1.2, penalty: 8 }
+    dscr_bonus: { threshold: 1.5, bonus: 5 }
+  conduct_thresholds:
+    cheque_returns_high: 20
+    cheque_returns_medium: 10
+    dpd_critical: 60
+    dpd_high: 30
+    dpd_medium: 15
+    utilization_critical: 95
+    utilization_high: 90
+    covenant_breach_penalty: 8
+
+recommendation:
+  standard_covenants:
+    - "Minimum Current Ratio >= 1.25x"
+    - "Maximum Debt/Equity <= 2.5x"
+    - "Minimum DSCR >= 1.20x"
+    - "Maximum Cheque Returns <= 5 per quarter"
+  enhanced_covenants:
+    - "Quarterly financial submission within 45 days"
+    - "No dividend payment without bank NOC"
+  monitoring_standard:
+    - "Quarterly review of financial covenants"
+    - "Monthly stock/receivable statements"
+  monitoring_enhanced:
+    - "Enhanced media/news monitoring — weekly"
+
+# Internal credit-policy thresholds quoted in the CAM (KPI benchmarking,
+# projections and covenants all read these, so the memo is consistent).
+# PLACEHOLDER VALUES — align with your bank's credit policy.
+policy_thresholds:
+  min_dscr: 1.20
+  max_debt_to_equity: 2.5
+  min_current_ratio: 1.25
+  min_interest_coverage: 2.0
+  max_debt_to_ebitda: 4.0
+  min_ebitda_margin_pct: 10
+  max_tol_tnw: 4.0
+  min_roe_pct: 12
+  max_debtor_days: 90
+
+# ═══════════════════════════════════════════════════════════════════════
+# Credit Risk Observations — deterministic detector thresholds
+# (src/engines/observation_engine.py). Each detector compares the latest
+# period with the one before it; "pp" = percentage points, "bps" = basis
+# points. Policy limits come from policy_thresholds above. Set
+# enabled: false to switch a detector off.
+# ═══════════════════════════════════════════════════════════════════════
+credit_observations:
+  working_capital_deterioration:      # receivables growth vs revenue growth
+    enabled: true
+    min_growth_gap_pp: 20
+    high_growth_gap_pp: 30
+  earnings_cash_conversion:           # EBITDA vs operating cash flow
+    enabled: true
+    min_ocf_decline_pct: 20           # OCF fall that counts when EBITDA did not fall
+    min_ocf_to_ebitda_pct: 50         # cash conversion floor
+    high_ocf_to_ebitda_pct: 25
+  leverage_increase:                  # debt growth vs EBITDA growth, Debt/EBITDA
+    enabled: true
+    min_growth_gap_pp: 15
+    min_debt_to_ebitda_increase: 0.5
+  debt_servicing_pressure:            # DSCR / ICR against policy minimums
+    enabled: true
+    warning_band_pct: 10              # within 10% above the minimum and falling
+  receivable_collection:              # debtor days
+    enabled: true
+    min_increase_days: 15
+  inventory_buildup:                  # inventory days
+    enabled: true
+    min_increase_days: 15
+    min_increase_pct: 25
+    high_increase_days: 30
+  margin_compression:                 # EBITDA margin
+    enabled: true
+    min_decline_bps: 200
+    high_decline_bps: 400
+  data_reliability:                   # cross-source / structural validation exceptions
+    enabled: true
+    code_prefixes: ["XSRC_", "STRUCT_", "DOC_"]
+    exclude_codes: ["XSRC_BUREAU_DPD_ALERT", "XSRC_BUREAU_WILFUL_DEFAULTER"]
+  sector_underperformance:            # peer benchmark (P25 / median / P75)
+    enabled: true
+    min_high_metrics: 1               # metrics in the worst peer band
+    min_medium_metrics: 3             # or this many below the peer median
+    high_severity_min_high_metrics: 2
+  policy_deviation:                   # policy_thresholds breaches + failed hard rules
+    enabled: true
+    high_severity_min_breaches: 3
+  liquidity_stress:                   # current ratio
+    enabled: true
+    min_decline: 0.20
+    high_below: 1.0
+  financial_distress:                 # Altman Z-score zones
+    enabled: true
+    distress_below: 1.81
+    safe_above: 2.99
+    min_decline: 0.30
+
+# ═══════════════════════════════════════════════════════════════════════
+# Credit Challenge Agent — when the proposal is challenged
+# (src/agents/challenge_agent.py). Policy limits come from policy_thresholds.
+# ═══════════════════════════════════════════════════════════════════════
+credit_challenges:
+  facility_amount:                    # working-capital ask vs a lengthening cycle
+    enabled: true
+    min_cycle_increase_days: 15       # working capital cycle lengthened by at least this
+    min_cycle_share_pct: 50           # share of the trade WC increase explained by the slower cycle
+  repayment_capacity:
+    enabled: true
+    min_ocf_to_ebitda_pct: 50
+  working_capital:                    # drawing power that leans on doubtful receivables
+    enabled: true
+  leverage:
+    enabled: true
+    min_debt_to_ebitda_increase: 0.5
+  financial_performance:
+    enabled: true
+    min_margin_decline_bps: 200
+    min_ocf_decline_pct: 20
+    min_projection_margin_gap_pp: 1.0 # projections assume a margin this far above the latest year
+  policy_exceptions:
+    enabled: true
+    high_severity_min_breaches: 3
+  unresolved_investigations:
+    enabled: true
+    priorities: ["P1"]
+
+# ═══════════════════════════════════════════════════════════════════════
+# Cash Flow & Repayment Analysis — bands for each metric
+# (src/engines/repayment_analysis.py). [strong, adequate, weak]: at or better
+# than the first value is strong, the second adequate, the third weak, worse is
+# critical. Policy minimums / maximums from policy_thresholds are used where set.
+# ═══════════════════════════════════════════════════════════════════════
+repayment_analysis:
+  bands:
+    dscr: [1.5, policy, 1.0]                # higher is better; "policy" = min_dscr
+    interest_coverage_ratio: [3.0, policy, 1.5]
+    debt_to_ebitda: [3.0, policy, 5.0]      # lower is better; "policy" = max_debt_to_ebitda
+    ocf_to_ebitda_pct: [70, 50, 25]
+    ocf_to_interest: [3.0, 1.5, 1.0]
+  secondary_cover:
+    strong: 1.5                             # forced-sale value / facility
+    partial: 1.0
+
+# ═══════════════════════════════════════════════════════════════════════
+# Stress testing — scenario shocks applied to the latest audited year
+# (src/engines/stress_test_engine.py). Ratios are recomputed with the
+# ratio engine and compared with policy_thresholds.
+#   revenue_change_pct     revenue change (negative = decline)
+#   margin_change_bps      EBITDA margin change in basis points
+#   debtor_days_change     extra days of receivables
+#   inventory_days_change  extra days of inventory
+#   rate_shock_bps         interest-rate rise on all debt (incl. new borrowing)
+# Extra working capital is assumed to be funded by short-term borrowing.
+# ═══════════════════════════════════════════════════════════════════════
+stress_testing:
+  scenarios:
+    base:
+      label: "Base case"
+      revenue_change_pct: 0
+      margin_change_bps: 0
+      debtor_days_change: 0
+      inventory_days_change: 0
+      rate_shock_bps: 0
+    downside:
+      label: "Downside"
+      revenue_change_pct: -5
+      margin_change_bps: -100
+      debtor_days_change: 10
+      inventory_days_change: 5
+      rate_shock_bps: 50
+    severe:
+      label: "Severe downside"
+      revenue_change_pct: -15
+      margin_change_bps: -300
+      debtor_days_change: 25
+      inventory_days_change: 15
+      rate_shock_bps: 150
+  default_tax_rate_pct: 25        # when the latest year has no positive pre-tax profit
+
+# ═══════════════════════════════════════════════════════════════════════
+# Credit reassessment (src/agents/reassessment_agent.py) — how the proposal
+# is reconsidered after observations, investigations, challenges, repayment
+# and stress results. Policy limits come from policy_thresholds.
+# ═══════════════════════════════════════════════════════════════════════
+credit_reassessment:
+  amount_rounding_cr: 5              # recommended amounts are rounded down to this step
+  min_reduction_pct: 5               # smaller cuts than this keep the requested amount
+  defer_if_open_p1_at_least: 4       # this many open P1 investigations → defer
+  book_debt_margin_pct: 40           # stricter margin proposed when receivables are in doubt
+  stock_margin_pct: 40
+  interest_reserve_quarters: 1       # interest-servicing reserve when downside DSCR < policy
+  hard_security_target_cover: 1.0    # hard (non-current-asset) security / recommended amount

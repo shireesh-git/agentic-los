@@ -1,0 +1,30 @@
+{
+  "entity_id": "ABCE001",
+  "note": "Investigation Agent plan for the demo borrower's Step 1 observations (all status NEW). Order = priority, then routing order.",
+  "expected": [
+    {"investigation_id": "INV-ABCE001-RECEIVABLE_DETERIORATION", "priority": "P1",
+     "observation_id": "OBS-ABCE001-WC_DETERIORATION", "related": ["OBS-ABCE001-RECEIVABLE_COLLECTION"],
+     "evidence": ["Debtor ageing schedule", "Top-10 customer exposure", "Collection history",
+                  "Disputed, retention and arbitration amounts"]},
+    {"investigation_id": "INV-ABCE001-DATA_RELIABILITY", "priority": "P1",
+     "observation_id": "OBS-ABCE001-DATA_RELIABILITY", "related": [],
+     "evidence": ["GST returns and turnover reconciliation (XSRC_GST_REVENUE_MISMATCH)"]},
+    {"investigation_id": "INV-ABCE001-POLICY_EXCEPTION", "priority": "P1",
+     "observation_id": "OBS-ABCE001-POLICY_DEVIATION", "related": [],
+     "evidence": ["Deviation note — DSCR", "Deviation note — Current ratio", "Deviation note — Debt / EBITDA",
+                  "Deviation note — Return on equity", "Deviation note — Debtor days"]},
+    {"investigation_id": "INV-ABCE001-EARNINGS_TO_CASH", "priority": "P2",
+     "observation_id": "OBS-ABCE001-EARNINGS_CASH_CONVERSION", "related": [],
+     "evidence": ["Cash-flow statement with notes", "Working-capital movement", "Bank collections"]},
+    {"investigation_id": "INV-ABCE001-LEVERAGE", "priority": "P2",
+     "observation_id": "OBS-ABCE001-LEVERAGE_INCREASE", "related": [],
+     "evidence": ["Lender-wise debt schedule", "New borrowings in FY2026", "Repayment schedule"]},
+    {"investigation_id": "INV-ABCE001-DEBT_SERVICING", "priority": "P2",
+     "observation_id": "OBS-ABCE001-DEBT_SERVICING_PRESSURE", "related": [],
+     "evidence": ["Repayment schedule", "Interest obligations", "Projected cash flow"]},
+    {"investigation_id": "INV-ABCE001-INVENTORY_BUILDUP", "priority": "P3",
+     "observation_id": "OBS-ABCE001-INVENTORY_BUILDUP", "related": [],
+     "evidence": ["Inventory ageing", "Stock movement statement", "Inventory utilisation"]}
+  ],
+  "unrouted": ["OBS-ABCE001-SECTOR_UNDERPERFORMANCE", "OBS-ABCE001-MARGIN_COMPRESSION", "OBS-ABCE001-LIQUIDITY_STRESS"]
+}

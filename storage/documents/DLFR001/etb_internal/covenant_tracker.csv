@@ -1,0 +1,7 @@
+period,covenant,required,actual,status
+Q1-FY2025,DSCR >= 1.20x,1.20,1.18,Breach
+Q2-FY2025,DSCR >= 1.20x,1.20,1.12,Breach
+Q3-FY2025,DSCR >= 1.20x,1.20,1.08,Breach
+Q4-FY2025,DSCR >= 1.20x,1.20,1.05,Breach
+Q1-FY2025,D/E <= 1.50x,1.50,1.11,Compliant
+Q3-FY2025,Max Cheque Returns <= 5/qtr,5,11,Breach

@@ -1,0 +1,18 @@
+{
+  "source": "epfo",
+  "record_type": "compliance",
+  "entity_key": "AABCP5678G",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Pinnacle Infra Projects Ltd",
+    "establishment_code": "DLDEL0023456",
+    "active_members": 3200,
+    "total_members": 4100,
+    "monthly_contribution_lakhs": 68.0,
+    "compliance_status": "Delayed \u2014 2 months outstanding",
+    "pending_challan": 2,
+    "last_challan_date": "2025-12-15"
+  }
+}

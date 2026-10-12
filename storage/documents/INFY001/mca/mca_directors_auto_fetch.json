@@ -1,0 +1,38 @@
+{
+  "source": "mca",
+  "record_type": "director_master",
+  "entity_key": "L85110KA1981PLC013115",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "directors": [
+      {
+        "din": "07912940",
+        "name": "Salil S. Parekh",
+        "designation": "CEO & Managing Director",
+        "date_of_appointment": "2018-01-02",
+        "status": "Active",
+        "other_companies": []
+      },
+      {
+        "din": "00041059",
+        "name": "Nandan M. Nilekani",
+        "designation": "Non-Executive Chairman",
+        "date_of_appointment": "2017-08-24",
+        "status": "Active",
+        "other_companies": [
+          "EkStep Foundation"
+        ]
+      },
+      {
+        "din": "08126573",
+        "name": "Nilanjan Roy",
+        "designation": "CFO",
+        "date_of_appointment": "2019-03-21",
+        "status": "Active",
+        "other_companies": []
+      }
+    ]
+  }
+}

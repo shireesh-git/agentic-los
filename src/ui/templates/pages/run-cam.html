@@ -1,0 +1,78 @@
+<section x-show="page==='pipeline'" x-cloak>
+  <div class="page-header">
+    <div>
+      <h1>Run CAM</h1>
+      <p class="page-subtitle">Run the credit analysis for a borrower and follow each step live.</p>
+    </div>
+    <button class="btn btn-ghost btn-sm" @click="runAllPipeline()" :disabled="pipelineRunning || loading"
+            title="Runs every borrower one after another; this can take a long time">Run all borrowers</button>
+  </div>
+
+  <!-- Choose borrower and run -->
+  <div class="card run-toolbar">
+    <div class="field-compact run-borrower">
+      <label for="run-borrower">Borrower</label>
+      <select id="run-borrower" class="input" x-model="pipelineTarget" :disabled="pipelineRunning">
+        <template x-for="c in companies" :key="c.entity_id">
+          <option :value="c.entity_id" x-text="displayCompanyName(c.company_name) + ' (' + c.entity_id + ')'"></option>
+        </template>
+      </select>
+    </div>
+    <div class="run-last">
+      <template x-if="selectedPipelineCase()">
+        <div class="run-last-result">
+          <span class="text-muted">Last result</span>
+          <span class="badge" :class="gradeCls(selectedPipelineCase().risk_grade)" x-text="'Grade ' + (selectedPipelineCase().risk_grade || '--')"></span>
+          <span class="badge badge-grey" x-text="'Score ' + displayScore(selectedPipelineCase().composite_score)"></span>
+          <span class="badge" :class="recCls(selectedPipelineCase().recommendation)" x-text="fmtRec(selectedPipelineCase().recommendation)"></span>
+          <span class="text-muted" x-text="formatRunTime(selectedPipelineCase().run_at)"></span>
+        </div>
+      </template>
+      <span class="text-muted" x-show="!selectedPipelineCase()">Not analysed yet &mdash; this run creates the first CAM.</span>
+    </div>
+    <button class="btn btn-primary" @click="runPipelineSSE()" :disabled="pipelineRunning || !pipelineTarget">
+      <span x-show="!pipelineRunning"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-play"/></svg> Run CAM</span>
+      <span x-show="pipelineRunning">Running&hellip;</span>
+    </button>
+  </div>
+
+  <!-- Live progress: one row per step -->
+  <div class="card run-progress" x-show="pipelineRunning || agentEvents.length">
+    <div class="run-progress-head">
+      <span class="agent-live-icon" :class="pipelineRunning ? 'pulse-dot' : (pipelineError ? 'error-dot' : 'done-dot')"></span>
+      <h3 x-text="pipelineRunning ? 'Running ' + displayCompanyName(selectedCompany()?.company_name) : (pipelineError ? 'Run failed' : 'Run complete')"></h3>
+      <span class="run-progress-pct" x-text="agentPct + '%'"></span>
+    </div>
+    <div class="agent-progress-bar"><div class="agent-progress-fill" :style="'width:' + agentPct + '%'"></div></div>
+
+    <ol class="run-steps">
+      <template x-for="step in runSteps()" :key="step.name">
+        <li class="run-step" :class="'run-step-' + step.status">
+          <span class="run-step-icon">
+            <span x-show="step.status === 'running'" class="spinner-sm"></span>
+            <span x-show="step.status === 'done'"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg></span>
+            <span x-show="step.status === 'failed'"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-x"/></svg></span>
+            <span x-show="step.status === 'pending'"><svg class="icon" width="16" height="16" aria-hidden="true"><use href="#i-circle"/></svg></span>
+          </span>
+          <div class="run-step-body">
+            <strong x-text="agentLabel(step.name)"></strong>
+            <span class="run-step-detail" x-show="step.detail" x-text="step.detail"></span>
+            <span class="run-step-error" x-show="step.error" x-text="step.error"></span>
+          </div>
+          <span class="run-step-time" x-text="step.duration_ms != null ? formatDuration(step.duration_ms) : ''"></span>
+        </li>
+      </template>
+    </ol>
+
+    <!-- Result -->
+    <div class="run-result" x-show="pipelineDoneResult">
+      <span class="badge lg" :class="gradeCls(pipelineDoneResult?.risk_grade)" x-text="'Grade ' + (pipelineDoneResult?.risk_grade || '--')"></span>
+      <span class="badge lg badge-grey" x-text="'Score ' + displayScore(pipelineDoneResult?.composite_score)"></span>
+      <span class="badge lg" :class="recCls(pipelineDoneResult?.recommendation)" x-text="fmtRec(pipelineDoneResult?.recommendation || '')"></span>
+      <div class="run-result-actions">
+        <button class="btn btn-sm btn-outline" @click="viewCase(pipelineDoneResult?.entity_id)">Open case</button>
+        <button class="btn btn-sm btn-primary" @click="openCamFor(pipelineDoneResult?.entity_id)">Open CAM</button>
+      </div>
+    </div>
+  </div>
+</section>

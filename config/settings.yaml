@@ -1,0 +1,43 @@
+# ═══════════════════════════════════════════════════════════════════════
+# CAM Intelligence Platform — Master Configuration
+# Edit values here — no code changes required
+# ═══════════════════════════════════════════════════════════════════════
+
+app:
+  name: "CAM Intelligence Platform"
+  version: "1.0.0"
+  environment: "development"
+
+pipeline:
+  deterministic_date: "2026-03-13"
+  parser_version: "v1.0"
+  rule_pack_version: "sector_v1"
+  benchmark_pack_version: "benchmark_v1"
+  # Run independent agents side by side (e.g. PEP screening alongside document
+  # ingestion; ratio analysis alongside validation). false = one at a time.
+  parallel_agents: true
+
+validation:
+  balance_sheet_tolerance: 0.20
+  revenue_exchange_tolerance: 0.05
+  revenue_gst_tolerance: 0.10
+  debt_bureau_tolerance: 0.15
+  stale_financials_days: 365
+  receivable_spike_threshold: 0.30
+
+scoring:
+  weights:
+    financial: 0.40
+    conduct: 0.25
+    governance: 0.20
+    market: 0.15
+  grade_thresholds:
+    A: 80
+    B: 65
+    C: 50
+    D: 35
+
+server:
+  host: "0.0.0.0"
+  port: 8001   # CAM and Corporate LOS (/los)
+  reload: false   # uvicorn reload hangs on Windows; restart manually

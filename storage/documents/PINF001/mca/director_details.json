@@ -1,0 +1,43 @@
+{
+  "source": "mca",
+  "record_type": "director_master",
+  "entity_key": "L45200DL2005PLC134567",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "directors": [
+      {
+        "din": "00445566",
+        "name": "Vikram Sinha",
+        "designation": "Chairman & MD",
+        "date_of_appointment": "2005-08-22",
+        "status": "Active",
+        "shareholding_pct": 35.1,
+        "remuneration_lakhs": 800,
+        "other_companies": [
+          "Pinnacle Realty Ltd",
+          "Pinnacle Highways Pvt Ltd"
+        ],
+        "pan": "AKYVS1234E",
+        "nationality": "Indian",
+        "dob": "1960-05-18"
+      },
+      {
+        "din": "00445567",
+        "name": "Priya Sinha",
+        "designation": "Executive Director",
+        "date_of_appointment": "2012-04-01",
+        "status": "Active",
+        "shareholding_pct": 12.3,
+        "remuneration_lakhs": 350,
+        "other_companies": [
+          "Pinnacle Realty Ltd"
+        ],
+        "pan": "AKXPS1234F",
+        "nationality": "Indian",
+        "dob": "1985-09-14"
+      }
+    ]
+  }
+}

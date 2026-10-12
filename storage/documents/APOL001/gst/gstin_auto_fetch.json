@@ -1,0 +1,16 @@
+{
+  "source": "gstin",
+  "record_type": "registration",
+  "entity_key": "33AAACA1234K1Z1",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "33AAACA1234K1Z5",
+    "legal_name": "Apollo Hospitals Enterprise Limited",
+    "aggregate_turnover_fy2024_cr": 19059.0,
+    "aggregate_turnover_fy2023_cr": 16612.0,
+    "filing_status": "Regular \u2014 all returns filed on time",
+    "last_return_filed": "GSTR-3B Dec 2025"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "source": "mca",
+  "record_type": "directors",
+  "source_status": "success",
+  "payload": {
+    "cin": "L27100MH1907PLC000260",
+    "company_name": "Tara Steels Industries Ltd",
+    "directors": [
+      {
+        "din": "00012345",
+        "name": "Natarajan Chandrasekaran",
+        "designation": "Chairman",
+        "date_of_appointment": "2017-02-21"
+      },
+      {
+        "din": "00013579",
+        "name": "T V Narendran",
+        "designation": "MD & CEO",
+        "date_of_appointment": "2013-02-05"
+      },
+      {
+        "din": "00024680",
+        "name": "Koushik Chatterjee",
+        "designation": "ED & CFO",
+        "date_of_appointment": "2012-11-14"
+      }
+    ],
+    "total_directors": 3
+  }
+}

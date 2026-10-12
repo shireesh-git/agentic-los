@@ -1,0 +1,122 @@
+{
+  "provider": "probe42_mcp_v2",
+  "identifier": "L45201DL1999PLC195937",
+  "resolved_identifier": "L45201DL1999PLC195937",
+  "profile": "full",
+  "fetched_at": "2026-04-06T08:54:03Z",
+  "cache": {
+    "status": "hit",
+    "profile": "full",
+    "cache_key": "L45201DL1999PLC195937",
+    "cached_at_epoch": 1775465646.2238562,
+    "retention": "manual_delete",
+    "retained_until_deleted": true
+  },
+  "tool_results": {
+    "base_details": {
+      "tool_name": "get_base_details_by_identifier",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"metadata\":null,\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "kyc_details": {
+      "tool_name": "get_kyc_by_identifier",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"metadata\":null,\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "gst_details": {
+      "tool_name": "get_gst_details_by_identifier",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"metadata\":null,\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "epfo_details": {
+      "tool_name": "get_epfo_details_by_identifier",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"metadata\":null,\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "suit_filed_cases": {
+      "tool_name": "get_suit_filed_cases_by_identifier",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"metadata\":null,\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "credit_ratings": {
+      "tool_name": "get_credit_ratings_by_identifier",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"metadata\":null,\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "legal_history": {
+      "tool_name": "get_legal_history_by_identifier",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"metadata\":null,\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "open_charges": {
+      "tool_name": "get_open_charges_by_identifier",
+      "status": "success",
+      "data": null,
+      "text": "Output validation error: 'content' is a required property"
+    },
+    "data_status": {
+      "tool_name": "get_data_status",
+      "status": "success",
+      "data": "Error: {'message': 'Cin does not exist'}",
+      "text": "{\"content\":{\"type\":\"text\",\"text\":\"Error: {'message': 'Cin does not exist'}\"},\"structured_content\":{\"data\":\"Error: {'message': 'Cin does not exist'}\"}}"
+    },
+    "director_network": {
+      "tool_name": "get_director_network_by_din",
+      "status": "not_found",
+      "data": {
+        "data": [],
+        "metadata": {
+          "generated_at": "2026-04-06T08:54:06Z"
+        }
+      },
+      "text": ""
+    }
+  },
+  "resolved": {
+    "cin": "L45201DL1999PLC195937",
+    "pan": "AABCP1234R",
+    "gstin": "09AABCP1234R1Z6",
+    "entity_id": "PNCR001",
+    "company_name": "PNC Infratech Limited",
+    "source": "probe42_bundle",
+    "provider": "probe42_mcp_v2",
+    "resolution_mode": "bundle",
+    "probe_summary": {
+      "status": null,
+      "listing_status": null,
+      "industry": null,
+      "directors_count": 0,
+      "probe_score": null
+    }
+  },
+  "summary": {
+    "provider": "probe42_mcp_v2",
+    "fetched_at": "2026-04-06T08:54:03Z",
+    "company_name": "PNC Infratech Limited",
+    "cin": "L45201DL1999PLC195937",
+    "pan": "AABCP1234R",
+    "gstin": "09AABCP1234R1Z6",
+    "status": null,
+    "listing_status": null,
+    "industry": null,
+    "segments": [],
+    "registered_state": null,
+    "directors_count": 0,
+    "ratings_count": 0,
+    "rating": null,
+    "rating_agency": null,
+    "legal_case_count": 0,
+    "open_charge_count": 0,
+    "active_gstin_count": 0,
+    "epfo_establishment_count": 0,
+    "probe_score": null,
+    "data_status": {}
+  }
+}

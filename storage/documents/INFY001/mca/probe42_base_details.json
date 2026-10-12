@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "old_identifier": null,
+    "api_version": "1.0",
+    "last_updated": "2026-03-13"
+  },
+  "data": {
+    "entity_identifier": "L85110KA1981PLC013115",
+    "legal_name": "INFOSYS LIMITED",
+    "status": "Active",
+    "date_of_incorporation": "1981-07-02",
+    "registered_address": {
+      "address_line": "ELECTRONICS CITY,HOSUR ROAD,   BANGALORE ",
+      "city": "KARNATAKA",
+      "pincode": "560100",
+      "state": "Karnataka"
+    }
+  }
+}

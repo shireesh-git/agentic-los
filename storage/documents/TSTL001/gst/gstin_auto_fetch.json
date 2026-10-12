@@ -1,0 +1,31 @@
+{
+  "source": "gstin",
+  "record_type": "registration",
+  "entity_key": "27AAACT1234A1Z8",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "gstin": "27AABCT1234F1Z5",
+    "legal_name": "Tara Steels Industries Ltd",
+    "status": "Active",
+    "registration_date": "2017-07-01",
+    "gst_turnover": {
+      "fy_2024": {
+        "total_turnover": 152000000000,
+        "taxable_turnover": 143000000000,
+        "export_turnover": 28000000000
+      },
+      "fy_2023": {
+        "total_turnover": 138000000000,
+        "taxable_turnover": 130000000000,
+        "export_turnover": 25000000000
+      }
+    },
+    "filing_status": {
+      "gstr1_latest": "2024-12",
+      "gstr3b_latest": "2024-12",
+      "returns_filed_on_time": true
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "source": "epfo",
+  "record_type": "compliance",
+  "entity_key": "AABCB1234F",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Bharat Manufacturing Ltd",
+    "establishment_code": "MHPUN0012345",
+    "active_members": 1850,
+    "total_members": 2240,
+    "monthly_contribution_lakhs": 42.5,
+    "compliance_status": "Regular",
+    "pending_challan": 0,
+    "last_challan_date": "2026-02-15"
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "metadata": {
+    "old_identifier": null,
+    "api_version": "1.0",
+    "last_updated": "2026-03-13"
+  },
+  "data": [
+    {
+      "id": 100727579,
+      "date": "2026-01-23",
+      "holder_name": "STATE BANK OF INDIA",
+      "amount": 3500000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100451503,
+      "date": "2025-11-25",
+      "holder_name": "AXIS BANK LIMITED",
+      "amount": 5000000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100371481,
+      "date": "2022-11-25",
+      "holder_name": "HONGKONG AND SHANGHAI BANKING CORPORATION LIMITED",
+      "amount": 1500000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100475942,
+      "date": "2022-03-24",
+      "holder_name": "ICICI BANK LIMITED",
+      "amount": 2000000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100057713,
+      "date": "2022-03-16",
+      "holder_name": "STATE BANK OF INDIA",
+      "amount": 4000000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100466943,
+      "date": "2022-03-04",
+      "holder_name": "BANK OF INDIA",
+      "amount": 3000000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100248764,
+      "date": "2022-02-08",
+      "holder_name": "HDFC BANK LIMITED",
+      "amount": 3500000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100383402,
+      "date": "2021-11-16",
+      "holder_name": "HDFC BANK LIMITED",
+      "amount": 3500000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100235038,
+      "date": "2019-09-30",
+      "holder_name": "STATE BANK OF INDIA",
+      "amount": 4000000000,
+      "status": "Modification"
+    },
+    {
+      "id": 100295215,
+      "date": "2019-09-23",
+      "holder_name": "AXIS BANK LIMITED",
+      "amount": 1500000000,
+      "status": "Creation"
+    },
+    {
+      "id": 90285058,
+      "date": "2018-06-21",
+      "holder_name": "ANDHRA BANK",
+      "amount": 286000000,
+      "status": "Modification"
+    },
+    {
+      "id": 10617441,
+      "date": "2016-11-28",
+      "holder_name": "IDFC INFRA DEBT FUND LIMITED",
+      "amount": 1000000000,
+      "status": "Modification"
+    },
+    {
+      "id": 10517227,
+      "date": "2015-03-09",
+      "holder_name": "HONGKONG AND SHANGHAI BANKING CORPORATION LIMITED",
+      "amount": 2000000000,
+      "status": "Modification"
+    },
+    {
+      "id": 90284919,
+      "date": "2003-12-03",
+      "holder_name": "CANARA BANK",
+      "amount": 420000,
+      "status": "Modification"
+    },
+    {
+      "id": 90284920,
+      "date": "2003-12-03",
+      "holder_name": "INDIAN BANK",
+      "amount": 420000,
+      "status": "Modification"
+    },
+    {
+      "id": 90286685,
+      "date": "1995-03-17",
+      "holder_name": "INDIAN OVERSEAS BANK",
+      "amount": 420000,
+      "status": "Modification"
+    }
+  ]
+}

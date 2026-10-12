@@ -1,0 +1,14 @@
+{
+  "source": "mca",
+  "record_type": "charges",
+  "entity_key": "L27102MH1994PLC083190",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v2",
+  "source_status": "success",
+  "payload": {
+    "total_charges": 0,
+    "open_charges": 0,
+    "satisfied_charges": 0,
+    "charges": []
+  }
+}

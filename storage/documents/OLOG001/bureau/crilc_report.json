@@ -1,0 +1,20 @@
+{
+  "source": "rbi_crilc",
+  "record_type": "exposure",
+  "entity_key": "AABCO3456J",
+  "as_of_date": "2026-03-14",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "entity_name": "Omega Logistics Pvt Ltd",
+    "aggregate_exposure_cr": 248.0,
+    "fund_based_cr": 218.1,
+    "non_fund_based_cr": 29.9,
+    "total_lenders": 2,
+    "classification": "Standard",
+    "sma_status": "SMA-0",
+    "restructured": false,
+    "wilful_defaulter": false,
+    "last_reported": "2026-01-31"
+  }
+}

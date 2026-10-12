@@ -1,0 +1,17 @@
+{
+  "source": "rating",
+  "record_type": "latest_action",
+  "entity_key": "APOL001",
+  "as_of_date": "2026-03-13",
+  "payload_version": "v1",
+  "source_status": "success",
+  "payload": {
+    "rating_agency": "ICRA",
+    "long_term_rating": "AA+",
+    "short_term_rating": "A1+",
+    "outlook": "Stable",
+    "last_action": "Reaffirmed",
+    "action_date": "2025-11-20",
+    "rationale_summary": "India's largest private hospital chain with 10,000+ beds. Strong revenue growth driven by occupancy improvement and ARPOB expansion. Healthy EBITDA margins of 16%+. Manageable leverage with Debt/EBITDA at 1.8x."
+  }
+}
