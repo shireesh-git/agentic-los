@@ -1114,7 +1114,7 @@
                     <div class="los-small text-muted" x-show="(d.versions || []).length">
                       <span x-text="'File: ' + (d.versions[d.versions.length - 1].file_name || '')"></span>
                       <span x-show="d.versions[d.versions.length - 1].source === 'on_file'"> · linked by the document agent</span>
-                      <button type="button" class="los-link" x-show="d.versions[d.versions.length - 1].source === 'workspace'" @click="openGov('cma')"> · open the CMA workspace</button>
+                      <button type="button" class="los-link" x-show="d.versions[d.versions.length - 1].source === 'workspace'" @click="openGov(/^CMA/.test(d.name) ? 'cma' : 'disops')" x-text="' · open the ' + d.versions[d.versions.length - 1].file_name"></button>
                       <a class="los-link" target="_blank" rel="noopener" x-show="(d.versions[d.versions.length - 1].file_name || '').includes('/')"
                          :href="'/api/companies/' + encodeURIComponent(current.entity_id) + '/documents/' + d.versions[d.versions.length - 1].file_name"> · open ↗</a>
                       <span x-show="d.versions.length > 1" x-text="' · ' + d.versions.length + ' versions'"></span></div>
@@ -1135,7 +1135,7 @@
                     <button class="btn btn-sm btn-outline" x-show="(d.versions || []).length && !['reviewed', 'accepted'].includes(d.status) && gov.docReview !== d.doc_id"
                             @click="gov.docReview = d.doc_id; gov.docStatus = 'reviewed'; gov.docRemarks = ''">Review</button>
                     <label class="btn btn-sm btn-ghost" style="text-transform:none;letter-spacing:0;margin:0"
-                           x-show="current?.actions?.length && ['ps_maker', 'ip_note', 'ap_note', 'pos_maker', 'dis_maker'].includes(current?.step?.id) && d.category !== 'generated' && !/^CMA /.test(d.name) && (!(d.versions || []).length || d.status === 'rework')"
+                           x-show="current?.actions?.length && ['ps_maker', 'ip_note', 'ap_note', 'pos_maker', 'dis_maker'].includes(current?.step?.id) && d.category !== 'generated' && !/^CMA |^Drawdown schedule/.test(d.name) && (!(d.versions || []).length || d.status === 'rework')"
                            x-text="(d.versions || []).length ? 'Upload new version' : 'Upload PDF'">
                       <input type="file" accept="application/pdf" style="display:none" @change="uploadFor(d, $event)"></label>
                   </div>
@@ -1170,18 +1170,98 @@
           <!-- Disbursement ops -->
           <div x-show="gov.tab === 'disops'">
             <div class="status-inline status-inline-error" x-show="current.disops?.maker_gate && !(current?.blockers || []).some(b => b.where === 'disops')" x-text="current.disops.maker_gate" style="margin:6px 0"></div>
+            <p class="text-muted los-small" x-text="current.disops?.note"></p>
+            <div x-show="current.step?.id === 'dis_maker' && current?.actions?.length" class="los-dis-forms">
+              <!-- CIF -->
+              <div class="los-panel">
+                <strong>CIF</strong> <span class="badge sm" :class="current.disops?.cif ? 'badge-green' : 'badge-red'" x-text="current.disops?.cif ? 'recorded' : 'required'"></span>
+                <div class="los-dis-row">
+                  <label class="los-field">Status<select class="input" x-model="dis.cif.status"><option value="">—</option>
+                    <option value="exists">Exists (ETB)</option><option value="created">Created (NTB)</option><option value="updated">Updated</option></select></label>
+                  <label class="los-field">CIF number<input class="input" x-model="dis.cif.cif_no" placeholder="e.g. CIF-APOL001"></label>
+                  <label class="los-field">Note<input class="input" x-model="dis.cif.note" placeholder="optional"></label>
+                  <button class="btn btn-sm btn-primary" :disabled="busy || !dis.cif.status || !(dis.cif.cif_no || '').trim()" @click="saveDis('cif', dis.cif, 'CIF recorded')">Save CIF</button>
+                </div>
+              </div>
+              <!-- Limits and loan accounts -->
+              <div class="los-panel">
+                <strong>Exposure limits and loan accounts</strong>
+                <span class="badge sm" :class="(current.disops?.limits || []).length && (current.disops?.loan_accounts || []).length ? 'badge-green' : 'badge-red'"
+                      x-text="(current.disops?.limits || []).length + ' limit(s) · ' + (current.disops?.loan_accounts || []).length + ' account(s)'"></span>
+                <div class="los-dis-row">
+                  <label class="los-field">Facility<select class="input" x-model="dis.limit.facility_id"><option value="">—</option><template x-for="f in current.facilities" :key="f.facility_id"><option :value="f.facility_id" x-text="f.facility_id"></option></template></select></label>
+                  <label class="los-field">Limit kind<select class="input" x-model="dis.limit.kind"><option value="total">Total</option><option value="fund">Fund-based</option><option value="non_fund">Non-fund-based</option></select></label>
+                  <label class="los-field">Limit ID<input class="input" x-model="dis.limit.limit_id" placeholder="e.g. LMT-001"></label>
+                  <button class="btn btn-sm btn-outline" :disabled="busy || !dis.limit.limit_id" @click="addDisRow('limits', dis.limit, 'Limit added')">Add limit</button>
+                </div>
+                <div class="los-dis-row">
+                  <label class="los-field">Facility<select class="input" x-model="dis.account.facility_id"><option value="">—</option><template x-for="f in current.facilities" :key="f.facility_id"><option :value="f.facility_id" x-text="f.facility_id"></option></template></select></label>
+                  <label class="los-field">Loan account number<input class="input" x-model="dis.account.account_no" placeholder="e.g. 50012345678"></label>
+                  <button class="btn btn-sm btn-outline" :disabled="busy || !dis.account.account_no" @click="addDisRow('loan_accounts', dis.account, 'Loan account added')">Add account</button>
+                </div>
+              </div>
+              <!-- CBS security numbers -->
+              <div class="los-panel" x-show="(current.disops?.security_refs || []).length">
+                <strong>CBS security numbers</strong>
+                <span class="badge sm" :class="current.disops?.security_gate ? 'badge-red' : 'badge-green'" x-text="current.disops?.security_gate ? 'required' : 'complete'"></span>
+                <template x-for="r in current.disops?.security_refs || []" :key="r.security_id">
+                  <div class="los-dis-row">
+                    <span class="los-small" style="flex:2" x-text="r.security_id + ' — ' + (r.description || '')"></span>
+                    <input class="input" style="flex:1" :value="dis.cbs[r.security_id] ?? (r.cbs_security_no || '')" placeholder="CBS security number"
+                           @input="dis.cbs = {...dis.cbs, [r.security_id]: $event.target.value}">
+                  </div>
+                </template>
+                <button class="btn btn-sm btn-primary" style="margin-top:6px" :disabled="busy" @click="saveCbs()">Save security numbers</button>
+              </div>
+              <!-- Beneficiaries -->
+              <div class="los-panel">
+                <strong>Beneficiaries</strong>
+                <span class="badge sm" :class="(current.disops?.beneficiaries || []).length ? 'badge-green' : 'badge-red'" x-text="(current.disops?.beneficiaries || []).length + ' recorded'"></span>
+                <div class="los-dis-row">
+                  <label class="los-field">Name<input class="input" x-model="dis.ben.name"></label>
+                  <label class="los-field">Account number<input class="input" x-model="dis.ben.account_no"></label>
+                  <label class="los-field">Bank<input class="input" x-model="dis.ben.bank"></label>
+                  <label class="los-field">Branch<input class="input" x-model="dis.ben.branch"></label>
+                  <label class="los-field">IFSC<input class="input" x-model="dis.ben.ifsc" placeholder="ABCD0123456"></label>
+                  <label class="los-field">Mode<select class="input" x-model="dis.ben.payment_mode"><option>NEFT</option><option>RTGS</option><option>IMPS</option><option value="cheque">Cheque</option></select></label>
+                  <label class="los-field">Amount (₹ Cr)<input class="input" type="number" step="0.01" x-model="dis.ben.amount_cr"></label>
+                  <button class="btn btn-sm btn-outline" :disabled="busy" @click="addDisRow('beneficiaries', {...dis.ben, facility_id: current.facilities?.[0]?.facility_id}, 'Beneficiary added')">Add beneficiary</button>
+                </div>
+              </div>
+              <!-- Arrears and drawdown -->
+              <div class="los-panel">
+                <strong>Arrears and drawdown request</strong>
+                <span class="badge sm" :class="current.disops?.arrears && current.disops?.drawdown ? 'badge-green' : 'badge-red'"
+                      x-text="(current.disops?.arrears ? (current.disops.arrears.exists ? 'arrears declared' : 'no arrears') : 'arrears not declared') + ' · ' + (current.disops?.drawdown ? 'drawdown recorded' : 'drawdown required')"></span>
+                <div class="los-dis-row">
+                  <button class="btn btn-sm btn-outline" :disabled="busy" @click="saveDis('arrears', { exists: false, rows: [] }, 'No arrears declared')">Declare: no arrears on record</button>
+                </div>
+                <div class="los-dis-row">
+                  <label class="los-field">Request reference<input class="input" x-model="dis.dd.request_ref" placeholder="e.g. DDR-001"></label>
+                  <label class="los-field">Request date<input class="input" type="date" x-model="dis.dd.request_date"></label>
+                  <label class="los-field">Tranche 1 amount (₹ Cr)<input class="input" type="number" step="0.01" x-model="dis.dd.amount_cr"></label>
+                  <label class="los-field">Tranche 1 date<input class="input" type="date" x-model="dis.dd.date"></label>
+                  <button class="btn btn-sm btn-outline" :disabled="busy" @click="saveDrawdown()">Save drawdown</button>
+                </div>
+              </div>
+              <!-- Memo -->
+              <div class="los-panel" x-show="!current.disops?.memo">
+                <strong>Disbursement memo</strong> <span class="badge sm badge-red">required</span>
+                <p class="text-muted los-small" style="margin:4px 0">Generate it once the record above is complete; it freezes the record, so any later change needs a new memo.</p>
+                <button class="btn btn-sm btn-primary" :disabled="busy" @click="genMemo()">Generate memo</button>
+              </div>
+            </div>
             <div class="los-panel" x-show="current.disops?.cif">
               <strong>CIF</strong> <span class="text-muted los-small" x-text="current.disops?.cif?.cif_no + ' · ' + (current.disops?.cif?.status || '')"></span>
             </div>
             <table class="data-table" x-show="(current.disops?.limits || []).length">
-              <thead><tr><th>Facility</th><th>Limit</th><th>Amount (₹ Cr)</th><th>Drawn (₹ Cr)</th><th>As of</th></tr></thead>
+              <thead><tr><th>Facility</th><th>Kind</th><th>Limit ID</th><th>Next review</th></tr></thead>
               <tbody><template x-for="(l, i) in current.disops.limits" :key="i">
                 <tr>
-                  <td x-text="l.facility_id"></td>
-                  <td x-text="l.limit_type"></td>
-                  <td x-text="l.amount_cr ?? '—'"></td>
-                  <td x-text="l.drawn_cr ?? '—'"></td>
-                  <td x-text="l.as_of || '—'"></td>
+                  <td x-text="l.facility_id || '—'"></td>
+                  <td x-text="{total: 'Total', fund: 'Fund-based', non_fund: 'Non-fund-based'}[l.kind] || l.kind"></td>
+                  <td x-text="l.limit_id"></td>
+                  <td x-text="l.next_review_date || '—'"></td>
                 </tr>
               </template></tbody>
             </table>
@@ -1244,14 +1324,15 @@
             <div class="los-panel" x-show="(current.disops?.sop || []).length">
               <strong>Interim SOP checklist</strong> <span class="text-muted los-small" x-text="current.disops.sop_gate || 'all in compliance'"></span>
               <table class="data-table" style="margin-top:6px">
-                <thead><tr><th>Item</th><th>Status</th><th>Remarks</th><th></th></tr></thead>
-                <tbody><template x-for="(item, i) in current.disops.sop" :key="i">
+                <thead><tr><th>Item</th><th style="width:190px">Status</th><th>Remarks</th></tr></thead>
+                <tbody><template x-for="item in current.disops.sop" :key="item.id">
                   <tr>
                     <td x-text="item.label"></td>
-                    <td x-text="item.status"></td>
-                    <td class="los-small" x-text="item.remarks || item.detail || ''"></td>
-                    <td><button class="btn btn-sm btn-outline" :disabled="busy || item._saving"
-                          @click="item.status = item.status === 'in_compliance' ? 'pending' : 'in_compliance'; setSop(item)">Toggle</button></td>
+                    <td><select class="input" :value="item.status" :disabled="busy || current.step?.id !== 'dis_maker'"
+                                @change="setSop(item, $event.target.value)">
+                      <option value="in_compliance">In compliance</option><option value="not_in_compliance">Not in compliance</option>
+                      <option value="not_applicable">Not applicable</option></select></td>
+                    <td class="los-small" x-text="(item.remarks || '') + (item.by_name ? ' · ' + item.by_name : '')"></td>
                   </tr>
                 </template></tbody>
               </table>
@@ -1260,22 +1341,22 @@
               <strong>Disbursement memo</strong> <span class="text-muted los-small" x-text="'generated ' + current.disops?.memo?.generated_at + ' · hash ' + (current.disops?.memo?.content_hash || '').slice(0, 12)"></span>
               <span class="text-muted" style="margin-left:6px" x-text="current.disops?.memo?.reviewed ? 'reviewed' : 'review pending'"></span>
               <div class="los-action-row" style="margin-top:6px">
-                <button class="btn btn-sm btn-outline" :disabled="busy" @click="genMemo()">Regenerate</button>
-                <button class="btn btn-sm btn-primary" :disabled="busy || current.disops?.memo?.reviewed" @click="reviewMemo()">Mark reviewed (I verified the record)</button>
+                <button class="btn btn-sm btn-outline" x-show="current.step?.id === 'dis_maker'" :disabled="busy" @click="genMemo()">Regenerate</button>
+                <button class="btn btn-sm btn-primary" x-show="current.step?.id === 'dis_maker' && !current.disops?.memo?.reviewed" :disabled="busy" @click="reviewMemo()">Mark reviewed (I verified the record)</button>
               </div>
             </div>
-            <div class="los-panel" x-show="current?.checker_review && current.step?.id === 'dis_checker'">
+            <div class="los-panel" x-show="current.disops?.checker_review && current.step?.id === 'dis_checker'">
               <strong>Checker review</strong> <span class="text-muted los-small">read-only — every item must be confirmed before approve</span>
-              <template x-for="(i, k) in (current.checker_review || [])" :key="k">
-                <label style="display:block;margin:4px 0">
+              <template x-for="(i, k) in (current.disops?.checker_review || [])" :key="k">
+                <label class="los-review-item">
                   <input type="checkbox" :checked="i.done" @change="toggleReviewItem('checker', i.id)"> <span x-text="i.label"></span>
                 </label>
               </template>
             </div>
-            <div class="los-panel" x-show="current?.final_review && current.step?.id === 'dis_approver'">
+            <div class="los-panel" x-show="current.disops?.final_review && current.step?.id === 'dis_approver'">
               <strong>Final review</strong> <span class="text-muted los-small">read-only — every item must be confirmed before approve</span>
-              <template x-for="(i, k) in (current.final_review || [])" :key="k">
-                <label style="display:block;margin:4px 0">
+              <template x-for="(i, k) in (current.disops?.final_review || [])" :key="k">
+                <label class="los-review-item">
                   <input type="checkbox" :checked="i.done" @change="toggleReviewItem('final', i.id)"> <span x-text="i.label"></span>
                 </label>
               </template>

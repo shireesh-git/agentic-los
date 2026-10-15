@@ -87,17 +87,28 @@ def link_on_file(registry: list[dict], files: list[str], at: str) -> list[str]:
     return linked
 
 
+# Checklist items prepared in a workspace rather than uploaded: (workspace label, "it has data")
+WORKSPACE_ITEMS = {
+    "CMA (prepared in the CMA workspace)":
+        ("CMA workspace", lambda app: any(s.get("rows") for s in (app.get("cma") or {}).get("subjects") or [])),
+    "Drawdown schedule report":
+        ("Disbursement ops — drawdown", lambda app: bool(((app.get("disops") or {}).get("drawdown") or {}).get("schedule"))),
+}
+
+
 def link_workspace(app: dict, at: str) -> list[str]:
-    """Checklist items prepared in a workspace rather than uploaded (the CMA): linked once it has data."""
-    name = "CMA (prepared in the CMA workspace)"
-    doc = next((d for d in app.get("documents") or [] if d["name"] == name), None)
-    if not doc or doc.get("versions") or not any(s.get("rows") for s in (app.get("cma") or {}).get("subjects") or []):
-        return []
-    doc["versions"].append({"v": 1, "file_name": "CMA workspace", "uploaded_by": "Document agent", "at": at,
-                            "source": "workspace", "detail": "prepared in the CMA workspace"})
-    if doc["status"] == "pending":
-        doc["status"] = "uploaded"
-    return [name]
+    """Link the checklist items prepared in a workspace (the CMA, the drawdown schedule) once it has data."""
+    linked = []
+    for name, (label, ready) in WORKSPACE_ITEMS.items():
+        doc = next((d for d in app.get("documents") or [] if d["name"] == name), None)
+        if not doc or doc.get("versions") or not ready(app):
+            continue
+        doc["versions"].append({"v": 1, "file_name": label, "uploaded_by": "Document agent", "at": at,
+                                "source": "workspace", "detail": "prepared in the " + label})
+        if doc["status"] == "pending":
+            doc["status"] = "uploaded"
+        linked.append(name)
+    return linked
 
 
 def initial_registry() -> list[dict]:

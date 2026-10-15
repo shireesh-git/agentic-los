@@ -425,3 +425,10 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
 .los-todo-text summary{cursor:pointer;color:var(--accent)}
 .los-todo-sub{margin:4px 0 0 18px;padding:0;list-style:disc}
 .los-todo-sub li{display:list-item;padding:1px 0;border:none;background:none}
+/* Disbursement record data entry */
+.los-dis-forms .los-panel{margin-bottom:10px}
+.los-dis-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:6px}
+.los-dis-row .los-field{flex:1 1 150px;margin:0}
+.los-dis-row > .btn{margin-bottom:2px}
+.los-review-item{display:flex;gap:8px;align-items:flex-start;margin:6px 0;text-transform:none;letter-spacing:0;font-size:13px;font-weight:500;color:var(--text)}
+.los-review-item input{margin-top:2px}

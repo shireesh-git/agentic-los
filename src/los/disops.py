@@ -318,8 +318,9 @@ def disops_view(app: dict) -> dict:
         "memo": disops.get("memo"),
         "missing_info": disops.get("missing_info") or [],
         "external_rating_retrigger": disops.get("external_rating_retrigger"),
-        "checker_review": disops.get("checker_review"),
-        "final_review": disops.get("final_review"),
+        # the review checklists exist from the start, so the reviewer sees what to verify
+        "checker_review": disops.get("checker_review") or initial_review(CHECKER_REVIEW_ITEMS),
+        "final_review": disops.get("final_review") or initial_review(FINAL_REVIEW_ITEMS),
         "note": "CIF, limit, loan-account and CBS security references are recorded operational data "
                 "(demo — core banking is not connected); they are evidence for the approval, not CBS writes.",
     }
@@ -382,6 +383,10 @@ FINAL_REVIEW_ITEMS = [
     "Annexure IV security details verified",
     "Arrears and annexures verified",
 ]
+
+
+def initial_review(labels: list[str]) -> list[dict]:
+    return [{"id": f"R-{i:02d}", "label": label, "done": False} for i, label in enumerate(labels, 1)]
 
 
 def normalise_review(items: list[str], current: Optional[list[dict]]) -> list[dict]:

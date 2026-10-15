@@ -984,7 +984,7 @@ class LosService:
             add(do.maker_gate(app), "disops")
             add(dreg.stage_gate(app), "documents")
         if action == "approve" and step.id in ("dis_checker", "dis_approver"):
-            add(self.dis_review_gate(app), "task")
+            add(self.dis_review_gate(app), "disops")
         if action == "submit" and step.id in ("pos_maker", "dis_maker") and app.get("snapshots"):
             add(snap.material_change_gate(app), "approvals")
         if action == "submit" and step.id == "pos_maker" and app.get("conditions") and \
@@ -3847,13 +3847,13 @@ class LosService:
         disops = app.setdefault("disops", {})
         labels = do.CHECKER_REVIEW_ITEMS if stage == "checker" else do.FINAL_REVIEW_ITEMS
         key = "checker_review" if stage == "checker" else "final_review"
-        current = disops.get(key) or [{"id": f"R-{i:02d}", "label": label, "done": False}
-                                      for i, label in enumerate(labels, 1)]
-        for item_id in items or []:
+        current = disops.get(key) or do.initial_review(labels)
+        for raw in items or []:         # an item ID (verified), or {"id", "done"} to tick or untick
+            item_id, done = (raw.get("id"), bool(raw.get("done"))) if isinstance(raw, dict) else (raw, True)
             it = next((i for i in current if i["id"] == str(item_id)), None)
             if not it:
                 raise InvalidRequestError(f"Unknown review item: {item_id}")
-            it["done"] = True
+            it["done"] = done
         disops[key] = current
         self._workspace_save(app, session, f"{key}_update", f"{sum(1 for i in current if i['done'])}/{len(current)} review items verified")
         return self.get(application_id, session)

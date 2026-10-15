@@ -82,7 +82,7 @@ function losApp() {
            cmaReview: false, cmaRemarks: '', conduct: {}, exposure: { exception: {} }, banking: {},
            pricing: { facility_id: '' }, fee: {}, schedule: {}, limit: {}, account: {}, secRef: {},
            beneficiary: {}, disFee: {}, repayment: {}, interest: {}, arrearsRow: {}, arrearsExists: false,
-           memoReview: false, memoRemarks: '', docReview: '', docStatus: 'reviewed', docRemarks: '',
+           memoReview: true, memoRemarks: '', docReview: '', docStatus: 'reviewed', docRemarks: '',
            mcDecision: 'accept', mcRemarks: '', outKind: '',
            narr: {}, notes: {}, secNotes: {}, src: {},
            visit: { date_of_visit: '', place: '', address_visited: '', official: '', designation: '', observation: 'Satisfactory', remarks: '' } },
@@ -91,6 +91,7 @@ function losApp() {
     terms: null, termForm: { category: 'CP', text: '', facility_id: '', stipulated_value: '', frequency: '' },
     termEdit: null, termReason: '',
     toast: '', toastType: '', _toastTimer: null,
+    dis: { cif: {}, limit: { kind: 'fund' }, account: {}, ben: { payment_mode: 'NEFT' }, dd: {}, cbs: {} },
     dlg: { open: false, title: '', text: '', input: false, required: false, value: '', placeholder: '', ok: 'OK', danger: false, resolve: null },
 
     async init() {
@@ -831,13 +832,36 @@ function losApp() {
       return this.saveDisopsSection('interest_terms', data, 'Interest terms saved').then(ok => { if (ok) this.gov.interest = {}; });
     },
     saveArrears() { return this.saveDisopsSection('arrears', { exists: this.gov.arrearsExists, rows: this.gov.arrearsExists ? [this.gov.arrearsRow] : [] }, 'Arrears recorded'); },
-    setSop(item) { item._saving = true;
-      this.govSave('disops', { section: 'sop', data: { items: [{ id: item.id, status: item.status, remarks: item.remarks || item.detail }] } }).finally(() => { item._saving = false; }); },
+    async setSop(item, status) {
+      let remarks = item.remarks || '';
+      if (status === 'not_in_compliance' && !remarks) {
+        remarks = await this.ask(item.label, { placeholder: 'Why is it not in compliance? (required)', ok: 'Save' });
+        if (!remarks) return this.refreshCurrent();
+      }
+      return this.govSave('disops', { section: 'sop', data: { items: [{ id: item.id, status, remarks }] } }, 'SOP: ' + item.label);
+    },
+    saveDis(section, data, label) { return this.saveDisopsSection(section, data, label); },
+    addDisRow(section, row, label) {
+      // each list is saved whole: the rows already recorded plus the new one
+      const rows = [...(this.current.disops?.[section] || []), { ...row }];
+      return this.saveDisopsSection(section, { rows }, label).then(ok => {
+        if (ok) this.dis = { ...this.dis, limit: { kind: 'fund' }, account: {}, ben: { payment_mode: 'NEFT' } };
+      });
+    },
+    saveCbs() {
+      const rows = (this.current.disops?.security_refs || []).map(r => ({ ...r, cbs_security_no: this.dis.cbs[r.security_id] ?? r.cbs_security_no }));
+      return this.saveDisopsSection('security_refs', { rows }, 'Security numbers saved');
+    },
+    saveDrawdown() {
+      const d = this.dis.dd;
+      return this.saveDisopsSection('drawdown', { request_ref: d.request_ref, request_date: d.request_date,
+        schedule: d.amount_cr ? [{ amount_cr: d.amount_cr, date: d.date }] : [] }, 'Drawdown recorded');
+    },
     genMemo() { return this.govSave('disops/memo', {}, 'Disbursement memo generated'); },
     reviewMemo() { return this.govSave('disops/memo/review', { approve: this.gov.memoReview, remarks: this.gov.memoRemarks }, 'Memo reviewed'); },
     toggleReviewItem(kind, id) {
       const key = kind === 'checker' ? 'checker_review' : 'final_review';
-      const items = this.current[key]; if (!items) return;
+      const items = this.current.disops?.[key]; if (!items) return;
       const next = items.map(i => ({ id: i.id, done: i.id === id ? !i.done : !!i.done }));    // only the clicked item
       this.govSave('disops/review', { stage: kind, items: next }, 'Review updated');
     },
