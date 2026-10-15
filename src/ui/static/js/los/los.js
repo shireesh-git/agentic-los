@@ -58,6 +58,7 @@ function losApp() {
     decisionData: {}, deferUntil: '', deferOpen: false,
     prospectMode: false, _prepTimer: null,
     prospectCategories: ['request', 'kyc', 'financials', 'cam', 'ratings', 'collateral', 'gst', 'banking', 'bureau', 'legal'],
+    categoryLabel(c) { return { kyc: 'KYC', cam: "CAM (the bank's own)", gst: 'GST', misc: 'Other' }[c] || this.titleCase(c); },
     cam: { mode: 'none', options: null, staging_id: null, read: null, reading: false },
     prospect: { category: 'request', staging_id: null, documents: [], read: null, reading: false, identity: {},
                 confirm_not_duplicate: false },
@@ -402,7 +403,7 @@ function losApp() {
         if (rm.job?.state === 'running' || rm.prep?.state === 'running') this._rmTimer = setTimeout(() => this.loadAssessment(), 1500);
         else if (prepWasRunning) {                       // the agents finished: show what they wrote
           await this.refreshCurrent();
-          this.loadNote(); this.loadSourcing(); this.loadPost();
+          this.loadNote(); this.loadSourcing(); this.loadPost(); this.loadDD();   // the agents ran the checks too
           if (rm.prep?.state === 'done') this.notify('Agents prepared the application', 'ok');
           else if (rm.prep?.state === 'failed') this.notify('Preparation failed: ' + rm.prep.error, 'error');
         }
@@ -570,7 +571,7 @@ function losApp() {
         if (this.prepRunning()) this._prepTimer = setTimeout(() => this.loadSourcing(), 1200);
         else if (wasRunning) {                          // the agents just finished: refresh what they wrote
           this.srcSel = Object.fromEntries((src.prefill?.fields || []).filter(f => f.band === 'high' && !f.accepted).map(f => [f.id, true]));
-          await this.refreshCurrent();
+          await this.refreshCurrent(); this.loadDD(); this.loadAssessment();   // checks and the generated CAM
           if (src.prep?.state === 'done') this.notify('Agents prepared the application in ' + ((src.prep.summary?.duration_ms || 0) / 1000).toFixed(1) + 's', 'ok');
           else if (src.prep?.state === 'failed') this.notify('Preparation failed: ' + src.prep.error, 'error');
         }
@@ -845,7 +846,9 @@ function losApp() {
       // each list is saved whole: the rows already recorded plus the new one
       const rows = [...(this.current.disops?.[section] || []), { ...row }];
       return this.saveDisopsSection(section, { rows }, label).then(ok => {
-        if (ok) this.dis = { ...this.dis, limit: { kind: 'fund' }, account: {}, ben: { payment_mode: 'NEFT' } };
+        if (!ok) return;                         // clear only the form that was saved
+        const blank = { limits: ['limit', { kind: 'fund' }], loan_accounts: ['account', {}], beneficiaries: ['ben', { payment_mode: 'NEFT' }] }[section];
+        if (blank) this.dis = { ...this.dis, [blank[0]]: blank[1] };
       });
     },
     saveCbs() {
@@ -1071,9 +1074,13 @@ function losApp() {
       if (t.amount_cr == null && sd.drawdown_amount_cr != null) t.amount_cr = sd.drawdown_amount_cr;
       if (!t.value_date && sd.value_date) t.value_date = sd.value_date;
       if (!t.purpose && sd.drawdown_purpose) t.purpose = sd.drawdown_purpose;
-      const b = this.gov.beneficiary;
-      if (!b.name && sd.beneficiary_name) this.gov.beneficiary = { ...b, name: sd.beneficiary_name,
-        account_no: b.account_no || sd.account_number || '', ifsc: b.ifsc || sd.ifsc || '' };
+      const b = this.dis.ben;                      // the disbursement record forms
+      if (!b.name && sd.beneficiary_name) this.dis.ben = { ...b, name: sd.beneficiary_name,
+        account_no: b.account_no || sd.account_number || '', ifsc: b.ifsc || sd.ifsc || '',
+        amount_cr: b.amount_cr ?? sd.drawdown_amount_cr ?? null };
+      const dd = this.dis.dd;
+      if (!dd.amount_cr && sd.drawdown_amount_cr != null)
+        this.dis.dd = { ...dd, amount_cr: sd.drawdown_amount_cr, date: dd.date || sd.value_date || '' };
     },
     suggestedNote(domain) {
       const n = Object.keys(this.ps?.suggested?.[domain] || {}).length;

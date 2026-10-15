@@ -316,6 +316,7 @@ def disops_view(app: dict) -> dict:
         "sop": disops.get("sop") or [],
         "sop_gate": sop_gate(disops.get("sop") or []),
         "memo": disops.get("memo"),
+        "memo_stale": bool(disops.get("memo")) and disops["memo"].get("content_hash") != memo_hash(disops),
         "missing_info": disops.get("missing_info") or [],
         "external_rating_retrigger": disops.get("external_rating_retrigger"),
         # the review checklists exist from the start, so the reviewer sees what to verify
@@ -356,6 +357,9 @@ def maker_gate(app: dict) -> Optional[str]:
     memo = view["memo"]
     if not memo or not memo.get("reviewed"):
         missing.append("the generated and reviewed Disbursement Memo")
+    elif memo.get("content_hash") != memo_hash(app.get("disops") or {}):
+        missing.append("a new Disbursement Memo (the record changed after the memo was generated — regenerate "
+                       "and review it)")
     return ("The disbursement record is incomplete — complete: " + "; ".join(missing)) if missing else None
 
 

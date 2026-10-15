@@ -17,7 +17,7 @@
       </div>
       <div class="los-src-upload">
         <select class="input" x-model="prospect.category" aria-label="Document category">
-          <template x-for="c in prospectCategories" :key="c"><option :value="c" x-text="titleCase(c)"></option></template>
+          <template x-for="c in prospectCategories" :key="c"><option :value="c" x-text="categoryLabel(c)"></option></template>
         </select>
         <input class="input" type="file" accept="application/pdf" multiple x-ref="prospectFile" aria-label="PDF documents">
         <button type="button" class="btn btn-sm btn-outline" :disabled="busy" @click="stageProspectDocs()">Add document(s)</button>

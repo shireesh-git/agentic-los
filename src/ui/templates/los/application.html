@@ -767,7 +767,7 @@
                   </tr>
                 </template></tbody>
               </table>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              <div class="los-dis-row">
                 <label class="los-field">Role<select x-model="gov.ewp.role"><option value="">—</option><option>LIA</option><option>LIE</option><option>Security Trustee</option><option>ESDD provider</option><option>Legal Loan Counsel</option></select></label>
                 <label class="los-field">Name<input x-model="gov.ewp.name"></label>
                 <label class="los-field">Contact<input x-model="gov.ewp.contact_number"></label>
@@ -922,7 +922,7 @@
             <div class="status-inline status-inline-error" x-show="current?.exposure_gate" x-text="current.exposure_gate"></div>
             <div class="los-panel" x-show="current.proposal?.exposure">
               <strong>Exposure</strong> <span class="text-muted los-small" x-text="(current.proposal.exposure.loan?.source || '') + ' · ' + (current.proposal.exposure.bond?.source || '')"></span>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              <div class="los-dis-row">
                 <label class="los-field">Sanctioned (₹ Cr)<input type="number" x-model.number="gov.exposure.sanctioned_cr" :value="current.proposal.exposure.sanctioned_cr ?? ''"></label>
                 <label class="los-field">Outstanding (₹ Cr)<input type="number" x-model.number="gov.exposure.outstanding_cr" :value="current.proposal.exposure.outstanding_cr ?? ''"></label>
                 <label class="los-field">LEF norm<input type="number" x-model.number="gov.exposure.lef" :value="current.proposal.exposure.norms?.lef ?? ''"></label>
@@ -952,7 +952,7 @@
             </div>
             <div class="los-panel">
               <strong>Banking arrangement</strong> <span class="text-muted los-small">a syndication case must use a Consortium arrangement</span>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              <div class="los-dis-row">
                 <label class="los-field">Arrangement<select x-model="gov.banking.arrangement"><option value="">—</option><option value="sole">Sole banking</option><option value="multiple_banking">Multiple banking</option><option value="consortium">Consortium</option><option value="syndication">Syndication</option></select></label>
                 <label class="los-field" x-show="gov.banking.arrangement !== 'sole' && gov.banking.arrangement">Number of banks<input type="number" x-model.number="gov.banking.number_of_banks"></label>
                 <label class="los-field" x-show="gov.banking.arrangement === 'consortium'">Lead bank<input x-model="gov.banking.lead_bank"></label>
@@ -1079,7 +1079,7 @@
                 </template>
                 <div class="los-panel" x-show="terms.editable">
                   <strong>Add a condition</strong>
-                  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+                  <div class="los-dis-row">
                     <label class="los-field">Category<select x-model="termForm.category">
                       <template x-for="(label, k) in terms.categories" :key="k"><option :value="k" x-text="label"></option></template></select></label>
                     <label class="los-field" style="flex:1 1 320px">Condition<input x-model="termForm.text" placeholder="e.g. Quarterly stock statement to be submitted"></label>
@@ -1216,6 +1216,7 @@
               <!-- Beneficiaries -->
               <div class="los-panel">
                 <strong>Beneficiaries</strong>
+                <span class="text-muted los-small" x-show="ps?.suggested?.disbursement?.beneficiary_name && !(current.disops?.beneficiaries || []).length">pre-filled from the drawdown request — check, then add</span>
                 <span class="badge sm" :class="(current.disops?.beneficiaries || []).length ? 'badge-green' : 'badge-red'" x-text="(current.disops?.beneficiaries || []).length + ' recorded'"></span>
                 <div class="los-dis-row">
                   <label class="los-field">Name<input class="input" x-model="dis.ben.name"></label>
@@ -1294,7 +1295,7 @@
             <div class="los-panel">
               <strong>Repayment schedule (Annexure I)</strong>
               <span class="text-muted los-small" x-show="current.disops?.repayment_final">carried forward from the sanctioned facility — confirm or change</span>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              <div class="los-dis-row">
                 <template x-for="[k, label, type] in [['tenor_months', 'Tenor (months)', 'number'], ['moratorium_months', 'Moratorium (months)', 'number'], ['instalment_frequency', 'Instalment frequency *', 'text'], ['interest_payment_details', 'Interest payment', 'text'], ['repayment_conditions', 'Repayment conditions', 'text']]" :key="k">
                   <label class="los-field"><span x-text="label"></span>
                     <input :type="type" :value="gov.repayment[k] ?? (current.disops?.repayment_final?.[k] ?? '')" :disabled="current.step?.id !== 'dis_maker'"
@@ -1306,7 +1307,7 @@
             <div class="los-panel">
               <strong>Interest terms</strong>
               <span class="text-muted los-small" x-show="current.disops?.interest_terms">carried forward from the sanctioned pricing — confirm or change</span>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              <div class="los-dis-row">
                 <template x-for="[k, label, type] in [['benchmark', 'Benchmark *', 'text'], ['rate', 'Rate (%) *', 'number'], ['spread', 'Spread (%)', 'number'], ['reset_frequency', 'Reset frequency', 'text'], ['reset_date', 'Reset date', 'date'], ['additional_interest_non_perfection', 'Additional interest, non-perfection (%)', 'number'], ['effective_rate', 'Effective rate (%)', 'number'], ['penal_rate', 'Penal rate (%)', 'number'], ['start_date', 'Interest start date', 'date']]" :key="k">
                   <label class="los-field"><span x-text="label"></span>
                     <input :type="type" step="0.01" :value="gov.interest[k] ?? (current.disops?.interest_terms?.[k] ?? '')" :disabled="current.step?.id !== 'dis_maker'"
@@ -1339,10 +1340,11 @@
             </div>
             <div class="los-panel" x-show="current.disops?.memo">
               <strong>Disbursement memo</strong> <span class="text-muted los-small" x-text="'generated ' + current.disops?.memo?.generated_at + ' · hash ' + (current.disops?.memo?.content_hash || '').slice(0, 12)"></span>
-              <span class="text-muted" style="margin-left:6px" x-text="current.disops?.memo?.reviewed ? 'reviewed' : 'review pending'"></span>
+              <span class="badge sm" style="margin-left:6px" :class="current.disops?.memo_stale ? 'badge-red' : current.disops?.memo?.reviewed ? 'badge-green' : 'badge-amber'"
+                    x-text="current.disops?.memo_stale ? 'out of date — the record changed; regenerate it' : current.disops?.memo?.reviewed ? 'reviewed' : 'review pending'"></span>
               <div class="los-action-row" style="margin-top:6px">
                 <button class="btn btn-sm btn-outline" x-show="current.step?.id === 'dis_maker'" :disabled="busy" @click="genMemo()">Regenerate</button>
-                <button class="btn btn-sm btn-primary" x-show="current.step?.id === 'dis_maker' && !current.disops?.memo?.reviewed" :disabled="busy" @click="reviewMemo()">Mark reviewed (I verified the record)</button>
+                <button class="btn btn-sm btn-primary" x-show="current.step?.id === 'dis_maker' && !current.disops?.memo?.reviewed && !current.disops?.memo_stale" :disabled="busy" @click="reviewMemo()">Mark reviewed (I verified the record)</button>
               </div>
             </div>
             <div class="los-panel" x-show="current.disops?.checker_review && current.step?.id === 'dis_checker'">
@@ -1591,7 +1593,7 @@
             </details>
             <div class="los-src-upload" x-show="src?.can_edit">
               <select class="input" x-model="uploadCategory" aria-label="Document category">
-                <template x-for="c in src?.categories || []" :key="c"><option :value="c" x-text="titleCase(c)"></option></template>
+                <template x-for="c in src?.categories || []" :key="c"><option :value="c" x-text="categoryLabel(c)"></option></template>
               </select>
               <input class="input" type="file" accept="application/pdf" x-ref="srcFile" aria-label="PDF document">
               <button class="btn btn-sm btn-outline" :disabled="busy" @click="uploadDoc()">Upload PDF</button>
@@ -1680,7 +1682,7 @@
             </div>
           </div>
           <div class="los-panel" style="margin-top:8px">
-            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end" x-show="ipn?.can_generate">
+            <div class="los-dis-row" x-show="ipn?.can_generate">
               <label class="los-field">LPFG Analyst<input class="input" x-model="ipnAssign.lpfg_analyst" placeholder="e.g. R. Menon"></label>
               <label class="los-field">LPFG Senior Analyst<input class="input" x-model="ipnAssign.lpfg_senior_analyst" placeholder="e.g. S. Kulkarni"></label>
               <label class="los-field">CRAC recommendation
@@ -1703,7 +1705,7 @@
             <p x-text="ipn?.note?.ai_summary?.text"></p>
           </div>
           <p class="text-muted" x-show="ipn?.generated && ipn?.note?.ai_status && ipn?.note?.ai_status !== 'ok'" x-text="'AI summary: ' + ipn?.note?.ai_status"></p>
-          <div class="status-inline" :class="(ipn?.note?.prescreen?.breaches || []).length ? 'status-inline-error' : 'status-inline-success'">
+          <div class="status-inline" :class="(ipn?.note?.prescreen?.breaches || []).length ? 'status-inline-error' : /not possible/.test(ipn?.note?.prescreen?.outcome || '') ? 'status-inline-warn' : 'status-inline-success'">
             <strong x-text="'Pre-screen (' + (ipn?.note?.prescreen?.period || 'n/a') + '): ' + ipn?.note?.prescreen?.outcome"></strong>
           </div>
           <div class="los-pack-grid">
@@ -2215,7 +2217,7 @@
           <template x-if="current?.sourcing_details">
             <div class="los-panel">
               <strong>Sourcing details</strong>
-              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+              <div class="los-dis-row">
                 <label class="los-field">Prospect received<input type="date" :value="current.sourcing_details.received_date" @input="gov.src.received_date = $event.target.value" :disabled="!canEditSourcing()"></label>
                 <label class="los-field">Source<select :disabled="!canEditSourcing()" @change="gov.src.source = $event.target.value">
                   <template x-for="s in current.sourcing_sources || []" :key="s"><option :selected="s === current.sourcing_details.source" x-text="s"></option></template></select></label>

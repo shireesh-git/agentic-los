@@ -80,6 +80,28 @@ def _latest_audited(company: dict):
     return sorted(audited, key=lambda fs: fs.period, reverse=True)
 
 
+# the figures the RM accepted from the borrower's statements (a prospect has no master financials)
+_ACCEPTED_FIN = {"revenue_cr": "revenue_operating", "ebitda_cr": "ebitda", "pat_cr": "pat",
+                 "net_worth_cr": "total_equity", "total_debt_cr": "total_debt"}
+
+
+def _accepted_statement(app: dict, accepted: dict):
+    items = {}
+    for fid, key in _ACCEPTED_FIN.items():
+        try:
+            items[key] = float(accepted[fid]["value"])
+        except (KeyError, TypeError, ValueError):
+            continue
+    if not items:
+        return None
+    from datetime import date
+    from src.models.canonical_model import FinancialStatement
+    docs = sorted({(accepted[f].get("source") or {}).get("document") for f in _ACCEPTED_FIN if f in accepted} - {None})
+    fs = FinancialStatement(entity_id=app.get("entity_id") or "", period="Latest year (documents)",
+                            statement_type="standalone", source="documents", as_of_date=date.today(), line_items=items)
+    return fs, docs
+
+
 def _fact(label, value, provenance, source=None):
     return {"label": label, "value": value if value not in (None, "") else NOT_AVAILABLE,
             "provenance": provenance if value not in (None, "") else "unavailable", "source": source}
@@ -125,10 +147,17 @@ def build_ip_note(app: dict, company: dict, now: Optional[datetime] = None) -> d
                 for e in (company or {}).get("existing_exposure") or []]
 
     years = _latest_audited(company)[:3]
+    fin_note = "Audited financial statements (borrower master)"
+    if not years:                               # a prospect: the figures accepted from its statements
+        from_docs = _accepted_statement(app, accepted)
+        if from_docs:
+            years = [from_docs[0]]
+            fin_note = ("Accepted from the borrower's documents" + (f" ({', '.join(from_docs[1])})" if from_docs[1] else "")
+                        + " — partial line items; ratios needing other items show as not available")
     fin_table = {"columns": ["₹ Cr"] + [fs.period for fs in years],
                  "rows": [[label] + [fmt(fs.line_items.get(k), "num") if k in fs.line_items else "—" for fs in years]
                           for k, label in _FIN_ROWS],
-                 "provenance": "source", "note": "Audited financial statements (borrower master)"}
+                 "provenance": "source", "note": fin_note}
     checks = prescreen(years[0] if years else None, _thresholds())
     breaches = [c for c in checks if c["result"] == "breach"]
     unavailable = [c for c in checks if c["result"] == "not_available"]
@@ -149,7 +178,7 @@ def build_ip_note(app: dict, company: dict, now: Optional[datetime] = None) -> d
                       "FSV ÷ proposed amount")]
 
     if not years:
-        outcome = "Pre-screen not possible — no audited financials on record"
+        outcome = "Pre-screen not possible — no audited financials on record or accepted from the documents"
     elif not breaches:
         outcome = "Within policy thresholds — proceed to in-principle review"
     elif len(breaches) <= 2:

@@ -432,3 +432,4 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
 .los-dis-row > .btn{margin-bottom:2px}
 .los-review-item{display:flex;gap:8px;align-items:flex-start;margin:6px 0;text-transform:none;letter-spacing:0;font-size:13px;font-weight:500;color:var(--text)}
 .los-review-item input{margin-top:2px}
+.status-inline-warn{background:var(--amber-bg,#fff7e6);border-color:var(--amber-border,#f5d48a);color:var(--amber,#b45309)}
