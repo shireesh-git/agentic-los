@@ -821,6 +821,9 @@ class LosService:
                         # the prospect writes its IP Note), unless they no longer hold the role
                         or (session["user"]["id"] if nxt.role == step.role and nxt.role in session["user"]["roles"] else None)
                         or self._last_worker(application_id, nxt.id)
+                        # a later step in a role already worked on this application (the RM's AP Note after
+                        # their IP Note) goes back to the same person
+                        or self._last_in_role(application_id, nxt.role)
                         or self._default_assignee(nxt.role))
             app.update(step_id=nxt.id, stage_id=nxt.stage_id, step_entered_at=at.isoformat(timespec="seconds"),
                        assignee_id=assignee)
@@ -940,6 +943,10 @@ class LosService:
         if action == "submit" and step.id == "ip_note" and not app.get("ip_note"):
             add("Generate the IP Note before submitting it for review", "task")
         if action == "submit" and step.id == "pos_maker":
+            # in order: the sanction letter is issued, the customer accepts it, the facilities are executed
+            letter = next((d for d in app.get("documents") or [] if d["name"].startswith("Sanction letter")), None)
+            if not letter or not letter.get("versions"):
+                add("Generate and issue the Sanction Letter before post-sanction progression", "letters")
             consent = app.get("consent")
             if not consent:
                 add("Record the customer's sanction consent and facility execution before submitting", "task")
@@ -948,9 +955,6 @@ class LosService:
                          if f.get("execution_status") not in ("executed", "partial")]
                 if stuck:
                     add("Every facility must be executed or partially executed before submitting: " + ", ".join(stuck), "task")
-                letter = next((d for d in app.get("documents") or [] if d["name"].startswith("Sanction letter")), None)
-                if not letter or not letter.get("versions"):
-                    add("Generate and issue the Sanction Letter before post-sanction progression", "task")
         if action == "submit" and step.id == "ap_note" and (app.get("terms") or {}).get("conditions"):
             # G-F2: the T&C go to sanction authored — every agent draft confirmed, edited or removed.
             add(terms_mod.submit_gate(app.get("terms"), app.get("fields")), "terms")
@@ -982,10 +986,14 @@ class LosService:
         if action == "approve" and step.id in ("dis_checker", "dis_approver"):
             add(self.dis_review_gate(app), "task")
         if action == "submit" and step.id in ("pos_maker", "dis_maker") and app.get("snapshots"):
-            add(snap.material_change_gate(app), "task")
+            add(snap.material_change_gate(app), "approvals")
         if action == "submit" and step.id == "pos_maker" and app.get("conditions") and \
                 not condition_summary(app["conditions"], self.now().date().isoformat())["cps_cleared"]:
-            add("Every condition precedent must be satisfied, deferred or waived before submitting", "task")
+            today = self.now().date().isoformat()
+            open_ids = [c["id"] for c in app["conditions"] if c["type"] in ("PC", "CP", "CPS")
+                        and condition_state(c, today) in ("open", "non_compliant", "overdue")]
+            add("Every condition precedent must be satisfied, deferred or waived before submitting"
+                + (" — still open: " + ", ".join(open_ids[:8]) if open_ids else ""), "task")
         if action == "submit" and step.id == "dis_maker":
             dis = self._disbursement(app)
             if not dis["pending_tranche"]:
@@ -1062,6 +1070,22 @@ class LosService:
         for e in self.store.events(application_id):
             if e.get("from_step") == step_id and e["action"] in ("submit", "allocate") and e.get("actor_id"):
                 return e["actor_id"]
+        return None
+
+    def _last_in_role(self, application_id: str, role: str) -> Optional[str]:
+        """Who last completed a step of ``role`` on this application, if they still hold the role."""
+        for e in self.store.events(application_id):
+            st = e.get("from_step")
+            if not st or e["action"] not in ("submit", "allocate") or not e.get("actor_id"):
+                continue
+            try:
+                if self.wf.step(st).role != role:
+                    continue
+            except Exception:
+                continue
+            user = next((u for u in self.wf.users_with_role(role) if u["id"] == e["actor_id"]), None)
+            if user:
+                return user["id"]
         return None
 
     def _may_reassign(self, session: dict, step) -> bool:
@@ -1225,10 +1249,26 @@ class LosService:
                                              detail=summary))
             return summary
 
+    # agent fields whose value a person may already have recorded in another slot of the application
+    _RELATED_ENTRIES = {"esms_screening.proposed_category": (("esms", "category"), "The ESMS screening category")}
+
     def _verify_stats(self, app: dict, step) -> dict:
         registry, fields = self.field_registry, app.get("fields") or {}
         step_id = step.id if step else None
-        return {"queue": fieldmodel.queue(fields, registry, step_id),
+        queue = fieldmodel.queue(fields, registry, step_id)
+        for item in queue:              # an agent proposal next to what a person already recorded elsewhere
+            path = self._RELATED_ENTRIES.get(item["field_id"])
+            if not path:
+                continue
+            node = app
+            for k in path[0]:
+                node = node.get(k) if isinstance(node, dict) else None
+            proposed = (item.get("proposal") or {}).get("value")
+            if node not in (None, "") and str(node) != str(proposed):
+                item["why"] = (f"{path[1]} is {node}; the agent proposes {proposed} — confirm, or change it "
+                               f"to match")
+                item["person_entry"] = node
+        return {"queue": queue,
                 "stats": fieldmodel.stats(fields, registry),
                 "step_stats": fieldmodel.stats(fields, registry, registry.domains_verified_at(step_id)),
                 "meta": app.get("fields_meta"), "pretick_confidence": registry.pretick_confidence}
@@ -1625,7 +1665,8 @@ class LosService:
         if not d or not d.exists():
             return []
         files = [p.relative_to(d).as_posix() for p in d.rglob("*.pdf")]
-        return dreg.link_on_file(app.setdefault("documents", dreg.initial_registry()), files, at)
+        linked = dreg.link_on_file(app.setdefault("documents", dreg.initial_registry()), files, at)
+        return linked + dreg.link_workspace(app, at)
 
     def _documents_on_file(self, entity_id: str) -> list[dict]:
         d = self._entity_dir(entity_id)
@@ -3836,6 +3877,8 @@ class LosService:
 
     def documents(self, application_id: str, session: Optional[dict] = None) -> dict:
         app = self._require(application_id)
+        if dreg.link_workspace(app, self.now().isoformat(timespec="seconds")):   # the CMA, once prepared
+            self.store.save(app)
         return dreg.registry_view(app)
 
     # material change review (GAP-P0-11 / P2-02)
@@ -4070,6 +4113,8 @@ class LosService:
             return "Customer Due Diligence / Due Diligence Report", self._output_dd_report(app)
         if kind == "committee_minutes":
             return "Committee minutes", self._output_minutes(app)
+        if kind == "esms_approval_note" and (app.get("esms") or {}).get("checklist"):
+            return "ESMS Approval Note", es.approval_note(app, app.get("esms") or {})
         if kind == "cma_download":
             return "CMA (prepared in the CMA workspace)", self._output_cma(app)
         if kind == "disbursement_memo":

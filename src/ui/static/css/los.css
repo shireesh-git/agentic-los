@@ -382,3 +382,46 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
 .los-action-row{display:flex;flex-wrap:wrap;gap:8px}
 .los-action-row > .btn-danger-outline{order:5}
 .los-action-row > .btn-danger-outline:not(.btn-danger-outline ~ .btn-danger-outline){margin-left:auto}
+
+/* Correcting an agent value: the proposal is pre-filled so a small fix stays small */
+.los-verify-edit{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.los-verify-edit .input{width:100%;box-sizing:border-box}
+.los-verify-edit textarea{min-height:90px;resize:vertical}
+.los-verify-list table{width:100%;table-layout:fixed}
+.los-verify-list th:nth-child(1){width:28px}
+.los-verify-list th:nth-child(2){width:17%}
+.los-verify-list th:nth-child(4){width:15%}
+.los-verify-list th:nth-child(5){width:13%}
+.los-verify-list th:nth-child(6){width:190px}
+.los-verify-list td{overflow-wrap:anywhere}
+.los-verify-act{min-width:0}
+.los-clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+/* Decision pack: blocks never spill into the next column; the override table takes the full row */
+.los-pack-grid > *{min-width:0}
+.los-pack-wide{grid-column:1 / -1}
+.los-override-table{width:100%;table-layout:fixed}
+.los-override-table th:nth-child(1){width:16%}.los-override-table th:nth-child(2),.los-override-table th:nth-child(3){width:28%}
+.los-override-table th:nth-child(4){width:18%}.los-override-table th:nth-child(5){width:10%}
+.los-override-table td{overflow-wrap:break-word;vertical-align:top}
+
+/* In-page dialog */
+.los-modal-back{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.los-modal{background:#fff;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:20px 22px;width:min(480px,100%)}
+.los-modal h3{margin:0 0 6px}
+.los-modal p{margin:0 0 10px;font-size:13px}
+.los-modal textarea{width:100%;box-sizing:border-box;resize:vertical}
+/* Inputs without a type attribute get the standard field style too */
+.los-field input:not([type]),.los-field input[type="date"],.los-check-form input:not([type]),.data-table input:not([type]){
+  width:100%;padding:10px 12px;background:#fff;border:1px solid var(--border);border-radius:var(--radius);
+  color:var(--text);font-size:13px;font-family:var(--font);font-weight:400;box-sizing:border-box;
+  transition:border-color .15s,box-shadow .15s}
+.los-field input:not([type]):focus,.los-field input[type="date"]:focus,.los-check-form input:not([type]):focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,51,102,.10)}
+.los-modal textarea{background:#fff}
+.los-cond-table{table-layout:fixed;width:100%}
+.los-cond-table td{overflow-wrap:break-word}
+.los-cond-form .input{width:100%;box-sizing:border-box;margin-bottom:6px}
+.los-todo-text{flex:1;min-width:0}
+.los-todo-text details{margin-top:4px}
+.los-todo-text summary{cursor:pointer;color:var(--accent)}
+.los-todo-sub{margin:4px 0 0 18px;padding:0;list-style:disc}
+.los-todo-sub li{display:list-item;padding:1px 0;border:none;background:none}

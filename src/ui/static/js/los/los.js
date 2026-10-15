@@ -91,6 +91,7 @@ function losApp() {
     terms: null, termForm: { category: 'CP', text: '', facility_id: '', stipulated_value: '', frequency: '' },
     termEdit: null, termReason: '',
     toast: '', toastType: '', _toastTimer: null,
+    dlg: { open: false, title: '', text: '', input: false, required: false, value: '', placeholder: '', ok: 'OK', danger: false, resolve: null },
 
     async init() {
       this.directory = await this.api('directory', {}, { auth: false });
@@ -124,6 +125,20 @@ function losApp() {
     },
     post(path, body) { return this.api(path, { method: 'POST', body: JSON.stringify(body || {}) }); },
 
+    ask(title, { text = '', placeholder = '', required = true, ok = 'Save' } = {}) {
+      // a reason / remark, typed in the page's own dialog; resolves to the text, or null when cancelled
+      return new Promise(resolve => {
+        this.dlg = { open: true, title, text, input: true, required, value: '', placeholder, ok, danger: false, resolve };
+        this.$nextTick(() => this.$refs.dlgInput?.focus());
+      });
+    },
+    askConfirm(title, { text = '', ok = 'Continue', danger = false } = {}) {
+      return new Promise(resolve => { this.dlg = { open: true, title, text, input: false, required: false, value: '', placeholder: '', ok, danger, resolve }; });
+    },
+    closeDlg(result) {
+      const r = this.dlg.resolve; this.dlg = { ...this.dlg, open: false, resolve: null };
+      if (r) r(result);
+    },
     notify(msg, type) {
       if (type === 'error') this.lastError = msg;           // stays on screen until dismissed or the next success
       else if (type === 'ok') this.lastError = '';
@@ -239,7 +254,7 @@ function losApp() {
     },
     tabIssues(tab) {
       const gov = this.govTabs().map(t => t[0]);
-      return (this.current?.blockers || []).filter(b => tab === 'workspaces' ? gov.includes(b.where) : b.where === tab).length;
+      return (this.current?.blockers || []).filter(b => tab === 'workspaces' ? gov.includes(b.where) : b.where === tab || (tab === 'task' && b.where === 'letters')).length;
     },
     goTo(where) {
       const gov = this.govTabs().map(t => t[0]);
@@ -250,21 +265,32 @@ function losApp() {
     },
     whereLabel(where) {
       return { checks: 'Checks', assessment: 'Credit assessment', task: 'below', terms: 'Terms & conditions', cma: 'CMA',
-               pricing: 'Pricing & fees', projects: 'Projects & ESMS', documents: 'Documents', disops: 'Disbursement ops' }[where] || where;
+               pricing: 'Pricing & fees', projects: 'Projects & ESMS', documents: 'Documents', disops: 'Disbursement ops',
+               approvals: 'Approval package', ratings: 'Ratings & RAROC', parties: 'Parties & identity', facilities: 'Facilities & limits' }[where] || where;
     },
     todo() {
       // What the step holder still has to do: the hard blockers of Submit / Approve (from the server's own
       // gates) and the agents' work waiting for a person (advisory).
       const c = this.current, out = [];
       if (!c?.step || !c.actions?.length) return out;
-      for (const b of c.blockers || []) out.push({ text: b.message, where: b.where, blocking: true });
+      for (const b of c.blockers || [])          // cards on My task have a target to scroll to
+        out.push(b.where === 'letters' ? { text: b.message, where: 'task', target: '.los-letters', blocking: true }
+                                       : { text: b.message, where: b.where, blocking: true });
+      if (this.forwardAction() && c.actions.includes(this.forwardAction()))
+        for (const f of c.decision_fields || [])
+          if (f.required && !String(this.decisionData[f.id] ?? '').trim())
+            out.push({ text: 'Fill in "' + (f.label || this.titleCase(f.id.replaceAll('_', ' '))) + '" below.', where: 'task', target: '#df-' + f.id, blocking: true });
       const v = this.rm?.verify?.step_stats || {};
       if (this.rm?.can_prepare && !(this.rm?.prep?.lanes || []).length && !v.total)
-        out.unshift({ text: 'Let the agents prepare this step (Prepare with agents).', where: 'task', blocking: false });
-      if (v.conflict) out.push({ text: v.conflict + ' field(s) where the agents disagree with an earlier decision — resolve them.', where: 'task', blocking: false });
+        out.unshift({ text: 'Let the agents prepare this step (Prepare with agents).', where: 'task', target: '.los-verify-card', blocking: false });
+      const pend = (this.ps?.conditions || []).filter(x => ['deferred', 'waived'].includes(x.status) && !x.approval?.by);
+      if (c.step.id === 'pos_checker' && pend.length)
+        out.push({ text: 'Approving also approves ' + pend.length + ' deferred / waived condition(s): '
+                   + pend.map(x => x.id).join(', ') + ' — check their reasons in Conditions.', where: 'task', target: '.los-post', blocking: false });
+      if (v.conflict) out.push({ text: v.conflict + ' field(s) where the agents disagree with an earlier decision — resolve them.', where: 'task', target: '.los-verify', blocking: false });
       if (v.pending) out.push({ text: c.step.id === 'ps_maker'
         ? v.pending + ' value(s) read from the documents are waiting for you: accept or correct them in Documents & AI prefill.'
-        : v.pending + ' agent-filled field(s) waiting for your check (confirm or correct).', where: 'task', blocking: false });
+        : v.pending + ' agent-filled field(s) waiting for your check (confirm or correct).', where: 'task', target: c.step.id === 'ps_maker' ? '' : '.los-verify', blocking: false });
       return out;
     },
     workCard() {
@@ -276,9 +302,9 @@ function losApp() {
       if (this.rm && (this.rm.verify?.queue || []).length) return '.los-verify-card';
       return '';
     },
-    showWork() {
+    showWork(sel) {
       // the visible card (the same class can exist on a hidden page, e.g. New Application)
-      const el = [...document.querySelectorAll(this.workCard())].find(e => e.offsetParent !== null);
+      const el = [...document.querySelectorAll(sel || this.workCard())].find(e => e.offsetParent !== null);
       this.scrollToEl(el);
     },
     scrollToEl(el) {
@@ -329,7 +355,7 @@ function losApp() {
       } catch {} finally { this.busy = false; }
     },
     async removeDeviation(d) {
-      const reason = window.prompt('Why is this deviation no longer needed?');
+      const reason = await this.ask('Remove deviation', { text: 'Why is this deviation no longer needed?', placeholder: 'Reason (required)', ok: 'Remove' });
       if (!reason) return;
       this.busy = true;
       try {
@@ -339,6 +365,24 @@ function losApp() {
       } catch {} finally { this.busy = false; }
     },
     lowerFirst(t) { t = String(t || ''); return t.charAt(0).toLowerCase() + t.slice(1); },
+    splitMsg(text) {
+      // a long blocker ("X is incomplete — complete: a; b; c…") reads as a heading and its items
+      const m = String(text || '');
+      if (m.length < 180 || !m.includes(';')) return { head: m, items: [] };
+      const cut = m.search(/ — |: /);
+      const head = cut > 0 ? m.slice(0, cut) : m.split(';')[0];
+      const rest = cut > 0 ? m.slice(cut).replace(/^( — complete: | — |: )/, '') : m.slice(head.length + 1);
+      const parts = []; let depth = 0, cur = '';            // split on "; " outside brackets
+      for (const ch of rest) {
+        if (ch === '(') depth++; else if (ch === ')') depth = Math.max(0, depth - 1);
+        if (ch === ';' && !depth) { parts.push(cur); cur = ''; } else cur += ch;
+      }
+      parts.push(cur);
+      const items = parts.map(x => x.replace(/\[TRUNCATED\]|…$/g, '').trim()).filter(Boolean)
+                        .map(x => x.charAt(0).toUpperCase() + x.slice(1));
+      return { head: head + ' (' + items.length + ' items)', items };
+    },
+    blockingCount() { return this.todo().filter(t => t.blocking).length; },
     forwardAction() { return { maker: 'submit', checker: 'approve', vp_review: 'submit' }[this.current?.step?.kind]; },
     actionBlocked(a) { return a === this.forwardAction() && (this.current?.blockers || []).length > 0; },
     rmVisible() {
@@ -598,7 +642,10 @@ function losApp() {
       if (tab === 'projects' && this.current?.esms_checklist) {
         const es = this.current.esms || {};
         const byId = Object.fromEntries((es.checklist || []).map(c => [c.id, c]));
-        this.gov.esms = { screening_date: es.screening_date || '', category: es.category || '', esdd: es.esdd || '',
+        // the agent's screening answers are in: today is the screening date to confirm with Save
+        const screened = (es.checklist || []).some(c => c.answer);
+        this.gov.esms = { screening_date: es.screening_date || (screened ? new Date().toISOString().slice(0, 10) : ''),
+                          category: es.category || '', esdd: es.esdd || '',
                           checklist: Object.fromEntries(this.current.esms_checklist.map(([id]) => [id, byId[id]?.answer || ''])),
                           remarks: Object.fromEntries(this.current.esms_checklist.map(([id]) => [id, byId[id]?.remarks || ''])) };
       }
@@ -688,7 +735,7 @@ function losApp() {
     changeProject() { const c = this.gov.projectChange; return this.govSave('projects/' + c.project_id + '/change', c, 'Change recorded'); },
     saveEsms() { const g = this.gov.esms;
       const checklist = Object.entries(g.checklist || {}).filter(([, v]) => v).map(([id, answer]) => ({ id, answer, remarks: g.remarks?.[id] || '' }));
-      this.govSave('esms', { screening_date: g.screening_date, category: g.category, esdd: g.esdd, checklist }, 'ESMS saved'); },
+      return this.govSave('esms', { screening_date: g.screening_date, category: g.category, esdd: g.esdd, checklist }, 'ESMS saved'); },
     saveEwp() { return this.govSave('ewps', this.gov.ewp, 'External party saved'); },
     recordRating() { const r = this.gov.rating; const payload = {};
       for (const k of ['subject', 'rating', 'rating_type', 'grade', 'score', 'date', 'rationale', 'trigger', 'review_date', 'downgrade_notches', 'revised_rating', 'comments']) if (r[k] !== '' && r[k] != null) payload[k] = r[k];
@@ -743,7 +790,7 @@ function losApp() {
       if (ok) this.termEdit = null;
     },
     async removeTerm(r) {
-      const reason = window.prompt('Why is this condition not applicable?');
+      const reason = await this.ask('Remove condition', { text: r.text, placeholder: 'Why is this condition not applicable? (required)', ok: 'Remove' });
       if (reason) await this.govSave('terms', { action: 'remove', term_id: r.term_id, reason }, 'Condition removed');
     },
     restoreTerm(r) { return this.govSave('terms', { action: 'restore', term_id: r.term_id }, 'Condition restored'); },
@@ -768,7 +815,7 @@ function losApp() {
       return [...(this.govDocs?.documents || [])].sort((a, b) => rank(a) - rank(b));
     },
     reviewDoc() { const id = this.gov.docReview; this.gov.docReview = '';
-      return this.govSave('documents/' + id + '/review', { status: this.gov.docStatus, remarks: this.gov.docRemarks }, 'Document reviewed'); },
+      return this.govSave('documents/review', { doc_id: id, status: this.gov.docStatus, remarks: this.gov.docRemarks }, 'Document reviewed'); },
     saveDisopsSection(section, data, label) { return this.govSave('disops', { section, data }, label); },
     saveLimit() { return this.saveDisopsSection('limits', { rows: [this.gov.limit] }, 'Limit recorded'); },
     saveAccount() { return this.saveDisopsSection('loan_accounts', { rows: [this.gov.account] }, 'Loan account recorded'); },
@@ -812,7 +859,8 @@ function losApp() {
         } catch { html = ''; }
       }
       if (!html) { w?.close(); return this.notify('This output is not available at this step', 'error'); }
-      if (w) { w.document.write('<!doctype html><meta charset="utf-8"><title>' + kind + '</title>'
+      const title = kind.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase()) + ' — ' + this.current.application_id;
+      if (w) { w.document.write('<!doctype html><meta charset="utf-8"><title>' + title + '</title>'
         + '<body style="font-family:system-ui;max-width:900px;margin:24px auto;padding:0 16px">' + html); w.document.close(); }
     },
     async loadIntegrations() { if (!this.integrations) { try { this.integrations = await this.api('integrations', {}, { quiet: true }); } catch { this.integrations = null; } } },
@@ -940,6 +988,26 @@ function losApp() {
                            f.label + ': ' + a.value + ' used');
     },
     clearSrc(f) { return this.applySrc([{ field_id: f.id, status: 'clear' }], f.label + ' cleared'); },
+    async uploadFor(d, ev) {
+      // a checklist document's file: stored under the borrower's folder for its kind, linked to the item
+      const file = ev.target.files?.[0]; ev.target.value = '';
+      if (!file) return;
+      const n = d.name.toLowerCase();
+      const category = /kyc|incorporation|cin|board/.test(n) ? 'kyc' : /financial|cma/.test(n) ? 'financials'
+        : /valuation|security|insurance/.test(n) ? 'collateral' : /agreement|consent|sanction/.test(n) ? 'legal' : 'misc';
+      const form = new FormData();
+      form.append('file', file); form.append('category', category); form.append('link_to', d.doc_id);
+      const token = storage(s => s.getItem(TOKEN_KEY));
+      this.busy = true;
+      try {
+        const r = await fetch('/api/los/' + this.appPath('documents'), { method: 'POST', body: form,
+                                                                       headers: token ? { 'X-LOS-Session': token } : {} });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.detail || r.statusText);
+        this.notify(file.name + ' added to ' + d.name + ' — review it to complete the item', 'ok');
+        await this.refreshCurrent(); this.openGov('documents');
+      } catch (e) { this.notify(e.message, 'error'); } finally { this.busy = false; }
+    },
     async uploadDoc() {
       const file = this.$refs.srcFile?.files?.[0];
       if (!file) return this.notify('Choose a PDF to upload', 'error');
@@ -1071,7 +1139,7 @@ function losApp() {
       if (!this.invResolution.trim()) return this.notify('Enter the resolution note', 'error');
       this.busy = true;
       try {
-        this.current = await this.post('applications/' + encodeURIComponent(this.current.application_id) + '/invalidations/' + id + '/resolve', { resolution: this.invResolution.trim() });
+        this.current = await this.post('applications/' + encodeURIComponent(this.current.application_id) + '/invalidations/' + id + '/resolve', { payload: { resolution: this.invResolution.trim() } });
         this.notify('Invalidation resolved', 'ok'); this.invResolving = ''; this.invResolution = '';
       } catch (e) { this.notify(e.message, 'error'); } finally { this.busy = false; }
     },
@@ -1126,13 +1194,14 @@ function losApp() {
     },
     toggleCheck(i, done) { return this.postWrite('disbursement/checklist', { items: [{ id: i.id, done }] }, (done ? 'Confirmed: ' : 'Unchecked: ') + i.label); },
     saveTranche() { return this.postWrite('disbursement/tranche', this.trancheForm, 'Tranche recorded'); },
-    covenantTest(id, result) {
-      const remarks = prompt('Test remark (optional) — e.g. source of the covenant test', '') ?? '';
+    async covenantTest(id, result) {
+      const remarks = await this.ask('Covenant ' + id + ': ' + result, { placeholder: 'Test remark (optional) — e.g. source of the covenant test', required: false, ok: 'Record test' });
+      if (remarks === null) return;
       return this.postWrite('covenants', { condition_id: id, action: 'test', result, remarks }, 'Covenant ' + id + ' tested: ' + result);
     },
-    covenantCure(id) {
-      const remarks = prompt('Cure remark (required) — evidence of the cure', '') ?? '';
-      if (!remarks.trim()) return this.notify('A cure remark is required', 'error');
+    async covenantCure(id) {
+      const remarks = await this.ask('Cure covenant ' + id, { placeholder: 'Cure remark (required) — evidence of the cure', ok: 'Record cure' });
+      if (!remarks) return;
       return this.postWrite('covenants', { condition_id: id, action: 'cure', result: '', remarks }, 'Covenant ' + id + ' cured');
     },
     fmtCr(v) { return v === null || v === undefined ? '—' : '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Cr'; },
@@ -1144,7 +1213,7 @@ function losApp() {
       const clean = Object.fromEntries(Object.entries(payload).filter(([, v]) => (v || '').toString().trim() !== ''));
       if (!Object.keys(clean).length) { this.notify('Nothing to update', 'error'); return; }
       this.busy = true;
-      try { this.ipn = await this.post(this.appPath('ip-note/assignments'), clean); this.notify('IP assignments saved', 'ok'); }
+      try { this.ipn = await this.post(this.appPath('ip-note/assignments'), { payload: clean }); this.notify('IP assignments saved', 'ok'); }
       catch (e) { this.notify(e.message, 'error'); } finally { this.busy = false; }
     },
     async loadNote() {
@@ -1184,7 +1253,8 @@ function losApp() {
     async act(action) {
       if (this.busy) return;
       if (['withdraw', 'drop', 'reject'].includes(action)
-          && !window.confirm((this.actionLabelFor(action) || action) + ': this ends the application and cannot be undone. Continue?')) return;
+          && !(await this.askConfirm((this.actionLabelFor(action) || action) + '?',
+                 { text: 'This ends the application and cannot be undone.', ok: this.actionLabelFor(action) || action, danger: true }))) return;
       if (action === 'defer' && !this.deferOpen) {          // first ask for the date to take it up again
         this.deferOpen = true;
         return this.notify('Choose the date to take the application up again, then click Defer', 'ok');
@@ -1205,7 +1275,15 @@ function losApp() {
         this.notify((ACTIONS[action]?.[2] || action) + ' at ' + before
                     + (this.current.step && this.current.step.name !== before ? ' → ' + this.current.step.name : ''), 'ok');
         this.loadDash();
+        this.pageTab = 'task'; window.scrollTo({ top: 0 });   // show where the application now stands
       } catch {} finally { this.busy = false; }
+    },
+    openPanel(name) {
+      // the header buttons open their panel on My task, in view
+      this.panel = this.panel === name ? '' : name;
+      if (!this.panel) return;
+      this.pageTab = 'task';
+      this.$nextTick(() => this.scrollToEl(document.getElementById('los-panel-' + name)));
     },
     async reassign() {
       this.busy = true;

@@ -99,6 +99,20 @@
   </div>
 
   <div class="toast" :class="toastType" x-show="toast" x-text="toast" x-transition></div>
+  <!-- In-page dialog: asks for a reason or a confirmation (never the browser's own prompt) -->
+  <div class="los-modal-back" x-show="dlg.open" x-transition.opacity @keydown.escape.window="dlg.open && closeDlg(null)">
+    <div class="los-modal" role="dialog" aria-modal="true" @click.outside="closeDlg(null)">
+      <h3 x-text="dlg.title"></h3>
+      <p class="text-muted" x-show="dlg.text" x-text="dlg.text"></p>
+      <textarea class="input" rows="3" x-show="dlg.input" x-ref="dlgInput" x-model="dlg.value" :placeholder="dlg.placeholder"
+                @keydown.enter.prevent="!dlg.required || dlg.value.trim() ? closeDlg(dlg.value.trim()) : null"></textarea>
+      <div class="los-action-row" style="justify-content:flex-end;margin-top:12px">
+        <button class="btn btn-ghost" @click="closeDlg(null)">Cancel</button>
+        <button class="btn" :class="dlg.danger ? 'btn-danger' : 'btn-primary'" :disabled="dlg.input && dlg.required && !dlg.value.trim()"
+                @click="closeDlg(dlg.input ? dlg.value.trim() : true)" x-text="dlg.ok"></button>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="/static/js/los/los.js"></script>
 </body>
