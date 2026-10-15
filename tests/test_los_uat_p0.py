@@ -127,7 +127,7 @@ def test_unavailable_mandatory_check_requires_vp_approval(db_path):
     blocked = dd.blocking(svc.store.get(app_id)["due_diligence"]["checks"])
     assert any(c["id"] == "crif" for c in blocked)
     with pytest.raises(InvalidRequestError, match="mandatory due-diligence"):
-        svc.act(app_id, rm, "submit")
+        svc.act(app_id, rm, "submit", comment="submit (test)")
     # The Compliance VP approval (with a reason) is the release.
     svc.exception_check(app_id, compvp, "crif", "CIBIL coverage accepted for this grade — CRIF not required")
     assert not any(c["id"] == "crif" for c in dd.blocking(svc.store.get(app_id)["due_diligence"]["checks"]))

@@ -109,18 +109,33 @@ class NarrativeAgent(BaseAgent):
         settings = config.get_narrative_settings()  # raises if mode != 'llm'
         entity_id = context["company_data"]["borrower"].entity_id
         checkpoints = self.checkpoint_factory(entity_id, self.llm) if self.checkpoint_factory else None
-        cam_text = render_cam_with_llm(
-            fact_pack=fact_pack,
+        try:
+            cam_text = render_cam_with_llm(
+                fact_pack=fact_pack,
             llm_provider=self.llm,
             temperature=settings.get("temperature", 0.1),
             max_tokens_per_section=settings.get("max_tokens_per_section", 1500),
-            on_section_progress=section_cb,
-            checkpoints=checkpoints,
-            max_parallel_sections=self._max_parallel_sections(settings),
-            section_max_tokens=settings.get("section_max_tokens") or {},
-            section_models=self._section_models(),
-            verify_figures=bool((getattr(self.llm, "model_routing", None) or {}).get("verify_figures", True)),
-        )
+                on_section_progress=section_cb,
+                checkpoints=checkpoints,
+                max_parallel_sections=self._max_parallel_sections(settings),
+                section_max_tokens=settings.get("section_max_tokens") or {},
+                section_models=self._section_models(),
+                verify_figures=bool((getattr(self.llm, "model_routing", None) or {}).get("verify_figures", True)),
+            )
+        except RuntimeError as e:
+            # The LLM cannot be reached (no key, no network): with narrative.on_llm_unavailable = template the
+            # CAM is rendered by the deterministic templates — same sections, figures from the fact pack — and
+            # the fallback is labelled on the case, never silent. Any other failure still stops the run.
+            if not str(e).startswith("LLM connection failed") or settings.get("on_llm_unavailable", "fail") != "template":
+                raise
+            cam_text = render_cam_template_only(fact_pack, on_section_progress=section_cb)
+            warning = (f"The LLM was not reachable, so the CAM narrative was written from the templates "
+                       f"(figures and sections are complete; prose is not AI-drafted). Reason: {str(e)[:240]}")
+            self.diagnostics = {"execution_mode": "template_fallback", "llm_invoked": False, "llm_calls": 0,
+                                "fallback_reason": str(e)[:500], "fact_pack_ms": fact_pack_ms,
+                                "fact_pack_keys": len(fact_pack), **counts}
+            return {"fact_pack": fact_pack, "cam_text": cam_text, "narrative_mode": "template_fallback",
+                    "narrative_warning": warning}
         mode = ("llm" if counts["llm_calls"] and not counts["checkpoint_hits"] else
                 "llm+cached" if counts["llm_calls"] else "cached" if counts["checkpoint_hits"] else "llm")
         self.diagnostics = {"execution_mode": mode, "llm_invoked": counts["llm_calls"] > 0,

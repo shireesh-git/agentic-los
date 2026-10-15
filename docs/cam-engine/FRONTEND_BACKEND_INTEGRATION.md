@@ -5,9 +5,8 @@ is for, which control calls which endpoint, which service does the work, and how
 screens connect into the end-to-end credit flow.
 
 Read alongside:
-- [README](../README.md) — setup, configuration, pipeline execution
-- [Architecture Reference](ARCHITECTURE_REFERENCE.md) — engines, agents, data model
-- [User Manual](../documents/USER_MANUAL.md) — step-by-step operator guide
+- [README](../../README.md) — setup, configuration, pipeline execution
+- [Technical Architecture](../TECHNICAL_ARCHITECTURE.html) — engines, agents, data model
 
 ---
 

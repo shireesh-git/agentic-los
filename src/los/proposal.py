@@ -17,7 +17,7 @@ from typing import Optional
 
 from src.application.errors import InvalidRequestError
 
-ARRANGEMENTS = ("sole", "consortium", "syndication")
+ARRANGEMENTS = ("sole", "multiple_banking", "consortium", "syndication")
 CONDUCT_STATUSES = ("regular", "irregular")
 
 
@@ -32,7 +32,11 @@ def initial_proposal(app: dict, company: dict) -> dict:
         "background": {"borrower_and_business": None, "industry_outlook": None,
                        "marketing_arrangements": None, "corporate_governance": None,
                        "strengths": None, "weaknesses": None, "key_risks": None,
-                       "other_material_information": None},
+                       "other_material_information": None,
+                       # the bank's mandatory AP narratives (S10, F-1)
+                       "market_enquiries": None, "promoter_pledge": None, "corporate_actions": None,
+                       "asset_quality_status": None, "committee_directions": None, "past_proposals": None,
+                       "unhedged_exposure": None, "committee_reason": None, "justification": None},
         "exposure": {
             "bond": {"total_cr": None, "breakdown": None, "fetched_at": None, "fetched_by": None,
                      "source": None, "status": "not_fetched"},
@@ -59,6 +63,60 @@ def initial_proposal(app: dict, company: dict) -> dict:
         "note": "Fetch Bond/Loan Exposure uses the in-app (demo) reference data — production FT/LMS "
                 "connectivity is GAP-P0-17.",
     }
+
+
+UNIT_VISIT_OBSERVATIONS = ("Satisfactory", "Satisfactory with observations", "Unsatisfactory")
+
+
+def normalise_unit_visit(raw: dict, index: int) -> dict:
+    """A unit visit (AP manual, Unit Visit Details): entity, address visited, date*, place, the visiting
+    officials with designation, the observation, the report and remarks."""
+    when = str(raw.get("date_of_visit") or "").strip()
+    try:
+        when = date.fromisoformat(when[:10]).isoformat()
+    except ValueError:
+        raise InvalidRequestError("Unit visit: the date of visit is required (YYYY-MM-DD)")
+    officials = [{"name": str(o.get("name") or "").strip(), "designation": (str(o.get("designation") or "").strip() or None)}
+                 for o in raw.get("officials") or [] if str(o.get("name") or "").strip()]
+    if not officials:
+        raise InvalidRequestError("Unit visit: name at least one visiting official")
+    observation = str(raw.get("observation") or "").strip()
+    if observation not in UNIT_VISIT_OBSERVATIONS:
+        raise InvalidRequestError(f"Unit visit: observation must be one of {', '.join(UNIT_VISIT_OBSERVATIONS)}")
+    remarks = (str(raw.get("remarks") or "").strip() or None)
+    if observation != "Satisfactory" and not remarks:
+        raise InvalidRequestError("Unit visit: remarks are required when the observation is not satisfactory")
+    return {"visit_id": f"UV-{index:02d}", "entity_name": (str(raw.get("entity_name") or "").strip() or None),
+            "address_visited": (str(raw.get("address_visited") or "").strip() or None), "date_of_visit": when,
+            "place": (str(raw.get("place") or "").strip() or None), "officials": officials,
+            "observation": observation, "report": (str(raw.get("report") or "").strip() or None), "remarks": remarks}
+
+
+SOURCES = ("Sourced by RM", "Referral", "Existing relationship", "Consortium / syndication invite", "Other")
+SOURCING_KEYS = ("received_date", "source", "sourcing_branch", "owner_primary", "owner_secondary", "sol_id",
+                 "sub_sub_sector", "lpfg_analyst", "lpfg_senior_analyst")
+
+
+def initial_sourcing_details(user: dict, at: str) -> dict:
+    """Sourcing details (bank screen, PS / IP): defaulted from the session that created the application."""
+    return {"received_date": at[:10], "created_by": user.get("name"), "source": "Sourced by RM",
+            "sourcing_branch": user.get("branch"), "owner_primary": user.get("name"), "owner_secondary": None,
+            "sol_id": None, "sub_sub_sector": None, "lpfg_analyst": None, "lpfg_senior_analyst": None}
+
+
+def normalise_sourcing_details(raw: dict, current: dict) -> dict:
+    out = dict(current or {})
+    for k in SOURCING_KEYS:
+        if k in raw:
+            out[k] = (str(raw[k]).strip() or None) if raw[k] is not None else None
+    if out.get("source") and out["source"] not in SOURCES:
+        raise InvalidRequestError(f"Source must be one of {', '.join(SOURCES)}")
+    if out.get("received_date"):
+        try:
+            out["received_date"] = date.fromisoformat(str(out["received_date"])[:10]).isoformat()
+        except ValueError:
+            raise InvalidRequestError("The prospect received date must be a date (YYYY-MM-DD)")
+    return out
 
 
 def normalise_conduct(rows: list[dict]) -> list[dict]:

@@ -12,6 +12,7 @@ from src.los.store import LosStore
 from tests.test_cam_composer import full_case
 from tests.test_los_committee import BriefingFinalCam
 from tests.test_los_risk_maker import FakeCases
+from tests.test_los_workflow import es_work
 
 NOW = datetime(2026, 10, 8, 12, 0, 0)
 
@@ -59,10 +60,14 @@ def _abce_to(svc, target):
             break
         action = {"maker": "submit", "checker": "approve", "committee": "sanction", "vp_review": "submit",
                   "allocation": "allocate"}[step.kind]
+        if step.id == "ip_note":                         # the IP-stage documents the IP Note gate requires
+            svc._seed_stage_docs(app_id, "IP", svc.now())
+        es_work(svc, app_id, session, step.id)                 # the ES steps (G-W2)
+        required = {f["id"]: svc.now().date().isoformat() for f in step.decision_fields if f.get("required")}
         svc.act(app_id, session, action, allocate_to=svc._default_assignee(step.allocates_to)
                 if step.kind == "allocation" else None,
-                sanctioned_amount_cr=(200 if step.id == "ap_sanction" else None),
-                comment="Committee accepts ₹200 Cr with escrow." if step.id == "ap_sanction" else "")
+                sanctioned_amount_cr=(200 if step.id == "ap_sanction" else None), decision_data=required,
+                comment="Committee accepts ₹200 Cr with escrow." if step.id == "ap_sanction" else f"{step.name} (test)")
     return app_id
 
 
@@ -101,10 +106,10 @@ def test_final_sanction_creates_the_tracker_and_a_pos_maker_must_clear_cps(svc):
     maker = _holder(svc, app_id)
     _issue_letter(svc, app_id, maker)
     with pytest.raises(InvalidRequestError, match="sanction consent"):
-        svc.act(app_id, maker, "submit")
+        svc.act(app_id, maker, "submit", comment="submit (test)")
     _consent_all(svc, app_id, maker)
     with pytest.raises(InvalidRequestError, match="condition precedent"):
-        svc.act(app_id, maker, "submit")
+        svc.act(app_id, maker, "submit", comment="submit (test)")
 
 
 def test_condition_updates_need_evidence_reasons_and_valid_dates(svc):
@@ -132,7 +137,7 @@ def test_condition_updates_need_evidence_reasons_and_valid_dates(svc):
 
 
 def _clear_cps(svc, app_id, maker):
-    cps = [c for c in svc.post_sanction(app_id, maker)["conditions"] if c["type"] in ("CP", "CPS") and c["status"] == "open"]
+    cps = [c for c in svc.post_sanction(app_id, maker)["conditions"] if c["type"] in ("PC", "CP", "CPS") and c["status"] == "open"]
     svc.update_conditions(app_id, maker, [{"id": c["id"], "status": "satisfied", "note": "Verified original"} for c in cps])
 
 
@@ -163,9 +168,9 @@ def test_checker_approval_approves_waivers_and_moves_to_disbursement(svc):
     svc.update_conditions(app_id, maker, [{"id": "CP-02", "status": "waived", "note": "Promoter guarantee in place"}])
     _clear_cps(svc, app_id, maker)
     _consent_all(svc, app_id, maker)
-    svc.act(app_id, maker, "submit")
+    svc.act(app_id, maker, "submit", comment="submit (test)")
     checker = _holder(svc, app_id)
-    with pytest.raises(InvalidRequestError, match="mandatory"):
+    with pytest.raises(InvalidRequestError, match="mandatory|comment is required"):   # no remarks: refused
         svc.act(app_id, checker, "approve")
     v = svc.act(app_id, checker, "approve", comment="Post-sanction documentation verified")
     assert v["step"]["id"] == "dis_maker"
@@ -217,25 +222,25 @@ def test_disbursement_needs_a_checklist_and_a_tranche_within_limit(svc):
     assert {i["id"]: i["done"] for i in dis["checklist"]}["cps_cleared"] is True          # seeded history
     _complete_disops(svc, app_id, maker)                                            # memo + SOP gate (RUL-13/14)
     with pytest.raises(InvalidRequestError, match="Record the disbursement tranche"):
-        svc.act(app_id, maker, "submit")
+        svc.act(app_id, maker, "submit", comment="submit (test)")
     with pytest.raises(InvalidRequestError, match="within the undisbursed limit"):
         svc.request_tranche(app_id, maker, dis["sanctioned_cr"] + 1, "2026-10-10")
     svc.request_tranche(app_id, maker, 100, "2026-10-10", "First tranche — project capex")
     with pytest.raises(InvalidRequestError, match="checklist incomplete"):
-        svc.act(app_id, maker, "submit")
+        svc.act(app_id, maker, "submit", comment="submit (test)")
     with pytest.raises(InvalidRequestError, match="checked by the system"):
         svc.update_checklist(app_id, maker, [{"id": "cps_cleared", "done": True}])
     manual = [i["id"] for i in dis["checklist"] if i["kind"] == "manual"]
     out = svc.update_checklist(app_id, maker, [{"id": i, "done": True} for i in manual])
     assert out["disbursement"]["complete"]
-    svc.act(app_id, maker, "submit")
+    svc.act(app_id, maker, "submit", comment="submit (test)")
     checker = _holder(svc, app_id)
     _review(svc, app_id, checker, "checker")
-    svc.act(app_id, checker, "approve")                                              # checker verifies the tranche
-    svc.act(app_id, _holder(svc, app_id), "submit")                                  # Disbursement VP review endorses
+    svc.act(app_id, checker, "approve", comment="approve (test)")                                              # checker verifies the tranche
+    svc.act(app_id, _holder(svc, app_id), "submit", comment="submit (test)")                                  # Disbursement VP review endorses
     approver = _holder(svc, app_id)
     _review(svc, app_id, approver, "final")
-    v = svc.act(app_id, approver, "approve")                                         # final approver releases
+    v = svc.act(app_id, approver, "approve", comment="approve (test)")                                         # final approver releases
     assert v["status"] == "APPROVED"
     final = svc.post_sanction(app_id)["disbursement"]
     assert final["tranches"][0]["status"] == "approved" and final["disbursed_cr"] == 100.0
@@ -250,10 +255,10 @@ def test_returned_tranche_goes_back_to_requested(svc):
     svc.request_tranche(app_id, maker, 50, "2026-10-10")
     manual = [i["id"] for i in svc.post_sanction(app_id)["disbursement"]["checklist"] if i["kind"] == "manual"]
     svc.update_checklist(app_id, maker, [{"id": i, "done": True} for i in manual])
-    svc.act(app_id, maker, "submit")
+    svc.act(app_id, maker, "submit", comment="submit (test)")
     checker = _holder(svc, app_id)
     _review(svc, app_id, checker, "checker")
-    svc.act(app_id, checker, "approve")                                               # checker verifies the tranche
+    svc.act(app_id, checker, "approve", comment="approve (test)")                                               # checker verifies the tranche
     assert svc.post_sanction(app_id)["disbursement"]["tranches"][0]["status"] == "verified"
     # The Disbursement VP Review reworks it (read-only gate: submit or return with a comment).
     with pytest.raises(InvalidRequestError, match="not available"):

@@ -252,6 +252,28 @@ def _ocr_page(page, filename: str, page_num: int) -> str:
 
 # ─── Financial Data Extraction (Enhanced) ────────────────────────────────────
 
+# Unit captions on statement pages: "(₹ in Lakhs)", "(` In lakhs)", "(Figures in i crores)"
+# (the rupee glyph extracts as whatever the font maps it to: a backtick, an "i"), "Rs. in
+# Lacs". A caption is "in [currency] <unit>" not followed by another unit word, so narrative
+# such as "₹ 10 lakh crore" never counts.
+_UNIT_CAPTION = re.compile(r"\bin\s+(?:₹|rs\.?|inr|\S)?\s*(lakhs?|lacs?|crores?|cr\b\.?)(?!\s*(?:crores?|cr\b))",
+                           re.IGNORECASE)
+
+
+def detect_statement_unit(text: str) -> str | None:
+    """'lakhs' | 'crores' | None — the unit most often stated in the document's table captions.
+
+    The whole text is scanned: in an annual report the captions sit on the financial
+    statement pages, far beyond the cover and contents."""
+    counts = {"lakhs": 0, "crores": 0}
+    for m in _UNIT_CAPTION.finditer(text or ""):
+        unit = m.group(1).lower()
+        counts["lakhs" if unit.startswith(("lakh", "lac")) else "crores"] += 1
+    if not any(counts.values()):
+        return None
+    return max(counts, key=counts.get)
+
+
 def extract_financials_enhanced(filepath: Path, precomputed_raw: dict | None = None) -> dict[str, Any]:
     """
     Extract financial metrics from annual reports / financial statements
@@ -274,6 +296,7 @@ def extract_financials_enhanced(filepath: Path, precomputed_raw: dict | None = N
         "data": {},
         "tables_found": len(raw.get("tables", [])),
         "raw_text_length": len(text),
+        "statement_unit": detect_statement_unit(text),
     }
 
     # Enhanced regex patterns for Indian financial statements
@@ -326,16 +349,20 @@ def extract_financials_enhanced(filepath: Path, precomputed_raw: dict | None = N
     }
 
     for metric, pats in patterns.items():
+        # Patterns are in order of preference and the first one that matches wins: a fallback
+        # label (e.g. "Total Income" for revenue) must never be pooled with the preferred one, or
+        # the larger total would be taken as revenue downstream.
         values = []
         for pat in pats:
-            matches = re.findall(pat, text, re.IGNORECASE)
-            for m in matches:
+            for m in re.findall(pat, text, re.IGNORECASE):
                 try:
                     val = float(m.replace(",", ""))
                     if val > 0:
                         values.append(val)
                 except ValueError:
                     continue
+            if values:
+                break
         if values:
             financials["data"][metric] = values
 

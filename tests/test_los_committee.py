@@ -45,7 +45,7 @@ def _abce(svc):
 
 
 def _to_committee(svc, override=True):
-    """Risk Maker assesses (and overrides one field), reviewer and EVP approve → Sanction Committee."""
+    """Risk Maker assesses (and overrides one field), reviewer, Post Rating VP and EVP approve → Sanction Committee."""
     app = _abce(svc)
     app_id = app["application_id"]
     maker = svc.sign_in(app["assignee_id"], "risk_analyst")
@@ -57,6 +57,7 @@ def _to_committee(svc, override=True):
     svc.act(app_id, maker, "submit", comment="Assessment complete; receivable ageing requested.")
     reviewer = svc.sign_in("u_cvp", "risk_reviewer")
     svc.act(app_id, reviewer, "approve", comment="Agree with the reduced limit.")
+    svc.act(app_id, svc.sign_in("u_cvp", "crp_vp"), "approve", comment="Post-rating review: rating confirmed.")   # G-W1
     evp = svc.sign_in("u_evp", "evp_recommender")
     svc.act(app_id, evp, "approve", comment="Recommend ₹185 Cr with conditions.")
     return app_id, svc.sign_in("u_cc", "sanction_committee")
@@ -88,7 +89,7 @@ def test_risk_maker_cannot_submit_without_an_assessment(svc):
     app = _abce(svc)
     maker = svc.sign_in(app["assignee_id"], "risk_analyst")
     with pytest.raises(InvalidRequestError, match="Run the credit assessment"):
-        svc.act(app["application_id"], maker, "submit")
+        svc.act(app["application_id"], maker, "submit", comment="application_id (test)")
 
 
 def test_committee_sees_the_pack_with_overrides_and_comments(svc):
@@ -122,7 +123,8 @@ def test_sanction_defaults_to_the_recommendation_and_moves_to_application_proces
 
 def test_a_different_amount_needs_minutes_and_cannot_exceed_the_request(svc):
     app_id, committee = _to_committee(svc)
-    with pytest.raises(InvalidRequestError, match="Minutes are required"):
+    # no remarks: refused (every decision records remarks; a different amount needs the minutes)
+    with pytest.raises(InvalidRequestError, match="comment is required|Minutes are required"):
         svc.act(app_id, committee, "sanction", sanctioned_amount_cr=200)
     with pytest.raises(InvalidRequestError, match="cannot exceed"):
         svc.act(app_id, committee, "sanction", sanctioned_amount_cr=300, comment="Higher")

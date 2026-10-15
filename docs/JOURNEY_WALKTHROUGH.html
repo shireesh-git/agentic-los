@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loan Journey Walkthrough</title>
+<meta name="description" content="Step-by-step walkthrough of one corporate loan through the agentic LOS: what to click, what to enter, and where the application goes next.">
+<style>
+:root{
+  --bg:#f7f8fa; --surface:#fff; --surface-2:#f0f3f7; --text:#1b2330; --muted:#5b6678; --line:#dde3ea;
+  --accent:#0b5cad; --accent-soft:#e3eefa; --agent:#6a3fb5; --agent-soft:#efe8fb; --ok:#1d7a46; --ok-soft:#e2f4ea;
+  --warn:#9a5b00; --warn-soft:#fdf1dc;
+  --ps:#0b5cad; --ip:#6a3fb5; --ap:#a0466e; --pos:#9a5b00; --dis:#1d7a46;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1319; --surface:#171c24; --surface-2:#1e2530; --text:#e4e8ee; --muted:#9aa5b5; --line:#2b3340;
+  --accent:#6aa8ec; --accent-soft:#16283d; --agent:#b393ec; --agent-soft:#271d3b; --ok:#5cc28a; --ok-soft:#16301f;
+  --warn:#e3a94b; --warn-soft:#33260f; --ps:#6aa8ec; --ip:#b393ec; --ap:#e08bb0; --pos:#e3a94b; --dis:#5cc28a;}}
+:root[data-theme="dark"]{
+  --bg:#0f1319; --surface:#171c24; --surface-2:#1e2530; --text:#e4e8ee; --muted:#9aa5b5; --line:#2b3340;
+  --accent:#6aa8ec; --accent-soft:#16283d; --agent:#b393ec; --agent-soft:#271d3b; --ok:#5cc28a; --ok-soft:#16301f;
+  --warn:#e3a94b; --warn-soft:#33260f; --ps:#6aa8ec; --ip:#b393ec; --ap:#e08bb0; --pos:#e3a94b; --dis:#5cc28a;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:60px}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px}
+header{padding:40px 0 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+h1{font-size:clamp(26px,4vw,34px);line-height:1.2;margin:6px 0 10px}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lede{color:var(--muted);margin:0;font-size:17px}
+nav{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:6px;overflow-x:auto;padding-top:8px;padding-bottom:8px;align-items:center}
+nav a{white-space:nowrap;text-decoration:none;font-size:13.5px;font-weight:600;padding:5px 11px;border-radius:999px;color:#fff;background:var(--c)}
+:root[data-theme="dark"] nav a{color:#0f1319}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) nav a{color:#0f1319}}
+#theme{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer}
+.stage{padding:34px 0 10px}
+.stage-head{display:flex;align-items:baseline;gap:12px;border-bottom:3px solid var(--c);padding-bottom:6px;margin-bottom:18px}
+.stage-head .code{font-weight:800;color:var(--c);font-size:15px}
+.stage-head h2{margin:0;font-size:24px}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 12px}
+.step h3{margin:0 0 2px;font-size:18px}
+.who{font-size:14px;color:var(--muted);margin-bottom:8px}
+.who b{color:var(--text)}
+ol.sub{margin:6px 0 0;padding-left:0;list-style:none;counter-reset:s}
+ol.sub>li{counter-increment:s;position:relative;padding:5px 0 5px 34px}
+ol.sub>li::before{content:counter(s,lower-alpha) ")";position:absolute;left:4px;top:5px;font-weight:700;color:var(--muted);font-size:14px}
+ol.sub ul{margin:4px 0;padding-left:18px}
+.btn{display:inline-block;font-size:13.5px;font-weight:600;padding:1px 8px;border-radius:6px;border:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
+.btn.p{background:var(--accent);color:#fff;border-color:transparent}
+:root[data-theme="dark"] .btn.p{color:#0f1319}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.p{color:#0f1319}}
+.agent{border-left:3px solid var(--agent);background:var(--agent-soft);padding:6px 12px;border-radius:0 8px 8px 0;margin:8px 0;font-size:15px}
+.agent::before{content:"Agents: ";font-weight:700;color:var(--agent)}
+.next{margin-top:10px;font-size:14.5px;background:var(--ok-soft);border-radius:8px;padding:7px 12px}
+.next::before{content:"→ Next: ";font-weight:700;color:var(--ok)}
+.note{font-size:14.5px;background:var(--warn-soft);border-radius:8px;padding:7px 12px;margin-top:8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:var(--surface-2)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.tbl table{min-width:560px}
+.exit{text-align:center;font-size:20px;font-weight:800;color:var(--ok);padding:18px;border:2px dashed var(--ok);border-radius:12px;margin:18px 0 0}
+footer{padding:30px 0 48px;color:var(--muted);font-size:14px}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="eyebrow">Functional walkthrough</div>
+  <h1>One loan, start to finish: what to click, what to enter, where it goes next</h1>
+  <p class="lede">This follows a new working-capital request of ₹45 Cr from <em>Zeta Foods Private Limited</em>, a fictional company, through all five stages. Each step shows who signs in, what they do and where the application moves.</p>
+</div></header>
+
+<nav aria-label="Stages"><div class="wrap">
+  <a href="#before" style="--c:var(--muted)">Before you start</a>
+  <a href="#ps" style="--c:var(--ps)">1 · Sourcing</a>
+  <a href="#ip" style="--c:var(--ip)">2 · In-Principle</a>
+  <a href="#ap" style="--c:var(--ap)">3 · Appraisal</a>
+  <a href="#pos" style="--c:var(--pos)">4 · Post Sanction</a>
+  <a href="#dis" style="--c:var(--dis)">5 · Disbursement</a>
+  <a href="#moves" style="--c:var(--muted)">Other moves</a>
+  <button id="theme" type="button">Theme</button>
+</div></nav>
+
+<main class="wrap">
+
+<section class="stage" id="before" style="--c:var(--muted)">
+  <div class="stage-head"><h2>Before you start</h2></div>
+  <div class="card">
+    <b>Signing in.</b> Open <code>/los</code>. Pick a <b>group</b>, then <span class="btn">Select group →</span>, then pick the <b>user</b> and <b>role</b>, and click <span class="btn p">Sign in</span>. In this demo there are no passwords.
+    <ul>
+      <li>To act as the next person, use <span class="btn">Sign out</span> and sign in as them. If the same person holds two roles, switch <b>Active role</b> in the sidebar instead.</li>
+      <li>Your work is under <b>My Queue</b>. Click an application to open its <b>Application Detail</b>.</li>
+      <li>Every application shows a <b>step card</b> at the top. It shows the current step, who holds it, the SLA, a remarks box and the action buttons. <b>A remark is required for every action.</b></li>
+    </ul>
+  </div>
+  <div class="card">
+    <b>Prepare the demo documents</b> (once): <code>python scripts/make_demo_documents.py demo_documents</code>. You'll upload:
+    <ul>
+      <li>at sourcing: <code>request/request_letter.pdf</code>, <code>kyc/certificate_of_incorporation.pdf</code>, <code>kyc/pan_card_scan.pdf</code> and <code>financials/audited_financials_fy2025.pdf</code>;</li>
+      <li>at post sanction: <code>legal/signed_sanction_letter.pdf</code> and <code>legal/facility_agreement.pdf</code>;</li>
+      <li>at disbursement: <code>request/drawdown_request.pdf</code>.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─────────────── STAGE 1 ─────────────── -->
+<section class="stage" id="ps" style="--c:var(--ps)">
+  <div class="stage-head"><span class="code">STAGE 1 · PS</span><h2>Prospect Sourcing</h2></div>
+
+  <div class="step">
+    <h3>Step 1 · Open a new application</h3>
+    <div class="who">Sign in as <b>Sourcing &amp; Relationship → Ananya Rao → Prospect Sourcing Maker (RM)</b></div>
+    <ol class="sub">
+      <li>In the sidebar, click <b>New Application</b>.</li>
+      <li>Choose how to start:
+        <ul>
+          <li><span class="btn">Existing borrower</span>: the company is already on record. Pick it from <b>Select a borrower…</b>. The <b>Customer identity &amp; deduplication</b> panel loads PAN, CIN, GSTIN, incorporation date, constitution, the core-banking search and any other applications for the same company. Go to (e).</li>
+          <li><span class="btn">New prospect from documents</span>: the company is new to the system. Continue with (c). This is the path for Zeta Foods.</li>
+        </ul>
+      </li>
+      <li>Under <b>Prospect documents</b>, click <span class="btn">Add document(s)</span>. Add the request letter (category <i>Request</i>), the two KYC files (<i>KYC</i>) and the audited financials (<i>Financials</i>).</li>
+      <li>Click <span class="btn p">Read documents with the intake agent</span>.
+        <div class="agent">The intake agent reads every document at the same time. It fills in legal name, CIN, incorporation date, registered office, facility type, amount (₹45 Cr), tenor (12 months) and purpose. Each value shows its document, page and confidence. It also checks for a borrower with the same PAN, CIN or name, and shows <i>No borrower with the same PAN, CIN or name is on record</i> or lists the matches. A PAN on the scanned card is left empty unless an image-reading model is configured.</div>
+        Check the values. Type anything that wasn't read, such as the PAN, and correct anything wrong. If a possible duplicate is listed, confirm it is a different company.
+      </li>
+      <li><b>Credit Appraisal Memorandum (CAM)</b> card: choose how the IP Note will be pre-filled.
+        <ul>
+          <li><span class="btn">Use the CAM from the CAM workspace</span>: shown when a CAM was already generated for this borrower
+            (date, decision, grade). The facility is pre-filled from it. On <b>Create draft</b> the CAM is linked to the application
+            and fills the IP fields at once; the IP Note step will not generate a second one. The CAM workspace has a
+            <span class="btn">Start LOS application</span> button that opens this screen with it selected.</li>
+          <li><span class="btn">Upload the bank's CAM document</span>: choose the PDF, then <span class="btn p">Upload and read the CAM</span>.
+            <div class="agent">The CAM intake agent lists the sections it recognised (background, industry, marketing,
+            governance, strengths, weaknesses, risks, financials, security, terms, covenants, deviations, recommendation), each with
+            its page, and the values it read (sector, banking arrangement, ratings, recommended limit, pricing). A CAM with another
+            company's PAN or CIN is refused.</div></li>
+          <li>For a new prospect, add the CAM with the other documents (category <i>Cam</i>); after
+            <b>Read documents with the intake agent</b> the option <i>Use the bank's CAM among the documents</i> is selected.</li>
+          <li><span class="btn">Generate the CAM when the application is created</span>: the preparation agents generate it in a
+            parallel lane while they read the documents and run the checks.</li>
+          <li><span class="btn">No CAM now</span>: it is generated later, at the IP Note.</li>
+        </ul>
+      </li>
+      <li>Fill in the rest of the form:
+        <ul>
+          <li><b>Sector</b> (required) and <b>Subsector</b>.</li>
+          <li><b>Sourcing decision</b>: choose <i>Refer for in-principle</i> and add the <b>mandatory-field remarks</b>.</li>
+          <li><b>Proposed facilities</b>: these are pre-filled from the request letter. Check the nature, amount, tenor and purpose. Use <span class="btn">+ Add Facility</span> for more.</li>
+          <li><b>Related parties</b> (optional): add promoters, guarantors and group entities.</li>
+          <li><b>Prospect discussion</b>: project type, funding type, a brief description, the detailed discussion and initial remarks.</li>
+          <li><b>Priority</b>: Normal, High or Low.</li>
+        </ul>
+      </li>
+      <li>Click <span class="btn p">Create draft</span>. The application gets its number (<code>LOS-2026-NNNNN</code>) and opens.</li>
+    </ol>
+    <div class="agent">For a new prospect, or when you start from a CAM, the preparation agents start straight away. You'll see <i>Agents preparing…</i> and three lanes running together: <i>identity &amp; duplicate check</i>, <i>API due-diligence checks</i> and <i>document intake</i>. For an existing borrower, click <span class="btn">Prepare with agents</span> yourself.</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 2 · Verify and complete sourcing</h3>
+    <div class="who">Still <b>Ananya Rao (RM)</b>, on the application page</div>
+    <ol class="sub">
+      <li><b>Documents &amp; AI prefill</b>: click <span class="btn p">Accept all high-confidence</span>. Edit any other value, giving a reason.</li>
+      <li><b>Due diligence (governed workspace)</b>: the API checks have run. If any are pending, click <span class="btn">Run all API checks</span>. Then <span class="btn">Record</span> each manual check: CRILC, Central Fraud Registry, CEIB, Enhanced Due Diligence, UDIN, KYC and MLRA.</li>
+      <li>If a mandatory check shows a <i>match</i>, such as a name-screening hit, the <b>Compliance VP</b> (Priya Raghavan) must sign in and record an exception before you can submit.</li>
+      <li>On the step card, type a remark and click <span class="btn p">Submit to IP Note</span>.</li>
+    </ol>
+    <div class="next"><b>IP Note Processing</b> (stage 2). The application stays with Ananya.</div>
+  </div>
+</section>
+
+<!-- ─────────────── STAGE 2 ─────────────── -->
+<section class="stage" id="ip" style="--c:var(--ip)">
+  <div class="stage-head"><span class="code">STAGE 2 · IP</span><h2>In-Principle</h2></div>
+
+  <div class="step">
+    <h3>Step 3 · IP Note Processing</h3>
+    <div class="who"><b>Ananya Rao (RM)</b> · SLA 3 days</div>
+    <ol class="sub">
+      <li>On the <b>Prepared by agents, verified by you</b> card, click <span class="btn">Prepare with agents</span>.
+        <div class="agent">The credit case (the full CAM analysis of the audited statements) and the due-diligence checks run together. Then one agent per workspace fills the CMA, related parties, securities, exposure, internal rating, pricing, account conduct and the proposal narrative. Finally the IP Note is drafted. Revenue is read as ₹312.40 Cr, not the ₹316.50 Cr total income.</div>
+      </li>
+      <li>In the verify list, click <span class="btn">Select all bulk-eligible</span>, then <span class="btn p">Confirm selected</span>.</li>
+      <li>Fields that aren't pre-ticked, such as the drafted narrative, rating and decision fields, need one at a time: read each one and click <span class="btn">Confirm</span>, or <span class="btn">Change…</span> with the correct value and a reason.</li>
+      <li>Open the IP Note (<span class="btn">Printable view ↗</span>). If it isn't drafted yet, click <span class="btn">Generate IP Note</span>.</li>
+      <li>Type a remark and click <span class="btn p">Recommend IP proposal</span>.</li>
+    </ol>
+    <div class="note">The step can't be submitted until the IP Note exists, no due-diligence item is blocking, and the IP-stage documents are on file.</div>
+    <div class="next"><b>IP Note VP Review</b>, assigned to Vivek Iyer (LPF VP).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 4 · IP Note VP Review</h3>
+    <div class="who"><b>Vivek Iyer · LPF VP</b> · SLA 2 days</div>
+    <ol class="sub">
+      <li>Read the IP Note and the application. As a reviewer you can't edit.</li>
+      <li>Type a remark and click <span class="btn p">Approve</span>. To send it back to the RM, use <span class="btn">Return</span>.</li>
+    </ol>
+    <div class="next"><b>CRP EVP Allocation</b> (Meera Krishnan). A return goes back to Step 3 with your remark.</div>
+  </div>
+
+  <div class="step">
+    <h3>Steps 5–6 · Allocation</h3>
+    <div class="who"><b>Meera Krishnan · CRP EVP</b>, then <b>Rahul Bansal · CRP VP</b> · SLA 1 day each</div>
+    <ol class="sub">
+      <li>Meera picks a CRP VP (Rahul Bansal), adds a remark and clicks <span class="btn p">Allocate</span>.</li>
+      <li>Rahul picks a Risk Analyst (Neha Kulkarni), adds a remark and clicks <span class="btn p">Allocate</span>.</li>
+    </ol>
+    <div class="next"><b>Risk Maker (Credit Assessment)</b>, assigned to Neha Kulkarni.</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 7 · Risk Maker (Credit Assessment)</h3>
+    <div class="who"><b>Neha Kulkarni · Risk Analyst</b> · SLA 7 days</div>
+    <ol class="sub">
+      <li>Click <span class="btn">Prepare with agents</span>.
+        <div class="agent">The credit case from Step 3 is reused, not run again. The agents lay it out across the nine Risk Maker tabs: customer, financials, risk rating, project, security, terms, pricing &amp; RAROC, ESMS and decision.</div>
+      </li>
+      <li>Work through the verify list. Use <span class="btn p">Confirm selected</span> for the pre-ticked fields, and confirm risk grade, system recommendation, internal rating and decision one by one.</li>
+      <li>To correct a figure, click <span class="btn">Change…</span> on it (for example, CMA revenue), enter the value and a reason, and save.
+        <div class="agent">The credit case re-runs automatically with your figure, and the ratios and CAM follow. Your value is kept, and the engine's value is recorded beside it.</div>
+      </li>
+      <li>Type a remark and click <span class="btn p">Submit</span>.</li>
+    </ol>
+    <div class="next"><b>CRP VP Risk Review</b> (Rahul Bansal, now in his Risk Reviewer role).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 8 · CRP VP Risk Review</h3>
+    <div class="who"><b>Rahul Bansal · Risk Reviewer</b> · SLA 3 days</div>
+    <ol class="sub">
+      <li>Read the <b>committee pack</b>: decision headline, overrides, unresolved risks, deviations and conditions.</li>
+      <li>Type a remark and click <span class="btn p">Approve</span>, or <span class="btn">Rework</span> to the Risk Maker.</li>
+    </ol>
+    <div class="next"><b>Post Rating VP Review</b> (Rahul Bansal, in his CRP VP role).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 8a · Post Rating VP Review</h3>
+    <div class="who"><b>Rahul Bansal · CRP VP</b> · SLA 1 day</div>
+    <ol class="sub">
+      <li>Review the rating outcome in the committee pack.</li>
+      <li>Type a remark and click <span class="btn p">Approve</span>, or <span class="btn">Rework</span>.</li>
+    </ol>
+    <div class="next"><b>IP Note EVP Recommendation</b> (Sunil Chopra).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 9 · IP Note EVP Recommendation</h3>
+    <div class="who"><b>Sunil Chopra · EVP Recommender</b> · SLA 2 days</div>
+    <ol class="sub">
+      <li>Record any <b>significant changes</b>.</li>
+      <li>Type a remark and click <span class="btn p">Recommend for sanction</span>.</li>
+    </ol>
+    <div class="next"><b>IP Sanction Committee</b> (Credit Committee Secretariat).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 10 · IP Sanction Committee</h3>
+    <div class="who"><b>Credit Committee Secretariat · Sanction Committee</b> · SLA 5 days</div>
+    <ol class="sub">
+      <li>Optionally, click <span class="btn">Generate committee brief (AI)</span>. Every figure in the brief is checked against the CAM.</li>
+      <li>Enter the <b>sanctioned amount</b> (₹45 Cr). If it differs from the recommendation, add <b>minutes</b>.</li>
+      <li>Type a remark and click <span class="btn p">Sanction (in-principle)</span>.</li>
+    </ol>
+    <div class="next"><b>Application Note Processing</b> (stage 3), back with the RM.</div>
+  </div>
+</section>
+
+<!-- ─────────────── STAGE 3 ─────────────── -->
+<section class="stage" id="ap" style="--c:var(--ap)">
+  <div class="stage-head"><span class="code">STAGE 3 · AP</span><h2>Application Processing</h2></div>
+
+  <div class="step">
+    <h3>Step 11 · Application Note Processing</h3>
+    <div class="who"><b>Ananya Rao (RM)</b> · SLA 5 days</div>
+    <ol class="sub">
+      <li>Click <span class="btn">Prepare with agents</span> to refresh the workspaces, then verify as in Step 3.</li>
+      <li>The <b>What to do now</b> panel on <i>My task</i> lists anything that blocks <span class="btn">Submit appraisal</span>;
+          <span class="btn">Go to …</span> opens the place to fix it. The button stays disabled until the list is clear.</li>
+      <li>Open <i>Workspaces → Terms &amp; conditions</i>. The <b>T&amp;C agent</b> has drafted the conditions by category
+          (pre-commitment, pre-disbursement, covenants with stipulated values, facility-specific, bank standards) from the
+          credit reassessment and the proposed covenants. <span class="btn">Confirm all</span>, or <span class="btn">Edit</span>
+          one (a changed wording needs a reason), <span class="btn">Remove</span> one (with a reason) or add your own.</li>
+      <li>If a project was created for a term loan, complete the <b>ESMS screen</b> (<i>Projects &amp; ESMS</i>): the agent has
+          proposed the E&amp;S category and the excluded-activity answer.</li>
+      <li>If needed, issue the <b>term sheet</b> under <i>Term sheet &amp; sanction letter</i> (<span class="btn">Issue</span>).</li>
+      <li>Type a remark and click <span class="btn p">Submit appraisal</span>.</li>
+    </ol>
+    <div class="next"><b>LPF VP AP Review</b> (Vivek Iyer).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 12 · LPF VP AP Review</h3>
+    <div class="who"><b>Vivek Iyer · LPF VP</b> · SLA 2 days</div>
+    <ol class="sub">
+      <li>Enter the <b>material-information date</b> (required). Add committee matters and significant changes if there are any.</li>
+      <li>Type a remark and click <span class="btn p">Approve</span>.</li>
+    </ol>
+    <div class="next"><b>CRP VP Allocation</b>: Rahul allocates to a Risk Analyst (e.g. Arjun Menon).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 13–14 · CRP VP Allocation → Risk Maker (Credit Reassessment)</h3>
+    <div class="who"><b>Rahul Bansal</b> allocates; <b>Arjun Menon · Risk Analyst</b> reassesses · SLA 5 days</div>
+    <ol class="sub">
+      <li>Arjun clicks <span class="btn">Prepare with agents</span>.
+        <div class="agent">The agents refresh the fields. Values people already confirmed are kept. Where the agent now proposes something different, the field shows as a <b>conflict</b>.</div>
+      </li>
+      <li>For each conflict, click <span class="btn">Keep mine</span> (with a reason) or accept the new value. Verify the rest.</li>
+      <li>Check the <b>IP → AP comparison</b> for what changed since the in-principle sanction.</li>
+      <li>Type a remark and click <span class="btn p">Submit</span>.</li>
+    </ol>
+    <div class="next"><b>Risk Review</b> (Rahul Bansal · Risk Reviewer).</div>
+  </div>
+
+  <div class="step">
+    <h3>Steps 15–18 · Reviews and recommendation</h3>
+    <div class="who">Each signs in, reads, adds a remark and acts</div>
+    <div class="tbl"><table>
+      <thead><tr><th>Step</th><th>Who</th><th>Click</th><th>Goes to</th></tr></thead>
+      <tbody>
+        <tr><td>15 · Risk Review</td><td>Rahul Bansal · Risk Reviewer</td><td><span class="btn p">Approve</span></td><td>Post Risk Rating Processing</td></tr>
+        <tr><td>16 · Post Risk Rating Processing</td><td>Arjun Menon · Post Risk Rating Maker</td><td><span class="btn p">Submit</span></td><td>Post-Rating VP Review</td></tr>
+        <tr><td>17 · Post-Rating VP Review</td><td>Rahul Bansal · CRP VP</td><td><span class="btn p">Approve</span></td><td>EVP Recommendation</td></tr>
+        <tr><td>18 · EVP Recommendation</td><td>Sunil Chopra · EVP (records significant changes)</td><td><span class="btn p">Recommend for sanction</span></td><td>Recommendations Committee</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="step">
+    <h3>Step 19 · Recommendations Committee</h3>
+    <div class="who"><b>Recommendations Committee Secretariat</b> · SLA 2 days</div>
+    <ol class="sub">
+      <li>Enter the <b>minutes</b> and the CEAC recommendation.</li>
+      <li>Type a remark and click <span class="btn p">Recommend for sanction</span> (or <span class="btn">Rework</span>).</li>
+    </ol>
+    <div class="next"><b>CRP ES Maker</b> (Divya Sharma): the Environmental &amp; Social process.</div>
+  </div>
+
+  <div class="step">
+    <h3>Steps 19a–19d · Environmental &amp; Social (ESMS) process</h3>
+    <div class="who"><b>Divya Sharma</b> (CRP ES Maker) → <b>Nikhil Joshi</b> (ES Preparation) → <b>Shalini Gupta</b> (ES Review) → <b>Anil Kapoor</b> (ES Recommendation)</div>
+    <ol class="sub">
+      <li><b>CRP ES Maker:</b> open <i>Workspaces → Projects &amp; ESMS</i>, confirm the agent's proposed <b>E&amp;S risk category</b> (A, B or C) and the screening, then <span class="btn p">Submit for ES preparation</span>.</li>
+      <li><b>ES Preparation:</b> complete the ESMS screen and generate the <b>ESMS Approval Note</b> (<i>Documents → generated outputs</i>); <span class="btn p">Submit for ES review</span>.</li>
+      <li><b>ES Review:</b> <span class="btn p">Reviewed</span>, or <span class="btn">Rework</span> back to ES Preparation.</li>
+      <li><b>ES Recommendation:</b> enter the <b>ES recommendation</b> (required) and click <span class="btn p">Recommend (ES)</span>.</li>
+    </ol>
+    <div class="next"><b>DMD Approval</b> (R. Venkatesh).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 19e · DMD Approval</h3>
+    <div class="who"><b>R. Venkatesh · DMD</b> · SLA 2 days</div>
+    <ol class="sub">
+      <li>Review the decision pack and the Decision tab. Click <span class="btn p">Approve for committee</span> or <span class="btn">Rework</span>.</li>
+      <li class="muted">The bank's manuals differ here: the POS manual has no DMD step. It is switched on or off in the workflow configuration.</li>
+    </ol>
+    <div class="next"><b>Committee Sanction</b> (Credit Committee Secretariat).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 20 · Committee Sanction</h3>
+    <div class="who"><b>Credit Committee Secretariat · Sanction Committee</b> · SLA 5 days</div>
+    <ol class="sub">
+      <li>Enter the sanctioned amount (₹45 Cr), with minutes if it differs from the recommendation.</li>
+      <li>Type a remark and click <span class="btn p">Final sanction</span>. This creates the <b>conditions tracker</b> (conditions precedent and subsequent).</li>
+    </ol>
+    <div class="next"><b>Post Sanction Maker</b> (stage 4), Farah Sheikh.</div>
+  </div>
+</section>
+
+<!-- ─────────────── STAGE 4 ─────────────── -->
+<section class="stage" id="pos" style="--c:var(--pos)">
+  <div class="stage-head"><span class="code">STAGE 4 · POS</span><h2>Post Sanction</h2></div>
+
+  <div class="step">
+    <h3>Step 21 · Post Sanction Maker</h3>
+    <div class="who">Sign in as <b>Operations &amp; Fulfilment → Farah Sheikh → Post Sanction Maker</b> · SLA 5 days</div>
+    <ol class="sub">
+      <li>Under <i>Term sheet &amp; sanction letter</i>, <span class="btn">Issue</span> the <b>sanction letter</b> and send it to the borrower outside the system.</li>
+      <li>When it comes back signed, <span class="btn">Upload PDF</span> the signed sanction letter and the facility agreement (category <i>Legal</i>).</li>
+      <li>Click <span class="btn">Prepare with agents</span>.
+        <div class="agent">The agent reads both documents and pre-fills the consent form: accepted by <i>Rohan Desai</i> on 05-Nov-2026, the sanction reference, and the agreement dated 10-Nov-2026.</div>
+      </li>
+      <li>Check the pre-filled consent and per-facility execution, then click <span class="btn p">Record sanction consent</span>. Saving an unchanged value counts as confirming it; a changed value is recorded as an override.</li>
+      <li>In <b>Conditions, deviations and disbursement</b>, mark each condition precedent <i>satisfied</i> (with evidence), <i>deferred</i> (new date and reason) or <i>waived</i> (reason).</li>
+      <li>If the screen shows <b>Material change(s) since the approval snapshot</b>, for example the new documents, review it and record your decision.</li>
+      <li>Type a remark and click <span class="btn p">Submit</span>.</li>
+    </ol>
+    <div class="note">The step can't be submitted until consent is recorded, no condition precedent is open, and material changes are reviewed.</div>
+    <div class="next"><b>Post Sanction Checker</b> (Gautam Das).</div>
+  </div>
+
+  <div class="step">
+    <h3>Step 22 · Post Sanction Checker</h3>
+    <div class="who"><b>Gautam Das · Post Sanction Checker</b> · SLA 2 days</div>
+    <ol class="sub">
+      <li>Check the consent, the conditions and the deviation register (waivers and deferrals).</li>
+      <li>Type a remark and click <span class="btn p">Recommend for disbursement</span>. This also approves the waivers and deferrals.</li>
+    </ol>
+    <div class="next"><b>Disbursement Maker</b> (stage 5), Lakshmi Narayan.</div>
+  </div>
+</section>
+
+<!-- ─────────────── STAGE 5 ─────────────── -->
+<section class="stage" id="dis" style="--c:var(--dis)">
+  <div class="stage-head"><span class="code">STAGE 5 · DIS</span><h2>Disbursement</h2></div>
+
+  <div class="step">
+    <h3>Step 23 · Disbursement Maker</h3>
+    <div class="who"><b>Lakshmi Narayan · Disbursement Maker</b> · SLA 2 days</div>
+    <ol class="sub">
+      <li><span class="btn">Upload PDF</span> the borrower's drawdown request (category <i>Request</i>).</li>
+      <li>Click <span class="btn">Prepare with agents</span>.
+        <div class="agent">The agent reads the request and pre-fills the tranche (₹20 Cr, value date 20-Nov-2026, purpose) and the beneficiary (name, account number, IFSC).
+          In parallel the <b>carry-forward agent</b> fills the disbursement record from what was already sanctioned: the
+          <b>interest terms</b> (benchmark, spread, rate, penal rate), the <b>repayment schedule (Annexure I)</b>, the
+          <b>fee collection</b> (the fees approved at AP) and the <b>security details (Annexure IV)</b>.</div>
+      </li>
+      <li>In <i>Workspaces → Disbursement ops</i>, check the carried values. <span class="btn">Save</span> a section to
+          confirm it; a value you change is recorded as your correction and is never overwritten by the agents.</li>
+      <li>Save the <b>beneficiary</b>, then click <span class="btn p">Record tranche</span> with the pre-filled values.</li>
+      <li>Complete the disbursement record and the operating checklist. Generate the <b>disbursement memo</b> and click <span class="btn">Mark reviewed (I verified the record)</span>.</li>
+      <li>Tick the manual items on the <b>Disbursement checklist</b>: security documents executed, charge registered, limit set up, request received, insurance assigned.</li>
+      <li>When the card shows <i>Checklist complete and tranche recorded — ready to submit</i>, type a remark and click <span class="btn p">Submit</span>.</li>
+    </ol>
+    <div class="next"><b>Disbursement Checker</b> (Rohit Saxena).</div>
+  </div>
+
+  <div class="step">
+    <h3>Steps 24–26 · Checker → VP review → Approver</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Step</th><th>Who</th><th>Click</th><th>Goes to</th></tr></thead>
+      <tbody>
+        <tr><td>Disbursement Checker</td><td>Rohit Saxena</td><td><span class="btn p">Submit to VP review</span> (or Return)</td><td>Disbursement VP Review</td></tr>
+        <tr><td>Disbursement VP Review</td><td>Vikram Desai (records significant changes)</td><td><span class="btn p">Submit</span> (or <span class="btn">Rework</span> → back to the maker)</td><td>Disbursement Approver</td></tr>
+        <tr><td>Disbursement Approver</td><td>Pooja Venkat</td><td><span class="btn p">Approve disbursement</span> (or Return)</td><td><b>Exit</b></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="exit">Exit: approved for release · status APPROVED</div>
+  <p style="text-align:center;color:var(--muted);font-size:14px">Payment itself happens in core banking, outside the LOS. Sign in as <b>Sunil Chopra (EVP)</b> and open <b>Management MIS</b> to see how many fields the agents filled and how many were accepted unchanged.</p>
+</section>
+
+<!-- ─────────────── OTHER MOVES ─────────────── -->
+<section class="stage" id="moves" style="--c:var(--muted)">
+  <div class="stage-head"><h2>Other moves and what they do</h2></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Action</th><th>Where</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><span class="btn">Return</span> / <span class="btn">Rework</span></td><td>Reviewers, VPs, committees</td><td>Back to the stage's maker step, assigned to the person who last worked it. Your remark appears on their step card.</td></tr>
+      <tr><td><span class="btn">Reject</span></td><td>Checkers, committees</td><td>The application ends (REJECTED).</td></tr>
+      <tr><td><span class="btn">Defer</span></td><td>Sourcing and IP Note</td><td>On hold until a date you enter. The SLA pauses and only <span class="btn">Reactivate</span> is shown.</td></tr>
+      <tr><td><span class="btn">Drop</span> / <span class="btn">Withdraw</span></td><td>Maker steps</td><td>Closes the application, for the bank's reason or at the customer's request.</td></tr>
+      <tr><td><span class="btn">Propose modification</span></td><td>Post Sanction Maker</td><td>Raises a change to the sanctioned terms for re-approval.</td></tr>
+      <tr><td><span class="btn">Escalate</span> / <span class="btn">Reassign</span></td><td>Any active application</td><td>Flags it for attention, or moves the step to another eligible person.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="card"><b>Help along the way.</b> Each application has a <b>Next best actions</b> panel. It suggests what to do next, can run a preparatory task for you, drafts return notes and document requests, and answers questions from the record. It never takes a decision.</div>
+</section>
+
+</main>
+<footer><div class="wrap">Agentic Corporate LOS: proof of concept. For the overview, see the <a href="FUNCTIONAL_GUIDE.html">Functional Guide</a>; for how the agents are run, see <a href="AGENT_ORCHESTRATION.html">Agent Orchestration</a>.</div></footer>
+<script>
+(function(){var r=document.documentElement,b=document.getElementById('theme');
+try{var t=localStorage.getItem('los-doc-theme');if(t)r.setAttribute('data-theme',t);}catch(e){}
+b.addEventListener('click',function(){var d=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);var n=d?'light':'dark';r.setAttribute('data-theme',n);try{localStorage.setItem('los-doc-theme',n);}catch(e){}});})();
+</script>
+</body>
+</html>

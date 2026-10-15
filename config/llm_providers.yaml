@@ -1,6 +1,10 @@
 active_provider: nvidia_nim
 narrative:
   mode: llm
+  # When the LLM cannot be reached (no API key, no network): 'template' renders the CAM from the
+  # deterministic templates and labels the case (narrative_mode: template_fallback), so the LOS journey
+  # continues; 'fail' stops the credit case instead.
+  on_llm_unavailable: template
   max_tokens_per_section: 2500
   # The CAM system prompt and per-section prompts live in code:
   # SYSTEM_PROMPT / CAM_SECTIONS in src/engines/cam_llm_renderer.py (bump PROMPT_VERSION on change).
@@ -50,6 +54,9 @@ providers:
     timeout_seconds_env: NVIDIA_NIM_TIMEOUT_SECONDS
     # Sections written at once. NIM's free endpoint throttles bursts; 2 keeps retries rare.
     max_parallel_sections: 2
+    # Calls in flight across ALL parallel agents (CAM sections, document intake, reconciliation…).
+    max_parallel_llm: 4
+    vision: false                       # set true when model is a vision model
     # Nemotron can emit a separate thinking pass. Disable it for CAM sections so the
     # response budget is used for the client-facing narrative.
     chat_template_kwargs:
@@ -57,10 +64,12 @@ providers:
   anthropic:
     name: Anthropic Claude
     type: anthropic
-    model: claude-sonnet-4-20250514
+    model: claude-sonnet-5-5
     api_key_env: ANTHROPIC_API_KEY
     temperature: 0.1
     max_tokens: 8000
+    max_parallel_llm: 8
+    vision: true
   azure_openai:
     name: Azure OpenAI
     type: azure_openai
@@ -79,6 +88,8 @@ providers:
     api_key_env: GOOGLE_API_KEY
     temperature: 0.15
     max_tokens: 4000
+    max_parallel_llm: 8
+    vision: true
   ollama:
     name: Ollama (Local)
     type: ollama
@@ -97,6 +108,7 @@ providers:
     # One section at a time: a local model queues parallel requests anyway, and
     # each section's num_ctx can differ, which forces model reloads and extra RAM.
     max_parallel_sections: 1
+    max_parallel_llm: 1                 # a local model serves one request at a time
     # Keep the model loaded this long after the last call (CAM sections and chat),
     # so the next run or chat reply skips a cold load. While loaded it holds about
     # 2 GB of RAM plus its context; 0 unloads at once, remove for Ollama's 5m default.

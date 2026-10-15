@@ -190,6 +190,7 @@
 .los-rm-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;}
 .los-rm-head h3{margin:2px 0 4px;}
 .los-rm-job{display:flex;flex-direction:column;gap:6px;margin:12px 0 4px;font-size:12.5px;color:var(--text-sec);}
+.los-agent-lanes{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
 .los-progress{height:8px;border-radius:999px;background:var(--border-light);overflow:hidden;}
 .los-progress div{height:100%;background:var(--accent);transition:width .6s ease;}
 .los-rm-headline{display:flex;flex-wrap:wrap;gap:12px 28px;margin:14px 0 6px;padding:12px 0;border-top:1px solid var(--border-light);
@@ -312,3 +313,72 @@
 @media(max-width:700px){.los-tranche-form{grid-template-columns:1fr;}}
 .los-note-card .los-kv{grid-template-columns:minmax(120px,40%) 1fr;}
 .los-field > .text-muted,.los-field > span.text-muted{text-transform:none;letter-spacing:0;font-weight:500;}
+.los-verify{border:1px solid var(--border-light);border-radius:10px;padding:12px 14px;margin:12px 0;display:flex;flex-direction:column;gap:8px;}
+.los-verify-head{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;font-size:12.5px;}
+.los-verify-list{max-height:420px;overflow:auto;}
+.los-verify-list td{vertical-align:top;font-size:12.5px;}
+.los-verify-conflict td{background:var(--amber-bg, rgba(245,158,11,.08));}
+.los-verify-act{min-width:200px;}
+.los-verify-act > span, .los-verify-act template + span{display:flex;flex-direction:column;gap:4px;margin-top:4px;}
+.los-verify-act input{width:100%;}
+.los-verify-card{display:flex;flex-direction:column;gap:8px;}
+
+/* ── Application page: sections as tabs, "what to do now", persistent errors ── */
+.los-error-banner{display:flex;align-items:flex-start;gap:8px;padding:10px 12px;margin-bottom:12px;border-radius:var(--radius);
+  background:var(--red-bg);border:1px solid var(--red-border);color:var(--red);font-size:13.5px;position:sticky;top:0;z-index:5}
+.los-error-banner span{flex:1}
+.los-page-tabs{display:flex;flex-wrap:wrap;gap:2px;margin:0 0 12px;border-bottom:1px solid var(--border)}
+.los-page-tabs button{background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-size:13.5px;
+  color:var(--text-sec);cursor:pointer;display:inline-flex;align-items:center;gap:6px;margin-bottom:-1px}
+.los-page-tabs button:hover{color:var(--text)}
+.los-page-tabs button.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.los-tab-issue{background:var(--red);color:#fff;border-radius:10px;font-size:11px;font-weight:700;padding:0 6px;line-height:17px}
+.los-todo{border:1px solid var(--border);border-radius:var(--radius);margin:10px 0 12px;overflow:hidden}
+.los-todo-head{padding:8px 12px;font-size:13.5px}
+.los-todo-blocked{background:var(--amber-bg);color:var(--amber);border-bottom:1px solid var(--amber-border)}
+.los-todo-ready{background:var(--green-bg);color:var(--green)}
+.los-todo ul{list-style:none;margin:0;padding:4px 0}
+.los-todo li{display:flex;align-items:center;gap:10px;padding:6px 12px;font-size:13px}
+.los-todo li span:nth-child(2){flex:1}
+.los-todo-icon{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;flex:none}
+.los-todo-block .los-todo-icon{background:var(--red);color:#fff}
+.los-todo-advice .los-todo-icon{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.los-todo-advice{color:var(--text-sec)}
+button:disabled[title]:not([title=""]){cursor:not-allowed}
+.los-term-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border-light)}
+.los-term-row > div:first-child{flex:1;min-width:0}
+.los-term-row > .badge{flex:none;margin-top:2px}
+.los-term-row > div:last-child{flex:none}
+.los-term-removed{opacity:.55}
+.los-term-removed .los-term-text{text-decoration:line-through}
+.los-warn{padding:8px 12px;border-radius:var(--radius);background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber);font-size:13px;margin:6px 0}
+/* wide tables scroll inside their card, never the page */
+.los-app-main{min-width:0}
+.los-app-main .card{overflow-x:auto}
+/* New Application: numbered sections (hidden sections are skipped) */
+.los-form{counter-reset:los-sec}
+.los-form-section h3::before{counter-increment:los-sec;content:counter(los-sec) ". ";color:var(--accent)}
+
+/* My task, second part: the step's own work first; the copilot's suggestions last */
+.los-task-stack{display:flex;flex-direction:column}
+.los-task-stack > .los-copilot{order:9}
+
+/* Pre-sanction checks: one compact row per check, status and actions always in view */
+.los-checks{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:var(--radius);margin-top:10px}
+.los-check-row{display:flex;gap:12px;padding:10px 12px;border-top:1px solid var(--border-light);align-items:flex-start}
+.los-check-row:first-child{border-top:none}
+.los-check-bad{background:var(--red-bg)}
+.los-check-open{background:var(--bg-card-alt)}
+.los-check-main{flex:1;min-width:0}
+.los-check-side{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.los-check-form{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.los-check-form .input{width:auto;min-width:200px;flex:1}
+.los-checks details summary{cursor:pointer;margin-top:4px}
+
+/* Actions that end an application: quieter, at the end of the row */
+.btn-danger-outline{background:transparent;color:var(--red);border:1px solid var(--red-border)}
+.btn-danger-outline:hover{background:var(--red-bg)}
+.los-action-row{display:flex;flex-wrap:wrap;gap:8px}
+.los-action-row > .btn-danger-outline{order:5}
+.los-action-row > .btn-danger-outline:not(.btn-danger-outline ~ .btn-danger-outline){margin-left:auto}

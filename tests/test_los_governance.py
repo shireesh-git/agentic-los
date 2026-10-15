@@ -85,7 +85,7 @@ def test_sanction_records_authority_and_snapshot_and_material_change_blocks(svc)
     from tests.test_cam_composer import full_case
     from tests.test_los_risk_maker import FakeCases
     from tests.test_los_committee import BriefingFinalCam
-    from tests.test_los_workflow import _clear_dd
+    from tests.test_los_workflow import _clear_dd, es_work
     cases = FakeCases(full_case(seed_company_store()["ABCE001"]))
     cases.run("ABCE001", on_progress=lambda e: None)
     svc.cases, svc.final_cam = cases, BriefingFinalCam(cases)
@@ -109,10 +109,14 @@ def test_sanction_records_authority_and_snapshot_and_material_change_blocks(svc)
             break
         action = {"maker": "submit", "checker": "approve", "committee": "sanction", "vp_review": "submit",
                   "allocation": "allocate"}[step.kind]
+        if step.id == "ip_note":                         # the IP-stage documents the IP Note gate requires
+            svc._seed_stage_docs(app_id, "IP", svc.now())
+        es_work(svc, app_id, session, step.id)                 # the ES steps (G-W2)
+        required = {f["id"]: svc.now().date().isoformat() for f in step.decision_fields if f.get("required")}
         svc.act(app_id, session, action,
                 allocate_to=svc._default_assignee(step.allocates_to) if step.kind == "allocation" else None,
-                sanctioned_amount_cr=(200 if step.id == "ap_sanction" else None),
-                comment="Committee accepts ₹200 Cr with escrow." if step.id == "ap_sanction" else "")
+                sanctioned_amount_cr=(200 if step.id == "ap_sanction" else None), decision_data=required,
+                comment="Committee accepts ₹200 Cr with escrow." if step.id == "ap_sanction" else f"{step.name} (test)")
     view = svc.get(app_id)
     assert set(view["snapshots"]) == {"IP", "sanction"}
     sanction = view["sanctions"]["AP"]
@@ -138,7 +142,7 @@ def test_sanction_records_authority_and_snapshot_and_material_change_blocks(svc)
     svc.record_rating(app_id, maker, "internal", {"subject": "borrower", "grade": "A2", "date": "2026-10-08"})
     assert "ratings" in svc.get(app_id)["material_changes"]
     with pytest.raises(InvalidRequestError, match="Material change"):
-        svc.act(app_id, maker, "submit")
+        svc.act(app_id, maker, "submit", comment="submit (test)")
     # the review (accept with remarks) releases the gate
     svc.review_material_changes(app_id, maker, "accept", "Post-sanction internal rating recorded; no amount change")
     out = svc.review_material_changes(app_id, maker, "reject", "no further change")
@@ -181,7 +185,7 @@ def test_ap_risk_maker_submission_requires_the_cma(svc):
     from tests.test_cam_composer import full_case
     from tests.test_los_risk_maker import FakeCases
     from tests.test_los_committee import BriefingFinalCam
-    from tests.test_los_workflow import _clear_dd
+    from tests.test_los_workflow import _clear_dd, es_work
     cases = FakeCases(full_case(seed_company_store()["ABCE001"]))
     cases.run("ABCE001", on_progress=lambda e: None)
     svc.cases, svc.final_cam = cases, BriefingFinalCam(cases)
@@ -202,20 +206,29 @@ def test_ap_risk_maker_submission_requires_the_cma(svc):
             svc.store.save(app)
         action = {"maker": "submit", "checker": "approve", "committee": "sanction", "vp_review": "submit",
                   "allocation": "allocate"}[step.kind]
+        if step.id == "ip_note":                         # the IP-stage documents the IP Note gate requires
+            svc._seed_stage_docs(app_id, "IP", svc.now())
+        es_work(svc, app_id, session, step.id)                 # the ES steps (G-W2)
+        required = {f["id"]: svc.now().date().isoformat() for f in step.decision_fields if f.get("required")}
         svc.act(app_id, session, action,
-                allocate_to=svc._default_assignee(step.allocates_to) if step.kind == "allocation" else None)
+                allocate_to=svc._default_assignee(step.allocates_to) if step.kind == "allocation" else None,
+                decision_data=required, comment=f"{step.name} (test)")
     app = svc.store.get(app_id)
     step = svc.wf.step(app["step_id"])
     session = svc._system_session(step.role, app.get("assignee_id"))
     app["credit_assessment"] = svc._seed_assessment_summary(app)
     svc.store.save(app)
     with pytest.raises(InvalidRequestError, match="CMA"):
-        svc.act(app_id, session, "submit")
+        svc.act(app_id, session, "submit", comment="submit (test)")
     svc.record_cma(app_id, session, "borrower", {"FY2024": {"revenue": 100.0, "pat": 8.0}})
     with pytest.raises(InvalidRequestError, match="benchmark|spread"):
-        svc.act(app_id, session, "submit")
+        svc.act(app_id, session, "submit", comment="submit (test)")
     svc._seed_ap_workspace(app_id, NOW - timedelta(days=1))
-    svc.act(app_id, session, "submit")
+    with pytest.raises(InvalidRequestError, match="Date of receipt of last material information"):      # the AP decision record (G-W6)
+        svc.act(app_id, session, "submit", comment="submit (test)")
+    svc.act(app_id, session, "submit", comment="submit (test)",
+            decision_data={"material_information_date": svc.now().date().isoformat(), "committee_matters": "None",
+                           "approval_purpose": "Fresh term loan", "significant_changes": "None"})
 
 
 # ─── Proposal / exposure / banking / conduct (GAP-P0-09) ────────────────────
@@ -286,13 +299,20 @@ def test_esms_requires_remarks_for_yes_or_not_available_and_categories(svc):
     app = _ps(svc)
     rm = _ps_session(svc, app["application_id"])
     with pytest.raises(InvalidRequestError, match="mandatory for a 'Yes'"):
-        svc.update_esms(app["application_id"], rm, {"checklist": [{"id": "es_exploration", "answer": "Yes"}]})
+        svc.update_esms(app["application_id"], rm, {"checklist": [{"id": "es_wmd", "answer": "Yes"}]})
     out = svc.update_esms(app["application_id"], rm, {"screening_date": "2026-10-08", "category": "C",
                                                       "checklist": [
-            {"id": "es_exploration", "answer": "No"}, {"id": "es_coastal", "answer": "No"},
-            {"id": "es_resettlement", "answer": "Not Available", "remarks": "survey not available"},
-            {"id": "es_environmental", "answer": "No"}, {"id": "es_litigation", "answer": "No"}]})
+            {"id": "es_basel_waste", "answer": "No"}, {"id": "es_illegal", "answer": "No"},
+            {"id": "es_wmd", "answer": "No"},
+            {"id": "es_hazardous", "answer": "Not Available", "remarks": "process description awaited"},
+            {"id": "es_forced_labour", "answer": "No"}]})
     assert out["esms_status"] == "complete"
+    # Annex 5-2: an excluded activity blocks the proposal
+    from src.los.esms import esms_gate
+    esms = dict(svc.get(app["application_id"])["esms"])
+    esms["checklist"] = [dict(i, answer="Yes", remarks="Reported") if i["id"] == "es_forced_labour" else i
+                         for i in esms["checklist"]]
+    assert "excluded activity" in esms_gate(esms)
     gate = svc.rules_view(app["application_id"])["rules"]
     assert next(r for r in gate if r["id"] == "RUL-06")["status"] in ("passed", "not_applicable")   # PS stage: evaluated from AP
 
@@ -460,7 +480,7 @@ def test_dis_review_checklists_gate_checker_and_final_approver(svc):
     svc.request_tranche(app_id, maker, 10, "2026-10-10")
     manual = [i["id"] for i in svc.post_sanction(app_id)["disbursement"]["checklist"] if i["kind"] == "manual"]
     svc.update_checklist(app_id, maker, [{"id": i, "done": True} for i in manual])
-    svc.act(app_id, maker, "submit")
+    svc.act(app_id, maker, "submit", comment="submit (test)")
     checker = sign(svc, svc.get(app_id)["assignee_id"], "dis_checker")
     with pytest.raises(InvalidRequestError, match="review is not complete"):
         svc.act(app_id, checker, "approve", comment="checking")

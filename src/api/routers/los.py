@@ -84,6 +84,12 @@ class SourcingDecision(BaseModel):
     conditional_remarks: str = ""
 
 
+class CamStart(BaseModel):
+    mode: str                                    # workspace | document | generate
+    run_id: Optional[str] = None                 # workspace: a specific CAM run (default: the latest)
+    staging_id: Optional[str] = None             # document: the staged CAM (read with /prospects/{id}/read)
+
+
 class NewApplication(BaseModel):
     entity_id: str
     # ``facility`` remains accepted for backward compatibility with existing API clients.
@@ -94,6 +100,33 @@ class NewApplication(BaseModel):
     prospect_discussion: ProspectDiscussion = Field(default_factory=ProspectDiscussion)
     sourcing_decision: SourcingDecision = Field(default_factory=SourcingDecision)
     customer_id_selection: Optional[str] = None
+    cam: Optional[CamStart] = None               # start from a CAM (S8)
+
+
+class ProspectIdentity(BaseModel):
+    company_name: str = ""
+    cin: Optional[str] = None
+    pan: Optional[str] = None
+    gstin: Optional[str] = None
+    date_of_incorporation: Optional[str] = None
+    registered_address: Optional[str] = None
+    registered_state: Optional[str] = None
+    listed_exchange: Optional[str] = None
+    external_rating: Optional[str] = None
+    sector: str = ""
+    subsector: Optional[str] = None
+
+
+class NewProspect(BaseModel):
+    staging_id: str
+    identity: ProspectIdentity
+    facilities: list[FacilityInput] = Field(default_factory=list)
+    related_parties: list[RelatedPartyInput] = Field(default_factory=list)
+    priority: str = "Normal"
+    prospect_discussion: ProspectDiscussion = Field(default_factory=ProspectDiscussion)
+    sourcing_decision: SourcingDecision = Field(default_factory=SourcingDecision)
+    confirm_not_duplicate: bool = False
+    cam: Optional[CamStart] = None
 
 
 class Action(BaseModel):
@@ -103,6 +136,8 @@ class Action(BaseModel):
     sanctioned_amount_cr: Optional[float] = None
     significant_changes: Optional[str] = None    # Disbursement VP Review: significant changes observed
     rework_to: Optional[str] = None              # return: a specific earlier step (reason-specific rework)
+    decision_data: Optional[dict] = None         # the step's decision fields (e.g. material_information_date)
+    deferred_until: Optional[str] = None         # defer: the date to take the application up again
 
 
 class FieldReview(BaseModel):
@@ -114,6 +149,21 @@ class FieldReview(BaseModel):
 
 class FieldReviews(BaseModel):
     reviews: list[FieldReview]
+
+
+class FieldDecision(BaseModel):
+    field_id: str
+    action: str                     # confirm | override | keep | reopen
+    value: Optional[str] = None
+    reason: str = ""
+
+
+class FieldDecisions(BaseModel):
+    decisions: list[FieldDecision]
+
+
+class BulkConfirm(BaseModel):
+    field_ids: Optional[list[str]] = None     # None = every pre-ticked field in the queue
 
 
 class Reassign(BaseModel):
@@ -174,7 +224,8 @@ async def list_applications(status: str = "", stage: str = "", mine: bool = Fals
 async def create_application(body: NewApplication, x_los_session: Optional[str] = Header(None),
                              svc: ServiceContainer = Depends(get_container)):
     session = _session(svc, x_los_session)
-    app = svc.los.create(
+    app = await asyncio.to_thread(               # starting from a CAM populates the fields: off the event loop
+        svc.los.create,
         session,
         entity_id=body.entity_id,
         facility=body.facility,
@@ -184,6 +235,7 @@ async def create_application(body: NewApplication, x_los_session: Optional[str] 
         prospect_discussion=body.prospect_discussion.model_dump(),
         sourcing_decision=body.sourcing_decision.model_dump(),
         customer_id_selection=body.customer_id_selection,
+        cam=body.cam.model_dump() if body.cam else None,
     )
     return svc.los.get(app["application_id"], session)
 
@@ -199,7 +251,8 @@ async def act(application_id: str, body: Action, x_los_session: Optional[str] = 
               svc: ServiceContainer = Depends(get_container)):
     return svc.los.act(application_id, _session(svc, x_los_session), body.action, comment=body.comment,
                        allocate_to=body.allocate_to, sanctioned_amount_cr=body.sanctioned_amount_cr,
-                       significant_changes=body.significant_changes, rework_to=body.rework_to)
+                       significant_changes=body.significant_changes, rework_to=body.rework_to,
+                       decision_data=body.decision_data, deferred_until=body.deferred_until)
 
 
 @router.get("/applications/{application_id}/assessment")
@@ -254,6 +307,47 @@ async def run_prefill(application_id: str, x_los_session: Optional[str] = Header
                       svc: ServiceContainer = Depends(get_container)):
     """Read the documents and propose values with source page and confidence."""
     return await asyncio.to_thread(svc.los.run_prefill, application_id, _session(svc, x_los_session))
+
+
+@router.post("/applications/{application_id}/prepare")
+async def prepare_application(application_id: str, x_los_session: Optional[str] = Header(None),
+                              svc: ServiceContainer = Depends(get_container)):
+    """Preparation agent: identity & dedupe, document intake and the API checks in parallel lanes."""
+    return svc.los.prepare_application(application_id, _session(svc, x_los_session))
+
+
+# ── New prospect sourced from its documents ──────────────────────────────────
+
+@router.post("/prospects/documents")
+async def stage_prospect_document(file: UploadFile = File(...), category: str = Form(...),
+                                  staging_id: Optional[str] = Form(None),
+                                  x_los_session: Optional[str] = Header(None),
+                                  svc: ServiceContainer = Depends(get_container)):
+    """Stage a document for a new prospect (before the borrower exists); returns the staging set."""
+    content = await file.read()
+    return svc.los.stage_document(_session(svc, x_los_session), category, file.filename, content, staging_id)
+
+
+@router.post("/prospects/{staging_id}/read")
+async def read_prospect_documents(staging_id: str, x_los_session: Optional[str] = Header(None),
+                                  svc: ServiceContainer = Depends(get_container)):
+    """The intake agent reads the staged documents: proposed identity, facility and duplicate matches."""
+    return await asyncio.to_thread(svc.los.read_staged, _session(svc, x_los_session), staging_id)
+
+
+@router.post("/prospects")
+async def create_prospect(body: NewProspect, x_los_session: Optional[str] = Header(None),
+                          svc: ServiceContainer = Depends(get_container)):
+    """Register the new prospect from its documents, create its application and start the preparation agent."""
+    return await asyncio.to_thread(
+        lambda: svc.los.create_prospect(
+            _session(svc, x_los_session), staging_id=body.staging_id, identity=body.identity.model_dump(),
+            facilities=[f.model_dump() for f in body.facilities],
+            related_parties=[p.model_dump() for p in body.related_parties], priority=body.priority,
+            prospect_discussion=body.prospect_discussion.model_dump(),
+            sourcing_decision=body.sourcing_decision.model_dump(),
+            confirm_not_duplicate=body.confirm_not_duplicate,
+            cam=body.cam.model_dump() if body.cam else None))
 
 
 @router.post("/applications/{application_id}/prefill/apply")
@@ -574,6 +668,23 @@ async def review_fields(application_id: str, body: FieldReviews, x_los_session: 
                                  [r.model_dump() for r in body.reviews])
 
 
+@router.post("/applications/{application_id}/fields/verify")
+async def verify_fields(application_id: str, body: FieldDecisions, x_los_session: Optional[str] = Header(None),
+                        svc: ServiceContainer = Depends(get_container)):
+    """Verify populated fields: confirm, override (value + reason), keep a decided value over a
+    conflicting new proposal (reason), or reopen. Returns the refreshed Risk Maker workspace."""
+    return await asyncio.to_thread(svc.los.verify_fields, application_id, _session(svc, x_los_session),
+                                   [d.model_dump() for d in body.decisions])
+
+
+@router.post("/applications/{application_id}/fields/bulk-confirm")
+async def bulk_confirm_fields(application_id: str, body: BulkConfirm, x_los_session: Optional[str] = Header(None),
+                              svc: ServiceContainer = Depends(get_container)):
+    """Confirm the given fields, or every pre-ticked field in the verify queue, in one decision."""
+    return await asyncio.to_thread(svc.los.bulk_confirm, application_id, _session(svc, x_los_session),
+                                   body.field_ids)
+
+
 @router.post("/applications/{application_id}/reassign")
 async def reassign(application_id: str, body: Reassign, x_los_session: Optional[str] = Header(None),
                    svc: ServiceContainer = Depends(get_container)):
@@ -608,6 +719,14 @@ async def borrower_identity(entity_id: str, x_los_session: Optional[str] = Heade
     CBS customer search and potential existing LOS applications."""
     _session(svc, x_los_session)
     return svc.los.borrower_identity(entity_id)
+
+
+@router.get("/borrowers/{entity_id}/cam")
+async def borrower_cam(entity_id: str, x_los_session: Optional[str] = Header(None),
+                       svc: ServiceContainer = Depends(get_container)):
+    """What a new application can start from: the latest CAM in the CAM workspace, or generating one."""
+    _session(svc, x_los_session)
+    return svc.los.cam_options(entity_id)
 
 
 @router.get("/audit")
@@ -698,6 +817,69 @@ async def update_esms(application_id: str, body: WorkspacePayload, x_los_session
                       svc: ServiceContainer = Depends(get_container)):
     """ESMS screening: excluded-activity checklist (remarks mandatory for Yes/Not Available), category, ESDD."""
     return svc.los.update_esms(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.get("/applications/{application_id}/decision")
+async def get_decision(application_id: str, x_los_session: Optional[str] = Header(None),
+                       svc: ServiceContainer = Depends(get_container)):
+    """The decision tab: the computed committee, deviations (automatic and manual), the decision records
+    and the remarks history."""
+    return svc.los.decision_view(application_id, _session(svc, x_los_session))
+
+
+@router.post("/applications/{application_id}/deviations")
+async def save_deviation(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                         svc: ServiceContainer = Depends(get_container)):
+    """Add a manual deviation (payload {type, description, justification}) or remove one
+    (payload {action: remove, id, reason}). At the IP / AP Note and the Risk Maker steps."""
+    return svc.los.save_deviation(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.post("/applications/{application_id}/unit-visits")
+async def save_unit_visit(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                          svc: ServiceContainer = Depends(get_container)):
+    """Unit Visit Details: payload {entity_name?, address_visited, date_of_visit, place, officials: [{name,
+    designation}], observation, report?, remarks?} or {action: remove, visit_id}. At the AP makers."""
+    return svc.los.save_unit_visit(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.post("/applications/{application_id}/sourcing-details")
+async def save_sourcing_details(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                                svc: ServiceContainer = Depends(get_container)):
+    """Sourcing details: received_date, source, sourcing_branch, owner_primary / secondary, sol_id,
+    sub_sub_sector, lpfg_analyst, lpfg_senior_analyst. At Prospect Sourcing and IP Note Processing."""
+    return svc.los.save_sourcing_details(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.post("/applications/{application_id}/security-notes")
+async def save_security_notes(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                              svc: ServiceContainer = Depends(get_container)):
+    """The AP security remarks: creation_status, change_since_last_sanction, security_trustee."""
+    return svc.los.save_security_notes(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.post("/applications/{application_id}/decision-notes")
+async def save_decision_note(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                             svc: ServiceContainer = Depends(get_container)):
+    """A decision-tab narrative: payload {key, text} (policy_compliance, previous_relaxations, other_matters,
+    ip_observations)."""
+    return svc.los.save_decision_note(application_id, _session(svc, x_los_session), body.payload.get("key"),
+                                      body.payload.get("text"))
+
+
+@router.get("/applications/{application_id}/terms")
+async def get_terms(application_id: str, x_los_session: Optional[str] = Header(None),
+                    svc: ServiceContainer = Depends(get_container)):
+    """Terms & conditions authored at AP (drafted by the T&C agent), with each draft's field status and evidence."""
+    return svc.los.terms(application_id, _session(svc, x_los_session))
+
+
+@router.post("/applications/{application_id}/terms")
+async def save_term(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                    svc: ServiceContainer = Depends(get_container)):
+    """Author a term & condition: payload {action: add|update|remove|restore, term_id?, category, text,
+    facility_id?, stipulated_value?, frequency?, reason?}. Editing an agent's text needs a reason."""
+    return svc.los.save_term(application_id, _session(svc, x_los_session), body.payload)
 
 
 @router.post("/applications/{application_id}/ewps")

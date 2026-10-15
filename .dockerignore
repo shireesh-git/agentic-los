@@ -10,7 +10,6 @@ venv/
 .git/
 .gitignore
 *.md
-!IDEA.MD
 tests/
 postman/
 output/

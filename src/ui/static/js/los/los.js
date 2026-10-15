@@ -11,9 +11,13 @@ function losApp() {
   };
   const ACTIONS = {
     submit: ['Submit', 'btn-primary', 'Submitted'], approve: ['Approve', 'btn-primary', 'Approved'],
-    return: ['Return', 'btn-outline', 'Returned'], reject: ['Reject', 'btn-danger', 'Rejected'],
+    return: ['Rework', 'btn-outline', 'Returned for rework'], reject: ['Reject', 'btn-danger-outline', 'Rejected'],
     allocate: ['Allocate', 'btn-primary', 'Allocated'], sanction: ['Sanction', 'btn-primary', 'Sanctioned'],
-    withdraw: ['Application Withdrawn', 'btn-danger', 'Withdrawn'], drop: ['Drop / Terminate', 'btn-danger', 'Dropped'],
+    withdraw: ['Application Withdrawn', 'btn-danger-outline', 'Withdrawn'], drop: ['Drop / Terminate', 'btn-danger-outline', 'Dropped'],
+    defer: ['Defer', 'btn-outline', 'Deferred'], reactivate: ['Reactivate', 'btn-primary', 'Reactivated'],
+    application_prepared: ['', '', 'Prepared by agents'], fields_populated: ['', '', 'Fields populated by agents'],
+    fields_verified: ['', '', 'Fields verified'], fields_bulk_confirmed: ['', '', 'Fields bulk-confirmed'],
+    prospect_sourced: ['', '', 'New prospect sourced from documents'], cam_attached: ['', '', 'Started from a CAM'], checks_refreshed: ['', '', 'Checks refreshed by agents'],
     propose_modification: ['Modification Proposed', 'btn-outline', 'Modification proposed'],
     recommend_modification: ['Recommend for Modification', 'btn-outline', 'Modification recommended'],
     create: ['', '', 'Created'], reassign: ['', '', 'Reassigned'], escalate: ['', '', 'Escalated'],
@@ -49,8 +53,14 @@ function losApp() {
     statusFilters: [{ id: '', label: 'All' }, { id: 'DRAFT', label: 'Draft' }, { id: 'IN_PROGRESS', label: 'In progress' },
                     { id: 'UNDER_REVIEW', label: 'Under review' }, { id: 'RETURNED', label: 'Returned' },
                     { id: 'APPROVED', label: 'Exit (approved)' }, { id: 'REJECTED', label: 'Rejected' }],
-    current: null, openStages: {}, panel: '', appTab: 'details',
+    current: null, openStages: {}, panel: '', appTab: 'details', pageTab: 'task', lastError: '',
     comment: '', allocateTo: '', reassignTo: '', escalateNote: '', sigChanges: '', reworkTo: '', busy: false,
+    decisionData: {}, deferUntil: '', deferOpen: false,
+    prospectMode: false, _prepTimer: null,
+    prospectCategories: ['request', 'kyc', 'financials', 'cam', 'ratings', 'collateral', 'gst', 'banking', 'bureau', 'legal'],
+    cam: { mode: 'none', options: null, staging_id: null, read: null, reading: false },
+    prospect: { category: 'request', staging_id: null, documents: [], read: null, reading: false, identity: {},
+                confirm_not_duplicate: false },
     borrowers: [], identity: null, customerIdSel: '', newApp: { entity_id: '', priority: 'Normal', facilities: [], related_parties: [],
                      prospect: { project_type: '', funding_type: '', brief_description: '', detailed_discussion: '',
                                  initial_remarks: '' },
@@ -58,7 +68,8 @@ function losApp() {
     dd: null, ddEdit: '', ddResult: 'clear', ddRemarks: '', ddEv: '', ddEvName: '', ddEvNote: '', udinOpen: false, udinRows: [], udinRow: { document: '', udin_code: '', status: 'verified' }, invResolving: '', invResolution: '', subTrancheReason: '',
     consent: { acknowledged_by: '', consent_date: '', remarks: '' }, consentFacilities: [],
     auditEvents: [],
-    rm: null, rmTab: 'customer', _rmTimer: null, rmEdit: '', rmEditValue: '', rmEditReason: '',
+    rm: null, rmTab: 'customer', _rmTimer: null, rmEdit: '', rmEditValue: '', rmEditReason: '', verifyPick: {}, verifyReason: {}, verifyValue: {}, verifyEdit: '',
+    ipnAssign: { lpfg_analyst: '', lpfg_senior_analyst: '', crac_recommendation: '', crac_remarks: '' },
     pack: null, briefing: false, sanctionAmount: null, RISK_MAKER: RISK_MAKER_STEPS,
     src: null, prefilling: false, uploadCategory: 'request', srcSel: {}, srcEdit: '', srcEditValue: '', srcEditReason: '',
     ipn: null, noting: false, noteWithAi: true,
@@ -66,14 +77,19 @@ function losApp() {
     copilot: null, copilotBusy: '', draft: null, question: '', asking: false, digest: null,
     ps: null, psTab: 'conditions', condEdit: '', condForm: {}, trancheForm: { amount_cr: null, value_date: '', purpose: '' },
     gov: { tab: 'facilities', party: {}, partyEv: null, entity: { entity_incorporated: false, latest_material_information_date: '' },
-           security: {}, project: {}, projectChange: {}, esms: {}, ewp: {},
+           security: {}, project: {}, projectChange: {}, esms: { checklist: {}, remarks: {} }, ewp: {},
            rating: { kind: 'internal' }, cma: { subject: 'borrower', period: 'FY2025', rows: {} },
            cmaReview: false, cmaRemarks: '', conduct: {}, exposure: { exception: {} }, banking: {},
            pricing: { facility_id: '' }, fee: {}, schedule: {}, limit: {}, account: {}, secRef: {},
            beneficiary: {}, disFee: {}, repayment: {}, interest: {}, arrearsRow: {}, arrearsExists: false,
            memoReview: false, memoRemarks: '', docReview: '', docStatus: 'reviewed', docRemarks: '',
-           mcDecision: 'accept', mcRemarks: '', outKind: '' },
+           mcDecision: 'accept', mcRemarks: '', outKind: '',
+           narr: {}, notes: {}, secNotes: {}, src: {},
+           visit: { date_of_visit: '', place: '', address_visited: '', official: '', designation: '', observation: 'Satisfactory', remarks: '' } },
     govDocs: null, govRules: null, govSnap: null, integrations: null,
+    decision: null, devForm: { type: 'policy', description: '', justification: '' },
+    terms: null, termForm: { category: 'CP', text: '', facility_id: '', stipulated_value: '', frequency: '' },
+    termEdit: null, termReason: '',
     toast: '', toastType: '', _toastTimer: null,
 
     async init() {
@@ -98,11 +114,19 @@ function losApp() {
         if (!quiet) this.notify(e.detail || r.statusText, 'error');
         throw new Error(e.detail || r.statusText);
       }
-      return r.json();
+      const j = await r.json();
+      if (j && j.application_id && j.fields) {
+        // the field store travels with the record for the API's other clients; the screens read it through
+        // the assessment endpoint, so it is not kept (a large reactive object slows every render)
+        delete j.fields; delete j.field_reviews; delete j.agent_writes; delete j.later_intake;
+      }
+      return j;
     },
     post(path, body) { return this.api(path, { method: 'POST', body: JSON.stringify(body || {}) }); },
 
     notify(msg, type) {
+      if (type === 'error') this.lastError = msg;           // stays on screen until dismissed or the next success
+      else if (type === 'ok') this.lastError = '';
       this.toast = msg; this.toastType = type === 'error' ? 'toast-err' : 'toast-ok';
       clearTimeout(this._toastTimer); this._toastTimer = setTimeout(() => (this.toast = ''), 3500);
     },
@@ -122,7 +146,7 @@ function losApp() {
       storage(st => st.setItem(TOKEN_KEY, s.token));
       this.session = s; this.signinGroup = null;
       this.notify('Signed in as ' + s.user.name + ' · ' + s.role_name, 'ok');
-      location.hash = 'dashboard';
+      if (!location.hash.startsWith('#new?')) location.hash = 'dashboard';   // keep a "Start LOS application" link
       await this.onHash();
     },
     async switchRole(role) {
@@ -140,13 +164,22 @@ function losApp() {
     go(hash) { if (location.hash.slice(1) === hash) this.onHash(); else location.hash = hash; },
     async onHash() {
       if (!this.session) return;
-      const h = location.hash.slice(1) || 'dashboard';
+      const [h, query] = (location.hash.slice(1) || 'dashboard').split('?');
       const [page, id] = h.split('/');
       this.page = page; this.panel = '';
       window.scrollTo({ top: 0 });
       if (page === 'dashboard' || page === 'queue') { this.lastList = page; await this.refresh(); }
       else if (page === 'app' && id) await this.loadApp(id);
-      else if (page === 'new') await this.loadBorrowers();
+      else if (page === 'new') {
+        await this.loadBorrowers();
+        const q = new URLSearchParams(query || '');
+        if (q.get('entity')) {
+          this.setProspectMode(false);
+          this.newApp.entity_id = q.get('entity');
+          await this.onBorrowerChange();
+          if (q.get('cam') && (q.get('cam') !== 'workspace' || this.cam.options?.workspace)) this.cam.mode = q.get('cam');
+        }
+      }
       else if (page === 'audit') this.auditEvents = (await this.api('audit')).events;
       else if (page === 'mis') await this.loadMis();
       else await this.loadDash();
@@ -170,10 +203,13 @@ function losApp() {
       const app = await this.api('applications/' + encodeURIComponent(id));
       if (this.current?.application_id !== app.application_id) {
         this.comment = ''; this.allocateTo = ''; this.reassignTo = ''; this.escalateNote = ''; this.appTab = 'details';
+        this.pageTab = 'task'; this.lastError = '';
         this.openStages = Object.fromEntries((app.rail || []).map(s => [s.id, s.state !== 'pending']));
       }
       const changed = this.current?.application_id !== app.application_id;
+      const stepChanged = changed || this.current?.step?.id !== app.step?.id;
       this.current = app;
+      if (stepChanged) { this.decisionData = { ...(app.decision_defaults || {}) }; this.decision = null; }
       this.loadDash();
       if (changed) { this.rm = null; this.rmTab = 'customer'; this.rmEdit = ''; this.pack = null; this.src = null;
                      this.ipn = null; this.srcSel = {}; this.srcEdit = ''; this.ps = null; this.condEdit = '';
@@ -191,6 +227,120 @@ function losApp() {
     },
 
     /* ─── Credit assessment (Risk Maker workspace) ────────────────── */
+    /* Page sections and "what to do now" */
+    pageTabs() {
+      const c = this.current, out = [['task', 'My task']];
+      if (this.dd && c?.step && ['ps_maker', 'ip_note', 'ip_risk_maker', 'ap_risk_maker'].includes(c.step.id)) out.push(['checks', 'Checks']);
+      if (c?.step && this.govTabs().length) out.push(['workspaces', 'Workspaces']);
+      if (this.rmVisible()) out.push(['assessment', 'Credit assessment']);
+      if (['IP', 'AP'].includes(c?.stage_id)) out.push(['decision', 'Decision']);
+      out.push(['history', 'History']);
+      return out;
+    },
+    tabIssues(tab) {
+      const gov = this.govTabs().map(t => t[0]);
+      return (this.current?.blockers || []).filter(b => tab === 'workspaces' ? gov.includes(b.where) : b.where === tab).length;
+    },
+    goTo(where) {
+      const gov = this.govTabs().map(t => t[0]);
+      if (gov.includes(where)) { this.pageTab = 'workspaces'; this.openGov(where); }
+      else this.pageTab = ['checks', 'assessment', 'history', 'decision'].includes(where) ? where : 'task';
+      if (this.pageTab === 'decision') this.loadDecision();
+      this.$nextTick(() => this.scrollToEl(document.querySelector('.los-page-tabs')));
+    },
+    whereLabel(where) {
+      return { checks: 'Checks', assessment: 'Credit assessment', task: 'below', terms: 'Terms & conditions', cma: 'CMA',
+               pricing: 'Pricing & fees', projects: 'Projects & ESMS', documents: 'Documents', disops: 'Disbursement ops' }[where] || where;
+    },
+    todo() {
+      // What the step holder still has to do: the hard blockers of Submit / Approve (from the server's own
+      // gates) and the agents' work waiting for a person (advisory).
+      const c = this.current, out = [];
+      if (!c?.step || !c.actions?.length) return out;
+      for (const b of c.blockers || []) out.push({ text: b.message, where: b.where, blocking: true });
+      const v = this.rm?.verify?.step_stats || {};
+      if (this.rm?.can_prepare && !(this.rm?.prep?.lanes || []).length && !v.total)
+        out.unshift({ text: 'Let the agents prepare this step (Prepare with agents).', where: 'task', blocking: false });
+      if (v.conflict) out.push({ text: v.conflict + ' field(s) where the agents disagree with an earlier decision — resolve them.', where: 'task', blocking: false });
+      if (v.pending) out.push({ text: c.step.id === 'ps_maker'
+        ? v.pending + ' value(s) read from the documents are waiting for you: accept or correct them in Documents & AI prefill.'
+        : v.pending + ' agent-filled field(s) waiting for your check (confirm or correct).', where: 'task', blocking: false });
+      return out;
+    },
+    workCard() {
+      // the card on "My task" where this step's own work is done
+      const st = this.current?.step?.id || '';
+      if (['pos_maker', 'pos_checker', 'dis_maker', 'dis_checker', 'dis_vp_review', 'dis_approver'].includes(st)) return '.los-post';
+      if (st === 'ip_note') return '.los-note-card';
+      if (st === 'ps_maker') return '.los-src';
+      if (this.rm && (this.rm.verify?.queue || []).length) return '.los-verify-card';
+      return '';
+    },
+    showWork() {
+      // the visible card (the same class can exist on a hidden page, e.g. New Application)
+      const el = [...document.querySelectorAll(this.workCard())].find(e => e.offsetParent !== null);
+      this.scrollToEl(el);
+    },
+    scrollToEl(el) {
+      // instant (a smooth scroll is cut short by the page's own refreshes), clear of the top bar
+      if (!el) return;
+      el.scrollIntoView({ block: 'start' });
+      window.scrollBy(0, -80);
+    },
+    saveNarratives() {
+      const data = { ...this.gov.narr };
+      return this.govSave('proposal', { section: 'background', data }, 'Narratives saved').then(ok => { if (ok) this.gov.narr = {}; });
+    },
+    saveSecurityNotes() {
+      return this.govSave('security-notes', { ...this.gov.secNotes }, 'Security remarks saved').then(ok => { if (ok) this.gov.secNotes = {}; });
+    },
+    saveUnitVisit() {
+      const v = this.gov.visit;
+      const payload = { date_of_visit: v.date_of_visit, place: v.place, address_visited: v.address_visited,
+                        officials: [{ name: v.official, designation: v.designation }], observation: v.observation, remarks: v.remarks };
+      return this.govSave('unit-visits', payload, 'Unit visit recorded').then(ok => {
+        if (ok) this.gov.visit = { date_of_visit: '', place: '', address_visited: '', official: '', designation: '', observation: 'Satisfactory', remarks: '' };
+      });
+    },
+    canEditSourcing() { return ['ps_maker', 'ip_note'].includes(this.current?.step?.id) && (this.current?.actions || []).length > 0; },
+    saveSourcingDetails() {
+      return this.govSave('sourcing-details', { ...this.gov.src }, 'Sourcing details saved').then(ok => { if (ok) this.gov.src = {}; });
+    },
+    async saveDecisionNote(n) {
+      this.busy = true;
+      try {
+        await this.post(this.appPath('decision-notes'), { payload: { key: n.key, text: this.gov.notes[n.key] ?? n.text ?? '' } });
+        const notes = { ...this.gov.notes }; delete notes[n.key]; this.gov.notes = notes;
+        this.notify('Saved: ' + n.label, 'ok');
+        await this.loadDecision();
+      } catch {} finally { this.busy = false; }
+    },
+    async loadDecision() {
+      if (!this.current) return;
+      try { this.decision = await this.api(this.appPath('decision'), {}, { quiet: true }); } catch { this.decision = null; }
+    },
+    async addDeviation() {
+      this.busy = true;
+      try {
+        await this.post(this.appPath('deviations'), { payload: { ...this.devForm } });
+        this.devForm = { type: this.devForm.type, description: '', justification: '' };
+        this.notify('Deviation added', 'ok');
+        await this.refreshCurrent(); await this.loadDecision(); this.loadPack();
+      } catch {} finally { this.busy = false; }
+    },
+    async removeDeviation(d) {
+      const reason = window.prompt('Why is this deviation no longer needed?');
+      if (!reason) return;
+      this.busy = true;
+      try {
+        await this.post(this.appPath('deviations'), { payload: { action: 'remove', id: d.id, reason } });
+        this.notify('Deviation removed', 'ok');
+        await this.refreshCurrent(); await this.loadDecision(); this.loadPack();
+      } catch {} finally { this.busy = false; }
+    },
+    lowerFirst(t) { t = String(t || ''); return t.charAt(0).toLowerCase() + t.slice(1); },
+    forwardAction() { return { maker: 'submit', checker: 'approve', vp_review: 'submit' }[this.current?.step?.kind]; },
+    actionBlocked(a) { return a === this.forwardAction() && (this.current?.blockers || []).length > 0; },
     rmVisible() {
       const c = this.current;
       return !!c && (RISK_MAKER_STEPS.includes(c.step?.id) || !!c.credit_assessment || !!this.rm?.view?.available);
@@ -201,9 +351,16 @@ function losApp() {
       try {
         const rm = await this.api('applications/' + encodeURIComponent(id) + '/assessment', {}, { quiet: true });
         if (this.current?.application_id !== id) return;
+        const prepWasRunning = this.rmPrepRunning();
         this.rm = rm;
         clearTimeout(this._rmTimer);
-        if (rm.job?.state === 'running') this._rmTimer = setTimeout(() => this.loadAssessment(), 2000);
+        if (rm.job?.state === 'running' || rm.prep?.state === 'running') this._rmTimer = setTimeout(() => this.loadAssessment(), 1500);
+        else if (prepWasRunning) {                       // the agents finished: show what they wrote
+          await this.refreshCurrent();
+          this.loadNote(); this.loadSourcing(); this.loadPost();
+          if (rm.prep?.state === 'done') this.notify('Agents prepared the application', 'ok');
+          else if (rm.prep?.state === 'failed') this.notify('Preparation failed: ' + rm.prep.error, 'error');
+        }
         else if (rm.job?.state === 'done' && !this.current.credit_assessment) {
           this.current = await this.api('applications/' + encodeURIComponent(id));  // pick up the audit event
         }
@@ -266,6 +423,73 @@ function losApp() {
                                   ids.length + ' field(s) confirmed in ' + t.title);
       }
     },
+    /* Populate → Verify: the agent-populated fields waiting for this step, most important first */
+    rmPrepRunning() { return this.rm?.prep?.state === 'running'; },
+    stepPrepHeadline() {
+      const p = this.rm?.prep, s = p?.summary || {};
+      if (p?.state === 'running') return 'Agents running · ' + (p.running || []).length + ' lane(s) in parallel';
+      const secs = ((s.duration_ms || 0) / 1000).toFixed(1) + 's';
+      const st = this.current?.step?.id;
+      if (p?.state === 'done' && ['pos_maker', 'dis_maker'].includes(st)) {
+        const parts = ['Prepared in ' + secs];
+        if (s.prefill) parts.push(s.prefill.found + ' of ' + s.prefill.total + ' fields read from the documents');
+        if (s.carry_forward) parts.push(s.carry_forward.filled + ' value(s) carried forward from the sanctioned record');
+        return parts.join(' · ');
+      }
+      if (p?.state === 'done') return 'Prepared in ' + secs + ' · '
+        + (s.credit_case_ran ? 'credit case run' : 'pinned credit case used') + ' · '
+        + ((s.populated?.workspaces || {}).written || 0) + ' workspace value(s) written';
+      if (!this.rm?.can_prepare) return '';
+      return { ps_maker: 'Let the agents read the documents, check identity and run the due-diligence checks.',
+               pos_maker: 'Let the agents read the signed sanction letter and the facility agreement.',
+               dis_maker: 'Let the agents read the drawdown request and carry the sanctioned terms, fees and securities into the disbursement record.' }[st]
+             || 'Let the agents run the credit case, the checks and the reconciliation per workspace.';
+    },
+    async prepareStep() {
+      try {
+        await this.post(this.appPath('prepare'));
+        this._rmTimer = setTimeout(() => this.loadAssessment(), 800);
+        this.notify('Agents started', 'ok');
+      } catch {}
+    },
+    verifyStatsText() {
+      const s = this.rm?.verify?.step_stats || {};
+      if (!s.total) return '';
+      return s.populated + ' of ' + s.total + ' fields auto-populated (' + s.populated_pct + '%) · '
+             + (s.confirmed + s.overridden) + ' verified · ' + s.pending + ' waiting'
+             + (s.conflict ? ' · ' + s.conflict + ' conflict(s)' : '')
+             + (s.accepted_unchanged_pct != null ? ' · ' + s.accepted_unchanged_pct + '% accepted unchanged' : '');
+    },
+    isPicked(i) { return (i.field_id in this.verifyPick) ? this.verifyPick[i.field_id] : i.preticked; },
+    verifySelected() { return (this.rm?.verify?.queue || []).filter(i => i.bulk && this.isPicked(i)).map(i => i.field_id); },
+    pickAllBulk(on) {
+      const pick = {};
+      for (const i of this.rm?.verify?.queue || []) if (i.bulk) pick[i.field_id] = on;
+      this.verifyPick = pick;
+    },
+    confPct(i) { const c = i.proposal?.confidence; return c == null ? '—' : Math.round(c * 100) + '%'; },
+    async verifyPost(path, body, message) {
+      this.busy = true;
+      try {
+        this.rm = await this.post('applications/' + this.current.application_id + '/fields/' + path, body);
+        this.verifyPick = {};
+        this.verifyReason = {}; this.verifyValue = {}; this.verifyEdit = '';
+        if (this.rm?.job?.state === 'running') this._rmTimer = setTimeout(() => this.loadAssessment(), 1200);
+        if (message) this.notify(message, 'ok');
+        this.current = await this.api('applications/' + encodeURIComponent(this.current.application_id));
+      } catch {} finally { this.busy = false; }
+    },
+    confirmSelected() {
+      const ids = this.verifySelected();
+      if (ids.length) return this.verifyPost('bulk-confirm', { field_ids: ids }, ids.length + ' field(s) confirmed');
+    },
+    verifyOne(i, action) {
+      const d = { field_id: i.field_id, action, reason: this.verifyReason[i.field_id] || '' };
+      if (action === 'override') d.value = this.verifyValue[i.field_id];
+      return this.verifyPost('verify', { decisions: [d] },
+                             ({ keep: 'Kept your value: ', override: 'Changed: ' }[action] || 'Confirmed: ') + i.label
+                             + (action === 'override' && ['cma', 'securities'].includes(i.domain) ? ' — re-running the credit case' : ''));
+    },
     /* Review & committee pack */
     async loadPack() {
       if (!this.current) return;
@@ -294,8 +518,38 @@ function losApp() {
       const id = this.current.application_id;
       try {
         const src = await this.api(this.appPath('sourcing'), {}, { quiet: true });
-        if (this.current?.application_id === id) this.src = src;
+        if (this.current?.application_id !== id) return;
+        const wasRunning = this.prepRunning();
+        this.src = src;
+        clearTimeout(this._prepTimer);
+        if (this.prepRunning()) this._prepTimer = setTimeout(() => this.loadSourcing(), 1200);
+        else if (wasRunning) {                          // the agents just finished: refresh what they wrote
+          this.srcSel = Object.fromEntries((src.prefill?.fields || []).filter(f => f.band === 'high' && !f.accepted).map(f => [f.id, true]));
+          await this.refreshCurrent();
+          if (src.prep?.state === 'done') this.notify('Agents prepared the application in ' + ((src.prep.summary?.duration_ms || 0) / 1000).toFixed(1) + 's', 'ok');
+          else if (src.prep?.state === 'failed') this.notify('Preparation failed: ' + src.prep.error, 'error');
+        }
       } catch { this.src = null; }
+    },
+    prepRunning() { return this.src?.prep?.state === 'running'; },
+    prepText() {
+      const p = this.src?.prep || {};
+      if (p.state === 'running') return 'Agents · ' + (p.running || []).length + ' lane(s) running in parallel';
+      if (p.state === 'failed') return 'Preparation failed: ' + (p.error || '');
+      const s = p.summary || {};
+      return 'Prepared in ' + ((s.duration_ms || 0) / 1000).toFixed(1) + 's · ' + Object.keys(s.checks || {}).length + ' checks run'
+             + (s.prefill ? ' · ' + s.prefill.found + ' fields read' : '') + (s.duplicates ? ' · ' + s.duplicates + ' possible duplicate(s)' : '');
+    },
+    srcFieldsText() {
+      const s = this.src?.fields || {};
+      return 'Field store: ' + s.populated + ' of ' + s.total + ' sourcing fields auto-populated (' + s.populated_pct + '%) · '
+             + (s.confirmed + s.overridden) + ' verified' + (s.accepted_unchanged_pct != null ? ' · ' + s.accepted_unchanged_pct + '% accepted unchanged' : '');
+    },
+    async prepareApp() {
+      try {
+        this.src = await this.post(this.appPath('prepare'));
+        this._prepTimer = setTimeout(() => this.loadSourcing(), 800);
+      } catch {}
     },
     srcHeadline() {
       const p = this.src?.prefill;
@@ -323,7 +577,9 @@ function losApp() {
       if (['PS', 'IP', 'AP'].includes(st)) { tabs.push(['projects', 'Projects & ESMS']); tabs.push(['ewp', 'External parties']); }
       if (['IP', 'AP', 'POS', 'DIS'].includes(st)) tabs.push(['ratings', 'Ratings & RAROC']);
       if (['IP', 'AP', 'POS'].includes(st)) tabs.push(['cma', 'CMA']);
-      if (['AP', 'POS', 'DIS'].includes(st)) { tabs.push(['proposal', 'Proposal & exposure']); tabs.push(['pricing', 'Pricing & fees']); }
+      if (['IP', 'AP', 'POS', 'DIS'].includes(st)) tabs.push(['proposal', 'Proposal & exposure']);
+      if (['AP', 'POS', 'DIS'].includes(st)) tabs.push(['pricing', 'Pricing & fees']);
+      if (['IP', 'AP', 'POS'].includes(st) && (this.current?.terms_summary?.total || st === 'AP')) tabs.push(['terms', 'Terms & conditions']);
       tabs.push(['documents', 'Documents']);
       if (st === 'DIS') tabs.push(['disops', 'Disbursement ops']);
       tabs.push(['rules', 'Mandatory rules']);
@@ -337,6 +593,7 @@ function losApp() {
         if (tab === 'documents') this.govDocs = await this.api('applications/' + id + '/documents');
         if (tab === 'rules') this.govRules = await this.api('applications/' + id + '/rules');
         if (tab === 'approvals') this.govSnap = await this.api('applications/' + id + '/snapshot');
+        if (tab === 'terms') this.terms = await this.api('applications/' + id + '/terms');
       } catch { /* read-only context */ }
       if (tab === 'projects' && this.current?.esms_checklist) {
         const es = this.current.esms || {};
@@ -344,6 +601,10 @@ function losApp() {
         this.gov.esms = { screening_date: es.screening_date || '', category: es.category || '', esdd: es.esdd || '',
                           checklist: Object.fromEntries(this.current.esms_checklist.map(([id]) => [id, byId[id]?.answer || ''])),
                           remarks: Object.fromEntries(this.current.esms_checklist.map(([id]) => [id, byId[id]?.remarks || ''])) };
+      }
+      if (tab === 'proposal') {
+        const b = this.current?.proposal?.banking || {};
+        this.gov.banking = { arrangement: b.arrangement || '', number_of_banks: b.number_of_banks ?? null, lead_bank: b.lead_bank || '' };
       }
       if (tab === 'cma' && !Object.keys(this.gov.cma.rows).length) this.gov.cma.rows = {};
       if (tab === 'cma' && !this.gov.cma.subject) this.gov.cma.subject = 'borrower';
@@ -353,12 +614,12 @@ function losApp() {
         // Governance endpoints share WorkspacePayload on the server. Keep the
         // envelope here so every workspace sends the same, explicit contract.
         await this.post('applications/' + encodeURIComponent(this.current.application_id) + '/' + path, { payload });
-        this.toast(label || 'Saved');
+        this.notify(label || 'Saved', 'ok');
         await this.refreshCurrent();
+        this.loadAssessment();                      // a workspace change can settle fields in the verify queue
         this.openGov(this.gov.tab);
         return true;
       } catch (e) {
-        this.toast(e.message, 'error');
         return false;
       }
     },
@@ -401,7 +662,7 @@ function losApp() {
         exception_reason: g.exception_reason || undefined,
       };
       const clean = Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== undefined));
-      if (!Object.keys(clean).length) { this.toast('Nothing to update', 'error'); return; }
+      if (!Object.keys(clean).length) { this.notify('Nothing to update', 'error'); return; }
       return this.govSave('parties/' + g.party_id + '/evidence', clean, 'Party evidence saved');
     },
     saveFacility(fid) {
@@ -413,6 +674,9 @@ function losApp() {
         tenor_months: this.gov.pricing.tenor_months ?? f?.tenor_months,
         repayment_type: this.gov.pricing.repayment_type ?? r.repayment_type, repayment_frequency: this.gov.pricing.repayment_frequency ?? r.repayment_frequency,
         moratorium_months: this.gov.pricing.moratorium_months ?? r.moratorium_months, next_review_date: this.gov.pricing.next_review_date ?? f?.next_review_date,
+        first_disbursement_date: this.gov.pricing.first_disbursement_date ?? f?.first_disbursement_date,
+        parent_facility: this.gov.pricing.parent_facility ?? (f?.parent_facility == null ? null : (f.parent_facility ? 'yes' : 'no')),
+        takeover: this.gov.pricing.takeover ?? (f?.takeover == null ? null : (f.takeover ? 'yes' : 'no')),
         total_limit_id: this.gov.pricing.total_limit_id ?? o.total_limit_id, fund_limit_id: this.gov.pricing.fund_limit_id ?? o.fund_limit_id };
       const clean = {};
       for (const [k, v] of Object.entries(payload)) if (v !== null && v !== '' && v !== undefined) clean[k] = v;
@@ -433,7 +697,7 @@ function losApp() {
     computeRaroc(fid) { return this.govSave('raroc', { facility_id: fid }, 'RAROC computed (demo model)'); },
     saveCma() { const c = this.gov.cma; const rows = {};
       for (const [k, v] of Object.entries(c.rows)) if (v !== '' && v != null) rows[k] = Number(v);
-      if (!Object.keys(rows).length) { this.toast('Enter at least one value', 'error'); return; }
+      if (!Object.keys(rows).length) { this.notify('Enter at least one value', 'error'); return; }
       this.gov.cma.rows = {};
       return this.govSave('cma', { subject: c.subject, rows: { [c.period]: rows }, value_class: 'audited' }, 'CMA recorded'); },
     reviewCma() { return this.govSave('cma/review', { approve: this.gov.cmaReview, remarks: this.gov.cmaRemarks }, 'CMA reviewed'); },
@@ -445,6 +709,48 @@ function losApp() {
       if (e.exception_justification) data.exception = { description: 'Exposure norm exception', justification: e.exception_justification };
       this.gov.exposure = {};
       return this.govSave('proposal', { section: 'exposure', data }, 'Exposure recorded'); },
+    /* Terms & conditions authored at AP (drafted by the T&C agent) */
+    termGroups() {
+      const t = this.terms;
+      if (!t) return [];
+      return Object.entries(t.categories).map(([k, label]) => ({ k, label, rows: t.rows.filter(r => r.category === k) }))
+        .filter(g => g.rows.length);
+    },
+    termState(r) {
+      if (r.removed) return ['Removed', 'badge-grey'];
+      if (r.origin === 'person') return ['Added by you', 'badge-blue'];
+      return { proposed: ['Needs your confirmation', 'badge-amber'], conflict: ['Conflict', 'badge-red'],
+               confirmed: ['Confirmed', 'badge-green'], overridden: ['Edited', 'badge-green'] }[r.field_status]
+             || ['Draft', 'badge-grey'];
+    },
+    termPending() { return (this.terms?.rows || []).filter(r => !r.removed && r.field_status === 'proposed' && r.field_id); },
+    async confirmTerms(rows) {
+      const ids = rows.map(r => r.field_id);
+      if (!ids.length) return;
+      this.busy = true;
+      try {
+        await this.post('applications/' + encodeURIComponent(this.current.application_id) + '/fields/bulk-confirm', { field_ids: ids });
+        this.notify(ids.length + ' condition(s) confirmed', 'ok');
+        await this.refreshCurrent(); await this.openGov('terms'); this.loadAssessment();
+      } catch {} finally { this.busy = false; }
+    },
+    startTermEdit(r) { this.termEdit = { term_id: r.term_id, text: r.text, category: r.category, facility_id: r.facility_id || '',
+                                         stipulated_value: r.stipulated_value || '', frequency: r.frequency || '', agent: r.origin === 'agent' };
+                       this.termReason = ''; },
+    async saveTermEdit() {
+      const e = this.termEdit;
+      const ok = await this.govSave('terms', { action: 'update', ...e, reason: this.termReason }, 'Condition updated');
+      if (ok) this.termEdit = null;
+    },
+    async removeTerm(r) {
+      const reason = window.prompt('Why is this condition not applicable?');
+      if (reason) await this.govSave('terms', { action: 'remove', term_id: r.term_id, reason }, 'Condition removed');
+    },
+    restoreTerm(r) { return this.govSave('terms', { action: 'restore', term_id: r.term_id }, 'Condition restored'); },
+    async addTerm() {
+      const ok = await this.govSave('terms', { action: 'add', ...this.termForm }, 'Condition added');
+      if (ok) this.termForm = { category: this.termForm.category, text: '', facility_id: '', stipulated_value: '', frequency: '' };
+    },
     saveBanking() { return this.govSave('proposal', { section: 'banking', data: { ...this.gov.banking } }, 'Banking arrangement saved'); },
     savePricingRow() { const p = this.gov.pricing; this.gov.pricing = { facility_id: '' };
       const payload = { facility_id: p.facility_id };
@@ -452,6 +758,15 @@ function losApp() {
       return this.govSave('pricing', payload, 'Pricing recorded'); },
     saveFee() { return this.govSave('pricing/fees', this.gov.fee, 'Fee recorded'); },
     saveSchedule() { return this.govSave('pricing/schedule', this.gov.schedule, 'Tentative schedule recorded'); },
+    docBlocking(d) {
+      return d.mandatory_stage === this.current?.stage_id && !['reviewed', 'accepted'].includes(d.status);
+    },
+    docsSorted() {
+      const st = this.current?.stage_id, order = ['PS', 'IP', 'AP', 'POS', 'DIS'];
+      const rank = d => this.docBlocking(d) ? 0 : d.mandatory_stage === st ? 1
+        : d.mandatory_stage ? 2 + Math.abs(order.indexOf(d.mandatory_stage) - order.indexOf(st)) : 9;
+      return [...(this.govDocs?.documents || [])].sort((a, b) => rank(a) - rank(b));
+    },
     reviewDoc() { const id = this.gov.docReview; this.gov.docReview = '';
       return this.govSave('documents/' + id + '/review', { status: this.gov.docStatus, remarks: this.gov.docRemarks }, 'Document reviewed'); },
     saveDisopsSection(section, data, label) { return this.govSave('disops', { section, data }, label); },
@@ -460,21 +775,46 @@ function losApp() {
     saveSecRef() { return this.saveDisopsSection('security_refs', { rows: [this.gov.secRef] }, 'Security reference recorded'); },
     saveBeneficiary() { return this.saveDisopsSection('beneficiaries', { rows: [this.gov.beneficiary] }, 'Beneficiary recorded'); },
     saveDisFee() { return this.saveDisopsSection('fees', { rows: [this.gov.disFee] }, 'Fee recorded'); },
-    saveRepayment() { return this.saveDisopsSection('repayment_final', { ...this.gov.repayment }, 'Repayment final recorded'); },
-    saveInterest() { return this.saveDisopsSection('interest_terms', { ...this.gov.interest }, 'Interest terms recorded'); },
+    saveRepayment() {
+      const data = { ...(this.current.disops?.repayment_final || {}), ...this.gov.repayment };
+      return this.saveDisopsSection('repayment_final', data, 'Repayment schedule saved').then(ok => { if (ok) this.gov.repayment = {}; });
+    },
+    saveInterest() {
+      const data = { ...(this.current.disops?.interest_terms || {}), ...this.gov.interest };
+      return this.saveDisopsSection('interest_terms', data, 'Interest terms saved').then(ok => { if (ok) this.gov.interest = {}; });
+    },
     saveArrears() { return this.saveDisopsSection('arrears', { exists: this.gov.arrearsExists, rows: this.gov.arrearsExists ? [this.gov.arrearsRow] : [] }, 'Arrears recorded'); },
     setSop(item) { item._saving = true;
       this.govSave('disops', { section: 'sop', data: { items: [{ id: item.id, status: item.status, remarks: item.remarks || item.detail }] } }).finally(() => { item._saving = false; }); },
     genMemo() { return this.govSave('disops/memo', {}, 'Disbursement memo generated'); },
     reviewMemo() { return this.govSave('disops/memo/review', { approve: this.gov.memoReview, remarks: this.gov.memoRemarks }, 'Memo reviewed'); },
-    toggleReviewItem(kind) {
+    toggleReviewItem(kind, id) {
       const key = kind === 'checker' ? 'checker_review' : 'final_review';
       const items = this.current[key]; if (!items) return;
-      const next = items.map(i => ({ id: i.id, done: !i.done }));
+      const next = items.map(i => ({ id: i.id, done: i.id === id ? !i.done : !!i.done }));    // only the clicked item
       this.govSave('disops/review', { stage: kind, items: next }, 'Review updated');
     },
     saveMc() { return this.govSave('material-changes/review', { decision: this.gov.mcDecision, remarks: this.gov.mcRemarks }, 'Material change reviewed'); },
-    downloadOutput(kind) { window.open('/api/los/applications/' + encodeURIComponent(this.current.application_id) + '/outputs/' + kind + '.html', '_blank'); },
+    async downloadOutput(kind) {
+      // Generating registers the output in the document registry (a gate may need it, e.g. the ESMS
+      // Approval Note at ES Preparation); a read-only viewer gets the rendered page instead.
+      const id = encodeURIComponent(this.current.application_id);
+      const w = window.open('', '_blank');
+      let html = '';
+      try {
+        html = (await this.api('applications/' + id + '/outputs/' + kind, { method: 'POST', body: '{}' }, { quiet: true })).html;
+        this.refreshCurrent();
+      } catch {
+        try {
+          const r = await fetch('/api/los/applications/' + id + '/outputs/' + kind + '.html',
+                                { headers: { 'X-LOS-Session': storage(s => s.getItem(TOKEN_KEY)) || '' } });
+          html = r.ok ? await r.text() : '';
+        } catch { html = ''; }
+      }
+      if (!html) { w?.close(); return this.notify('This output is not available at this step', 'error'); }
+      if (w) { w.document.write('<!doctype html><meta charset="utf-8"><title>' + kind + '</title>'
+        + '<body style="font-family:system-ui;max-width:900px;margin:24px auto;padding:0 16px">' + html); w.document.close(); }
+    },
     async loadIntegrations() { if (!this.integrations) { try { this.integrations = await this.api('integrations', {}, { quiet: true }); } catch { this.integrations = null; } } },
 
     /* ─── Term sheet & sanction letter ───────────────────────────── */
@@ -578,6 +918,7 @@ function losApp() {
         this.notify(message, 'ok');
         this.srcSel = {}; this.srcEdit = '';
         await this.refreshCurrent();
+        this.loadAssessment();                         // the accepted values settle the "waiting" count
       } catch {} finally { this.busy = false; }
     },
     acceptHigh() {
@@ -592,6 +933,11 @@ function losApp() {
     startSrcEdit(f) { this.srcEdit = f.id; this.srcEditValue = f.accepted ? f.accepted.display : (f.display || ''); this.srcEditReason = ''; },
     saveSrcEdit(f) {
       return this.applySrc([{ field_id: f.id, value: String(this.srcEditValue ?? ''), reason: this.srcEditReason }], f.label + ' saved');
+    },
+    useAlt(f, a) {
+      return this.applySrc([{ field_id: f.id, value: String(a.value),
+                              reason: 'Chose the value from ' + a.document + (a.page ? ' p.' + a.page : '') }],
+                           f.label + ': ' + a.value + ' used');
     },
     clearSrc(f) { return this.applySrc([{ field_id: f.id, status: 'clear' }], f.label + ' cleared'); },
     async uploadDoc() {
@@ -618,8 +964,28 @@ function losApp() {
       const id = this.current.application_id;
       try {
         const ps = await this.api(this.appPath('post-sanction'), {}, { quiet: true });
-        if (this.current?.application_id === id) this.ps = ps;
+        if (this.current?.application_id === id) { this.ps = ps; this.prefillFulfilment(); }
       } catch { this.ps = null; }
+    },
+    /* The intake agent's reading of the signed sanction letter, the facility agreement and the drawdown
+       request pre-fills the empty forms; saving a form verifies it (the field store records each value). */
+    prefillFulfilment() {
+      const sp = this.ps?.suggested?.post_sanction || {}, sd = this.ps?.suggested?.disbursement || {};
+      if (!this.consent.acknowledged_by && sp.accepted_by) this.consent.acknowledged_by = sp.accepted_by;
+      if (!this.consent.consent_date && sp.acceptance_date) this.consent.consent_date = sp.acceptance_date;
+      if (sp.agreement_date) this.consentFacilities = this.consentFacilities.map(f => f.agreement_date ? f
+        : { ...f, agreement_date: sp.agreement_date, execution_status: f.execution_status || 'executed' });
+      const t = this.trancheForm;
+      if (t.amount_cr == null && sd.drawdown_amount_cr != null) t.amount_cr = sd.drawdown_amount_cr;
+      if (!t.value_date && sd.value_date) t.value_date = sd.value_date;
+      if (!t.purpose && sd.drawdown_purpose) t.purpose = sd.drawdown_purpose;
+      const b = this.gov.beneficiary;
+      if (!b.name && sd.beneficiary_name) this.gov.beneficiary = { ...b, name: sd.beneficiary_name,
+        account_no: b.account_no || sd.account_number || '', ifsc: b.ifsc || sd.ifsc || '' };
+    },
+    suggestedNote(domain) {
+      const n = Object.keys(this.ps?.suggested?.[domain] || {}).length;
+      return n ? n + ' value(s) pre-filled from the documents by the intake agent — check them, then save' : '';
     },
     async loadDD() {
       if (!this.current) return;
@@ -638,6 +1004,21 @@ function losApp() {
       this.busy = true;
       try { this.dd = await this.post(this.appPath('due-diligence/trigger'), { check_id: id }); this.notify('Check re-run — the earlier result is kept in its history', 'ok'); await this.refreshCurrent(); }
       catch {} finally { this.busy = false; }
+    },
+    ddIsBlocking(c) {
+      return c.mandatory && !c.exception && ['pending', 'matched', 'failed', 'unavailable'].includes(c.status);
+    },
+    ddBlocking() { return (this.dd?.checks || []).filter(c => this.ddIsBlocking(c)); },
+    ddSorted() {
+      const rank = c => this.ddIsBlocking(c) ? 0 : (c.status === 'matched' || c.status === 'failed') ? 1 : c.status === 'pending' ? 2 : c.status === 'unavailable' ? 3 : 4;
+      return [...(this.dd?.checks || [])].sort((a, b) => rank(a) - rank(b));
+    },
+    ddNextStep(c) {
+      if ((c.status === 'matched' || c.status === 'failed') && this.session?.role === 'compliance_vp')
+        return 'review the hit and use Approve exception… below if it is acceptable';
+      if (c.status === 'matched' || c.status === 'failed') return 'resolve and re-run it, or ask the Compliance VP for an exception';
+      if (c.status === 'unavailable') return 'the provider returned nothing: re-run, or the Compliance VP approves';
+      return c.mode === 'manual' ? 'record the result with its evidence' : 'run the check';
     },
     startDdRecord(c) { this.ddEdit = c.id; this.ddResult = 'clear'; this.ddRemarks = ''; },
     async ddSaveRecord() {
@@ -723,7 +1104,9 @@ function losApp() {
       if (d.sanctioned_cr) parts.push(this.fmtCr(d.disbursed_cr) + ' of ' + this.fmtCr(d.sanctioned_cr) + ' approved for release');
       return parts.join(' · ');
     },
-    condCls(s) { return { satisfied: 'badge-green', waived: 'badge-amber', deferred: 'badge-amber', overdue: 'badge-red', open: 'badge-grey' }[s] || 'badge-grey'; },
+    condCls(s) { return { satisfied: 'badge-green', waived: 'badge-amber', deferred: 'badge-amber', overdue: 'badge-red', non_compliant: 'badge-red', open: 'badge-grey' }[s] || 'badge-grey'; },
+    // the bank's wording for condition status (POS manual: Complied / Not Complied)
+    condLabel(s) { return { satisfied: 'Complied', non_compliant: 'Not complied', open: 'Open', deferred: 'Deferred', waived: 'Waived', overdue: 'Overdue' }[s] || s; },
     startCondition(c) {
       this.condEdit = c.id;
       this.condForm = { status: c.status === 'open' ? 'satisfied' : c.status, note: '', evidence: c.evidence || '', due: c.due || '' };
@@ -769,7 +1152,12 @@ function losApp() {
       const id = this.current.application_id;
       try {
         const n = await this.api(this.appPath('ip-note'), {}, { quiet: true });
-        if (this.current?.application_id === id) this.ipn = n;
+        if (this.current?.application_id === id) {
+          this.ipn = n;
+          const a = n?.assignments || {};      // the form starts from what is recorded
+          this.ipnAssign = { lpfg_analyst: a.lpfg_analyst || '', lpfg_senior_analyst: a.lpfg_senior_analyst || '',
+                             crac_recommendation: a.crac_recommendation || '', crac_remarks: a.crac_remarks || '' };
+        }
       } catch { this.ipn = null; }
     },
     async generateNote() {
@@ -795,6 +1183,12 @@ function losApp() {
     /* ─── Actions ─────────────────────────────────────────────────── */
     async act(action) {
       if (this.busy) return;
+      if (['withdraw', 'drop', 'reject'].includes(action)
+          && !window.confirm((this.actionLabelFor(action) || action) + ': this ends the application and cannot be undone. Continue?')) return;
+      if (action === 'defer' && !this.deferOpen) {          // first ask for the date to take it up again
+        this.deferOpen = true;
+        return this.notify('Choose the date to take the application up again, then click Defer', 'ok');
+      }
       this.busy = true;
       try {
         const before = this.current.step?.name;
@@ -802,12 +1196,14 @@ function losApp() {
                                        { action, comment: this.comment, allocate_to: this.allocateTo || null,
                                          sanctioned_amount_cr: action === 'sanction' ? this.sanctionAmount : null,
                                          significant_changes: this.current?.step?.id === 'dis_vp_review' ? this.sigChanges : null,
-                                         rework_to: action === 'return' ? (this.reworkTo || null) : null });
+                                         rework_to: action === 'return' ? (this.reworkTo || null) : null,
+                                         decision_data: this.decisionData, deferred_until: action === 'defer' ? this.deferUntil : null });
         this.loadPack();
         this.comment = ''; this.allocateTo = ''; this.sigChanges = ''; this.reworkTo = ''; this.draft = null;
+        this.decisionData = { ...(this.current?.decision_defaults || {}) }; this.deferUntil = ''; this.deferOpen = false;
         this.loadAssessment(); this.loadSourcing(); this.loadNote(); this.loadPost(); this.loadCopilot(); this.loadLetters();
         this.notify((ACTIONS[action]?.[2] || action) + ' at ' + before
-                    + (this.current.step ? ' → ' + this.current.step.name : ''), 'ok');
+                    + (this.current.step && this.current.step.name !== before ? ' → ' + this.current.step.name : ''), 'ok');
         this.loadDash();
       } catch {} finally { this.busy = false; }
     },
@@ -817,6 +1213,9 @@ function losApp() {
         this.current = await this.post('applications/' + this.current.application_id + '/reassign', { user_id: this.reassignTo });
         this.panel = ''; this.reassignTo = '';
         this.notify('Reassigned to ' + this.current.assignee_name, 'ok');
+        // who may prepare, verify and act has changed: reload every panel of the step
+        await Promise.all([this.loadAssessment(), this.loadPack(), this.loadSourcing(), this.loadNote(), this.loadPost(),
+                           this.loadCopilot(), this.loadLetters(), this.loadDD()]);
       } catch {} finally { this.busy = false; }
     },
     async escalate() {
@@ -840,10 +1239,59 @@ function losApp() {
       this.prefillFacility();
       this.identity = null;
       this.customerIdSel = '';
+      this.cam = { mode: 'none', options: null, staging_id: null, read: null, reading: false };
       if (!this.newApp.entity_id) return;
+      const eid = encodeURIComponent(this.newApp.entity_id);
+      try { this.identity = await this.api('borrowers/' + eid + '/identity'); } catch { this.identity = null; }
       try {
-        this.identity = await this.api('borrowers/' + encodeURIComponent(this.newApp.entity_id) + '/identity');
-      } catch { this.identity = null; }
+        this.cam.options = await this.api('borrowers/' + eid + '/cam', {}, { quiet: true });
+        if (this.cam.options.workspace) { this.cam.mode = 'workspace'; this.prefillFromWorkspaceCam(); }
+      } catch { this.cam.options = null; }
+    },
+    /* ─── CAM as an input (S8) ─────────────────────────────────────── */
+    prefillFromWorkspaceCam() {
+      const w = this.cam.options?.workspace?.facility, f = this.newApp.facilities[0];
+      if (!w || !f) return;
+      this.newApp.facilities[0] = { ...f, facility_type: w.facility_type || f.facility_type, amount_cr: w.amount_cr ?? f.amount_cr,
+                                    tenor_months: w.tenor_months ?? f.tenor_months, purpose: w.purpose || f.purpose };
+    },
+    camPreview() { return this.prospectMode ? this.prospect.read?.cam : this.cam.read?.cam; },
+    camConflicts() {
+      const read = this.prospectMode ? this.prospect.read : this.cam.read;
+      if (!read || this.cam.mode !== 'document') return [];
+      const all = { ...(read.identity || {}), ...(read.facility || {}) };
+      return Object.entries(all).filter(([, v]) => v?.status === 'conflict').map(([k]) => this.prospectLabel(k).replace(' *', ''));
+    },
+    async stageCam() {
+      const file = this.$refs.camFile?.files?.[0];
+      if (!file) return this.notify('Choose the CAM (PDF)', 'error');
+      const token = storage(s => s.getItem(TOKEN_KEY));
+      this.busy = true; this.cam.reading = true;
+      try {
+        const form = new FormData();
+        form.append('file', file); form.append('category', 'cam');
+        const r = await fetch('/api/los/prospects/documents', { method: 'POST', body: form,
+                                                               headers: token ? { 'X-LOS-Session': token } : {} });
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.detail || r.statusText);
+        this.cam.staging_id = body.staging_id;
+        const out = await this.post('prospects/' + body.staging_id + '/read');
+        this.cam.read = out;
+        const f = out.facility, fac = this.newApp.facilities[0] || this.blankFacility();
+        this.newApp.facilities[0] = { ...fac, facility_type: f.facility_type?.value || fac.facility_type,
+                                      amount_cr: f.amount_cr?.value ?? fac.amount_cr, tenor_months: f.tenor_months?.value ?? fac.tenor_months,
+                                      purpose: f.purpose?.value || fac.purpose };
+        this.notify(out.cam ? 'CAM read: ' + out.cam.summary.sections + ' sections, ' + out.cam.summary.labels + ' values'
+                            : 'No CAM sections were recognised in that document', out.cam ? 'ok' : 'error');
+      } catch (e) { this.notify(e.message, 'error'); } finally { this.busy = false; this.cam.reading = false; }
+    },
+    camPayload() {
+      const m = this.cam.mode;
+      if (m === 'workspace') return { mode: m, run_id: this.cam.options?.workspace?.run_id || null };
+      if (m === 'document') return this.prospectMode ? (this.prospect.read?.cam ? { mode: m } : null)
+                                                     : (this.cam.staging_id ? { mode: m, staging_id: this.cam.staging_id } : null);
+      if (m === 'generate') return { mode: m };
+      return null;
     },
     blankFacility() {
       return { proposal_type: 'Fresh', facility_nature: 'fund_based', facility_type: 'working_capital',
@@ -858,16 +1306,92 @@ function losApp() {
     addRelatedParty() { this.newApp.related_parties.push(this.blankRelatedParty()); },
     removeRelatedParty(index) { this.newApp.related_parties.splice(index, 1); },
     totalNewAmount() { return this.newApp.facilities.reduce((sum, f) => sum + (Number(f.amount_cr) || 0), 0); },
-    canCreateApp() {
-      const facilitiesOk = this.newApp.facilities.length && this.newApp.facilities.every(
-        f => f.facility_type && f.facility_nature && Number(f.amount_cr) > 0);
-      const partiesOk = this.newApp.related_parties.every(p => p.name && p.role && p.party_type &&
-        (p.ownership_pct === null || p.ownership_pct === '' || (Number(p.ownership_pct) >= 0 && Number(p.ownership_pct) <= 100)));
-      // UAT-P0-4: the sourcing decision and the remarks applicable to it are mandatory.
+    createMissing() {
+      // What still stops "Create draft", in the order of the form
+      const out = [];
+      if (this.prospectMode) {
+        if (!this.prospect.read) out.push("Upload the prospect's documents and let the agent read them");
+        else {
+          if (!(this.prospect.identity.legal_name || '').trim()) out.push("Enter the borrower's legal name");
+          if (!this.prospect.identity.sector) out.push('Select the sector');
+          if (this.prospect.read.matches.length && !this.prospect.confirm_not_duplicate)
+            out.push('Confirm the prospect is not a duplicate of the matches shown');
+        }
+      } else if (!this.newApp.entity_id) out.push('Select the borrower');
+      if (this.cam.mode === 'document' && !this.camPreview()) out.push("Upload the bank's CAM (or choose another CAM option)");
       const d = this.newApp.decision || {};
-      const decisionOk = Boolean(d.decision) && Boolean((d.mandatory_remarks || '').trim()) &&
-        (d.decision !== 'Defer' || Boolean((d.conditional_remarks || '').trim()));
-      return Boolean(this.newApp.entity_id && facilitiesOk && partiesOk && decisionOk);
+      if (this.borrowerChosen() && !d.decision) out.push('Record the sourcing decision');
+      if (d.decision && !(d.mandatory_remarks || '').trim()) out.push('Enter the mandatory sourcing remarks');
+      if (d.decision === 'Defer' && !(d.conditional_remarks || '').trim()) out.push('Enter the conditional remarks for the deferral');
+      this.newApp.facilities.forEach((f, i) => {
+        if (!(f.facility_type && f.facility_nature && Number(f.amount_cr) > 0))
+          out.push('Facility ' + (i + 1) + ': choose the type and nature, and enter an amount above zero');
+      });
+      if (!this.newApp.facilities.length) out.push('Add at least one facility');
+      this.newApp.related_parties.forEach((p, i) => {
+        const pct = p.ownership_pct;
+        if (!(p.name && p.role && p.party_type) || !(pct === null || pct === '' || (Number(pct) >= 0 && Number(pct) <= 100)))
+          out.push('Related party ' + (i + 1) + ': complete the name, role and type (ownership 0–100%), or remove the row');
+      });
+      return out;
+    },
+    canCreateApp() { return this.createMissing().length === 0; },
+    /* ─── New prospect from documents (intake agent) ──────────────── */
+    borrowerChosen() { return this.prospectMode ? Boolean(this.prospect.read) : Boolean(this.newApp.entity_id); },
+    setProspectMode(on) {
+      this.prospectMode = on;
+      this.cam = { mode: 'none', options: null, staging_id: null, read: null, reading: false };
+      if (on) { this.newApp.entity_id = ''; this.identity = null; }
+    },
+    async stageProspectDocs() {
+      const files = [...(this.$refs.prospectFile?.files || [])];
+      if (!files.length) return this.notify('Choose one or more PDFs', 'error');
+      const token = storage(s => s.getItem(TOKEN_KEY));
+      this.busy = true;
+      try {
+        for (const file of files) {
+          const form = new FormData();
+          form.append('file', file); form.append('category', this.prospect.category);
+          if (this.prospect.staging_id) form.append('staging_id', this.prospect.staging_id);
+          const r = await fetch('/api/los/prospects/documents', { method: 'POST', body: form,
+                                                                 headers: token ? { 'X-LOS-Session': token } : {} });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(body.detail || r.statusText);
+          this.prospect.staging_id = body.staging_id; this.prospect.documents = body.documents;
+        }
+        this.$refs.prospectFile.value = '';
+        this.prospect.read = null;                       // new documents: read them again
+        this.notify(files.length + ' document(s) added', 'ok');
+      } catch (e) { this.notify(e.message, 'error'); } finally { this.busy = false; }
+    },
+    async readProspectDocs() {
+      this.busy = true; this.prospect.reading = true;
+      try {
+        const out = await this.post('prospects/' + this.prospect.staging_id + '/read');
+        const val = fid => out.identity[fid]?.display || '';
+        this.prospect.identity = { legal_name: val('legal_name'), pan: val('pan'), cin: val('cin'), gstin: val('gstin'),
+                                   date_of_incorporation: out.identity.date_of_incorporation?.value || '',
+                                   registered_address: val('registered_address'), listed_exchange: val('listed_exchange'),
+                                   external_rating: val('external_rating'), sector: '', subsector: '' };
+        const f = out.facility, fac = this.newApp.facilities[0] || this.blankFacility();
+        this.newApp.facilities[0] = { ...fac, facility_type: f.facility_type?.value || fac.facility_type,
+                                      amount_cr: f.amount_cr?.value ?? fac.amount_cr, tenor_months: f.tenor_months?.value ?? fac.tenor_months,
+                                      purpose: f.purpose?.value || fac.purpose };
+        this.prospect.read = out;
+        if (out.cam) this.cam.mode = 'document';
+        this.notify('Read ' + out.documents.length + ' document(s): ' + out.prefill.summary.found + ' fields found'
+                    + (out.cam ? ' · CAM: ' + out.cam.summary.sections + ' sections' : ''), 'ok');
+      } catch {} finally { this.busy = false; this.prospect.reading = false; }
+    },
+    prospectLabel(fid) {
+      return { legal_name: 'Legal name *', pan: 'PAN', cin: 'CIN', gstin: 'GSTIN', date_of_incorporation: 'Date of incorporation (YYYY-MM-DD)',
+               registered_address: 'Registered office', listed_exchange: 'Listed on', external_rating: 'External rating' }[fid] || fid;
+    },
+    prospectSource(p) {
+      if (!p || !p.value) return 'Not found in the documents — enter it if you have it';
+      const s = p.source || {};
+      return (s.document ? s.document + ' p' + s.page : '') + ' · ' + Math.round((p.confidence || 0) * 100) + '% · '
+             + (p.status || '').replaceAll('_', ' ') + (p.alternatives?.length ? ' · other values: ' + p.alternatives.map(a => a.value).join(', ') : '');
     },
     prefillFacility() {
       const b = this.borrowers.find(x => x.entity_id === this.newApp.entity_id);
@@ -876,13 +1400,35 @@ function losApp() {
                                                 amount_cr: b.amount_cr || f.amount_cr };
     },
     async createApp() {
+      if (this.prospectMode) return this.createProspect();
       this.busy = true;
       try {
         const app = await this.post('applications', { entity_id: this.newApp.entity_id, priority: this.newApp.priority,
           facilities: this.newApp.facilities, related_parties: this.newApp.related_parties,
           prospect_discussion: this.newApp.prospect, sourcing_decision: this.newApp.decision,
-          customer_id_selection: this.customerIdSel || null });
-        this.notify('Application ' + app.application_id + ' created as draft', 'ok');
+          customer_id_selection: this.customerIdSel || null, cam: this.camPayload() });
+        this.notify('Application ' + app.application_id + ' created as draft'
+                    + (app.cam_source ? ' from the CAM — agents are preparing it' : ''), 'ok');
+        this.go('app/' + app.application_id);
+      } catch {} finally { this.busy = false; }
+    },
+    async createProspect() {
+      this.busy = true;
+      try {
+        const i = this.prospect.identity;
+        const app = await this.post('prospects', {
+          staging_id: this.prospect.staging_id, priority: this.newApp.priority,
+          identity: { company_name: i.legal_name, pan: i.pan || null, cin: i.cin || null, gstin: i.gstin || null,
+                      date_of_incorporation: i.date_of_incorporation || null, registered_address: i.registered_address || null,
+                      listed_exchange: i.listed_exchange || null, external_rating: i.external_rating || null,
+                      sector: i.sector, subsector: i.subsector || null },
+          facilities: this.newApp.facilities, related_parties: this.newApp.related_parties,
+          prospect_discussion: this.newApp.prospect, sourcing_decision: this.newApp.decision,
+          confirm_not_duplicate: this.prospect.confirm_not_duplicate, cam: this.camPayload() });
+        this.notify('Prospect ' + app.borrower_name + ' (' + app.entity_id + ') created — agents are preparing it', 'ok');
+        this.prospect = { category: 'request', staging_id: null, documents: [], read: null, reading: false, identity: {},
+                          confirm_not_duplicate: false };
+        this.prospectMode = false;
         this.go('app/' + app.application_id);
       } catch {} finally { this.busy = false; }
     },
@@ -915,6 +1461,8 @@ function losApp() {
     kindLabel(k) { return { maker: 'maker step', checker: 'review step', vp_review: 'VP review step', allocation: 'allocation step', committee: 'committee decision' }[k] || k; },
     actionLabel(a) { return ACTIONS[a]?.[0] || a; },
     actionLabelFor(a) {
+      const configured = this.current?.action_labels?.[a];       // the process wording from the workflow YAML
+      if (configured) return configured;
       if (a === 'return' && this.current?.step?.kind === 'vp_review') return 'Rework';
       if (a === 'approve' && this.current?.step?.id === 'pos_checker') return 'Recommend for Disbursement';
       return this.actionLabel(a);

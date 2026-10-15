@@ -3,7 +3,64 @@
   <div class="los-page-head"><div><h1>New Corporate Loan Application</h1>
     <p class="text-muted">Create one application for a primary borrower, its related parties and one or more proposed facilities.</p></div></div>
   <div class="card los-form">
-    <label class="los-field">Primary borrower *
+    <div class="los-action-row" role="radiogroup" aria-label="How is the borrower sourced?">
+      <label><input type="radio" name="srcmode" :checked="!prospectMode" @change="setProspectMode(false)"> Existing borrower</label>
+      <label><input type="radio" name="srcmode" :checked="prospectMode" @change="setProspectMode(true)"> New prospect from documents</label>
+    </div>
+
+    <!-- New prospect: the intake agent reads the documents and proposes the identity and facility -->
+    <div class="los-form-section" x-show="prospectMode">
+      <div class="los-section-head">
+        <div><h3>Prospect documents</h3>
+          <p class="text-muted">Upload what the prospect gave you (request letter, KYC, incorporation, financials). The intake agent reads
+            them in parallel and proposes the borrower's identity and the facility, each with its document and page.</p></div>
+      </div>
+      <div class="los-src-upload">
+        <select class="input" x-model="prospect.category" aria-label="Document category">
+          <template x-for="c in prospectCategories" :key="c"><option :value="c" x-text="titleCase(c)"></option></template>
+        </select>
+        <input class="input" type="file" accept="application/pdf" multiple x-ref="prospectFile" aria-label="PDF documents">
+        <button type="button" class="btn btn-sm btn-outline" :disabled="busy" @click="stageProspectDocs()">Add document(s)</button>
+        <button type="button" class="btn btn-sm btn-primary" :disabled="busy || !prospect.documents.length" @click="readProspectDocs()"
+                x-text="prospect.reading ? 'Reading…' : 'Read documents with the intake agent'"></button>
+      </div>
+      <ul class="los-rm-lines" x-show="prospect.documents.length">
+        <template x-for="d in prospect.documents" :key="d.document"><li><span x-text="d.document"></span> <span class="text-muted" x-text="d.size_kb + ' KB'"></span></li></template>
+      </ul>
+      <template x-if="prospect.read">
+        <div>
+          <div class="status-inline" :class="prospect.read.matches.length ? 'status-inline-error' : 'status-inline-success'">
+            <strong x-text="prospect.read.matches.length ? 'Possible duplicate(s) on record:' : 'No borrower with the same PAN, CIN or name is on record.'"></strong>
+            <template x-for="m in prospect.read.matches" :key="m.entity_id">
+              <span x-text="' ' + m.name + ' (' + m.entity_id + ') — same ' + m.matched_on.join(' and ') + (m.applications.length ? ' · applications ' + m.applications.join(', ') : '')"></span>
+            </template>
+          </div>
+          <label x-show="prospect.read.matches.length" class="los-small"><input type="checkbox" x-model="prospect.confirm_not_duplicate">
+            This prospect is a different company (a PAN or CIN match cannot be overridden)</label>
+          <p class="text-muted los-small" x-text="'Read ' + prospect.read.documents.length + ' document(s): ' + prospect.read.prefill.summary.found + ' of ' + prospect.read.prefill.summary.total + ' fields found · ' + prospect.read.prefill.engine"></p>
+          <div class="status-inline" x-show="prospect.read.prefill.intake?.note">
+            <span x-text="prospect.read.prefill.intake?.note + ' (' + (prospect.read.prefill.intake?.unread_pages || []).join(', ') + ')'"></span>
+          </div>
+          <div class="los-form-grid">
+            <template x-for="fid in ['legal_name','pan','cin','gstin','date_of_incorporation','registered_address','listed_exchange','external_rating']" :key="fid">
+              <label class="los-field"><span x-text="prospectLabel(fid)"></span>
+                <input class="input" x-model="prospect.identity[fid]">
+                <span class="text-muted los-small" x-text="prospectSource(prospect.read.identity[fid])"></span>
+              </label>
+            </template>
+            <label class="los-field">Sector <span class="badge sm badge-red">required</span>
+              <select class="input" x-model="prospect.identity.sector">
+                <option value="">Select…</option>
+                <template x-for="s in prospect.read.sectors" :key="s"><option :value="s" x-text="titleCase(s.replaceAll('_', ' '))"></option></template>
+              </select>
+            </label>
+            <label class="los-field">Subsector<input class="input" x-model="prospect.identity.subsector" placeholder="e.g. packaged foods"></label>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <label class="los-field" x-show="!prospectMode">Primary borrower *
       <select class="input" x-model="newApp.entity_id" @change="onBorrowerChange()">
         <option value="">Select a borrower…</option>
         <template x-for="b in borrowers" :key="b.entity_id"><option :value="b.entity_id" x-text="b.name + ' (' + b.entity_id + ')'"></option></template>
@@ -11,7 +68,7 @@
     </label>
 
     <!-- Customer Identity & Deduplication (shown once a primary borrower is selected) -->
-    <div class="los-form-section" x-show="newApp.entity_id">
+    <div class="los-form-section" x-show="newApp.entity_id && !prospectMode">
       <div class="los-section-head">
         <div><h3>Customer identity &amp; deduplication</h3>
           <p class="text-muted">Read from the borrower master, the reference identifier table and the core-banking book (demo data).
@@ -59,8 +116,52 @@
       </template>
     </div>
 
+    <!-- CAM as an input (S8): start from a CAM so the IP Note opens already populated -->
+    <div class="los-form-section" x-show="borrowerChosen()">
+      <div class="los-section-head">
+        <div><h3>Credit Appraisal Memorandum (CAM)</h3>
+          <p class="text-muted">Start from a CAM and the agents pre-fill the IP Note from it: narratives, terms, security, ratings
+            and figures, each with its CAM section and page. Without a CAM, the agents generate one at the IP Note.</p></div>
+      </div>
+      <div class="los-action-row" role="radiogroup" aria-label="CAM">
+        <template x-if="!prospectMode">
+          <label><input type="radio" name="cammode" value="workspace" x-model="cam.mode" :disabled="!cam.options?.workspace">
+            <span x-text="cam.options?.workspace ? 'Use the CAM from the CAM workspace (' + (cam.options.workspace.run_at || '').slice(0, 10)
+              + ' · ' + (cam.options.workspace.decision_label || cam.options.workspace.recommendation || '') + ' · grade '
+              + (cam.options.workspace.risk_grade || '—') + ')' : 'Use the CAM from the CAM workspace (none for this borrower)'"></span></label>
+        </template>
+        <label><input type="radio" name="cammode" value="document" x-model="cam.mode">
+          <span x-text="prospectMode ? 'Use the bank\'s CAM among the documents (category CAM)' : 'Upload the bank\'s CAM document'"></span></label>
+        <label><input type="radio" name="cammode" value="generate" x-model="cam.mode" :disabled="cam.options && !cam.options.can_generate">
+          Generate the CAM when the application is created</label>
+        <label><input type="radio" name="cammode" value="none" x-model="cam.mode"> No CAM now (generated at the IP Note)</label>
+      </div>
+      <template x-if="cam.mode === 'document' && !prospectMode">
+        <div class="los-src-upload">
+          <input class="input" type="file" accept="application/pdf" x-ref="camFile" aria-label="CAM (PDF)">
+          <button type="button" class="btn btn-sm btn-primary" :disabled="busy" @click="stageCam()"
+                  x-text="cam.reading ? 'Reading…' : 'Upload and read the CAM'"></button>
+        </div>
+      </template>
+      <template x-if="cam.mode === 'document' && camPreview()">
+        <div>
+          <p class="text-muted los-small" x-text="'CAM intake agent: ' + camPreview().document + ' — ' + camPreview().summary.sections
+            + ' sections (' + camPreview().summary.narratives + ' proposal narratives) and ' + camPreview().summary.labels + ' values read'"></p>
+          <ul class="los-rm-lines">
+            <template x-for="s in camPreview().sections" :key="s.key">
+              <li><strong x-text="s.heading"></strong> <span class="text-muted" x-text="'p' + s.page + ' · ' + s.preview + '…'"></span></li>
+            </template>
+          </ul>
+        </div>
+      </template>
+      <p class="status-inline" x-show="cam.mode === 'document' && prospectMode && prospect.read && !camPreview()">
+        No CAM among the documents: add the CAM with category <em>Cam</em> and read the documents again.</p>
+      <p class="status-inline" x-show="camConflicts().length"
+         x-text="'The CAM disagrees with the other documents on: ' + camConflicts().join(', ') + ' — check the values below.'"></p>
+    </div>
+
     <!-- Sourcing decision (part of Customer Identity & Deduplication) -->
-    <div class="los-form-section" x-show="newApp.entity_id">
+    <div class="los-form-section" x-show="borrowerChosen()">
       <div class="los-section-head">
         <div><h3>Sourcing decision</h3>
           <p class="text-muted">Record the decision with the application, and — where applicable — remarks for every mandatory and conditional field.</p></div>
@@ -166,7 +267,12 @@
       <label class="los-field">Priority
         <select class="input" x-model="newApp.priority"><option>Normal</option><option>High</option><option>Low</option></select></label>
     </div>
-    <p class="los-validation-note" x-show="!canCreateApp()">Select a borrower, complete every facility, complete or remove any unfinished related-party row, and record the sourcing decision with its mandatory remarks (conditional remarks are required when deferring).</p>
+    <div class="los-todo" x-show="createMissing().length">
+      <div class="los-todo-head los-todo-blocked"><strong x-text="'Before you can create the draft (' + createMissing().length + ')'"></strong></div>
+      <ul><template x-for="(m, i) in createMissing()" :key="i">
+        <li class="los-todo-block"><span class="los-todo-icon">!</span><span x-text="m"></span></li>
+      </template></ul>
+    </div>
     <div class="los-action-row">
       <button class="btn btn-primary" :disabled="!canCreateApp() || busy" @click="createApp()">Create draft</button>
       <button class="btn btn-ghost" @click="go('dashboard')">Cancel</button>

@@ -62,6 +62,7 @@
       "benchmarks",
       "external_apis",
       "llm_providers",
+      "los_fields",
       "los_workflow",
       "rules",
       "settings"
@@ -115,9 +116,28 @@
   "13 GET /api/companies/MFL001/documents": {
     "status": 200,
     "keys": [
+      "active_sources",
       "categories",
+      "document_file_count",
       "entity_id",
-      "exists"
+      "exists",
+      "hidden_artifact_count",
+      "hidden_legacy_files",
+      "hidden_system_files",
+      "indexed_active_files",
+      "metadata",
+      "overall_completeness_pct",
+      "provider",
+      "public_record_note",
+      "raw_total_files",
+      "required_missing_documents",
+      "source_artifact_count",
+      "source_gaps",
+      "summary_note",
+      "total_files",
+      "upload_coverage_pct",
+      "upload_matched_count",
+      "upload_required_count"
     ]
   },
   "14 GET /api/companies/MFL001/document-operations": {
@@ -229,6 +249,7 @@
       "investigations",
       "market_score",
       "narrative_mode",
+      "narrative_warning",
       "observations",
       "pipeline_log",
       "rationale",

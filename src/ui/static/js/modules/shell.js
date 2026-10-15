@@ -133,6 +133,8 @@ function camShell() {
     },
 
     maybeStartTour() {
+      // Not over a page opened by a direct link (e.g. a borrower's CAM from the LOS).
+      if (location.hash.startsWith('#case/')) return;
       if (!readStore(TOUR_SEEN_KEY, false)) this.startTour();
     },
 

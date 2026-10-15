@@ -53,7 +53,7 @@ except Exception:
 # on disk under the file's content hash: unchanged files are not read again.
 # Bump _EXTRACTION_CACHE_VERSION whenever an extractor's output changes.
 
-_EXTRACTION_CACHE_VERSION = "1"
+_EXTRACTION_CACHE_VERSION = "3"   # 3: first matching label wins (revenue never pooled with total income)
 _EXTRACTION_CACHE_DIR = CACHE_ROOT / "extractions"
 
 
@@ -258,20 +258,15 @@ def extract_financials_from_pdf(filepath: str | Path) -> dict[str, Any]:
 
 def _detect_and_normalize_units(result: dict):
     """Detect if financial values are in Lakhs (vs Crores) and normalize to Crores.
-    Indian annual reports commonly state '₹ in Lakhs' or '₹ in Crores' in headers."""
-    text = ""
-    # Get text from the raw extraction if available
-    if isinstance(result, dict):
-        text = result.get("text", "") or ""
-        if not text and result.get("source_file"):
-            return  # Can't detect without text
+    Indian annual reports state the unit in table captions ('₹ in Lakhs', '(` In lakhs)').
+    The enhanced extractor records the unit it read from the full text (``statement_unit``)
+    instead of carrying the text itself."""
+    from src.engines.document_ocr_engine import detect_statement_unit
 
-    # Check for Lakhs indicator in first 5000 chars (header area)
-    header_text = text[:5000].lower() if text else ""
-    is_lakhs = bool(re.search(r"(?:₹|rs\.?|inr)\s*(?:in\s+)?lakhs?", header_text, re.IGNORECASE))
-    is_crores = bool(re.search(r"(?:₹|rs\.?|inr)\s*(?:in\s+)?crores?", header_text, re.IGNORECASE))
-
-    if is_lakhs and not is_crores:
+    if not isinstance(result, dict):
+        return
+    unit = result.get("statement_unit") or detect_statement_unit(result.get("text", "") or "")
+    if unit == "lakhs":
         _log.info("Detected Lakhs unit — normalizing to Crores (÷100)")
         result["detected_unit"] = "lakhs"
         data = result.get("data", {})
@@ -406,6 +401,37 @@ def extract_gst_from_pdf(filepath: str | Path) -> dict[str, Any]:
     return result
 
 
+_PERIOD_COLUMN = re.compile(
+    r"\b(?:Q[1-4]\s*FY\s?\d{2,4}|9M\s*FY\s?\d{2,4}|[1-9]M\s*FY\s?\d{2,4}|H[12]\s*FY\s?\d{2,4}|FY\s?\d{2,4}"
+    r"|Apr(?:il)?[- ]Dec(?:ember)?[^\n|]{0,12}|Nine\s+months[^\n|]{0,30}|Quarter\s+ended[^\n|]{0,30}"
+    r"|Year\s+ended[^\n|]{0,30})", re.IGNORECASE)
+_NUMBER = re.compile(r"\(?-?[\d,]+\.\d+\)?|\(?-?\d{1,3}(?:,\d{2,3})+\)?")
+
+
+def _nine_month_revenue(text: str) -> float | None:
+    """The 'Revenue from Operations' value under the 9-month column of a results table.
+
+    The column headers are the period labels between the table's 'Particulars' caption
+    and the revenue row; the row's numbers follow in the same order."""
+    for row in re.finditer(r"Revenue\s+from\s+Operations?", text or "", re.IGNORECASE):
+        head_start = text.rfind("Particulars", max(0, row.start() - 600), row.start())
+        if head_start < 0:
+            continue
+        headers = [m.group(0) for m in _PERIOD_COLUMN.finditer(text[head_start:row.start()])]
+        nine = [i for i, h in enumerate(headers) if re.match(r"9M|Apr|Nine", h, re.IGNORECASE)]
+        if not nine:
+            continue
+        values = _NUMBER.findall(text[row.end():row.end() + 300])[:len(headers)]
+        if len(values) == len(headers):
+            raw = values[nine[0]]
+            try:
+                value = float(raw.strip("()").replace(",", ""))
+            except ValueError:
+                continue
+            return -value if raw.startswith("(") else value
+    return None
+
+
 def extract_exchange_filing_from_pdf(filepath: str | Path) -> dict[str, Any]:
     """Extract quarterly results from exchange filing PDF."""
     raw = extract_pdf(filepath)
@@ -415,8 +441,12 @@ def extract_exchange_filing_from_pdf(filepath: str | Path) -> dict[str, Any]:
     text = raw["text"]
     result = {"source_file": str(filepath), "type": "exchange_extraction", "data": {}}
 
-    # Look for 9-month / annualized revenue
-    patterns = [
+    # 9-month revenue: the value in the 9M column of the results table (results tables
+    # put the quarter first, so "the first number after Revenue" is the quarter, not 9M).
+    nine_m = _nine_month_revenue(text)
+    if nine_m is not None:
+        result["data"]["nine_month_revenue"] = nine_m
+    patterns = [] if nine_m is not None else [
         r"9M\s+FY\d{4}.*?Revenue.*?([\d,]+\.?\d*)",
         r"Apr[- ]Dec.*?Revenue.*?([\d,]+\.?\d*)",
     ]

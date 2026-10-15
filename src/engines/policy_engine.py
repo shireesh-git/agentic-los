@@ -156,14 +156,16 @@ def tier1_hard_rules(
     if vintage_cfg.get("enabled", True) and case_type_value.upper() == vintage_applies:
         from datetime import date
         min_years = _number(vintage_cfg.get("min_years"), 3)
-        age_years = (date.today() - borrower.date_of_incorporation).days / 365.25
+        doi = borrower.date_of_incorporation
+        age_years = (date.today() - doi).days / 365.25 if doi else None
         decisions.append(PolicyDecision(
             entity_id=borrower.entity_id,
             tier="tier1_hard_rules",
             rule_code="HR_MIN_VINTAGE",
             rule_description=vintage_cfg.get("description", "Company must be at least 3 years old for NTB lending"),
-            result="pass" if age_years >= min_years else "fail",
-            details=f"Company age: {age_years:.1f} years",
+            # an unknown incorporation date is not verified — never assumed old enough
+            result="not_verified" if age_years is None else ("pass" if age_years >= min_years else "fail"),
+            details="Date of incorporation not on record" if age_years is None else f"Company age: {age_years:.1f} years",
         ))
 
     # Rule 7: RBI fraud registry check

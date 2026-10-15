@@ -48,6 +48,45 @@ GENERATED = ("ip_note", "cam", "executive_summary", "due_diligence_report", "esm
              "cma_download", "disbursement_memo", "committee_minutes", "sanction_letter", "term_sheet")
 
 
+# The borrower's documents on file that satisfy a checklist item (folder / file-name patterns). The
+# document agent links them when it prepares a step, so nobody uploads the same file twice; a person
+# still reviews each one before the stage gate accepts it. The sanction letter is never linked: it
+# must be the one issued for this application, signed and uploaded back.
+ON_FILE = {
+    "KYC evidence (POI/POA of the borrower and key persons)": (r"^kyc/(pan|kyc|poi|poa|aadhaar|passport)",),
+    "Audited financial statements": (r"^financials/audited", r"^financials/annual_report"),
+    "Board resolution authorising the proposal": (r"^kyc/board_resolution", r"^legal/board_resolution"),
+    "MCA certificate of incorporation": (r"^kyc/certificate_of_incorporation", r"incorporation"),
+    "CIN / LLPIN certificate": (r"^kyc/certificate_of_incorporation", r"(^|/)(cin|llpin)"),
+    "Valuation report for the proposed security": (r"^collateral/valuation",),
+    "TEV report (where project finance is proposed)": (r"(^|/)tev",),
+    "Facility agreement (executed)": (r"facility_agreement",),
+    "Security documents (executed)": (r"security_documents?|hypothecation|mortgage",),
+    "Insurance policy (with bank clause)": (r"insurance",),
+    "Drawdown request": (r"drawdown_request",),
+}
+
+
+def link_on_file(registry: list[dict], files: list[str], at: str) -> list[str]:
+    """Link documents on file to the checklist items they satisfy (items with no version yet).
+    Returns the names linked."""
+    import re
+    linked = []
+    for d in registry:
+        pats = ON_FILE.get(d["name"])
+        if not pats or d.get("versions"):
+            continue
+        match = next((f for p in pats for f in sorted(files) if re.search(p, f, re.I)), None)
+        if not match:
+            continue
+        d["versions"].append({"v": 1, "file_name": match, "uploaded_by": "Document agent", "at": at,
+                              "source": "on_file", "detail": "linked from the borrower's documents on file"})
+        if d["status"] == "pending":
+            d["status"] = "uploaded"
+        linked.append(d["name"])
+    return linked
+
+
 def initial_registry() -> list[dict]:
     out = []
     n = 0

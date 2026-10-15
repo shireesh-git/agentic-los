@@ -29,6 +29,7 @@ STATUS_APPROVED = "APPROVED"          # all stages complete (disbursed)
 STATUS_REJECTED = "REJECTED"
 STATUS_WITHDRAWN = "WITHDRAWN"        # the borrower / prospect withdraws the application
 STATUS_DROPPED = "DROPPED"            # the bank drops / terminates the application
+STATUS_DEFERRED = "DEFERRED"          # on hold at its step until reactivated (not terminal)
 TERMINAL = (STATUS_APPROVED, STATUS_REJECTED, STATUS_WITHDRAWN, STATUS_DROPPED)
 
 # Base actions per step kind. ``available_actions`` further narrows them per step
@@ -40,7 +41,38 @@ ACTIONS_BY_KIND = {
     "allocation": ("allocate",),
     "committee": ("sanction", "return", "reject", "drop"),
 }
-COMMENT_REQUIRED = ("return", "reject", "withdraw", "propose_modification", "recommend_modification", "drop")
+# What a step's ``actions:`` list in the YAML may choose from, per kind (the defaults above
+# plus the process outcomes a step can opt into: defer and drop at maker steps).
+ALLOWED_BY_KIND = {
+    "maker": ("submit", "withdraw", "propose_modification", "drop", "defer"),
+    "checker": ("approve", "return", "reject", "recommend_modification", "drop"),
+    "vp_review": ("submit", "return", "drop"),
+    "allocation": ("allocate",),
+    "committee": ("sanction", "return", "reject", "drop"),
+}
+COMMENT_REQUIRED = ("return", "reject", "withdraw", "propose_modification", "recommend_modification", "drop",
+                    "defer", "reactivate")
+# Decision fields a review step may record with its decision (``decision_fields`` in the YAML).
+DECISION_FIELD_TYPES = {"significant_changes": "text", "material_information_date": "date",
+                        "committee_matters": "text", "minutes": "text", "ceac_recommendation": "text",
+                        "recommended_committee": "text", "confirmation_ratification": "text",
+                        "approval_purpose": "text", "esms_recommendation": "text"}
+# The bank's wording for each decision field (AP manual: the decision record at every AP step).
+DECISION_FIELD_LABELS = {
+    "material_information_date": "Date of receipt of last material information",
+    "committee_matters": "Any other matter to be highlighted to Committee",
+    "confirmation_ratification": "Proposal for confirmation / ratification",
+    "approval_purpose": "Purpose to seek approval",
+    "significant_changes": "Significant changes since the last review and material disclosures",
+    "minutes": "Minutes", "ceac_recommendation": "CEAC recommendation",
+    "recommended_committee": "Recommended committee", "esms_recommendation": "ES recommendation",
+}
+# The standard decision record at every AP maker / review step (G-W6); a step lists it as
+# ``decision_fields: ap_record`` in the YAML.
+# Mandatory as on the bank's AP decision screen (all but the confirmation / ratification proposal).
+AP_DECISION_RECORD = ({"id": "material_information_date", "required": True}, {"id": "committee_matters", "required": True},
+                      {"id": "confirmation_ratification"}, {"id": "approval_purpose", "required": True},
+                      {"id": "significant_changes", "required": True})
 
 # Actions that end the application (no next step).
 TERMINATING_ACTIONS = {"withdraw": STATUS_WITHDRAWN, "drop": STATUS_DROPPED, "reject": STATUS_REJECTED}
@@ -66,6 +98,10 @@ class Step:
     stage_name: str
     index: int                      # position in the full ordered step list
     allocates_to: Optional[str] = None
+    actions: Optional[tuple] = None  # the step's own outcome set (narrows / extends the kind's default)
+    labels: tuple = ()               # (action, label) pairs: the process wording for the buttons
+    decision_fields: tuple = ()      # ({"id", "required"}) recorded with this step's decisions
+    returns_to: Optional[str] = None # where a return goes by default (else the previous maker in the stage)
 
 
 @dataclass
@@ -75,6 +111,7 @@ class Workflow:
     users: list[dict]
     stages: list[dict]
     steps: list[Step] = field(default_factory=list)
+    remarks_required: str = "negative"      # "all": every decision records remarks (allocation excepted)
 
     @classmethod
     def from_config(cls, cfg: dict) -> "Workflow":
@@ -83,12 +120,21 @@ class Workflow:
         steps, index = [], 0
         for stage in cfg["stages"]:
             for s in stage["steps"]:
+                if s.get("enabled") is False:            # a step switched off in the configuration
+                    continue
+                fields = s.get("decision_fields") or []
+                fields = list(AP_DECISION_RECORD) if fields == "ap_record" else fields
                 steps.append(Step(id=s["id"], name=s["name"], role=s["role"], kind=s["kind"],
                                   sla_days=int(s.get("sla_days", 3)), stage_id=stage["id"], stage_name=stage["name"],
-                                  index=index, allocates_to=s.get("allocates_to")))
+                                  index=index, allocates_to=s.get("allocates_to"),
+                                  actions=tuple(s["actions"]) if s.get("actions") else None,
+                                  labels=tuple((s.get("labels") or {}).items()),
+                                  decision_fields=tuple(dict(f) if isinstance(f, dict) else {"id": f, "required": False}
+                                                        for f in fields),
+                                  returns_to=s.get("returns_to")))
                 index += 1
         wf = cls(groups=cfg.get("groups", []), roles=cfg.get("roles", {}), users=cfg.get("users", []),
-                 stages=cfg["stages"], steps=steps)
+                 stages=cfg["stages"], steps=steps, remarks_required=str(cfg.get("remarks_required", "negative")))
         wf._validate()
         return wf
 
@@ -103,6 +149,16 @@ class Workflow:
                 raise WorkflowError(f"step {s.id}: unknown role {s.role}")
             if s.kind == "allocation" and s.allocates_to not in self.roles:
                 raise WorkflowError(f"step {s.id}: allocation needs a valid allocates_to role")
+            bad = [a for a in (s.actions or ()) if a not in ALLOWED_BY_KIND[s.kind]]
+            if bad:
+                raise WorkflowError(f"step {s.id}: {s.kind} steps cannot offer {', '.join(bad)}")
+            unknown = [f.get("id") for f in s.decision_fields if f.get("id") not in DECISION_FIELD_TYPES]
+            if unknown:
+                raise WorkflowError(f"step {s.id}: unknown decision field(s) {', '.join(map(str, unknown))}")
+            if s.returns_to and (s.returns_to not in ids or self.step(s.returns_to).index >= s.index):
+                raise WorkflowError(f"step {s.id}: returns_to must name an earlier step")
+        if self.remarks_required not in ("all", "negative"):
+            raise WorkflowError("remarks_required must be 'all' or 'negative'")
         user_roles = {r for u in self.users for r in u.get("roles", [])}
         missing = sorted({s.role for s in self.steps} - user_roles)
         if missing:
@@ -123,7 +179,10 @@ class Workflow:
         return self.steps[step.index + 1] if step.index + 1 < len(self.steps) else None
 
     def previous_maker(self, step: Step) -> Step:
-        """The maker step a checker / committee returns work to (within the same stage)."""
+        """The maker step a checker / committee returns work to: the step's ``returns_to``, else the
+        previous maker step within the same stage."""
+        if step.returns_to:
+            return self.step(step.returns_to)
         for s in reversed(self.steps[:step.index]):
             if s.stage_id == step.stage_id and s.kind == "maker":
                 return s
@@ -151,13 +210,27 @@ class Workflow:
         return ACTIONS_BY_KIND[step.kind]
 
 
-def available_actions(wf: Workflow, step: Step) -> tuple[str, ...]:
-    """The actions open at a step: the kind's base actions narrowed by step context.
-    A modification of sanctioned terms can only be proposed at a post-sanction maker step;"""
-    base = ACTIONS_BY_KIND[step.kind]
+def available_actions(wf: Workflow, step: Step, status: Optional[str] = None) -> tuple[str, ...]:
+    """The actions open at a step: the step's own ``actions`` (else the kind's defaults), narrowed by
+    context. A modification of sanctioned terms can only be proposed at a post-sanction maker step;
+    a deferred application can only be reactivated."""
+    if status == STATUS_DEFERRED:
+        return ("reactivate",)
+    base = step.actions or ACTIONS_BY_KIND[step.kind]
     if step.kind == "maker" and step.id not in MODIFICATION_MAKER_STEPS:
         base = tuple(a for a in base if a != "propose_modification")
     return base
+
+
+def action_label(step: Step, action: str) -> Optional[str]:
+    """The process wording for an action at this step, when the YAML gives one."""
+    return dict(step.labels).get(action)
+
+
+def comment_required(wf: Workflow, action: str) -> bool:
+    if action == "allocate":
+        return False
+    return wf.remarks_required == "all" or action in COMMENT_REQUIRED
 
 
 def rework_destinations(wf: Workflow, step: Step) -> list[dict]:
@@ -185,10 +258,19 @@ def transition(wf: Workflow, step: Step, action: str, *, comment: str = "", allo
     """Where ``action`` on ``step`` takes the application. Raises WorkflowError if not allowed."""
     if current_status in TERMINAL:
         raise WorkflowError(f"application is {current_status.lower()}; no further actions")
-    if action not in available_actions(wf, step):
+    if action not in available_actions(wf, step, current_status):
+        if current_status == STATUS_DEFERRED:
+            raise WorkflowError(f"the application is deferred at {step.name}; reactivate it first")
         raise WorkflowError(f"'{action}' is not available at {step.name} ({step.kind} step)")
-    if action in COMMENT_REQUIRED and not (comment or "").strip():
-        raise WorkflowError(f"a comment is required to {action}")
+    if comment_required(wf, action) and not (comment or "").strip():
+        raise WorkflowError(f"a comment is required to {action.replace('_', ' ')}")
+    if action == "defer":
+        # On hold at the same step; nothing moves until it is reactivated.
+        return Outcome(step_id=step.id, status=STATUS_DEFERRED, assign_role=step.role,
+                       message=f"Deferred at {step.name}")
+    if action == "reactivate":
+        return Outcome(step_id=step.id, status=status_on_entry(step), assign_role=step.role,
+                       message=f"Reactivated at {step.name}")
 
     if action in TERMINATING_ACTIONS and action != "reject":
         # withdraw / drop: the application ends where it is. A reason is mandatory (COMMENT_REQUIRED).

@@ -130,6 +130,43 @@ def _max_revenue(financials: dict) -> float:
     return best
 
 
+def build_prospect_company(entity_id: str, identity: dict, facility: dict) -> dict:
+    """A new-to-bank prospect sourced in the LOS from its documents. Only values the RM
+    confirmed are recorded: an identifier or date that is not known stays empty (never a
+    placeholder), and there are no financial statements until real ones are extracted."""
+    try:
+        sector = Sector(identity["sector"])
+    except (KeyError, ValueError):
+        raise InvalidRequestError(f"Choose a sector: one of {[s.value for s in Sector]}")
+    doi = identity.get("date_of_incorporation")
+    borrower = Borrower(
+        entity_id=entity_id, company_name=identity["company_name"],
+        cin=identity.get("cin") or None, pan=identity.get("pan") or None,
+        borrower_type=BorrowerType.LISTED if identity.get("listed_exchange") else BorrowerType.UNLISTED,
+        sector=sector, subsector=identity.get("subsector") or sector.value,
+        date_of_incorporation=date.fromisoformat(doi) if doi else None,
+        registered_state=identity.get("registered_state") or None,
+        registered_address=identity.get("registered_address") or None,
+        authorized_capital=None, paid_up_capital=None, listed_exchange=identity.get("listed_exchange") or None,
+        credit_rating=identity.get("external_rating") or None,
+    )
+    try:
+        facility_type = FacilityType(facility.get("facility_type") or "working_capital")
+    except ValueError:
+        facility_type = FacilityType.WORKING_CAPITAL
+    request = FacilityRequest(
+        facility_id=f"FAC-{entity_id}", entity_id=entity_id,
+        case_type=CaseType(facility.get("case_type") or "NTB"), facility_type=facility_type,
+        amount_requested_cr=float(facility.get("amount_cr") or 0), purpose=facility.get("purpose") or "",
+        tenor_months=facility.get("tenor_months"),
+    )
+    company = {"borrower": borrower, "group": None, "directors": [], "financials": {}, "provisional": None,
+               "facility": request, "collateral": [], "market_signals": [], "existing_exposure": [],
+               "conduct": [], "covenants": [], "exchange_filing": None,
+               "gstin": identity.get("gstin") or None, "source": "los_prospect"}
+    return company
+
+
 class CompanyService:
     def __init__(self, state: AppState, persistence, doc_store, workspace: DocumentWorkspaceService,
                  onboard_fn, clear_probe_cache_fn):
@@ -194,6 +231,14 @@ class CompanyService:
     def save(self, entity_id: str, company: dict, catalog_source: str, is_seeded: bool = False) -> None:
         self.state.companies[entity_id] = company
         self.persistence.upsert_company(entity_id, company, is_seeded=is_seeded, catalog_source=catalog_source)
+
+    def register_prospect(self, entity_id: str, identity: dict, facility: dict) -> dict:
+        """Register a prospect sourced in the LOS (see build_prospect_company)."""
+        if entity_id in self.state.companies:
+            raise ConflictError(f"Company {entity_id} already exists")
+        company = build_prospect_company(entity_id, identity, facility)
+        self.save(entity_id, company, catalog_source="los_prospect")
+        return company
 
     def create_from_payload(self, body: dict) -> dict:
         """Manual entry: build canonical objects from a JSON payload."""

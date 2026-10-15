@@ -45,7 +45,7 @@ def test_withdraw_is_a_terminal_maker_decision(svc):
     assert v["status"] == STATUS_WITHDRAWN and v["step"] is None
     assert v["terminated"]["type"] == "withdrawn"
     with pytest.raises(Exception):
-        svc.act(app["application_id"], rm, "submit")
+        svc.act(app["application_id"], rm, "submit", comment="application_id (test)")
 
 
 def test_withdraw_requires_a_reason(svc):
@@ -63,8 +63,15 @@ def test_drop_by_checker_is_terminal(wf):
     assert out.status == STATUS_DROPPED and out.step_id is None
 
 
-def test_drop_not_available_to_a_maker(wf):
-    assert "drop" not in available_actions(wf, wf.step("ps_maker"))
+def test_drop_and_defer_at_the_maker_steps_the_process_names(wf):
+    # The bank's process: Prospect Sourcing and IP Note can be submitted, deferred or dropped;
+    # Application Processing can be dropped; the Final Disbursement Approval only approves or reworks.
+    assert {"drop", "defer"} <= set(available_actions(wf, wf.step("ps_maker")))
+    assert {"drop", "defer"} <= set(available_actions(wf, wf.step("ip_note")))
+    assert "drop" in available_actions(wf, wf.step("ap_note")) and "defer" not in available_actions(wf, wf.step("ap_note"))
+    assert available_actions(wf, wf.step("dis_approver")) == ("approve", "return")
+    out = transition(wf, wf.step("ps_maker"), "drop", comment="Prospect not pursued")
+    assert out.status == STATUS_DROPPED and out.step_id is None
 
 
 # ─── P0-1c: Modification proposed (maker) ───────────────────────────────────
@@ -122,10 +129,11 @@ def test_rework_destinations_exposed_in_view_for_checkers(svc):
     rm = sign(svc, "u_rm1", "ps_maker")
     app = svc.create(rm, entity_id="MFL001", sourcing_decision=DEC)
     _clear_dd(svc, app["application_id"], rm)
-    svc.act(app["application_id"], rm, "submit")            # → ip_note
-    rm2 = sign(svc, "u_rm2", "ps_maker")
+    svc.act(app["application_id"], rm, "submit", comment="application_id (test)")            # → ip_note
+    rm2 = rm                                                             # the sourcing RM keeps the IP Note
     svc.generate_ip_note(app["application_id"], rm2)
-    v = svc.act(app["application_id"], rm2, "submit")       # → ip_note_review (lpf_vp checker)
+    svc._seed_stage_docs(app["application_id"], "IP", svc.now())        # the IP Note gate's documents
+    v = svc.act(app["application_id"], rm2, "submit", comment="application_id (test)")       # → ip_note_review (lpf_vp checker)
     lpf = sign(svc, "u_lpf", "lpf_vp")
     view = svc.get(app["application_id"], lpf)
     assert [d["id"] for d in view["rework_destinations"]] == ["ps_maker", "ip_note"]
@@ -554,14 +562,14 @@ def _pn_cr_to_approved(svc):
     ps = svc.post_sanction(app_id, maker)
     manual = [i["id"] for i in ps["disbursement"]["checklist"] if i["kind"] == "manual"]
     svc.update_checklist(app_id, maker, [{"id": i, "done": True} for i in manual])
-    svc.act(app_id, maker, "submit")
+    svc.act(app_id, maker, "submit", comment="submit (test)")
     checker = _holder(svc, app_id)
     _review(svc, app_id, checker, "checker")
-    svc.act(app_id, checker, "approve")                            # checker verifies
-    svc.act(app_id, _holder(svc, app_id), "submit")               # disbursement VP endorses
+    svc.act(app_id, checker, "approve", comment="approve (test)")                            # checker verifies
+    svc.act(app_id, _holder(svc, app_id), "submit", comment="submit (test)")               # disbursement VP endorses
     approver = _holder(svc, app_id)
     _review(svc, app_id, approver, "final")
-    v = svc.act(app_id, approver, "approve")                       # final approver releases
+    v = svc.act(app_id, approver, "approve", comment="approve (test)")                       # final approver releases
     assert v["status"] == "APPROVED"
     return app_id
 

@@ -16,6 +16,37 @@
       </template>
     </div>
 
+    <!-- Agents: how much they populated, how much people verified and accepted unchanged -->
+    <div class="card" x-show="mis?.agents?.headline?.fields">
+      <div class="summary-table-head"><h3>Agents · populate → verify</h3>
+        <span class="text-muted" x-text="mis?.agents?.note"></span></div>
+      <div class="los-kpis">
+        <div class="los-kpi"><span>Fields auto-populated</span><strong x-text="(mis?.agents?.headline?.populated_pct ?? '—') + '%'"></strong>
+          <em x-text="mis?.agents?.headline?.populated + ' of ' + mis?.agents?.headline?.fields + ' fields'"></em></div>
+        <div class="los-kpi"><span>Verified by people</span><strong x-text="(mis?.agents?.headline?.verified_pct ?? '—') + '%'"></strong>
+          <em x-text="mis?.agents?.headline?.overridden + ' overridden · ' + mis?.agents?.headline?.open_conflicts + ' open conflict(s)'"></em></div>
+        <div class="los-kpi"><span>Accepted unchanged</span><strong x-text="(mis?.agents?.headline?.accepted_unchanged_pct ?? '—') + '%'"></strong>
+          <em x-text="mis?.agents?.headline?.values_not_keyed + ' value(s) nobody had to type'"></em></div>
+        <div class="los-kpi"><span>Agent preparations</span><strong x-text="mis?.agents?.activity?.preparations"></strong>
+          <em x-text="'avg ' + (mis?.agents?.activity?.avg_preparation_s ?? '—') + ' s · ' + mis?.agents?.activity?.feedback_reruns + ' feedback re-run(s) · ' + mis?.agents?.activity?.prospects_from_documents + ' prospect(s) from documents'"></em></div>
+        <div class="los-kpi"><span>T&amp;C drafted by agents</span><strong x-text="mis?.agents?.terms?.populated ?? 0"></strong>
+          <em x-text="(mis?.agents?.terms?.applications ?? 0) + ' application(s) · ' + (mis?.agents?.terms?.accepted_unchanged_pct ?? '—') + '% accepted unchanged'"></em></div>
+        <div class="los-kpi"><span>Carried to disbursement</span><strong x-text="mis?.agents?.carry_forward?.populated ?? 0"></strong>
+          <em x-text="(mis?.agents?.carry_forward?.applications ?? 0) + ' application(s) · ' + (mis?.agents?.carry_forward?.accepted_unchanged_pct ?? '—') + '% accepted unchanged'"></em></div>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead><tr><th>Domain</th><th>Applications</th><th>Fields</th><th>Auto-populated</th><th>Verified</th><th>Accepted unchanged</th><th>Overridden</th><th>Conflicts</th></tr></thead>
+          <tbody><template x-for="d in mis?.agents?.domains || []" :key="d.domain">
+            <tr><td x-text="d.label"></td><td x-text="d.applications"></td><td x-text="d.fields"></td>
+              <td x-text="(d.populated_pct ?? '—') + '%'"></td><td x-text="(d.verified_pct ?? '—') + '%'"></td>
+              <td x-text="d.accepted_unchanged_pct == null ? '—' : d.accepted_unchanged_pct + '%'"></td>
+              <td x-text="d.overridden"></td><td x-text="d.conflicts"></td></tr>
+          </template></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="los-mis-grid">
       <div class="card">
         <div class="summary-table-head"><h3>Pipeline by stage</h3><span class="text-muted">Active applications · proposed amount</span></div>

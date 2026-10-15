@@ -12,8 +12,10 @@ written with an audit event. Sign-in is a demo picker (no passwords).
 
 from __future__ import annotations
 
+import json
 import logging
 import secrets
+import shutil
 import re
 import threading
 from datetime import datetime, timedelta
@@ -23,9 +25,10 @@ from typing import Callable, Optional
 from src.application.errors import (
     ConflictError, ForbiddenError, InvalidRequestError, NotFoundError, OperationFailedError,
 )
-from src.los.committee import BRIEF_SECTIONS, build_committee_pack, committee_deviations
+from src.los.committee import (BRIEF_SECTIONS, DEVIATION_TYPES, build_committee_pack, committee_deviations,
+                               manual_deviations)
 from src.los.post_sanction import (
-    CONDITION_STATUSES, CONDITION_STEPS, MANUAL_ITEMS, build_comparison, build_conditions, build_deviations,
+    CS_DUE_DAYS, CONDITION_STATUSES, CONDITION_STEPS, MANUAL_ITEMS, build_comparison, build_conditions, build_deviations,
     build_disbursement, condition_state, condition_summary, covenant_monitor, covenant_summary,
     record_covenant_cure, record_covenant_test,
 )
@@ -37,8 +40,19 @@ from src.los import letters as lt
 from src.los import verification as dd
 from src.los.mis import build_mis
 from src.los.ip_note import build_ip_note, render_html, summarise
-from src.los.sourcing import FIELDS as PREFILL_FIELDS, build_prefill, master_values, read_documents
+from src.los.sourcing import FIELDS as PREFILL_FIELDS, master_values
 from src.los.risk_maker import RISK_MAKER_STEPS, build_risk_maker_view
+from src.los.fields import model as fieldmodel
+from src.agentic.critic import CriticAgent
+from src.agentic.graph import AgentGraph, Node
+from src.los import intake
+from src.los import cam_intake, carry_forward, later_intake, prefill, reconcile
+from src.los import terms as terms_mod
+from src.models.canonical_model import Sector
+from src.los.fields.metrics import agent_metrics
+from src.los.fields.population import run_population
+from src.los.fields.registry import FieldRegistry
+from src.los.fields.resolvers import risk_maker_proposals
 from src.los.workflow import (
     STATUS_APPROVED, STATUS_DRAFT, STATUS_IN_PROGRESS, STATUS_REJECTED, STATUS_WITHDRAWN, STATUS_DROPPED, TERMINAL,
     Workflow, WorkflowError, can_act, sla_state, transition,
@@ -49,10 +63,20 @@ DEMO_NOTE = "Demo data: fictitious users and seeded applications for demonstrati
 log = logging.getLogger(__name__)
 _AGENTS = 7          # credit-intelligence pipeline agents (progress estimate)
 # Steps that decide on the Risk Maker's work: they get the review & committee pack.
-COMMITTEE_STEPS = ("ip_risk_review", "ip_evp", "ip_sanction", "ap_risk_review", "ap_post_rating", "ap_rating_vp",
-                   "ap_evp", "ap_recommend", "ap_sanction")
+COMMITTEE_STEPS = ("ip_risk_review", "ip_post_rating_vp", "ip_evp", "ip_sanction", "ap_risk_review", "ap_post_rating",
+                   "ap_rating_vp", "ap_evp", "ap_recommend", "ap_es_review", "ap_es_recommend", "ap_dmd", "ap_sanction")
+# The decisions shown in the remarks history (G-W5), in the bank's wording; a step's own label wins.
+ACTION_WORDS = {"create": "Created", "submit": "Submitted", "approve": "Approved", "return": "Rework",
+                "reject": "Rejected", "sanction": "Sanctioned", "allocate": "Allocated", "drop": "Dropped",
+                "withdraw": "Withdrawn", "defer": "Deferred", "reactivate": "Reactivated",
+                "propose_modification": "Modification proposed", "recommend_modification": "Recommended for modification",
+                "dd_exception": "Compliance approval (exception)", "escalate": "Escalated", "reassign": "Reassigned"}
+# The Environmental & Social (ESMS) process before the committee (G-W2)
+ES_MAKER_STEP, ES_PREP_STEP = "ap_es_maker", "ap_es_prep"
 _SECTIONS = 21       # analytical CAM sections written by the narrative agent
 SOURCING_STEPS = ("ps_maker",)          # where documents are uploaded and the prefill is reviewed
+PREP_STEPS = ("ps_maker", "ip_note", "ap_note", "ip_risk_maker", "ap_risk_maker", ES_MAKER_STEP,
+              "pos_maker", "dis_maker")                                    # the preparation agent runs here
 UPLOAD_STEPS = ("ps_maker", "ip_note", "ap_note", "pos_maker", "dis_maker")   # documents can be added at any maker stage
 IP_NOTE_STEP = "ip_note"
 # Steps where the due-diligence workspace may be worked, and where unresolved
@@ -78,7 +102,8 @@ LETTER_ROLES = {"term_sheet": ("ps_maker",), "sanction_letter": ("pos_maker",)} 
 SOURCING_DECISIONS = ("Refer for in-principle", "Request further information", "Defer", "Decline")
 EXECUTION_STATUSES = ("executed", "partial", "not_executed")
 UPLOAD_CATEGORIES = ("request", "kyc", "financials", "ratings", "collateral", "gst", "banking", "bureau", "legal",
-                     "exchange", "misc")
+                     "exchange", "misc", cam_intake.CAM_CATEGORY)
+CAM_MODES = ("workspace", "document", "generate")
 _MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 
 # Demo applications seeded on first start:
@@ -98,7 +123,8 @@ DEMO_EXIT_ENTITY = "PNCR002"
 class LosService:
     def __init__(self, store, workflow_loader: Callable[[], Workflow], companies: dict,
                  clock: Callable[[], datetime] = datetime.now, cases=None, final_cam=None,
-                 documents_root: Optional[Path] = None, doc_store=None, llm_factory: Optional[Callable] = None):
+                 documents_root: Optional[Path] = None, doc_store=None, llm_factory: Optional[Callable] = None,
+                 company_registrar: Optional[Callable] = None):
         self.store = store
         self._workflow_loader = workflow_loader
         self._workflow: Optional[Workflow] = None
@@ -112,6 +138,11 @@ class LosService:
         self.documents_root = Path(documents_root) if documents_root else None   # storage/documents/{entity}/...
         self.doc_store = doc_store          # DocumentStore: writes uploads into the borrower's folders
         self.llm_factory = llm_factory      # optional AI fallback / IP Note summary
+        self._field_registry: Optional[FieldRegistry] = None
+        self._app_locks: dict[str, threading.Lock] = {}
+        self._app_locks_guard = threading.Lock()
+        self._prep_jobs: dict[str, dict] = {}   # application_id → stage-preparation job (agent lanes)
+        self.company_registrar = company_registrar   # registers a new prospect borrower (CompanyService)
 
     @property
     def wf(self) -> Workflow:
@@ -192,6 +223,9 @@ class LosService:
             view["sourcing"] = {"prefill_at": (src.get("prefill") or {}).get("generated_at"),
                                 "summary": (src.get("prefill") or {}).get("summary"),
                                 "accepted": len(src.get("accepted") or {})}
+        if app.get("cam"):
+            view["cam"] = {"document": app["cam"].get("document"), "summary": app["cam"].get("summary"),
+                           "read_at": app["cam"].get("read_at")}
         created = datetime.fromisoformat(app["created_at"])
         view["tat_days"] = round((now - created).total_seconds() / 86400, 1)
         if app.get("step_id"):
@@ -201,10 +235,23 @@ class LosService:
                             "stage_name": step.stage_name, "sla_days": step.sla_days,
                             "allocates_to": step.allocates_to}
             active = app["status"] not in TERMINAL
-            view["sla"] = sla_state(datetime.fromisoformat(app["step_entered_at"]), step, now) if active else None
-            view["actions"] = (list(wfmod.available_actions(self.wf, step))
-                               if session and active and can_act(self.wf, session["user"]["id"], session["role"], step)
-                               else [])
+            deferred = app["status"] == wfmod.STATUS_DEFERRED
+            # A deferred application is on hold: its SLA clock is paused (restarted on reactivation).
+            view["sla"] = (sla_state(datetime.fromisoformat(app["step_entered_at"]), step, now)
+                           if active and not deferred else None)
+            holder = app.get("assignee_id") in (None, (session or {}).get("user", {}).get("id"))
+            in_role = bool(session and active and can_act(self.wf, session["user"]["id"], session["role"], step))
+            # the step's actions are offered to the person it is assigned to; others in the role see who holds it
+            view["actions"] = list(wfmod.available_actions(self.wf, step, app["status"])) if in_role and holder else []
+            view["assigned_to_other"] = in_role and not holder
+            view["action_labels"] = {a: wfmod.action_label(step, a) for a in view["actions"]
+                                     if wfmod.action_label(step, a)}
+            view["decision_fields"] = [dict(f, type=wfmod.DECISION_FIELD_TYPES[f["id"]],
+                                            label=wfmod.DECISION_FIELD_LABELS.get(f["id"], f["id"].replace("_", " ").capitalize()))
+                                       for f in step.decision_fields]
+            view["decision_defaults"] = self._decision_defaults(app, step) if step.decision_fields else {}
+            view["remarks_required"] = self.wf.remarks_required
+            view["deferral"] = (app.get("deferrals") or [None])[-1] if deferred else None
             view["rework_destinations"] = (wfmod.rework_destinations(self.wf, step)
                                            if step.kind in ("checker", "committee", "vp_review") else [])
             view["can_reassign"] = bool(session and active and self._may_reassign(session, step))
@@ -228,9 +275,22 @@ class LosService:
         view["open_invalidations"] = [i for i in app.get("invalidations", []) if i["status"] == "open"]
         view["proposal"] = app.get("proposal")
         view["pricing"] = app.get("pricing")
+        view["terms_summary"] = terms_mod.summary(app.get("terms"), app.get("fields"))
+        secured_ids = {fid for s in app.get("securities") or [] for fid in s.get("facility_ids") or []}
+        view["facilities"] = [dict(f, secured=f["facility_id"] in secured_ids) if isinstance(f, dict) and "facility_id" in f
+                              else f for f in view.get("facilities") or []]
+        view["unit_visits"] = app.get("unit_visits") or []
+        view["unit_visit_observations"] = list(prop_mod.UNIT_VISIT_OBSERVATIONS)
+        view["sourcing_details"] = app.get("sourcing_details")
+        view["sourcing_sources"] = list(prop_mod.SOURCES)
+        view["security_notes"] = app.get("security_notes") or {}
+        view["security_note_labels"] = prefill.SECURITY_NOTES
+        view["narrative_labels"] = {**cam_intake.NARRATIVE_LABELS, "other_material_information": "Other material information",
+                                    **prefill.BANK_NARRATIVES}
+        view["prefill_coverage"] = prefill.ip_coverage(app) if app.get("stage_id") in ("IP", "AP") else None
         ratings = app.get("ratings") or {}
         view["ratings"] = {k: ratings.get(k) for k in ("external_ratings", "internal_ratings", "group_rating",
-                                                       "adverse_events", "crp_notes")}
+                                                       "adverse_events", "crp_notes", "raroc")}
         view["raroc_stale"] = rat.stale_raroc(app)
         view["cma"] = cma_mod.cma_view(app)
         view["cma_reconciliation"] = cma_mod.reconciliation(app)
@@ -292,6 +352,7 @@ class LosService:
         app = self._require(application_id)
         view = self._view(app, session)
         view["events"] = [self._event_view(e) for e in self.store.events(application_id)]
+        view["blockers"] = self.blockers(app)            # what stops the step's forward action now
         # Live customer identity & deduplication (the snapshot taken at creation stays in the record).
         view["customer_identity"] = self.borrower_identity(app["entity_id"], exclude_app=application_id)
         return view
@@ -479,13 +540,23 @@ class LosService:
                facilities: Optional[list[dict]] = None, related_parties: Optional[list[dict]] = None,
                priority: str = "Normal", prospect_discussion: Optional[dict] = None,
                sourcing_decision: Optional[dict] = None, customer_id_selection: Optional[str] = None,
-               at: Optional[datetime] = None, seeded: bool = False) -> dict:
+               at: Optional[datetime] = None, seeded: bool = False, cam: Optional[dict] = None) -> dict:
+        """A new draft at Prospect Sourcing. ``cam`` starts it from a CAM (see ``_attach_cam``):
+        {"mode": "workspace", "run_id"?} · {"mode": "document", "staging_id"} · {"mode": "generate"};
+        the preparation agent then starts at once."""
+        if cam and cam.get("mode") not in CAM_MODES:
+            raise InvalidRequestError(f"Unknown CAM option: {cam.get('mode')} (one of {', '.join(CAM_MODES)})")
         first = self.wf.first_step
         if not seeded and session["role"] != first.role:
             raise ForbiddenError(f"Only the {self.wf.roles[first.role]} role can create applications")
         company = self.companies.get(entity_id)
         if not company:
             raise NotFoundError(f"Borrower {entity_id} not found")
+        if cam and cam["mode"] == "document":                 # checked before anything is created
+            staged = self._staging_dir(str(cam.get("staging_id") or ""))
+            if not (staged / cam_intake.CAM_CATEGORY).exists():
+                raise InvalidRequestError("Upload the CAM (category CAM) and read it before creating the application")
+            self._check_cam_borrower(staged, company)
         borrower, fac = company.get("borrower"), company.get("facility")
         if facility and facilities:
             raise InvalidRequestError("Send either facility or facilities, not both")
@@ -532,6 +603,8 @@ class LosService:
             "cma": cma_mod.initial_cma(),
             "proposal": prop_mod.initial_proposal({"facility": dict(facilities[0])}, company),
             "pricing": pricing_mod.initial_pricing(),
+            "terms": terms_mod.initial_terms(),
+            "sourcing_details": prop_mod.initial_sourcing_details(session["user"], at.isoformat(timespec="seconds")),
             "documents": dreg.initial_registry(),
             "disops": {"sop": do.initial_sop()},
             "snapshots": [], "material_change_reviews": [],
@@ -550,13 +623,129 @@ class LosService:
                                                  "total_amount_cr": total_amount,
                                                  "customer_identity": identity, "prospect_discussion": prospect,
                                                  "sourcing_decision": decision}))
+        if cam:
+            reading = None
+            if cam["mode"] == "document":
+                d = self._staging_dir(str(cam.get("staging_id") or ""))
+                reading = self._staged_cam(d)
+                self._register_moved(app["application_id"], self._move_staged(d, entity_id), session)
+            self._attach_cam(app["application_id"], session, cam, reading)
+            self.prepare_application(app["application_id"], session)
+            return self._require(app["application_id"])
         return app
+
+    # ── the CAM as an input (S8): a CAM from the workspace, the bank's CAM document, or generate one ──
+    def cam_options(self, entity_id: str) -> dict:
+        """What a new application for this borrower can start from: the latest CAM generated in the
+        CAM workspace (with the facility it assessed), or generating one."""
+        company = self.companies.get(entity_id)
+        if not company:
+            raise NotFoundError(f"Borrower {entity_id} not found")
+        case = self.cases.get(entity_id) if self.cases else None
+        ws = None
+        if case:
+            fr = (case.get("reassessment") or {}).get("facility_recommendation") or {}
+            fac = company.get("facility")
+            ftype = getattr(getattr(fac, "facility_type", None), "value", None)
+            ws = {"run_id": case.get("run_id"), "run_at": case.get("run_at"),
+                  "decision_label": (case.get("reassessment") or {}).get("decision_label"),
+                  "risk_grade": case.get("risk_grade"), "recommendation": case.get("recommendation"),
+                  "requested_cr": fr.get("requested_cr"), "recommended_cr": fr.get("recommended_cr"),
+                  "facility": {"facility_type": ftype, "amount_cr": getattr(fac, "amount_requested_cr", None),
+                               "tenor_months": getattr(fac, "tenor_months", None),
+                               "purpose": getattr(fac, "purpose", None)} if fac is not None else None}
+        return {"entity_id": entity_id, "workspace": ws, "can_generate": bool(self.cases),
+                "modes": list(CAM_MODES)}
+
+    @staticmethod
+    def _check_cam_borrower(d: Path, company: dict) -> None:
+        """A CAM uploaded for an existing borrower must be about that borrower: a PAN or CIN read from
+        it that differs from the borrower's is another company's CAM."""
+        saved = d / "intake.json"
+        if not saved.exists():
+            return
+        read = {f["id"]: f.get("value") for f in json.loads(saved.read_text(encoding="utf-8")).get("fields") or []}
+        b = company.get("borrower")
+        for key, label in (("pan", "PAN"), ("cin", "CIN")):
+            mine, theirs = getattr(b, key, None), read.get(key)
+            if mine and theirs and str(mine).upper() != str(theirs).upper():
+                raise ConflictError(f"The CAM is for another company ({label} {theirs}; "
+                                    f"{getattr(b, 'company_name', 'this borrower')} has {mine}) — upload this borrower's CAM")
+
+    @staticmethod
+    def _staged_cam(d: Path) -> Optional[dict]:
+        """The CAM reading saved when the staged documents were read (else read now, without the LLM)."""
+        saved = d / "cam.json"
+        if saved.exists():
+            return json.loads(saved.read_text(encoding="utf-8"))
+        return cam_intake.read_cams(d)
+
+    def _register_moved(self, application_id: str, moved: list[str], session: dict) -> None:
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            at = self.now().isoformat(timespec="seconds")
+            registry = app.setdefault("documents", dreg.initial_registry())
+            for doc in moved:
+                dreg.register_upload(registry, name=Path(doc).name, category=doc.split("/")[0], scope="application",
+                                     file_name=doc, by_name=session["user"]["name"], at=at)
+            self.store.save(app, self._event(app, "document_upload", actor={"id": session["user"]["id"],
+                                                                             "role": session["role"]},
+                                             from_step=app["step_id"], to_step=app["step_id"],
+                                             comment=f"{len(moved)} document(s) filed: " + ", ".join(moved)[:300],
+                                             detail={"documents": moved}))
+
+    def _attach_cam(self, application_id: str, session: dict, cam: dict, reading: Optional[dict] = None) -> dict:
+        """Start the application from a CAM.
+        workspace  pin the CAM generated in the CAM workspace (no second run) and populate the IP
+                   fields from it at once;
+        document   the bank's CAM: its reading (narratives, terms, security, ratings, figures) goes into
+                   the field store with section / page evidence; identity and facility come from the
+                   intake agent, which reads the CAM with the borrower's other documents;
+        generate   the preparation agent generates the CAM (a credit-case lane) and pins it."""
+        mode = cam.get("mode")
+        actor = {"id": session["user"]["id"], "role": session["role"], "agent": "cam"}
+        app = self._require(application_id)
+        at = self.now().isoformat(timespec="seconds")
+        if mode == "workspace":
+            case = self._credit_case(app["entity_id"], cam.get("run_id"))[0]
+            if not case:
+                raise ConflictError("There is no CAM for this borrower in the CAM workspace — generate one")
+            self._record_assessment(application_id, case, actor)
+            detail = {"mode": mode, "run_id": case.get("run_id")}
+        elif mode == "document":
+            if not reading:
+                raise InvalidRequestError("Upload the CAM (category CAM) and read it before creating the application")
+            detail = {"mode": mode, "document": reading.get("document"), **(reading.get("summary") or {})}
+        else:
+            detail = {"mode": mode}
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            app["cam_source"] = {**detail, "at": at, "by": session["user"]["name"]}
+            if mode == "document":
+                reading = {**reading, "read_at": at}
+                app["cam"] = reading
+                fields = app.setdefault("fields", {})
+                props = cam_intake.resolver(reading, {"company": self.companies.get(app["entity_id"]) or {}})
+                merged = fieldmodel.merge(fields, props, self.field_registry, at)
+                reconcile.materialise(app, fields, [p["field_id"] for p in props])
+                app["field_reviews"] = fieldmodel.legacy_reviews(fields)
+                detail["fields"] = merged
+            comment = {"workspace": f"Started from the CAM in the CAM workspace (run {detail.get('run_id')})",
+                       "document": f"Started from the bank's CAM {detail.get('document')}: "
+                                   f"{detail.get('sections', 0)} sections and {detail.get('labels', 0)} values read",
+                       "generate": "The CAM will be generated by the preparation agent"}[mode]
+            self.store.save(app, self._event(app, "cam_attached", actor=actor, from_step=app["step_id"],
+                                             to_step=app["step_id"], comment=comment, detail=detail))
+        if mode == "workspace":
+            self.populate_fields(application_id, actor, force=True)
+        return detail
 
     def act(self, application_id: str, session: dict, action: str, *, comment: str = "",
             allocate_to: Optional[str] = None, at: Optional[datetime] = None,
             sanctioned_amount_cr: Optional[float] = None,
             significant_changes: Optional[str] = None,
-            rework_to: Optional[str] = None) -> dict:
+            rework_to: Optional[str] = None, decision_data: Optional[dict] = None,
+            deferred_until: Optional[str] = None) -> dict:
         app = self._require(application_id)
         if not app.get("step_id"):
             raise ConflictError("This application is complete")
@@ -570,73 +759,20 @@ class LosService:
                              current_status=app["status"], rework_to=rework_to)
         except WorkflowError as e:
             raise InvalidRequestError(str(e))
-        # Mandatory gates (GAP-P0-05/06, GAP-P0-13): due diligence, consent, checker remarks.
-        if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence"):
-            stuck = dd.blocking(app["due_diligence"]["checks"], now=self.now())
-            if stuck:
-                names = "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4])
-                raise InvalidRequestError("Resolve the outstanding mandatory due-diligence check(s) before "
-                                          f"submitting: {names}" + (f" (+{len(stuck) - 4} more)" if len(stuck) > 4 else ""))
+        if action == "defer":
+            try:
+                until = datetime.fromisoformat(str(deferred_until or "")).date()
+            except ValueError:
+                raise InvalidRequestError("Deferring needs the date to take the application up again (YYYY-MM-DD)")
+            if until <= self.now().date():
+                raise InvalidRequestError("The deferred-until date must be in the future")
         if step.id == "pos_checker" and not (comment or "").strip():
             raise InvalidRequestError("Post-Sanction Checker remarks are mandatory for every decision at this step")
-        if action == "submit" and step.id == "ip_note" and not app.get("ip_note"):
-            raise InvalidRequestError("Generate the IP Note before submitting it for review")
-        if action == "submit" and step.id == "pos_maker":
-            consent = app.get("consent")
-            if not consent:
-                raise InvalidRequestError("Record the customer's sanction consent and facility execution before submitting")
-            stuck = [f["facility_id"] for f in consent.get("facilities", []) if f.get("execution_status") not in ("executed", "partial")]
-            if stuck:
-                raise InvalidRequestError("Every facility must be executed or partially executed before submitting: "
-                                          + ", ".join(stuck))
-            letter = next((d for d in app.get("documents") or [] if d["name"].startswith("Sanction letter")), None)
-            if not letter or not letter.get("versions"):
-                raise InvalidRequestError("Generate and issue the Sanction Letter before post-sanction progression (RUL-10)")
-        if action == "submit" and step.id in RISK_MAKER_STEPS and self.cases and not app.get("credit_assessment"):
-            raise InvalidRequestError("Run the credit assessment before submitting the Risk Maker step")
-        if action == "submit" and step.id in ("ap_risk_maker",):
-            # CMA: the financial analysis must be recorded in the governed workspace (GAP-P0-07).
-            if not any(s.get("rows") for s in (app.get("cma") or {}).get("subjects") or []):
-                raise InvalidRequestError("Record the CMA (financial analysis) in the CMA workspace before submitting")
-            # RUL-07: the benchmark type and proposed spread are mandatory for fund-based facilities;
-            # RUL-06: an ESMS screen in progress (or any project) must be complete.
-            stuck = pricing_mod.pricing_gate(app.get("pricing") or {}, app.get("facilities") or [])
-            if stuck:
-                raise InvalidRequestError(stuck)
-            esms = app.get("esms") or {}
-            started = any(i.get("answer") for i in esms.get("checklist", [])) or bool(app.get("projects"))
-            if started:
-                stuck = es.esms_gate(esms)
-                if stuck:
-                    raise InvalidRequestError(stuck)
-        if action == "submit" and step.id == "dis_maker":
-            stuck = do.maker_gate(app)
-            if stuck:
-                raise InvalidRequestError(stuck)
-            stuck = dreg.stage_gate(app)
-            if stuck:
-                raise InvalidRequestError(stuck)
-        if action == "approve" and step.id in ("dis_checker", "dis_approver"):
-            stuck = self.dis_review_gate(app)
-            if stuck:
-                raise InvalidRequestError(stuck)
-        if action == "submit" and step.id in ("pos_maker", "dis_maker") and app.get("snapshots"):
-            stuck = snap.material_change_gate(app)
-            if stuck:
-                raise InvalidRequestError(stuck)
-        if action == "submit" and step.id == IP_NOTE_STEP and not app.get("ip_note"):
-            raise InvalidRequestError("Generate the IP Note before submitting it for review")
-        if action == "submit" and step.id == "pos_maker" and app.get("conditions") and \
-                not condition_summary(app["conditions"], self.now().date().isoformat())["cps_cleared"]:
-            raise InvalidRequestError("Every condition precedent must be satisfied, deferred or waived before submitting")
-        if action == "submit" and step.id == "dis_maker":
-            dis = self._disbursement(app)
-            if not dis["pending_tranche"]:
-                raise InvalidRequestError("Record the disbursement tranche before submitting")
-            missing = [i["label"] for i in dis["checklist"] if not i["done"]]
-            if missing:
-                raise InvalidRequestError("Disbursement checklist incomplete: " + "; ".join(missing[:3])
-                                          + (f" (+{len(missing) - 3} more)" if len(missing) > 3 else ""))
+        stuck = self._gates(app, step, action)
+        if stuck:
+            raise InvalidRequestError(stuck[0][0])
+        # The decision record the step asks for (G-04 / G-W6): e.g. the material-information date.
+        decision = self._decision_fields(step, action, decision_data, significant_changes)
         at = (at or self.now()).replace(microsecond=0)
         # Disbursement VP Review: the read-only gate records its endorsement / rework decision,
         # including any significant changes observed (GAP-P0-16).
@@ -659,6 +795,16 @@ class LosService:
                 "type": "modification_request", "at": at.isoformat(timespec="seconds"),
                 "by_name": session["user"]["name"], "detail": f"{step.name}: {mods[-1]['reason'][:300]}",
                 "authority": self.wf.roles.get(step.role, step.role)})
+        elif action == "defer":
+            app.setdefault("deferrals", []).append({
+                "at": at.isoformat(timespec="seconds"), "by": session["user"]["id"], "by_name": session["user"]["name"],
+                "at_step": step.id, "reason": (comment or "").strip(), "until": str(deferred_until)[:10],
+                "reactivated_at": None, "reactivated_by": None})
+        elif action == "reactivate":
+            last = (app.get("deferrals") or [{}])[-1]
+            last.update(reactivated_at=at.isoformat(timespec="seconds"), reactivated_by=session["user"]["name"],
+                        reactivation_remarks=(comment or "").strip())
+            app["step_entered_at"] = at.isoformat(timespec="seconds")      # the SLA restarts on reactivation
         elif action in ("withdraw", "drop"):
             app["terminated"] = {"type": "withdrawn" if action == "withdraw" else "dropped",
                                  "at": at.isoformat(timespec="seconds"), "by_name": session["user"]["name"],
@@ -669,14 +815,21 @@ class LosService:
                 "detail": (comment or "")[:300], "authority": self.wf.roles.get(step.role, step.role)})
         if out.step_id and out.step_id != step.id:
             nxt = self.wf.step(out.step_id)
-            assignee = out.assign_user or (self._last_worker(application_id, nxt.id) if action == "return" else None)                 or self._default_assignee(nxt.role)
+            assignee = (out.assign_user
+                        or (self._last_worker(application_id, nxt.id) if action == "return" else None)
+                        # the next step in the same role stays with the person who did this one (the RM who sourced
+                        # the prospect writes its IP Note), unless they no longer hold the role
+                        or (session["user"]["id"] if nxt.role == step.role and nxt.role in session["user"]["roles"] else None)
+                        or self._last_worker(application_id, nxt.id)
+                        or self._default_assignee(nxt.role))
             app.update(step_id=nxt.id, stage_id=nxt.stage_id, step_entered_at=at.isoformat(timespec="seconds"),
                        assignee_id=assignee)
             app.pop("demo_note", None)          # the seed note describes the step it was seeded at
         elif out.step_id is None:
             app.update(step_id=None, assignee_id=None)
-        else:                                   # rejected: stays on the step, no assignee
+        elif action == "reject":                # rejected: stays on the step, no assignee
             app["assignee_id"] = None
+        # defer / reactivate stay on the step with the same assignee (the case is on hold, not handed over)
         if action in ("approve", "sanction", "submit") and app.get("escalated"):
             app["escalated"] = False
         if sanction:
@@ -688,13 +841,43 @@ class LosService:
                                  at.isoformat(timespec="seconds"), session["user"]["name"])
         app["updated_at"] = at.isoformat(timespec="seconds")
         actor = {"id": session["user"]["id"], "role": session["role"]}
+        if decision:
+            app.setdefault("decisions", []).append({"step": step.id, "step_name": step.name, "action": action,
+                                                    "by": session["user"]["id"], "by_name": session["user"]["name"],
+                                                    "at": at.isoformat(timespec="seconds"),
+                                                    "remarks": (comment or "").strip() or None, **decision})
         self.store.save(app, self._event(app, action, actor=actor, from_step=step.id, to_step=app.get("step_id"),
                                          comment=comment, at=at,
                                          detail={"message": out.message, "allocated_to": allocate_to,
                                                  **({"sanction": sanction} if sanction else {}),
-                                                 **({"significant_changes": significant_changes.strip()}
-                                                    if step.id == "dis_vp_review" and significant_changes and significant_changes.strip() else {})}))
+                                                 **({"deferred_until": str(deferred_until)[:10]} if action == "defer" else {}),
+                                                 **decision}))
         return self.get(application_id, session)
+
+    _FORWARD = ("submit", "approve", "sanction")
+
+    def _decision_fields(self, step, action: str, data: Optional[dict], significant_changes: Optional[str]) -> dict:
+        """The step's decision fields for this decision (G-04), validated; required ones only on a
+        forward decision (a return or drop is explained by its remarks)."""
+        data = dict(data or {})
+        if significant_changes and "significant_changes" not in data:
+            data["significant_changes"] = significant_changes              # the earlier API parameter
+        out = {}
+        for f in step.decision_fields:
+            raw = str(data.get(f["id"]) or "").strip()
+            label = wfmod.DECISION_FIELD_LABELS.get(f["id"], f["id"].replace("_", " ").capitalize())
+            if not raw:
+                if f.get("required") and action in self._FORWARD:
+                    word = wfmod.action_label(step, action) or action
+                    raise InvalidRequestError(f"{label} is required to {word.lower()} at {step.name}")
+                continue
+            if wfmod.DECISION_FIELD_TYPES[f["id"]] == "date":
+                try:
+                    raw = datetime.fromisoformat(raw).date().isoformat()
+                except ValueError:
+                    raise InvalidRequestError(f"{label} must be a date (YYYY-MM-DD)")
+            out[f["id"]] = raw[:2000]
+        return out
 
     def _sanction_record(self, app: dict, step, session: dict, action: str, comment: str,
                          amount: Optional[float], at: datetime) -> Optional[dict]:
@@ -717,7 +900,8 @@ class LosService:
         # Facility-wise sanction allocation + approval authority (GAP-P0-04 / P0-11).
         facmod.apply_sanction(app.get("facilities") or [], amount, at.isoformat(timespec="seconds"), session["user"]["name"])
         auth = authority.required_authority(amount, ca.get("risk_grade"),
-                                            deviations=len(committee_deviations((self._credit_case(app["entity_id"]) or (None,))[0]) or []),
+                                            deviations=len(committee_deviations((self._app_case(app) or (None,))[0]) or [])
+                                            + len(manual_deviations(app)),
                                             final=step.id == "ap_sanction")
         # The decision binds the exact versions reviewed — the approval snapshot (GAP-P0-11).
         snap.record_snapshot(app, "IP" if step.id == "ip_sanction" else "sanction", at.isoformat(timespec="seconds"),
@@ -732,6 +916,101 @@ class LosService:
                 "minutes": comment or None, "by": session["user"]["id"], "by_name": session["user"]["name"],
                 "at": at.isoformat(timespec="seconds")}
 
+    def _gates(self, app: dict, step, action: str) -> list[tuple[str, str]]:
+        """What stops ``action`` at ``step`` now, in the order the bank's gates apply: (message, where to fix
+        it — a page section). ``act`` refuses with the first; the application view lists them all, so the
+        step holder sees every blocker before pressing the button."""
+        out: list[tuple[str, str]] = []
+        add = lambda msg, where: msg and out.append((msg, where))
+        checks = (app.get("due_diligence") or {}).get("checks") or []
+        if action == "submit" and step.id == IP_NOTE_STEP and app.get("ip_note"):
+            # G-10: the IP proposal goes for review only with blocking checks resolved and its documents in place
+            stuck = dd.blocking(checks, now=self.now())
+            if stuck:
+                add("Resolve the blocking due-diligence check(s) before submitting the IP Note: "
+                    + "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4]), "checks")
+            add(dreg.stage_gate(app), "documents")
+        # Mandatory gates (due diligence, consent)
+        if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence"):
+            stuck = dd.blocking(app["due_diligence"]["checks"], now=self.now())
+            if stuck:
+                names = "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4])
+                add("Resolve the outstanding mandatory due-diligence check(s) before "
+                    f"submitting: {names}" + (f" (+{len(stuck) - 4} more)" if len(stuck) > 4 else ""), "checks")
+        if action == "submit" and step.id == "ip_note" and not app.get("ip_note"):
+            add("Generate the IP Note before submitting it for review", "task")
+        if action == "submit" and step.id == "pos_maker":
+            consent = app.get("consent")
+            if not consent:
+                add("Record the customer's sanction consent and facility execution before submitting", "task")
+            else:
+                stuck = [f["facility_id"] for f in consent.get("facilities", [])
+                         if f.get("execution_status") not in ("executed", "partial")]
+                if stuck:
+                    add("Every facility must be executed or partially executed before submitting: " + ", ".join(stuck), "task")
+                letter = next((d for d in app.get("documents") or [] if d["name"].startswith("Sanction letter")), None)
+                if not letter or not letter.get("versions"):
+                    add("Generate and issue the Sanction Letter before post-sanction progression", "task")
+        if action == "submit" and step.id == "ap_note" and (app.get("terms") or {}).get("conditions"):
+            # G-F2: the T&C go to sanction authored — every agent draft confirmed, edited or removed.
+            add(terms_mod.submit_gate(app.get("terms"), app.get("fields")), "terms")
+        if action == "submit" and step.id in RISK_MAKER_STEPS and self.cases and not app.get("credit_assessment"):
+            add("Run the credit assessment before submitting the Risk Maker step", "assessment")
+        if action == "submit" and step.id in ("ap_risk_maker",):
+            # the CMA in the governed workspace; benchmark and spread for fund-based facilities (RUL-07);
+            # an ESMS screen in progress (or any project) complete (RUL-06)
+            if not any(s.get("rows") for s in (app.get("cma") or {}).get("subjects") or []):
+                add("Record the CMA (financial analysis) in the CMA workspace before submitting", "cma")
+            add(pricing_mod.pricing_gate(app.get("pricing") or {}, app.get("facilities") or []), "pricing")
+            esms = app.get("esms") or {}
+            if any(i.get("answer") for i in esms.get("checklist", [])) or bool(app.get("projects")):
+                add(es.esms_gate(esms), "projects")
+        if action == "submit" and step.id == ES_MAKER_STEP:
+            # G-W2: the CRP ES Maker records the E&S risk categorisation the ES preparation works from
+            if (app.get("esms") or {}).get("category") not in es.ES_CATEGORIES:
+                add("Record the E&S risk category (A, B or C) in Projects & ESMS — the agent's proposed "
+                    "category is there to confirm", "projects")
+        if action == "submit" and step.id == ES_PREP_STEP:
+            add(es.esms_gate(app.get("esms") or {}), "projects")
+            if not any(v.get("kind") in ("esms_approval_note", "esms_note")
+                       for d in app.get("documents") or [] for v in d.get("versions") or []):
+                add("Generate the ESMS Approval Note (Documents → generated outputs) before submitting for ES review",
+                    "documents")
+        if action == "submit" and step.id == "dis_maker":
+            add(do.maker_gate(app), "disops")
+            add(dreg.stage_gate(app), "documents")
+        if action == "approve" and step.id in ("dis_checker", "dis_approver"):
+            add(self.dis_review_gate(app), "task")
+        if action == "submit" and step.id in ("pos_maker", "dis_maker") and app.get("snapshots"):
+            add(snap.material_change_gate(app), "task")
+        if action == "submit" and step.id == "pos_maker" and app.get("conditions") and \
+                not condition_summary(app["conditions"], self.now().date().isoformat())["cps_cleared"]:
+            add("Every condition precedent must be satisfied, deferred or waived before submitting", "task")
+        if action == "submit" and step.id == "dis_maker":
+            dis = self._disbursement(app)
+            if not dis["pending_tranche"]:
+                add("Record the disbursement tranche before submitting", "task")
+            else:
+                missing = [i["label"] for i in dis["checklist"] if not i["done"]]
+                if missing:
+                    add("Disbursement checklist incomplete: " + "; ".join(missing[:3])
+                        + (f" (+{len(missing) - 3} more)" if len(missing) > 3 else ""), "task")
+        return out
+
+    def blockers(self, app: dict, step=None) -> list[dict]:
+        """The blockers of the step's forward action (submit / approve), for the view."""
+        step = step or (self.wf.step(app["step_id"]) if app.get("step_id") else None)
+        if not step or app.get("status") in TERMINAL:
+            return []
+        action = {"maker": "submit", "checker": "approve", "vp_review": "submit"}.get(step.kind)
+        if not action:
+            return []
+        try:
+            return [{"message": m, "where": w} for m, w in self._gates(app, step, action)]
+        except Exception:                                    # a view never fails on a gate it cannot evaluate
+            log.exception("Gate evaluation failed for %s", app.get("application_id"))
+            return []
+
     def _after_action(self, app: dict, step, action: str, session: dict, at: datetime, comment: str = "") -> None:
         """What a decision records beyond the move: recommendations, assessment snapshots, conditions, approvals, tranches."""
         stamp = {"by": session["user"]["id"], "by_name": session["user"]["name"], "at": at.isoformat(timespec="seconds")}
@@ -742,8 +1021,16 @@ class LosService:
         if action == "submit" and step.id in RISK_MAKER_STEPS and app.get("credit_assessment"):
             app.setdefault("assessments", {})[step.stage_id] = dict(app["credit_assessment"])
         if action == "sanction" and step.id == "ap_sanction":
-            case, _ = self._credit_case(app["entity_id"])
-            app["conditions"] = build_conditions(case, at)
+            terms = app.get("terms") or {}
+            if any(not r.get("removed") for r in terms.get("conditions") or []):
+                # G-F2: the conditions tracked after sanction are the T&C authored and approved at AP.
+                due = (at + timedelta(days=CS_DUE_DAYS)).date().isoformat()
+                app["conditions"] = terms_mod.to_conditions(terms, due)
+                terms.update(status="sanctioned", locked_at=at.isoformat(timespec="seconds"),
+                             locked_by=session["user"]["name"])
+            else:
+                case, _ = self._app_case(app)
+                app["conditions"] = build_conditions(case, at)
         if step.id == "pos_checker" and action == "approve":
             for c in app.get("conditions") or []:
                 if c["status"] in ("deferred", "waived") and not (c.get("approval") or {}).get("by"):
@@ -815,15 +1102,147 @@ class LosService:
         return self.get(application_id, session)
 
     # ── credit assessment (Risk Maker) ───────────────────────────────────────
-    def _credit_case(self, entity_id: str) -> tuple[Optional[dict], Optional[dict]]:
-        """The borrower's latest credit case and composed CAM (re-synced), if one exists."""
+    def _credit_case(self, entity_id: str, run_id: Optional[str] = None) -> tuple[Optional[dict], Optional[dict]]:
+        """The borrower's credit case and composed CAM (re-synced): the given run when it is
+        not the latest (an application stays on the run it was assessed with), else the latest."""
         if not self.cases or not self.cases.get(entity_id):
             return None, None
+        latest = self.cases.get(entity_id)
+        if run_id and run_id != latest.get("run_id") and hasattr(self.cases, "get_run"):
+            try:
+                case = self.cases.get_run(entity_id, run_id)
+                final = self.final_cam.get(entity_id, run_id)["final_cam"] if self.final_cam else None
+                return case, final
+            except NotFoundError:
+                log.warning("Pinned run %s for %s is gone; using the latest run", run_id, entity_id)
         final = self.final_cam.get(entity_id)["final_cam"] if self.final_cam else None
-        return self.cases.get(entity_id), final
+        return latest, final
+
+    def _app_case(self, app: dict) -> tuple[Optional[dict], Optional[dict]]:
+        """The credit case pinned to this application (the run its assessment recorded).
+        Another application re-running the borrower does not change what this one shows."""
+        return self._credit_case(app["entity_id"], (app.get("credit_assessment") or {}).get("run_id"))
+
+    def _pin_info(self, app: dict, case: Optional[dict]) -> dict:
+        latest = self.cases.get(app["entity_id"]) if self.cases else None
+        pinned = (app.get("credit_assessment") or {}).get("run_id")
+        return {"pinned_run_id": pinned, "shown_run_id": (case or {}).get("run_id"),
+                "latest_run_id": (latest or {}).get("run_id"),
+                "newer_run_available": bool(pinned and latest and latest.get("run_id") != pinned)}
+
+    # ── Populate → Verify → Lock: fields filled by agents, verified by people ─────
+
+    @property
+    def field_registry(self) -> FieldRegistry:
+        if self._field_registry is None:
+            self._field_registry = FieldRegistry.load()
+        return self._field_registry
+
+    def _app_lock(self, application_id: str) -> threading.Lock:
+        """One writer per application for agent proposals and verification (single-writer merge)."""
+        with self._app_locks_guard:
+            return self._app_locks.setdefault(application_id, threading.Lock())
+
+    def _reviews_of(self, app: dict) -> dict:
+        """Decided fields in the earlier field_reviews shape (applications from before the field store keep theirs)."""
+        return fieldmodel.legacy_reviews(app["fields"]) if app.get("fields") else (app.get("field_reviews") or {})
+
+    def _populate(self, app: dict, case: Optional[dict], final: Optional[dict], at: str) -> Optional[dict]:
+        """Run the population graph for the application's pinned case and merge the proposals
+        into ``app["fields"]`` (the caller holds the application lock and saves)."""
+        if not case:
+            return None
+        registry = self.field_registry
+        view = build_risk_maker_view(case, final, self._view_context(app))
+        run_id = case.get("run_id")
+        # One parallel graph: the Risk Maker view and one reconciliation agent per workspace domain.
+        rctx = {"case": case, "fact_pack": case.get("fact_pack") or {}, "company": self.companies.get(app["entity_id"]) or {},
+                "app": app, "registry": registry, "today": self.now().date().isoformat(), "run_id": run_id,
+                "prefill_values": self._prefill_values(app), "entity_history": self._entity_history(app),
+                "authority": authority.required_authority(
+                    app.get("amount_cr"), (app.get("credit_assessment") or {}).get("risk_grade") or case.get("risk_grade"),
+                    deviations=len(committee_deviations(case)) + len(manual_deviations(app)),
+                    final=app.get("stage_id") not in ("PS", "IP"))}
+        resolvers = {**({cam_intake.RESOLVER: lambda ctx: cam_intake.resolver(app.get("cam"), rctx)}
+                        if app.get("cam") else {}),
+                     "risk_maker": lambda ctx: risk_maker_proposals(view, registry, run_id),
+                     **{f"reconcile_{name}": (lambda ctx, fn=fn: fn(rctx)) for name, fn in reconcile.RESOLVERS.items()},
+                     **{f"prefill_{name}": (lambda ctx, fn=fn: fn(rctx)) for name, fn in prefill.RESOLVERS.items()}}
+        result = run_population(resolvers, registry)
+        fields = app.setdefault("fields", {})
+        summary = fieldmodel.merge(fields, result["proposals"], registry, at)
+        workspaces = reconcile.materialise(app, fields)              # the values into the governed workspaces
+        workspaces["raroc"] = self._auto_raroc(app, case, at)
+        app["fields_meta"] = {"run_id": run_id, "at": at, "resolvers": list(resolvers),
+                              "duration_ms": result["duration_ms"], "max_concurrency": result["max_concurrency"],
+                              "failed": result["failed"], "registry_version": registry.version, "workspaces": workspaces}
+        app["field_reviews"] = fieldmodel.legacy_reviews(fields)
+        return {**summary, "proposals": len(result["proposals"]), "run_id": run_id, "workspaces": workspaces,
+                "duration_ms": result["duration_ms"], "max_concurrency": result["max_concurrency"],
+                "failed": result["failed"]}
+
+    def _entity_history(self, app: dict) -> list[dict]:
+        """The borrower's other applications in the LOS (for the past-proposals and relaxations narratives)."""
+        out = []
+        for other in self.store.list():
+            if other["entity_id"] != app["entity_id"] or other["application_id"] == app["application_id"]:
+                continue
+            out.append({"application_id": other["application_id"], "status": other["status"],
+                        "reason": (other.get("terminated") or {}).get("reason"), "deferrals": other.get("deferrals") or []})
+        return out
+
+    @staticmethod
+    def _prefill_values(app: dict) -> dict:
+        """Values read from the documents (accepted by the RM, else proposed) for reconciliation."""
+        src = app.get("sourcing") or {}
+        accepted = src.get("accepted") or {}
+        out = {}
+        for f in (src.get("prefill") or {}).get("fields") or []:
+            if f.get("value") is None and f["id"] not in accepted:
+                continue
+            first = (f.get("sources") or [{}])[0]
+            value = accepted[f["id"]]["value"] if f["id"] in accepted else f["value"]
+            out[f["id"]] = {"value": value, "document": first.get("document"), "page": first.get("page")}
+        return out
+
+    def populate_fields(self, application_id: str, actor: Optional[dict] = None, *, force: bool = False) -> Optional[dict]:
+        """Populate the application's fields from its pinned credit case and record it.
+        Without ``force`` it only runs when the fields are missing or from another run."""
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            case, final = self._app_case(app)
+            if not case:
+                return None
+            if not force and app.get("fields") and (app.get("fields_meta") or {}).get("run_id") == case.get("run_id"):
+                return None
+            at = self.now().isoformat(timespec="seconds")
+            summary = self._populate(app, case, final, at)
+            app["updated_at"] = at
+            self.store.save(app, self._event(app, "fields_populated", actor=actor or {"id": None, "role": "agent"},
+                                             from_step=app.get("step_id"), to_step=app.get("step_id"),
+                                             comment=(f"{summary['new']} new, {summary['updated']} updated, "
+                                                      f"{summary['conflicts']} conflict(s) from run {summary['run_id']}"),
+                                             detail=summary))
+            return summary
+
+    def _verify_stats(self, app: dict, step) -> dict:
+        registry, fields = self.field_registry, app.get("fields") or {}
+        step_id = step.id if step else None
+        return {"queue": fieldmodel.queue(fields, registry, step_id),
+                "stats": fieldmodel.stats(fields, registry),
+                "step_stats": fieldmodel.stats(fields, registry, registry.domains_verified_at(step_id)),
+                "meta": app.get("fields_meta"), "pretick_confidence": registry.pretick_confidence}
+
+    def _may_verify(self, app: dict, session: Optional[dict]) -> bool:
+        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        return bool(session and step and app["status"] not in TERMINAL
+                    and self.field_registry.domains_verified_at(step.id)
+                    and can_act(self.wf, session["user"]["id"], session["role"], step)
+                    and app.get("assignee_id") in (None, session["user"]["id"]))
 
     def assessment(self, application_id: str, session: Optional[dict] = None) -> dict:
-        """The Risk Maker workspace: job status and the tabs built from the latest credit case."""
+        """The Risk Maker workspace: job status, the tabs built from the application's pinned
+        credit case, and the verify queue for the current step."""
         app = self._require(application_id)
         step = self.wf.step(app["step_id"]) if app.get("step_id") else None
         can_run = bool(session and step and step.id in RISK_MAKER_STEPS and app["status"] not in TERMINAL
@@ -833,14 +1252,36 @@ class LosService:
             job = dict(self._jobs[application_id]) if application_id in self._jobs else None
         if job:
             job.pop("thread", None)
-        case, final = self._credit_case(app["entity_id"]) if (not job or job["state"] != "running") else (None, None)
+            job["lanes"] = [dict(lane) for lane in job.get("lanes") or []]
+        running = bool(job and job["state"] == "running")
+        case, final = self._app_case(app) if not running else (None, None)
+        if case and not running and self.populate_fields(application_id):
+            app = self._require(application_id)          # first view of this run: populated just now
         view = (build_risk_maker_view(case, final, self._view_context(app)) if case else
                 {"available": False, "reason": "No credit assessment has been run for this borrower yet."})
-        review_summary = self._apply_reviews(view, app.get("field_reviews") or {})
+        review_summary = self._apply_reviews(view, self._reviews_of(app))
         return {"application_id": application_id, "entity_id": app["entity_id"], "can_run": can_run,
                 "can_review": can_run and bool(view.get("available")),
                 "at_risk_maker": bool(step and step.id in RISK_MAKER_STEPS), "job": job,
-                "recorded": app.get("credit_assessment"), "review_summary": review_summary, "view": view}
+                "recorded": app.get("credit_assessment"), "review_summary": review_summary, "view": view,
+                "pin": self._pin_info(app, case), "verify": self._verify_stats(app, step),
+                "can_verify": self._may_verify(app, session),
+                "prep": self._prep_job(application_id), "can_prepare": self._may_prepare(app, session)}
+
+    def _prep_job(self, application_id: str) -> Optional[dict]:
+        with self._jobs_lock:
+            prep = dict(self._prep_jobs[application_id]) if application_id in self._prep_jobs else None
+        if prep:
+            prep.pop("thread", None)
+            prep["lanes"] = [dict(lane) for lane in prep.get("lanes") or []]
+        return prep
+
+    def _may_prepare(self, app: dict, session: Optional[dict]) -> bool:
+        try:
+            self._maker_at(app, session, PREP_STEPS, "Preparing the application") if session else None
+            return bool(session)
+        except (ConflictError, ForbiddenError):
+            return False
 
     def _view_context(self, app: dict) -> dict:
         others = [a["application_id"] for a in self.store.list()
@@ -873,8 +1314,113 @@ class LosService:
             tab["review_counts"] = tab_counts
         return counts
 
+    def _apply_field_actions(self, application_id: str, session: dict, decisions: list[dict], *,
+                             event: str, known: Optional[set] = None) -> tuple[dict, list[dict]]:
+        """Apply people's decisions to fields under the application lock (single writer):
+        populate from the pinned case first, so a decision is always against the latest proposal."""
+        registry = self.field_registry
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            step = self.wf.step(app["step_id"])
+            case, final = self._app_case(app)
+            at = self.now().isoformat(timespec="seconds")
+            populated = self._populate(app, case, final, at)
+            fields = app.setdefault("fields", {})
+            by = {"id": session["user"]["id"], "name": session["user"]["name"]}
+            done = []
+            for d in decisions:
+                fid = d.get("field_id")
+                rec = fields.get(fid)
+                if rec is None or (known is not None and fid not in known):
+                    raise InvalidRequestError(f"Unknown field {fid}")
+                if not registry.verifiable_at(fid, step.id):
+                    raise ForbiddenError(f"{rec['label']} is not verified at {step.name}")
+                before = rec.get("value")
+                try:
+                    fieldmodel.apply_action(rec, d.get("action"), by=by, at=at, registry=registry,
+                                            value=d.get("value"), reason=d.get("reason") or "")
+                except fieldmodel.FieldActionError as e:
+                    raise InvalidRequestError(str(e))
+                done.append({"field_id": fid, "label": rec["label"], "action": d.get("action"), "status": rec["status"],
+                             "original": (rec.get("proposal") or {}).get("value"), "was": before,
+                             "value": rec.get("value"), "reason": (d.get("reason") or "").strip()})
+            # Workspace fields: the decided value is written back into the workspace record.
+            reconcile.materialise(app, fields, [x["field_id"] for x in done])
+            self._auto_raroc(app, case, at)
+            app["field_reviews"] = fieldmodel.legacy_reviews(fields)
+            app["updated_at"] = at
+            overrides = [x for x in done if x["status"] == "overridden"]
+            comment = ("; ".join(f"{x['label']}: {x['original']} → {x['value']} ({x['reason']})" for x in overrides)
+                       if overrides else None)
+            actor = {"id": session["user"]["id"], "role": session["role"]}
+            detail = {"reviews": done, **({"populated": populated} if populated and
+                                          (populated["new"] or populated["updated"] or populated["conflicts"]) else {})}
+            self.store.save(app, self._event(app, event, actor=actor, from_step=step.id, to_step=step.id,
+                                             comment=comment, detail=detail))
+            return app, done
+
+    def _require_verifier(self, app: dict, session: dict) -> None:
+        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        if not step or app["status"] in TERMINAL or not self.field_registry.domains_verified_at(step.id):
+            raise ConflictError("No fields are verified at this step")
+        if not can_act(self.wf, session["user"]["id"], session["role"], step) or \
+                app.get("assignee_id") not in (None, session["user"]["id"]):
+            raise ForbiddenError(f"Fields are verified by the assigned {self.wf.roles[step.role]}")
+        if not self._app_case(app)[0]:
+            raise ConflictError("Run the credit assessment before verifying its fields")
+
+    def verify_fields(self, application_id: str, session: dict, decisions: list[dict]) -> dict:
+        """People's decisions on fields: confirm | override (value + reason) | keep (a conflict,
+        with a reason) | reopen. Audited; returns the refreshed workspace."""
+        app = self._require(application_id)
+        self._require_verifier(app, session)
+        if not decisions:
+            raise InvalidRequestError("No fields to verify")
+        _, done = self._apply_field_actions(application_id, session, decisions, event="fields_verified")
+        self._rerun_if_inputs_changed(application_id, session, done)
+        return self.assessment(application_id, session)
+
+    def _rerun_if_inputs_changed(self, application_id: str, session: dict, done: list[dict]) -> None:
+        """Feedback loop: a person's change to an engine input (a CMA row, a security value) re-runs the
+        credit case for this application with that value, so ratios, grade, RAROC and the CAM follow it."""
+        changed = [d for d in done if d["field_id"].split(".")[0] in ("cma", "securities") and d["was"] != d["value"]
+                   and (d["field_id"].split(".")[0] != "cma" or d["field_id"].split(".")[-1] in self._CMA_LINE_ITEMS)]
+        if not changed or not self.cases:
+            return
+        reason = "Re-running the credit case with the verified value(s): " + "; ".join(
+            f"{d['label']} {d['was']} → {d['value']}" for d in changed[:4])
+        self._launch_assessment(application_id, {"id": session["user"]["id"], "role": session["role"],
+                                                 "agent": "feedback"}, reason=reason[:500])
+
+    def bulk_confirm(self, application_id: str, session: dict, field_ids: Optional[list[str]] = None) -> dict:
+        """Confirm many proposals at once: the given ids, or every pre-ticked field in the queue.
+        Decision-driving (must_verify) fields, conflicts and fields with critic issues are refused."""
+        app = self._require(application_id)
+        self._require_verifier(app, session)
+        self.populate_fields(application_id)
+        app = self._require(application_id)
+        registry, fields = self.field_registry, app.get("fields") or {}
+        step = self.wf.step(app["step_id"])
+        if field_ids is None:
+            ids = [i["field_id"] for i in fieldmodel.queue(fields, registry, step.id) if i["preticked"]]
+        else:
+            ids = list(dict.fromkeys(field_ids))
+            refused = [fields[f]["label"] if f in fields else f for f in ids
+                       if f not in fields or not fieldmodel.bulk_eligible(fields[f], registry)
+                       or not registry.verifiable_at(f, step.id)]
+            if refused:
+                raise InvalidRequestError("These fields need an individual decision: " + ", ".join(refused[:8])
+                                          + (f" (+{len(refused) - 8} more)" if len(refused) > 8 else ""))
+        if not ids:
+            raise InvalidRequestError("Nothing to bulk-confirm")
+        self._apply_field_actions(application_id, session, [{"field_id": f, "action": "confirm"} for f in ids],
+                                  event="fields_bulk_confirmed")
+        return self.assessment(application_id, session)
+
     def review_fields(self, application_id: str, session: dict, reviews: list[dict]) -> dict:
-        """Confirm or override Risk Maker fields. An override needs a value and a reason. Audited."""
+        """Confirm or override Risk Maker fields. An override needs a value and a reason. Audited.
+        (The earlier review API, now served by the field store: confirmed → confirm,
+        overridden → override, clear → reopen.)"""
         app = self._require(application_id)
         step = self.wf.step(app["step_id"]) if app.get("step_id") else None
         if not step or step.id not in RISK_MAKER_STEPS or app["status"] in TERMINAL:
@@ -884,42 +1430,21 @@ class LosService:
             raise ForbiddenError("Only the assigned Risk Maker can review the assessment")
         if not reviews:
             raise InvalidRequestError("No fields to review")
-        case, final = self._credit_case(app["entity_id"])
+        case, final = self._app_case(app)
         if not case:
             raise ConflictError("Run the credit assessment before reviewing it")
         view = build_risk_maker_view(case, final, self._view_context(app))
-        fields = {f["id"]: f for t in view["tabs"] for sec in t["sections"] for f in sec.get("fields") or []}
-        stored = dict(app.get("field_reviews") or {})
-        at = self.now().isoformat(timespec="seconds")
-        done = []
+        known = {f["id"] for t in view["tabs"] for sec in t["sections"] for f in sec.get("fields") or []}
+        actions = {"confirmed": "confirm", "overridden": "override", "clear": "reopen"}
+        decisions = []
         for r in reviews:
-            field = fields.get(r.get("field_id"))
-            if not field:
+            if r.get("field_id") not in known:
                 raise InvalidRequestError(f"Unknown field {r.get('field_id')}")
-            status = r.get("status")
-            if status == "clear":
-                stored.pop(field["id"], None)
-                done.append({"field_id": field["id"], "label": field["label"], "status": "cleared"})
-                continue
-            if status not in ("confirmed", "overridden"):
+            if r.get("status") not in actions:
                 raise InvalidRequestError("Review status must be confirmed, overridden or clear")
-            value, reason = str(r.get("value") or "").strip(), str(r.get("reason") or "").strip()
-            if status == "overridden" and (not value or not reason):
-                raise InvalidRequestError(f"Override of '{field['label']}' needs a value and a reason")
-            stored[field["id"]] = {"status": status, "original": field["value"], "original_provenance": field["provenance"],
-                                   "value": value if status == "overridden" else field["value"], "reason": reason,
-                                   "label": field["label"], "by": session["user"]["id"],
-                                   "by_name": session["user"]["name"], "at": at}
-            done.append({"field_id": field["id"], "label": field["label"], "status": status,
-                         "original": field["value"], "value": stored[field["id"]]["value"], "reason": reason})
-        app["field_reviews"] = stored
-        app["updated_at"] = at
-        overrides = [d for d in done if d["status"] == "overridden"]
-        comment = ("; ".join(f"{d['label']}: {d['original']} → {d['value']} ({d['reason']})" for d in overrides)
-                   if overrides else None)
-        actor = {"id": session["user"]["id"], "role": session["role"]}
-        self.store.save(app, self._event(app, "field_review", actor=actor, from_step=step.id, to_step=step.id,
-                                         comment=comment, detail={"reviews": done}))
+            decisions.append({"field_id": r["field_id"], "action": actions[r["status"]],
+                              "value": r.get("value"), "reason": r.get("reason")})
+        self._apply_field_actions(application_id, session, decisions, event="field_review", known=known)
         return self.assessment(application_id, session)
 
     def start_assessment(self, application_id: str, session: dict) -> dict:
@@ -934,23 +1459,23 @@ class LosService:
             raise ForbiddenError(f"Only the {self.wf.roles[step.role]} role can run the credit assessment")
         if app.get("assignee_id") and app["assignee_id"] != session["user"]["id"]:
             raise ForbiddenError(f"Assigned to {self._user_name(app['assignee_id'])}")
-        with self._jobs_lock:
-            running = self._jobs.get(application_id)
-            if running and running["state"] == "running":
-                raise ConflictError("A credit assessment is already running for this application")
-            job = {"state": "running", "started_at": self.now().isoformat(timespec="seconds"), "finished_at": None,
-                   "message": "Starting the credit assessment…", "progress": 0, "agents_done": 0,
-                   "sections_done": 0, "error": None, "run_id": None}
-            self._jobs[application_id] = job
-        actor = {"id": session["user"]["id"], "role": session["role"]}
-        self.store.save(app, self._event(app, "assessment_started", actor=actor, from_step=step.id, to_step=step.id))
-        job["thread"] = threading.Thread(target=self._run_assessment, args=(application_id, app["entity_id"], actor),
-                                         daemon=True, name=f"los-assessment-{application_id}")
-        job["thread"].start()
+        if not self._launch_assessment(application_id, {"id": session["user"]["id"], "role": session["role"]}):
+            raise ConflictError("A credit assessment is already running for this application")
         return self.assessment(application_id, session)
 
     def _on_progress(self, job: dict, event: dict) -> None:
         kind = event.get("type")
+        if kind in ("agent_start", "agent_complete"):
+            # Parallel lanes: one entry per agent in pipeline order, several may be running at once.
+            lanes = job.setdefault("lanes", [])
+            lane = next((l for l in lanes if l["agent"] == event.get("agent")), None)
+            if lane is None:
+                lane = {"agent": event.get("agent"), "step": event.get("step"),
+                        "description": event.get("description"), "kind": event.get("lane")}
+                lanes.append(lane)
+                lanes.sort(key=lambda l: l.get("step") or 0)
+            lane["status"] = "running" if kind == "agent_start" else event.get("status")
+            job["running"] = [l["agent"] for l in lanes if l["status"] == "running"]
         if kind == "agent_start":
             job["message"] = f"Agent {event.get('step')}/{event.get('total')}: {event.get('description') or event.get('agent')}"
         elif kind == "agent_complete":
@@ -962,25 +1487,78 @@ class LosService:
             job["message"] = event["message"]
         job["progress"] = min(99, round(55 * job["agents_done"] / _AGENTS + 45 * job["sections_done"] / _SECTIONS))
 
+    def _launch_assessment(self, application_id: str, actor: dict, reason: Optional[str] = None) -> bool:
+        """Start the credit-case run as a background job; False when one is already running."""
+        app = self._require(application_id)
+        with self._jobs_lock:
+            running = self._jobs.get(application_id)
+            if running and running["state"] == "running":
+                return False
+            job = {"state": "running", "started_at": self.now().isoformat(timespec="seconds"), "finished_at": None,
+                   "message": reason or "Starting the credit assessment…", "progress": 0, "agents_done": 0,
+                   "sections_done": 0, "error": None, "run_id": None, "reason": reason}
+            self._jobs[application_id] = job
+        self.store.save(app, self._event(app, "assessment_started", actor=actor, from_step=app.get("step_id"),
+                                         to_step=app.get("step_id"), comment=reason))
+        job["thread"] = threading.Thread(target=self._run_assessment, args=(application_id, app["entity_id"], actor),
+                                         daemon=True, name=f"los-assessment-{application_id}")
+        job["thread"].start()
+        return True
+
+    # Field-store values a person verified that the engines take as input on the next run (feedback loop).
+    _CMA_LINE_ITEMS = {"revenue": "revenue_operating", "income": "total_income", "depreciation": "depreciation",
+                       "finance_cost": "finance_cost", "pbt": "pbt", "pat": "pat"}
+
+    def _engine_overrides(self, app: dict) -> dict:
+        """The person's overrides of engine inputs, in the shape CaseService.run takes."""
+        out: dict = {"financials": {}, "collateral": {}}
+        for fid, rec in (app.get("fields") or {}).items():
+            if rec.get("status") != "overridden":
+                continue
+            parts = fid.split(".")
+            try:
+                value = float(str(rec["value"]).replace(",", ""))
+            except (TypeError, ValueError):
+                continue
+            if parts[0] == "cma" and len(parts) == 4 and parts[3] in self._CMA_LINE_ITEMS:
+                out["financials"].setdefault(parts[2], {})[self._CMA_LINE_ITEMS[parts[3]]] = value
+            elif parts[0] == "securities" and parts[-1] == "proposed_value_cr":
+                target = (rec.get("proposal") or {}).get("target") or []
+                desc = (target[1].get("new") or {}).get("description") if len(target) > 1 and isinstance(target[1], dict) else None
+                if desc:
+                    out["collateral"][desc] = value
+        # The credit case assesses this application's request, not the facility on the borrower record
+        # (which, for a catalogue borrower, can be a different proposal altogether).
+        fac = app.get("facility") or (app.get("facilities") or [{}])[0]
+        rec = (self.companies.get(app.get("entity_id")) or {}).get("facility")
+        wanted = {"amount_cr": app.get("amount_cr"), "tenor_months": fac.get("tenor_months"),
+                  "facility_type": fac.get("facility_type"), "purpose": fac.get("purpose")}
+        if rec is not None and wanted["amount_cr"] and (
+                abs(float(wanted["amount_cr"]) - float(getattr(rec, "amount_requested_cr", 0) or 0)) > 1e-6
+                or (wanted["tenor_months"] and int(wanted["tenor_months"]) != getattr(rec, "tenor_months", None))
+                or (wanted["facility_type"] and wanted["facility_type"] != getattr(getattr(rec, "facility_type", None), "value", None))):
+            out["facility"] = wanted
+        return {k: v for k, v in out.items() if v}
+
+    def _run_case(self, entity_id: str, app: dict, on_progress=None) -> tuple:
+        """Run the credit case for this application, with the person's verified overrides."""
+        overrides = self._engine_overrides(app)
+        kwargs = {"overrides": overrides} if overrides else {}
+        return self.cases.run(entity_id, on_progress=on_progress, **kwargs)
+
     def _run_assessment(self, application_id: str, entity_id: str, actor: dict) -> None:
         job = self._jobs[application_id]
         try:
-            case, _ = self.cases.run(entity_id, on_progress=lambda e: self._on_progress(job, e))
+            case, _ = self._run_case(entity_id, self._require(application_id),
+                                     on_progress=lambda e: self._on_progress(job, e))
             job["message"] = "Composing the credit memorandum…"
-            final = self.final_cam.get(entity_id)["final_cam"] if self.final_cam else {}
-            rea = case.get("reassessment") or {}
-            fr = rea.get("facility_recommendation") or {}
-            summary = {"run_id": case.get("run_id"), "run_at": case.get("run_at"),
-                       "decision": rea.get("decision"), "decision_label": rea.get("decision_label"),
-                       "requested_cr": fr.get("requested_cr"), "recommended_cr": fr.get("recommended_cr"),
-                       "risk_grade": case.get("risk_grade"), "system_recommendation": case.get("recommendation"),
-                       "narrative_mode": case.get("narrative_mode"),
-                       "final_cam_available": bool((final or {}).get("available"))}
-            app = self._require(application_id)
-            app["credit_assessment"] = summary
-            app["updated_at"] = self.now().isoformat(timespec="seconds")
-            self.store.save(app, self._event(app, "assessment", actor=actor, from_step=app.get("step_id"),
-                                             to_step=app.get("step_id"), detail=summary))
+            summary = self._record_assessment(application_id, case, actor)
+            # Populate the application's fields from the new run, ready to verify.
+            job["message"] = "Populating the fields from the credit case…"
+            try:
+                job["populated"] = self.populate_fields(application_id, actor)
+            except Exception:                                        # the assessment itself succeeded
+                log.exception("Field population failed for %s", application_id)
             job.update(state="done", progress=100, run_id=case.get("run_id"),
                        message=f"Credit assessment complete: {summary['decision_label'] or 'no reassessment'}",
                        finished_at=self.now().isoformat(timespec="seconds"))
@@ -994,6 +1572,25 @@ class LosService:
                                                  to_step=app.get("step_id"), comment=str(e)[:300]))
             except Exception:
                 log.exception("Could not record the failed assessment for %s", application_id)
+
+    def _record_assessment(self, application_id: str, case: dict, actor: dict) -> dict:
+        """Pin a finished credit-case run to the application, with its audit event."""
+        final = self.final_cam.get(case["entity_id"])["final_cam"] if self.final_cam else {}
+        rea = case.get("reassessment") or {}
+        fr = rea.get("facility_recommendation") or {}
+        summary = {"run_id": case.get("run_id"), "run_at": case.get("run_at"),
+                   "decision": rea.get("decision"), "decision_label": rea.get("decision_label"),
+                   "requested_cr": fr.get("requested_cr"), "recommended_cr": fr.get("recommended_cr"),
+                   "risk_grade": case.get("risk_grade"), "system_recommendation": case.get("recommendation"),
+                   "narrative_mode": case.get("narrative_mode"),
+                   "final_cam_available": bool((final or {}).get("available"))}
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            app["credit_assessment"] = summary
+            app["updated_at"] = self.now().isoformat(timespec="seconds")
+            self.store.save(app, self._event(app, "assessment", actor=actor, from_step=app.get("step_id"),
+                                             to_step=app.get("step_id"), detail=summary))
+        return summary
 
     def wait_for_assessment(self, application_id: str, timeout: float = 600) -> dict:
         """Block until the running job finishes (tests and scripts)."""
@@ -1022,6 +1619,14 @@ class LosService:
     def _entity_dir(self, entity_id: str) -> Optional[Path]:
         return self.documents_root / entity_id if self.documents_root else None
 
+    def _link_documents(self, app: dict, at: str) -> list[str]:
+        """The document agent: link the borrower's documents on file to the checklist items they satisfy."""
+        d = self._entity_dir(app["entity_id"])
+        if not d or not d.exists():
+            return []
+        files = [p.relative_to(d).as_posix() for p in d.rglob("*.pdf")]
+        return dreg.link_on_file(app.setdefault("documents", dreg.initial_registry()), files, at)
+
     def _documents_on_file(self, entity_id: str) -> list[dict]:
         d = self._entity_dir(entity_id)
         if not d or not d.exists():
@@ -1037,11 +1642,14 @@ class LosService:
         if prefill:
             for f in prefill["fields"]:
                 f["accepted"] = accepted.get(f["id"])
+        prep = self._prep_job(application_id)
         return {"application_id": application_id, "entity_id": app["entity_id"],
                 "can_edit": self._can(app, session, SOURCING_STEPS),
                 "at_sourcing": bool(app.get("step_id") in SOURCING_STEPS),
                 "documents": self._documents_on_file(app["entity_id"]), "categories": list(UPLOAD_CATEGORIES),
-                "prefill": prefill, "accepted_count": len(accepted)}
+                "prefill": prefill, "accepted_count": len(accepted),
+                "intake": (prefill or {}).get("intake"), "prep": prep,
+                "fields": fieldmodel.stats(app.get("fields") or {}, self.field_registry, ["sourcing"])}
 
     def upload_document(self, application_id: str, session: dict, category: str, filename: str,
                         content: bytes, link_to: Optional[str] = None) -> dict:
@@ -1084,29 +1692,67 @@ class LosService:
                                                  "linked_to": link_to}))
         return self.sourcing(application_id, session)
 
+    def _intake_llm(self):
+        """The model the intake agent may use (vision for scans, structured extraction), if any."""
+        if not self.llm_factory:
+            return None
+        try:
+            return self.llm_factory()
+        except Exception:                                            # intake runs deterministically without it
+            log.warning("No LLM for document intake", exc_info=True)
+            return None
+
+    def _has_documents(self, entity_id: str) -> bool:
+        d = self._entity_dir(entity_id)
+        return bool(d and d.exists() and next(d.rglob("*.pdf"), None))
+
+    def _merge_sourcing(self, app: dict, prefill: dict, at: str, domain: str = "sourcing") -> dict:
+        """The intake's proposals into the field store, critic-checked (caller holds the lock and saves)."""
+        proposals = intake.proposals_from_prefill(prefill, domain)
+        checkable = [p for p in proposals if fieldmodel.available(p["value"], p["provenance"])]
+        for p, verdict in zip(checkable, CriticAgent().review_proposals(checkable)):
+            p["issues"] = list(p.get("issues") or []) + verdict.issues
+        fields = app.setdefault("fields", {})
+        summary = fieldmodel.merge(fields, proposals, self.field_registry, at)
+        app["field_reviews"] = fieldmodel.legacy_reviews(fields)
+        return summary
+
+    def _save_prefill(self, application_id: str, prefill: dict, actor: dict) -> dict:
+        """Store a prefill and merge it into the field store, as one audited write (single writer)."""
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            at = self.now().isoformat(timespec="seconds")
+            app.setdefault("sourcing", {})["prefill"] = prefill
+            merged = self._merge_sourcing(app, prefill, at)
+            s, i = prefill["summary"], prefill.get("intake") or {}
+            self.store.save(app, self._event(app, "document_prefill", actor=actor, from_step=app["step_id"],
+                                             to_step=app["step_id"],
+                                             comment=f"Read {i.get('documents', len(prefill['documents']))} documents: "
+                                                     f"{s['found']}/{s['total']} fields found, {s['conflicts']} conflict(s)",
+                                             detail={"summary": s, "ai": prefill["ai"], "intake": i, "fields": merged}))
+            return merged
+
     def run_prefill(self, application_id: str, session: dict) -> dict:
-        """Read the borrower's documents and propose Prospect Sourcing values (nothing is applied yet)."""
+        """The document intake agent reads the borrower's documents (in parallel) and proposes the
+        Prospect Sourcing values; nothing is applied until the RM accepts them."""
         app = self._require(application_id)
         self._maker_at(app, session, SOURCING_STEPS, "Document prefill")
-        d = self._entity_dir(app["entity_id"])
-        docs = read_documents(d) if d else []
-        if not docs:
+        if not self._has_documents(app["entity_id"]):
             raise ConflictError("No documents are on file for this borrower — upload documents first")
-        prefill = build_prefill(docs, master_values(self.companies.get(app["entity_id"]), app), self.llm_factory,
-                                now=self.now())
-        app = self._require(application_id)
-        app.setdefault("sourcing", {})["prefill"] = prefill
-        actor = {"id": session["user"]["id"], "role": session["role"]}
-        s = prefill["summary"]
-        self.store.save(app, self._event(app, "document_prefill", actor=actor, from_step=app["step_id"],
-                                         to_step=app["step_id"],
-                                         comment=f"Read {len(docs)} documents: {s['found']}/{s['total']} fields found, "
-                                                 f"{s['conflicts']} conflict(s)",
-                                         detail={"summary": s, "ai": prefill["ai"]}))
+        prefill = intake.run_intake(self._entity_dir(app["entity_id"]),
+                                    master_values(self.companies.get(app["entity_id"]), app), self._intake_llm(),
+                                    now=self.now())
+        self._save_prefill(application_id, prefill, {"id": session["user"]["id"], "role": session["role"]})
         return self.sourcing(application_id, session)
 
     def apply_prefill(self, application_id: str, session: dict, items: list[dict]) -> dict:
-        """Accept proposed values (optionally edited). Facility values update the application."""
+        """Accept proposed values (optionally edited). Facility values update the application, and
+        the decisions are recorded in the field store (confirm / override / reopen)."""
+        with self._app_lock(application_id):
+            self._apply_prefill(application_id, session, items)
+        return self.sourcing(application_id, session)
+
+    def _apply_prefill(self, application_id: str, session: dict, items: list[dict]) -> None:
         app = self._require(application_id)
         self._maker_at(app, session, SOURCING_STEPS, "Applying prefilled values")
         prefill = (app.get("sourcing") or {}).get("prefill")
@@ -1152,11 +1798,558 @@ class LosService:
             facilities = [dict(facility, facility_id="FAC-001")]
         app["facilities"] = facilities
         app["amount_cr"] = round(sum(float(row.get("amount_cr") or 0) for row in facilities), 2)
+        # The same decisions in the field store, so Prospect Sourcing counts in the populate / verify metrics.
+        fields, by = app.get("fields") or {}, {"id": session["user"]["id"], "name": session["user"]["name"]}
+        for item in items or []:
+            rec = fields.get(intake.field_id(by_id[item["field_id"]]))
+            if not rec:
+                continue
+            acc = accepted.get(item["field_id"])
+            action = "reopen" if item.get("status") == "clear" else ("override" if acc and acc["edited"] else "confirm")
+            try:
+                fieldmodel.apply_action(rec, action, by=by, at=at, registry=self.field_registry,
+                                        value=acc["display"] if acc else None, reason=(acc or {}).get("reason") or "")
+            except fieldmodel.FieldActionError:
+                log.warning("Could not mirror %s on %s into the field store", item["field_id"], application_id)
+        app["field_reviews"] = fieldmodel.legacy_reviews(fields)
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "prefill_apply", actor=actor, from_step=app["step_id"],
                                          to_step=app["step_id"], comment="; ".join(changes)[:600],
                                          detail={"fields": [i.get("field_id") for i in items]}))
+
+    # ── New prospect from documents, and the preparation agent ───────────────
+    #
+    # A new-to-bank borrower is sourced from its documents: the RM stages them, the intake
+    # agent reads them and proposes the identity and facility, duplicates are checked, and on
+    # creation the borrower is registered (no invented identifiers), the documents move into its
+    # folder and the application is prepared by agents running in parallel lanes.
+
+    _STAGING = "_staging"
+    _IDENTITY_FIELDS = ("legal_name", "cin", "pan", "gstin", "date_of_incorporation", "registered_address",
+                        "listed_exchange", "external_rating")
+    _FACILITY_FIELDS = ("facility_type", "case_type", "amount_cr", "tenor_months", "purpose")
+
+    def _require_sourcing_maker(self, session: dict) -> None:
+        first = self.wf.first_step
+        if session["role"] != first.role:
+            raise ForbiddenError(f"Only the {self.wf.roles[first.role]} role sources new prospects")
+
+    def _staging_dir(self, staging_id: str) -> Path:
+        if not self.documents_root:
+            raise OperationFailedError("Document storage is not connected")
+        if not re.fullmatch(r"[a-f0-9]{12}", staging_id or ""):
+            raise InvalidRequestError("Unknown staging id")
+        return self.documents_root / self._STAGING / staging_id
+
+    def _staged_documents(self, d: Path) -> list[dict]:
+        return [{"document": p.relative_to(d).as_posix(), "category": p.parent.name,
+                 "size_kb": round(p.stat().st_size / 1024, 1)} for p in sorted(d.rglob("*.pdf"))] if d.exists() else []
+
+    def stage_document(self, session: dict, category: str, filename: str, content: bytes,
+                       staging_id: Optional[str] = None) -> dict:
+        """Add a document to a new prospect's staging area (before the borrower exists)."""
+        self._require_sourcing_maker(session)
+        if category not in UPLOAD_CATEGORIES:
+            raise InvalidRequestError(f"Unknown document category: {category}")
+        name = re.sub(r"[^A-Za-z0-9._-]", "_", Path(filename or "").name)
+        if not name.lower().endswith(".pdf") or not content.startswith(b"%PDF"):
+            raise InvalidRequestError("Only PDF documents can be uploaded")
+        if len(content) > _MAX_UPLOAD_BYTES:
+            raise InvalidRequestError("The document is larger than 25 MB")
+        sid = staging_id or secrets.token_hex(6)
+        target = self._staging_dir(sid) / category
+        target.mkdir(parents=True, exist_ok=True)
+        final, v = name, 2
+        while (target / final).exists():
+            final, v = f"{Path(name).stem}-{v}{Path(name).suffix}", v + 1
+        (target / final).write_bytes(content)
+        return {"staging_id": sid, "documents": self._staged_documents(self._staging_dir(sid))}
+
+    @staticmethod
+    def _name_key(name: Optional[str]) -> str:
+        key = re.sub(r"[^a-z0-9 ]", " ", str(name or "").lower().replace("&", " and "))
+        key = re.sub(r"\b(the|limited|ltd|private|pvt|company|co|inc|llp)\b", " ", key)
+        return re.sub(r"\s+", "", key)
+
+    def _prospect_matches(self, name: Optional[str], pan: Optional[str], cin: Optional[str]) -> list[dict]:
+        """Borrowers already on record with the same PAN, CIN or name (and their LOS applications)."""
+        out, key = [], self._name_key(name)
+        for eid, company in self.companies.items():
+            b = company.get("borrower")
+            why = [w for w, hit in (("PAN", pan and getattr(b, "pan", None) == pan),
+                                    ("CIN", cin and getattr(b, "cin", None) == cin),
+                                    ("name", key and self._name_key(getattr(b, "company_name", "")) == key)) if hit]
+            if why:
+                apps = [a["application_id"] for a in self.store.list() if a["entity_id"] == eid]
+                out.append({"entity_id": eid, "name": getattr(b, "company_name", eid), "matched_on": why,
+                            "applications": apps})
+        return out
+
+    def read_staged(self, session: dict, staging_id: str) -> dict:
+        """The intake agent reads the staged documents and proposes the identity and facility."""
+        self._require_sourcing_maker(session)
+        d = self._staging_dir(staging_id)
+        if not self._staged_documents(d):
+            raise ConflictError("Upload the prospect's documents first")
+        prefill = intake.run_intake(d, {}, self._intake_llm(), now=self.now())
+        by_id = {f["id"]: f for f in prefill["fields"]}
+        (d / "intake.json").write_text(json.dumps(prefill, default=str), encoding="utf-8")
+
+        def pick(fid):
+            f = by_id.get(fid) or {}
+            return {"value": f.get("value"), "display": f.get("display") or "", "confidence": f.get("confidence"),
+                    "status": f.get("status"), "source": (f.get("sources") or [None])[0],
+                    "alternatives": f.get("alternatives") or []}
+
+        identity = {fid: pick(fid) for fid in self._IDENTITY_FIELDS}
+        facility = {fid: pick(fid) for fid in self._FACILITY_FIELDS}
+        matches = self._prospect_matches(identity["legal_name"]["value"], identity["pan"]["value"],
+                                         identity["cin"]["value"])
+        cam = cam_intake.read_cams(d, self._intake_llm())
+        if cam:
+            (d / "cam.json").write_text(json.dumps(cam, default=str), encoding="utf-8")
+        return {"staging_id": staging_id, "documents": self._staged_documents(d), "prefill": prefill,
+                "identity": identity, "facility": facility, "matches": matches,
+                "sectors": [s.value for s in Sector], "cam": self._cam_preview(cam)}
+
+    @staticmethod
+    def _cam_preview(cam: Optional[dict]) -> Optional[dict]:
+        if not cam:
+            return None
+        return {"document": cam["document"], "summary": cam["summary"], "ai": cam.get("ai"),
+                "sections": [{"key": k, "heading": s["heading"], "page": s["page"], "preview": s["text"][:160]}
+                             for k, s in cam["sections"].items()],
+                "labels": {k: {"value": v["value"], "page": v["page"]} for k, v in cam["labels"].items()}}
+
+    def _new_entity_id(self, name: str) -> str:
+        stem = (re.sub(r"[^A-Z]", "", self._name_key(name).upper()) or "NEWB")[:4].ljust(4, "X")
+        n = 1
+        while f"{stem}{n:03d}" in self.companies:
+            n += 1
+        return f"{stem}{n:03d}"
+
+    def create_prospect(self, session: dict, *, staging_id: str, identity: dict, facilities: list[dict],
+                        related_parties: Optional[list[dict]] = None, prospect_discussion: Optional[dict] = None,
+                        sourcing_decision: Optional[dict] = None, priority: str = "Normal",
+                        confirm_not_duplicate: bool = False, prepare: bool = True,
+                        cam: Optional[dict] = None) -> dict:
+        """Register a new prospect from its staged documents and create its application."""
+        self._require_sourcing_maker(session)
+        d = self._staging_dir(staging_id)
+        if not self._staged_documents(d):
+            raise ConflictError("Upload the prospect's documents first")
+        ident = {k: (str(v).strip() if v not in (None, "") else None) for k, v in (identity or {}).items()}
+        if not ident.get("company_name"):
+            raise InvalidRequestError("The prospect's legal name is required")
+        if ident.get("pan"):
+            ident["pan"] = ident["pan"].upper()
+            if not re.fullmatch(r"[A-Z]{5}\d{4}[A-Z]", ident["pan"]):
+                raise InvalidRequestError("PAN must look like AAAAA9999A")
+        if ident.get("cin"):
+            ident["cin"] = ident["cin"].upper()
+            if not re.fullmatch(r"[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}", ident["cin"]):
+                raise InvalidRequestError("CIN is not in the registry format")
+        if ident.get("date_of_incorporation"):
+            try:
+                datetime.fromisoformat(ident["date_of_incorporation"])
+            except ValueError:
+                raise InvalidRequestError("Date of incorporation must be YYYY-MM-DD")
+        matches = self._prospect_matches(ident["company_name"], ident.get("pan"), ident.get("cin"))
+        hard = [m for m in matches if {"PAN", "CIN"} & set(m["matched_on"])]
+        if hard:
+            m = hard[0]
+            raise ConflictError(f"{m['name']} is already on record as {m['entity_id']} (same "
+                                f"{' and '.join(x for x in m['matched_on'] if x != 'name')}) — create the "
+                                "application for that borrower instead")
+        if matches and not confirm_not_duplicate:
+            raise ConflictError(f"A borrower with the same name is on record ({matches[0]['entity_id']}) — "
+                                "confirm this prospect is a different company")
+        if not facilities:
+            raise InvalidRequestError("At least one proposed facility is required")
+        if cam and cam.get("mode") not in ("document", "generate"):
+            raise InvalidRequestError("A new prospect starts from its CAM document or generates one")
+        cam_reading = self._staged_cam(d) if cam and cam["mode"] == "document" else None
+        entity_id = self._new_entity_id(ident["company_name"])
+        first = dict(facilities[0])
+        if self.company_registrar:
+            self.company_registrar(entity_id, ident, first)
+        else:                                                      # no catalog service (tests): in memory only
+            from src.application.company_service import build_prospect_company
+            self.companies[entity_id] = build_prospect_company(entity_id, ident, first)
+        moved = self._move_staged(d, entity_id)
+        app = self.create(session, entity_id=entity_id, facilities=facilities, related_parties=related_parties,
+                          priority=priority, prospect_discussion=prospect_discussion,
+                          sourcing_decision=sourcing_decision, customer_id_selection="new")
+        with self._app_lock(app["application_id"]):
+            app = self._require(app["application_id"])
+            at = self.now().isoformat(timespec="seconds")
+            registry = app.setdefault("documents", dreg.initial_registry())
+            for doc in moved:
+                dreg.register_upload(registry, name=Path(doc).name, category=doc.split("/")[0], scope="application",
+                                     file_name=doc, by_name=session["user"]["name"], at=at)
+            self.store.save(app, self._event(app, "prospect_sourced", actor={"id": session["user"]["id"],
+                                                                              "role": session["role"]},
+                                             from_step=app["step_id"], to_step=app["step_id"],
+                                             comment=f"New prospect {ident['company_name']} ({entity_id}) sourced from "
+                                                     f"{len(moved)} document(s)",
+                                             detail={"identity": ident, "documents": moved,
+                                                     "name_matches_confirmed": [m["entity_id"] for m in matches]}))
+        if cam:
+            self._attach_cam(app["application_id"], session, cam, cam_reading)
+        if prepare:
+            self.prepare_application(app["application_id"], session)
+        return self.get(app["application_id"], session)
+
+    def _move_staged(self, d: Path, entity_id: str) -> list[str]:
+        """The staged documents into the borrower's folder (through the document store when connected)."""
+        moved = []
+        for p in sorted(d.rglob("*.pdf")):
+            category, name = p.parent.name, p.name
+            if self.doc_store:
+                self.doc_store.store_document(entity_id, category, name, p.read_bytes(), source="los_prospect_intake")
+            else:
+                target = self.documents_root / entity_id / category
+                target.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(p, target / name)
+            moved.append(f"{category}/{name}")
+        shutil.rmtree(d, ignore_errors=True)
+        return moved
+
+    def prepare_application(self, application_id: str, session: dict, wait: bool = False) -> dict:
+        """The preparation agent for Prospect Sourcing: identity & dedupe, document intake and every
+        API due-diligence check run in parallel lanes; one writer applies the results."""
+        app = self._require(application_id)
+        self._maker_at(app, session, PREP_STEPS, "Preparing the application")
+        with self._jobs_lock:
+            running = self._prep_jobs.get(application_id)
+            if running and running["state"] == "running":
+                raise ConflictError("The application is already being prepared")
+            job = {"state": "running", "started_at": self.now().isoformat(timespec="seconds"), "finished_at": None,
+                   "lanes": [], "running": [], "summary": None, "error": None}
+            self._prep_jobs[application_id] = job
+        actor = {"id": session["user"]["id"], "role": session["role"]}
+        job["thread"] = threading.Thread(target=self._prepare, args=(application_id, session, actor), daemon=True,
+                                         name=f"los-prepare-{application_id}")
+        job["thread"].start()
+        if wait:
+            job["thread"].join(timeout=600)
         return self.sourcing(application_id, session)
+
+    def wait_for_preparation(self, application_id: str, timeout: float = 600) -> dict:
+        job = self._prep_jobs.get(application_id)
+        if job and job.get("thread"):
+            job["thread"].join(timeout=timeout)
+        return {k: v for k, v in (job or {}).items() if k != "thread"}
+
+    def _prepare(self, application_id: str, session: dict, actor: dict) -> None:
+        step_id = self._require(application_id).get("step_id")
+        if step_id in SOURCING_STEPS:
+            return self._prepare_sourcing(application_id, session, actor)
+        if step_id in later_intake.STAGES:
+            return self._prepare_fulfilment(application_id, session, actor)
+        return self._prepare_appraisal(application_id, session, actor)
+
+    def _prepare_fulfilment(self, application_id: str, session: dict, actor: dict) -> None:
+        """Post Sanction / Disbursement Maker: the intake agent reads the signed sanction letter and the
+        facility agreement (or the drawdown request) and pre-fills the step's forms; at the Disbursement
+        Maker the carry-forward agent (R-P3) proposes the operational record from the sanctioned record,
+        in parallel."""
+        job = self._prep_jobs[application_id]
+        try:
+            app = self._require(application_id)
+            step_id, entity_id = app["step_id"], app["entity_id"]
+            domain, specs = later_intake.STAGES[step_id]
+            has_docs, carry = self._has_documents(entity_id), step_id == "dis_maker"
+            if not has_docs and not carry:
+                raise ConflictError("No documents are on file — upload the signed sanction letter, the facility "
+                                    "agreement or the drawdown request")
+            nodes = []
+            if has_docs:
+                llm = self._intake_llm()
+                nodes.append(Node("intake", run=lambda ctx: intake.run_intake(self._entity_dir(entity_id), {}, llm,
+                                                                              now=self.now(), specs=specs),
+                                  description=f"document intake: {domain.replace('_', ' ')} documents"))
+            if carry:
+                nodes.append(Node("carry_forward", run=lambda ctx: self._carry_proposals(application_id),
+                                  description="carry-forward agent: interest, repayment, fees and securities "
+                                              "from the sanctioned record"))
+            run = AgentGraph(nodes, name="fulfilment-prep",
+                             on_start=lambda n, s: self._lane(job, n.name, "running", n.description),
+                             on_result=lambda n, s, r: self._lane(job, n.name, r.status, n.description)).run({})
+            prefill, carried = run.data("intake"), run.data("carry_forward")
+            if has_docs and not prefill:
+                raise RuntimeError(run.results["intake"].error or "Document intake failed")
+            with self._app_lock(application_id):
+                app = self._require(application_id)
+                at = self.now().isoformat(timespec="seconds")
+                merged, carry_summary = None, None
+                if prefill:
+                    app.setdefault("later_intake", {})[domain] = prefill
+                    merged = self._merge_sourcing(app, prefill, at, domain)
+                if carried:
+                    fields = app.setdefault("fields", {})
+                    carry_summary = fieldmodel.merge(fields, carried, self.field_registry, at)
+                    carry_summary["workspaces"] = reconcile.materialise(app, fields, [p["field_id"] for p in carried])
+                    carry_summary["proposals"] = len(carried)
+                    carry_summary["filled"] = sum(1 for p in carried if p.get("provenance") != "unavailable")
+                    app["field_reviews"] = fieldmodel.legacy_reviews(fields)
+                summary = {"lanes": [{"lane": e["agent_name"], "status": e["status"], "ms": e["duration_ms"]}
+                                     for e in run.log()], "duration_ms": run.duration_ms,
+                           "max_concurrency": run.max_concurrency,
+                           "prefill": prefill["summary"] if prefill else None, "fields": merged,
+                           "carry_forward": carry_summary}
+                parts = []
+                if prefill:
+                    parts.append(f"Agents read {prefill['intake']['documents']} document(s): {prefill['summary']['found']} "
+                                 f"of {prefill['summary']['total']} {domain.replace('_', ' ')} fields found")
+                if carry_summary:
+                    parts.append(f"carried forward {carry_summary['filled']} of {carry_summary['proposals']} "
+                                 "operational value(s) from the sanctioned record")
+                linked_docs = self._link_documents(app, self.now().isoformat(timespec="seconds"))
+                if linked_docs:
+                    summary["documents_linked"] = linked_docs
+                self.store.save(app, self._event(
+                    app, "application_prepared", actor={**actor, "agent": "preparation"}, from_step=step_id,
+                    to_step=step_id, detail=summary, comment="; ".join(parts)))
+            job.update(state="done", summary=summary, finished_at=self.now().isoformat(timespec="seconds"))
+        except Exception as e:                                       # recorded on the job; the maker can retry
+            log.exception("Preparation failed for %s", application_id)
+            job.update(state="failed", error=str(e), finished_at=self.now().isoformat(timespec="seconds"))
+
+    def _carry_proposals(self, application_id: str) -> list[dict]:
+        """The carry-forward agent's proposals for the Disbursement Maker (R-P3), critic-checked."""
+        app = self._require(application_id)
+        case, _ = self._app_case(app)
+        ctx = {"app": app, "registry": self.field_registry, "fact_pack": (case or {}).get("fact_pack") or {},
+               "run_id": (case or {}).get("run_id")}
+        resolvers = {name: (lambda c, fn=fn: fn(ctx)) for name, fn in carry_forward.RESOLVERS.items()}
+        return run_population(resolvers, self.field_registry)["proposals"]
+
+    def _mirror_carry(self, app: dict, section: str, session: dict) -> None:
+        """The maker saved a section the carry-forward agent filled (see ``_mirror_paths``)."""
+        self._mirror_paths(app, ["disops", section], session, "in the disbursement record")
+
+    def _mirror_paths(self, app: dict, prefix: list, session: dict, where: str) -> None:
+        """A person saved a workspace section the agents fill: each value is recorded against the agent's
+        proposal (same → confirmed, different → overridden), so a later run never overwrites it."""
+        fields = app.get("fields") or {}
+        by = {"id": session["user"]["id"], "name": session["user"]["name"]}
+        at = self.now().isoformat(timespec="seconds")
+        for rec in fields.values():
+            prop = rec.get("proposal") or {}
+            target = prop.get("target") or []
+            if target[:len(prefix)] != prefix or rec.get("decision") or rec.get("status") == "unavailable":
+                continue                # a person's entry where the agent had nothing is not a correction
+            parent, leaf = reconcile._resolve_parent(app, target, create=False)
+            value = parent.get(leaf) if isinstance(parent, dict) else None
+            if value in (None, ""):
+                continue
+            a, b = str(prop.get("value")).replace(",", "").strip().lower(), str(value).replace(",", "").strip().lower()
+            try:
+                same = abs(float(a) - float(b)) < 1e-6
+            except ValueError:
+                same = a == b
+            try:
+                fieldmodel.apply_action(rec, "confirm" if same else "override", by=by, at=at,
+                                        registry=self.field_registry, value=None if same else str(value),
+                                        reason="" if same else f"Entered by {by['name']} {where}")
+            except fieldmodel.FieldActionError:
+                continue
+        app["field_reviews"] = fieldmodel.legacy_reviews(fields)
+
+    def _mirror_entries(self, app: dict, domain: str, entered: dict, session: dict, what: str) -> None:
+        """A form the maker saved, recorded against the agent's proposals: unchanged → confirmed,
+        different → overridden (with the form as the reason). Caller saves."""
+        fields = app.get("fields") or {}
+        by = {"id": session["user"]["id"], "name": session["user"]["name"]}
+        at = self.now().isoformat(timespec="seconds")
+        specs = {f["id"]: f for f in later_intake.STAGES_BY_DOMAIN[domain]}
+        for fid, value in entered.items():
+            rec = fields.get(intake.field_id(specs[fid], domain)) if fid in specs else None
+            if rec is None or rec.get("decision") or value in (None, ""):
+                continue
+            if rec.get("status") == "unavailable":
+                continue        # the agent proposed nothing: a person's entry is not a correction of the agent
+            proposed = (rec.get("proposal") or {}).get("value")
+            a, b = str(proposed).replace(",", "").strip().lower(), str(value).replace(",", "").strip().lower()
+            try:
+                same = abs(float(a) - float(b)) < 1e-6           # "20" and 20.0 are the same amount
+            except ValueError:
+                same = a == b
+            try:
+                fieldmodel.apply_action(rec, "confirm" if same else "override", by=by, at=at,
+                                        registry=self.field_registry, value=None if same else str(value),
+                                        reason="" if same else f"Entered by {by['name']} when {what}")
+            except fieldmodel.FieldActionError:
+                continue
+        app["field_reviews"] = fieldmodel.legacy_reviews(fields)
+
+    def _lane(self, job: dict, name: str, status: str, description: str = "") -> None:
+        entry = next((x for x in job["lanes"] if x["lane"] == name), None)
+        if entry is None:
+            entry = {"lane": name, "description": description}
+            job["lanes"].append(entry)
+        entry["status"] = status
+        job["running"] = [x["lane"] for x in job["lanes"] if x["status"] == "running"]
+
+    def _prepare_appraisal(self, application_id: str, session: dict, actor: dict) -> None:
+        """IP Note / AP note / Risk Maker: the credit case (run if this application has none pinned) and the
+        API checks in parallel; then the Risk Maker fields and the reconciliation agents populate the
+        workspaces (in parallel, single writer); at the IP Note step the note is drafted."""
+        job = self._prep_jobs[application_id]
+        try:
+            app = self._require(application_id)
+            entity_id, step_id = app["entity_id"], app["step_id"]
+            company = self.companies.get(entity_id) or {}
+            pinned = self._app_case(app)[0] if (app.get("credit_assessment") or {}).get("run_id") else None
+            check_ids = self._checks_to_refresh(app) if step_id in DD_STEPS else []
+
+            def credit_case(ctx):
+                if pinned:
+                    return {"case": pinned, "ran": False}
+                if not self.cases:
+                    raise RuntimeError("The credit-intelligence engine is not connected")
+                case, _ = self._run_case(entity_id, self._require(application_id))
+                return {"case": case, "ran": True}
+
+            nodes = [Node("credit_case", run=credit_case,
+                          description="the credit case: the pinned run, or a new pipeline run")]
+            if check_ids:
+                nodes.append(Node("checks", fan_out=lambda ctx: check_ids,
+                                  run_item=lambda ctx, cid: dd.run_api_check(cid, company),
+                                  description=f"{len(check_ids)} API due-diligence checks"))
+            graph = AgentGraph(nodes, name="appraisal-prep",
+                               on_start=lambda n, s: self._lane(job, n.name, "running", n.description),
+                               on_result=lambda n, s, r: self._lane(job, n.name, r.status, n.description))
+            run = graph.run({})
+            cc, checks = run.data("credit_case"), run.data("checks") or {}
+            if not cc:
+                raise RuntimeError((run.results.get("credit_case").error if run.results.get("credit_case") else None)
+                                   or "No credit case")
+            if cc["ran"]:
+                self._record_assessment(application_id, cc["case"], actor)
+            if checks:
+                with self._app_lock(application_id):
+                    app = self._require(application_id)
+                    at = self.now().replace(microsecond=0)
+                    for cid, result in checks.items():
+                        self._dd_finish(app, self._dd_check(app, cid), session, at, result, "agent")
+                    self.store.save(app, self._event(app, "checks_refreshed", actor={**actor, "agent": "preparation"},
+                                                     from_step=step_id, to_step=step_id,
+                                                     detail={cid: r["status"] for cid, r in checks.items()}))
+            self._lane(job, "populate", "running", "Risk Maker fields + reconciliation agents per workspace")
+            populated = self.populate_fields(application_id, {**actor, "agent": "reconciliation"}, force=True)
+            self._lane(job, "populate", "completed")
+            if step_id == IP_NOTE_STEP:
+                self._lane(job, "ip_note", "running", "IP Note draft")
+                self.generate_ip_note(application_id, session, with_ai=True)
+                self._lane(job, "ip_note", "completed")
+            summary = {"lanes": [{"lane": e["agent_name"], "status": e["status"], "ms": e["duration_ms"]}
+                                 for e in run.log()],
+                       "duration_ms": run.duration_ms, "max_concurrency": max(run.max_concurrency,
+                                                                              (populated or {}).get("max_concurrency") or 0),
+                       "credit_case_ran": cc["ran"], "run_id": cc["case"].get("run_id"),
+                       "warnings": [cc["case"]["narrative_warning"]] if cc["case"].get("narrative_warning") else [],
+                       "checks": {cid: r["status"] for cid, r in checks.items()}, "populated": populated}
+            with self._app_lock(application_id):
+                app = self._require(application_id)
+                linked_docs = self._link_documents(app, self.now().isoformat(timespec="seconds"))
+                if linked_docs:
+                    summary["documents_linked"] = linked_docs
+                self.store.save(app, self._event(
+                    app, "application_prepared", actor={**actor, "agent": "preparation"}, from_step=step_id,
+                    to_step=step_id, detail=summary,
+                    comment=(("Ran the credit case; " if cc["ran"] else "Used the pinned credit case; ")
+                             + f"{(populated or {}).get('new', 0)} new and {(populated or {}).get('updated', 0)} updated "
+                             f"field(s); workspaces: {((populated or {}).get('workspaces') or {}).get('written', 0)} value(s) written"
+                             + ("; IP Note drafted" if step_id == IP_NOTE_STEP else ""))))
+            job.update(state="done", summary=summary, finished_at=self.now().isoformat(timespec="seconds"))
+        except Exception as e:                                       # recorded on the job; the maker can retry
+            log.exception("Preparation failed for %s", application_id)
+            job.update(state="failed", error=str(e), finished_at=self.now().isoformat(timespec="seconds"))
+
+    def _prepare_sourcing(self, application_id: str, session: dict, actor: dict) -> None:
+        job = self._prep_jobs[application_id]
+        try:
+            app = self._require(application_id)
+            entity_id = app["entity_id"]
+            company = self.companies.get(entity_id) or {}
+            check_ids = self._checks_to_refresh(app)
+            has_docs = self._has_documents(entity_id)
+            llm = self._intake_llm() if has_docs else None
+
+            def lane(node: Node, status: str) -> None:
+                entry = next((x for x in job["lanes"] if x["lane"] == node.name), None)
+                if entry is None:
+                    entry = {"lane": node.name, "description": node.description}
+                    job["lanes"].append(entry)
+                entry["status"] = status
+                job["running"] = [x["lane"] for x in job["lanes"] if x["status"] == "running"]
+
+            nodes = [
+                Node("identity", run=lambda ctx: self.borrower_identity(entity_id, exclude_app=application_id),
+                     description="identity, core-banking and LOS duplicate check"),
+                Node("checks", fan_out=lambda ctx: check_ids, run_item=lambda ctx, cid: dd.run_api_check(cid, company),
+                     description=f"{len(check_ids)} API due-diligence checks"),
+            ]
+            if has_docs:
+                nodes.append(Node("intake", description="document intake agent",
+                                  run=lambda ctx: intake.run_intake(self._entity_dir(entity_id),
+                                                                    master_values(company, app), llm, now=self.now())))
+            generate = ((app.get("cam_source") or {}).get("mode") == "generate"
+                        and not (app.get("credit_assessment") or {}).get("run_id") and self.cases)
+            if generate:
+                nodes.append(Node("credit_case", description="generate the CAM (credit-intelligence pipeline)",
+                                  run=lambda ctx: self._run_case(entity_id, self._require(application_id))[0]))
+            graph = AgentGraph(nodes, name="prospect-prep", on_start=lambda n, s: lane(n, "running"),
+                               on_result=lambda n, s, r: lane(n, r.status))
+            ctx: dict = {}
+            run = graph.run(ctx)
+            identity, checks, prefill = run.data("identity"), run.data("checks") or {}, run.data("intake")
+            with self._app_lock(application_id):
+                app = self._require(application_id)
+                at = self.now().replace(microsecond=0)
+                if identity:
+                    app["customer_identity"] = identity
+                for cid, result in checks.items():
+                    c = self._dd_check(app, cid)
+                    self._dd_finish(app, c, session, at, result, "agent")
+                    if cid == "name_screening":
+                        self._link_party_screening(app, result, session["user"]["name"], at.isoformat(timespec="seconds"))
+                merged = None
+                if prefill:
+                    app.setdefault("sourcing", {})["prefill"] = prefill
+                    merged = self._merge_sourcing(app, prefill, at.isoformat(timespec="seconds"))
+                summary = {"lanes": [{"lane": e["agent_name"], "status": e["status"], "ms": e["duration_ms"]}
+                                     for e in run.log()],
+                           "duration_ms": run.duration_ms, "max_concurrency": run.max_concurrency,
+                           "checks": {cid: r["status"] for cid, r in checks.items()},
+                           "duplicates": len((identity or {}).get("los_duplicates", {}).get("matches") or []),
+                           "prefill": (prefill or {}).get("summary"), "fields": merged}
+                app["updated_at"] = at.isoformat(timespec="seconds")
+                found = (prefill or {}).get("summary", {}).get("found")
+                linked_docs = self._link_documents(app, self.now().isoformat(timespec="seconds"))
+                if linked_docs:
+                    summary["documents_linked"] = linked_docs
+                self.store.save(app, self._event(
+                    app, "application_prepared", actor={**actor, "agent": "preparation"}, from_step=app["step_id"],
+                    to_step=app["step_id"], detail=summary,
+                    comment=(f"Agents prepared the application in {run.duration_ms / 1000:.1f}s: "
+                             f"{len(checks)} checks run" + (f", {found} fields read from documents" if prefill else ""))))
+            if generate:                                  # the generated CAM is pinned and populates the IP fields
+                case = run.data("credit_case")
+                if not case:
+                    err = run.results.get("credit_case")
+                    raise RuntimeError(f"The CAM could not be generated: {getattr(err, 'error', None) or 'no result'}")
+                self._record_assessment(application_id, case, {**actor, "agent": "cam"})
+                summary["cam_generated"] = case.get("run_id")
+                if case.get("narrative_warning"):
+                    summary["warnings"] = [case["narrative_warning"]]
+                summary["populated"] = self.populate_fields(application_id, {**actor, "agent": "cam"}, force=True)
+            job.update(state="done", summary=summary, finished_at=self.now().isoformat(timespec="seconds"))
+        except Exception as e:                                       # recorded on the job; the RM can retry
+            log.exception("Preparation failed for %s", application_id)
+            job.update(state="failed", error=str(e), finished_at=self.now().isoformat(timespec="seconds"))
 
     # ── governed due-diligence workspace (Client One GAP-P0-05/06) ──────────
     def _dd_may(self, app: dict, session: dict, what: str) -> None:
@@ -1215,9 +2408,21 @@ class LosService:
         spec = dd.CHECK_IDS.get(check_id)
         if not spec or spec["mode"] != "api":
             raise InvalidRequestError(f"{spec['name'] if spec else check_id} is recorded manually, not triggered")
-        c = self._dd_check(app, check_id)
-        at = self.now().replace(microsecond=0)
-        result = dd.run_api_check(check_id, self.companies.get(app["entity_id"]) or {})
+        self._dd_check(app, check_id)
+        self._apply_check(application_id, session, check_id,
+                          dd.run_api_check(check_id, self.companies.get(app["entity_id"]) or {}))
+        return self.due_diligence(application_id, session)
+
+    def _apply_check(self, application_id: str, session: dict, check_id: str, result: dict) -> None:
+        """Record one API check result with its audit event (single writer)."""
+        spec = dd.CHECK_IDS[check_id]
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            c = self._dd_check(app, check_id)
+            at = self.now().replace(microsecond=0)
+            self._apply_check_locked(app, c, session, at, spec, check_id, result)
+
+    def _apply_check_locked(self, app, c, session, at, spec, check_id, result) -> None:
         self._dd_finish(app, c, session, at, result, "api")
         if check_id == "name_screening":
             # UAT-P0-3: the application-level screening auto-links the individuals' party evidence.
@@ -1228,7 +2433,6 @@ class LosService:
                                          to_step=app["step_id"],
                                          comment=f"{spec['name']}: {result['status']} (was {c['history'][-1]['previous_status']})",
                                          detail={"check_id": check_id, "source": result["source"], "error": result.get("error")}))
-        return self.due_diligence(application_id, session)
 
     # entity-level prospect fields (UAT-P1-4/5): incorporated flag and latest material information date
     def save_entity_flags(self, application_id: str, session: dict, payload: dict) -> dict:
@@ -1272,17 +2476,37 @@ class LosService:
                                          detail={"check_id": check_id, "source": result["source"], "error": result.get("error")}))
         return self.due_diligence(application_id, session)
 
+    def _checks_to_refresh(self, app: dict) -> list[str]:
+        """The API checks a preparation agent runs: those still needing a result. A clear result (not due
+        for re-screening) or a match / failure released by a valid Compliance VP exception is a settled
+        outcome; re-running it would void the exception (UAT-P0-2), so the agent leaves it alone."""
+        now, out = self.now(), []
+        for c in app["due_diligence"]["checks"]:
+            if c["mode"] != "api":
+                continue
+            rescreen = dd.rescreen_state(c, now) if c["status"] == "clear" else None
+            settled = (c["status"] == "clear" and not (rescreen and rescreen["state"] == "overdue")) or \
+                (c["status"] in ("matched", "failed") and bool(dd.effective_exception(c, now)))
+            if not settled:
+                out.append(c["id"])
+        return out
+
     def run_due_diligence(self, application_id: str, session: dict) -> dict:
         """Run every API check that has no clear result yet (re-screens include matched and failed)."""
         app = self._require(application_id)
         self._dd_may(app, session, "Running the due-diligence checks")
-        ran = 0
-        for c in app["due_diligence"]["checks"]:
-            if c["mode"] == "api" and c["status"] != "clear":
-                self.trigger_check(application_id, session, c["id"])
-                ran += 1
-        if not ran:
+        ids = [c["id"] for c in app["due_diligence"]["checks"] if c["mode"] == "api" and c["status"] != "clear"]
+        if not ids:
             raise ConflictError("Every API check already has a clear result — trigger individual checks to re-run")
+        # The providers are called in parallel (one lane per check); results are applied one by one,
+        # each with its own audit event, exactly as a single trigger would.
+        company = self.companies.get(app["entity_id"]) or {}
+        run = AgentGraph([Node("checks", fan_out=lambda ctx: ids,
+                               run_item=lambda ctx, cid: dd.run_api_check(cid, company))], name="dd-checks").run({})
+        results = run.data("checks") or {}
+        for cid in ids:
+            if cid in results:
+                self._apply_check(application_id, session, cid, results[cid])
         return self.due_diligence(application_id)
 
     def record_check(self, application_id: str, session: dict, check_id: str, result: str, remarks: str = "") -> dict:
@@ -1514,16 +2738,21 @@ class LosService:
         conditions = [dict(c, state=condition_state(c, today)) for c in app.get("conditions") or []]
         case = None
         if app.get("sanctions") and self.cases and self.cases.get(app["entity_id"]):
-            case, _ = self._credit_case(app["entity_id"])
+            case, _ = self._app_case(app)
         stage = app.get("stage_id")
         return {"application_id": application_id,
                 "visible": bool(app.get("sanctions")),
                 "at_post_sanction": stage in ("POS", "DIS") or app["status"] == STATUS_APPROVED,
                 "consent": app.get("consent"),
+                # What the intake agent read from the signed sanction letter, the facility agreement and the
+                # drawdown request: it pre-fills the forms; saving the form verifies it.
+                "suggested": {domain: later_intake.values((app.get("later_intake") or {}).get(domain))
+                              for domain in later_intake.STAGES_BY_DOMAIN},
+                "intake": {domain: (pf or {}).get("intake") for domain, pf in (app.get("later_intake") or {}).items()},
                 "conditions": conditions, "condition_summary": condition_summary(app.get("conditions") or [], today),
                 "covenant_summary": covenant_summary(app.get("conditions") or [], today),
                 "can_update_conditions": self._can(app, session, CONDITION_STEPS),
-                "deviations": build_deviations(app, case, committee_deviations(case)),
+                "deviations": build_deviations(app, case, committee_deviations(case) + manual_deviations(app)),
                 "comparison": build_comparison(app),
                 "disops": do.disops_view(app) | {"maker_gate": do.maker_gate(app)},
                 "securities": app.get("securities") or [],
@@ -1557,7 +2786,7 @@ class LosService:
                 raise InvalidRequestError(f"Unknown condition status: {status}")
             note, evidence = (u.get("note") or "").strip() or None, (u.get("evidence") or "").strip() or None
             if status == "non_compliant" and not note:
-                raise InvalidRequestError(f"{c['id']}: a reason for non-compliance and remarks are required (RUL-09)")
+                raise InvalidRequestError(f"{c['id']}: a reason for non-compliance and remarks are required")
             if status == "satisfied" and not (note or evidence):
                 raise InvalidRequestError(f"{c['id']}: record the evidence or a note to satisfy it")
             if status in ("deferred", "waived") and not note:
@@ -1658,6 +2887,9 @@ class LosService:
                          "value_date": value_date,
                          "purpose": (purpose or "").strip() or None, "status": "requested",
                          "requested": {"by": session["user"]["id"], "by_name": session["user"]["name"], "at": at}})
+        self._mirror_entries(app, "disbursement", {"drawdown_amount_cr": round(amount, 2), "value_date": value_date,
+                                                   "drawdown_purpose": (purpose or "").strip() or None},
+                             session, "recording the tranche")
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "tranche_request", actor=actor, from_step=app["step_id"],
                                          to_step=app["step_id"],
@@ -1732,6 +2964,10 @@ class LosService:
         dreg.register_generated(app.setdefault("documents", []), name="Sanction consent / acceptance",
                                 kind="consent", by_name=session["user"]["name"],
                                 at=at.isoformat(timespec="seconds"), detail=f"acknowledged by {acknowledged_by.strip()}")
+        self._mirror_entries(app, "post_sanction", {"accepted_by": acknowledged_by.strip(), "acceptance_date": consent_date,
+                                                    "agreement_date": next((r["agreement_date"] for r in rows
+                                                                            if r.get("agreement_date")), None)},
+                             session, "recording the sanction consent")
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "consent_recorded", actor=actor, from_step=app["step_id"],
                                          to_step=app["step_id"],
@@ -1740,7 +2976,10 @@ class LosService:
         return self.post_sanction(application_id, session)
 
     # ── governance workspaces (GAP-P0-01/04/07/08/09, P1-01…05, P0-12/15) ────
-    def _workspace_may(self, app: dict, session: Optional[dict], what: str) -> None:
+    def _workspace_may(self, app: dict, session: Optional[dict], what: str, review: bool = False) -> None:
+        """Who may change a workspace now: the current step's role. Maker steps edit the proposal;
+        checker, VP-review, committee and allocation steps are read-only on it (process §3) and may
+        only record their review (``review=True``: approving the CMA, reviewing a document, …)."""
         if app.get("status") in TERMINAL:
             raise ConflictError(f"{what} is not available on a completed application")
         if not app.get("step_id"):
@@ -1748,6 +2987,9 @@ class LosService:
         step = self.wf.step(app["step_id"])
         if not session or not can_act(self.wf, session["user"]["id"], session["role"], step):
             raise ForbiddenError(f"{what} is available to the current step's role ({self.wf.roles[step.role]})")
+        if not review and step.kind != "maker":
+            raise ForbiddenError(f"{what} is read-only at {step.name}: a review step does not change the proposal "
+                                 "(return it for rework instead)")
 
     def _workspace_save(self, app: dict, session: dict, action: str, comment: str) -> dict:
         actor = {"id": session["user"]["id"], "role": session["role"]}
@@ -1768,7 +3010,7 @@ class LosService:
 
     def resolve_invalidation(self, application_id: str, session: dict, invalidation_id: str, resolution: str) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Invalidation review")
+        self._workspace_may(app, session, "Invalidation review", review=True)
         entry = next((i for i in app.get("invalidations", []) if i["invalidation_id"] == invalidation_id), None)
         if not entry:
             raise InvalidRequestError(f"Unknown invalidation: {invalidation_id}")
@@ -1960,7 +3202,8 @@ class LosService:
         self._workspace_may(app, session, "ESMS screening")
         esms = app.setdefault("esms", es.initial_esms(app))
         for key in ("screening_date", "category", "cpcb_category", "coastal_zone_impact", "resettlement",
-                    "environmental_impact", "es_litigation", "information_source", "remarks",
+                    "environmental_impact", "es_litigation", "monuments_impact", "eia_category",
+                    "information_source", "remarks",
                     "proposed_category", "introduction", "proposal_summary", "company_es_risk_assessment",
                     "esdd", "committee_recommendation"):
             if key in payload:
@@ -2035,10 +3278,259 @@ class LosService:
         return self._workspace_save(app, session, action,
                                     f"{entry.get('subject', '')} {label}".strip())
 
+    _DECIDED = ("confirmed", "overridden")
+
+    def _auto_raroc(self, app: dict, case: Optional[dict], at: str) -> list[str]:
+        """R-P2: the RAROC agent computes a facility's RAROC once its inputs are verified — the borrower's
+        internal rating grade and the facility's rate — and again whenever those inputs change (stale).
+        The verified rate is recorded on the facility when the facility has none yet. Caller saves."""
+        fields = app.get("fields") or {}
+        if (fields.get("internal_rating.borrower.grade") or {}).get("status") not in self._DECIDED:
+            return []
+        ratings = app.setdefault("ratings", rat.initial_ratings(app, self.companies))
+        stale, done = set(rat.stale_raroc(app)), []
+        for f in app.get("facilities") or []:
+            fid = f["facility_id"]
+            rate = fields.get(f"facility_pricing.{fid}.proposed_rate") or {}
+            if rate.get("status") not in self._DECIDED or rate.get("value") in (None, ""):
+                continue
+            pricing = f.setdefault("pricing", {})
+            if pricing.get("interest_rate") is None:
+                spread = (fields.get(f"facility_pricing.{fid}.proposed_spread_bps") or {}).get("value")
+                try:
+                    pricing.update(benchmark="MCLR", interest_rate=float(rate["value"]),
+                                   spread=round(float(spread) / 100, 4) if spread not in (None, "") else None)
+                except (TypeError, ValueError):
+                    continue
+            if fid in (ratings.get("raroc") or {}) and fid not in stale:
+                continue
+            entry = rat.compute_raroc(app, fid, case, at, "RAROC agent (inputs verified)")
+            ratings.setdefault("raroc", {})[fid] = {**entry, "origin": "agent"}
+            done.append(fid)
+        return done
+
+
+    # The decision tab (G-W5): the computed committee, deviations (auto + manual) and the remarks history
+    # (ACTION_WORDS lists the decisions that appear in the remarks history.)
+    DEVIATION_STEPS = ("ip_note", "ap_note", "ip_risk_maker", "ap_risk_maker")
+
+    def decision_view(self, application_id: str, session: Optional[dict] = None) -> dict:
+        app = self._require(application_id)
+        case, _ = self._app_case(app)
+        auto, manual = committee_deviations(case), manual_deviations(app)
+        final = app.get("stage_id") not in ("PS", "IP")
+        ca = app.get("credit_assessment") or {}
+        committee = authority.required_authority(app.get("amount_cr"), ca.get("risk_grade"),
+                                                 deviations=len(auto) + len(manual), final=final)
+        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        labels = {e: ACTION_WORDS.get(e, e.replace("_", " ").title()) for e in ACTION_WORDS}
+        history = []
+        for e in reversed(self.store.events(application_id, limit=2000)):           # oldest first
+            if not (e.get("comment") or "").strip() or e["action"] not in ACTION_WORDS:
+                continue                      # decisions and Compliance exceptions, not workspace edits
+            try:
+                fs = self.wf.step(e["from_step"]) if e.get("from_step") else None
+            except wfmod.WorkflowError:       # a step since removed from the configuration
+                fs = None
+            word = (wfmod.action_label(fs, e["action"]) if fs else None) or labels.get(e["action"]) \
+                or e["action"].replace("_", " ").capitalize()
+            history.append({"at": e["at"], "step": fs.name if fs else "—", "stage": fs.stage_name if fs else "—",
+                            "by": self._user_name(e.get("actor_id")) or e.get("actor_role") or "agent",
+                            "role": self.wf.roles.get(e.get("actor_role") or "", e.get("actor_role") or ""),
+                            "decision": word, "remarks": e["comment"]})
+        fields = app.get("fields") or {}
+        notes = [{"key": k, "label": label, "text": (app.get("decision_notes") or {}).get(k),
+                  "status": (fields.get(f"decision_notes.{k}") or {}).get("status"),
+                  "field_id": f"decision_notes.{k}" if f"decision_notes.{k}" in fields else None}
+                 for k, label in prefill.DECISION_NOTES.items()
+                 if k != "ip_observations" or final]
+        return {"notes": notes, "committee": committee, "stage": "final" if final else "in-principle",
+                "auto_deviations": [{"deviation": d[0], "value": d[1], "basis": d[2]} for d in auto],
+                "manual_deviations": app.get("manual_deviations") or [],
+                "deviation_types": list(DEVIATION_TYPES),
+                "can_add_deviation": bool(step and step.id in self.DEVIATION_STEPS and session
+                                          and app.get("status") not in TERMINAL
+                                          and can_act(self.wf, session["user"]["id"], session["role"], step)),
+                "decision_records": app.get("decisions") or [], "remarks_history": history}
+
+    def save_deviation(self, application_id: str, session: dict, raw: dict) -> dict:
+        """Add a manual deviation (type, description, justification) or remove one (with a reason)."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "Deviations")
+        step = self.wf.step(app["step_id"])
+        if step.id not in self.DEVIATION_STEPS:
+            raise ForbiddenError("Deviations are added at the IP / AP Note and the Risk Maker steps")
+        devs = app.setdefault("manual_deviations", [])
+        at, name = self.now().isoformat(timespec="seconds"), session["user"]["name"]
+        if raw.get("action") == "remove":
+            d = next((x for x in devs if x["id"] == raw.get("id")), None)
+            reason = str(raw.get("reason") or "").strip()
+            if not d:
+                raise InvalidRequestError(f"Unknown deviation {raw.get('id')}")
+            if not reason:
+                raise InvalidRequestError("Give a reason for removing the deviation")
+            d.update(removed=True, removed_reason=reason, removed_by=name, removed_at=at)
+            return self._workspace_save(app, session, "deviation_removed", f"{d['id']}: {reason}")
+        dev_type = str(raw.get("type") or "").strip()
+        description = str(raw.get("description") or "").strip()
+        justification = str(raw.get("justification") or "").strip()
+        if dev_type not in DEVIATION_TYPES:
+            raise InvalidRequestError(f"Deviation type must be one of {', '.join(DEVIATION_TYPES)}")
+        if not description or not justification:
+            raise InvalidRequestError("A deviation needs its description and its justification")
+        d = {"id": f"MDV-{len(devs) + 1:02d}", "type": dev_type, "description": description[:500],
+             "justification": justification[:1000], "raised_by": name, "raised_at": at, "raised_at_step": step.name,
+             "stage": step.stage_id, "removed": False}
+        devs.append(d)
+        return self._workspace_save(app, session, "deviation_added", f"{d['id']} {dev_type}: {description[:200]}")
+
+    UNIT_VISIT_STEPS = ("ap_note", "ap_risk_maker")
+    SOURCING_DETAIL_STEPS = ("ps_maker", "ip_note")
+
+    def save_unit_visit(self, application_id: str, session: dict, raw: dict) -> dict:
+        """Unit Visit Details (G-F1 / F-4): add a visit, or remove one with a reason. At the AP makers."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "Unit visits")
+        if app["step_id"] not in self.UNIT_VISIT_STEPS:
+            raise ForbiddenError("Unit visits are recorded at Application Note Processing or the Risk Maker step")
+        visits = app.setdefault("unit_visits", [])
+        if raw.get("action") == "remove":
+            v = next((x for x in visits if x["visit_id"] == raw.get("visit_id")), None)
+            if not v:
+                raise InvalidRequestError(f"Unknown unit visit {raw.get('visit_id')}")
+            visits.remove(v)
+            return self._workspace_save(app, session, "unit_visit_removed", v["visit_id"])
+        visit = prop_mod.normalise_unit_visit({"entity_name": app.get("borrower_name"), **raw}, len(visits) + 1)
+        visit.update(recorded_by=session["user"]["name"], recorded_at=self.now().isoformat(timespec="seconds"))
+        visits.append(visit)
+        return self._workspace_save(app, session, "unit_visit_added",
+                                    f"{visit['visit_id']} {visit['date_of_visit']}: {visit['observation']}")
+
+    def save_sourcing_details(self, application_id: str, session: dict, raw: dict) -> dict:
+        """Sourcing details (F-5): received date, source, branch, owners, Sol ID, sub-sub-sector, LPFG analysts."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "Sourcing details")
+        if app["step_id"] not in self.SOURCING_DETAIL_STEPS:
+            raise ForbiddenError("Sourcing details are kept at Prospect Sourcing and IP Note Processing")
+        app["sourcing_details"] = prop_mod.normalise_sourcing_details(raw, app.get("sourcing_details") or {})
+        return self._workspace_save(app, session, "sourcing_details", "Sourcing details updated")
+
+    def save_security_notes(self, application_id: str, session: dict, raw: dict) -> dict:
+        """The AP security remarks (F-9), recorded against the agent's drafts."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "Security remarks")
+        notes = app.setdefault("security_notes", {})
+        for key in prefill.SECURITY_NOTES:
+            if key in raw:
+                notes[key] = (str(raw[key] or "").strip() or None)
+        self._mirror_paths(app, ["security_notes"], session, "in the security remarks")
+        return self._workspace_save(app, session, "security_notes", "Security remarks updated")
+
+    def save_decision_note(self, application_id: str, session: dict, key: str, text: str) -> dict:
+        """A decision-tab narrative (F-2): the agent's draft confirmed or rewritten by the maker."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "The decision notes")
+        if app["step_id"] not in self.DEVIATION_STEPS:
+            raise ForbiddenError("The decision notes are written at the IP / AP Note and the Risk Maker steps")
+        if key not in prefill.DECISION_NOTES:
+            raise InvalidRequestError(f"Unknown decision note {key}")
+        app.setdefault("decision_notes", {})[key] = (str(text or "").strip() or None)
+        self._mirror_paths(app, ["decision_notes", key], session, "on the decision tab")
+        return self._workspace_save(app, session, "decision_note", f"{prefill.DECISION_NOTES[key]}")
+
+    def _decision_defaults(self, app: dict, step) -> dict:
+        """G-W6: the decision record carried forward — the latest value of each of this step's decision fields
+        recorded earlier in the same stage, for the person to confirm or change."""
+        out = {}
+        stage = step.stage_id
+        for rec in reversed(app.get("decisions") or []):
+            try:
+                if self.wf.step(rec["step"]).stage_id != stage:
+                    continue
+            except Exception:
+                continue
+            for f in step.decision_fields:
+                if f["id"] not in out and rec.get(f["id"]):
+                    out[f["id"]] = rec[f["id"]]
+        return out
+
+    # Terms & conditions authored at AP (G-F2), drafted by the T&C agent (R-P2)
+    def terms(self, application_id: str, session: Optional[dict] = None) -> dict:
+        app = self._require(application_id)
+        t = app.get("terms") or terms_mod.initial_terms()
+        fields = app.get("fields") or {}
+        rows = []
+        for r in t.get("conditions") or []:
+            fid = f"{terms_mod.DOMAIN}.{r['agent_key']}.text" if r.get("agent_key") else None
+            rec = (fields.get(fid) or {}) if fid else {}
+            rows.append({**r, "category_label": terms_mod.CATEGORIES.get(r["category"], r["category"]),
+                         "field_id": fid if rec else None, "field_status": rec.get("status"),
+                         "proposed_text": (rec.get("proposal") or {}).get("value"),
+                         "evidence": (rec.get("proposal") or {}).get("evidence")})
+        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        editable = bool(step and step.id in terms_mod.AUTHOR_STEPS and t.get("status") != "sanctioned"
+                        and app.get("status") not in TERMINAL and session
+                        and can_act(self.wf, session["user"]["id"], session["role"], step))
+        return {"rows": rows, "summary": terms_mod.summary(t, fields), "status": t.get("status", "draft"),
+                "locked_at": t.get("locked_at"), "locked_by": t.get("locked_by"), "editable": editable,
+                "categories": terms_mod.CATEGORIES, "frequencies": list(terms_mod.FREQUENCIES),
+                "gate": terms_mod.submit_gate(t, fields) if t.get("conditions") else None,
+                "author_step": "Application Note Processing (AP maker)"}
+
+    def save_term(self, application_id: str, session: dict, raw: dict) -> dict:
+        """add | update | remove | restore a term & condition. Editing the text of an agent's draft is an
+        override of its field (a reason is required); a person's own row is edited directly."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "The terms & conditions")
+        step = self.wf.step(app["step_id"])
+        if step.id not in terms_mod.AUTHOR_STEPS:
+            raise ForbiddenError("The terms & conditions are authored at Application Note Processing (AP maker)")
+        t = app.setdefault("terms", terms_mod.initial_terms())
+        if t.get("status") == "sanctioned":
+            raise ConflictError("The terms & conditions are locked at final sanction")
+        rows, action = t.setdefault("conditions", []), str(raw.get("action") or "add")
+        facilities = {f["facility_id"] for f in app.get("facilities") or []}
+        at, name = self.now().isoformat(timespec="seconds"), session["user"]["name"]
+        if action == "add":
+            row = terms_mod.normalise_row(raw, facilities)
+            row.update(term_id=terms_mod.next_id(rows), origin="person", provenance="person",
+                       source=f"Added by {name}", history=[{"at": at, "by": name, "change": "added"}])
+            rows.append(row)
+            return self._workspace_save(app, session, "term_added", f"{row['term_id']} {row['category']}: {row['text'][:200]}")
+        row = next((r for r in rows if r.get("term_id") == raw.get("term_id")), None)
+        if not row:
+            raise InvalidRequestError(f"Unknown term {raw.get('term_id')}")
+        if action in ("remove", "restore"):
+            reason = str(raw.get("reason") or "").strip()
+            if action == "remove" and not reason:
+                raise InvalidRequestError("Give a reason for removing the condition")
+            row.update(removed=action == "remove", removed_reason=reason or None)
+            row.setdefault("history", []).append({"at": at, "by": name, "change": action, "reason": reason or None})
+            return self._workspace_save(app, session, f"term_{action}d", f"{row['term_id']}: {reason or 'restored'}")
+        if action != "update":
+            raise InvalidRequestError("Action must be add, update, remove or restore")
+        new_text = str(raw.get("text") or "").strip() or row.get("text")
+        text_changed = new_text != row.get("text")
+        if text_changed and row.get("origin") == "agent" and not str(raw.get("reason") or "").strip():
+            raise InvalidRequestError("Give a reason for changing the agent's drafted text")
+        updated = terms_mod.normalise_row({**raw, "text": row.get("text")}, facilities, row)
+        row.update({k: updated[k] for k in ("category", "facility_id", "frequency", "stipulated_value", "party")})
+        row.setdefault("history", []).append({"at": at, "by": name, "change": "updated" + (" text" if text_changed else "")})
+        if text_changed and row.get("origin") == "agent":
+            self.store.save(app, self._event(app, "term_updated", actor={"id": session["user"]["id"], "role": session["role"]},
+                                             from_step=step.id, to_step=step.id, comment=row["term_id"]))
+            self._apply_field_actions(application_id, session, [{
+                "field_id": f"{terms_mod.DOMAIN}.{row['agent_key']}.text", "action": "override", "value": new_text,
+                "reason": str(raw.get("reason")).strip()}], event="fields_verified")
+            return self.get(application_id, session)
+        if text_changed:
+            row["text"] = new_text
+        return self._workspace_save(app, session, "term_updated", f"{row['term_id']}: {row['text'][:200]}")
+
     def compute_raroc(self, application_id: str, session: dict, facility_id: Optional[str] = None) -> dict:
         app = self._require(application_id)
         self._workspace_may(app, session, "RAROC")
-        case, _ = self._credit_case(app["entity_id"])
+        case, _ = self._app_case(app)
         ratings = app.setdefault("ratings", rat.initial_ratings(app, self.companies))
         target_ids = [facility_id] if facility_id else [f["facility_id"] for f in app.get("facilities", [])]
         computed = []
@@ -2050,7 +3542,7 @@ class LosService:
 
     def save_crp_note(self, application_id: str, session: dict, raw: dict, review: bool = False) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "CRP notes")
+        self._workspace_may(app, session, "CRP notes", review=True)
         ratings = app.setdefault("ratings", rat.initial_ratings(app, self.companies))
         notes = ratings.setdefault("crp_notes", [])
         if review:
@@ -2102,7 +3594,7 @@ class LosService:
 
     def review_cma(self, application_id: str, session: dict, approve: bool, remarks: str = "") -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "CMA review")
+        self._workspace_may(app, session, "CMA review", review=True)
         cma = app.setdefault("cma", cma_mod.initial_cma())
         if not cma.get("subjects"):
             raise InvalidRequestError("There is no CMA entry to review")
@@ -2118,8 +3610,11 @@ class LosService:
         self._workspace_may(app, session, "The proposal workspace")
         proposal = app.setdefault("proposal", prop_mod.initial_proposal(app, (self.companies.get(app["entity_id"]) or {})))
         if section == "summary" or section == "background":
+            if app["step_id"] not in ("ip_note", "ap_note", "ap_risk_maker"):
+                raise ForbiddenError("The proposal narratives are written at the IP / AP Note and the Risk Maker steps")
             for k, v in dict(payload or {}).items():
                 proposal[section][k] = (str(v).strip() or None) if isinstance(v, str) else v
+            self._mirror_paths(app, ["proposal", section], session, "in the proposal")
         elif section == "exposure":
             proposal["exposure"].update(prop_mod.normalise_exposure(payload))
         elif section == "banking":
@@ -2224,6 +3719,10 @@ class LosService:
             disops["security_refs"] = do.normalise_security_refs(payload.get("rows") or [])
         elif section == "beneficiaries":
             disops["beneficiaries"] = do.normalise_beneficiaries(payload.get("rows") or [])
+            first = disops["beneficiaries"][0]
+            self._mirror_entries(app, "disbursement", {"beneficiary_name": first.get("name"),
+                                                       "account_number": first.get("account_no"),
+                                                       "ifsc": first.get("ifsc")}, session, "recording the beneficiary")
         elif section == "fees":
             disops["fees"] = do.normalise_fees(payload.get("rows") or [])
         elif section == "non_fund_charges":
@@ -2258,6 +3757,8 @@ class LosService:
                                   "non_fund_cr": _num_or_none(payload.get("non_fund_cr"))}
         else:
             raise InvalidRequestError(f"Unknown disbursement section: {section}")
+        if section in carry_forward.SECTIONS:      # the maker's values recorded against the carry-forward agent's
+            self._mirror_carry(app, section, session)
         return self._workspace_save(app, session, "disops_update", f"disbursement record: {section}")
 
     def generate_memo(self, application_id: str, session: dict) -> dict:
@@ -2276,7 +3777,7 @@ class LosService:
 
     def review_memo(self, application_id: str, session: dict, approve: bool, remarks: str = "") -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "The Disbursement Memo review")
+        self._workspace_may(app, session, "The Disbursement Memo review", review=True)
         memo = (app.get("disops") or {}).get("memo")
         if not memo:
             raise InvalidRequestError("Generate the Disbursement Memo before reviewing it")
@@ -2328,7 +3829,7 @@ class LosService:
     # documents (GAP-P0-12)
     def review_document(self, application_id: str, session: dict, doc_id: str, status: str, remarks: str = "") -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Document review")
+        self._workspace_may(app, session, "Document review", review=True)
         doc = dreg.review_document(app.setdefault("documents", dreg.initial_registry()), doc_id, status,
                                    session["user"]["name"], self.now().isoformat(timespec="seconds"), remarks)
         return self._workspace_save(app, session, "document_reviewed", f"{doc['name']} → {status}")
@@ -2340,7 +3841,7 @@ class LosService:
     # material change review (GAP-P0-11 / P2-02)
     def review_material_changes(self, application_id: str, session: dict, decision: str, remarks: str) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "The material-change review")
+        self._workspace_may(app, session, "The material-change review", review=True)
         if not (remarks or "").strip():
             raise InvalidRequestError("Remarks are required for the material-change decision")
         review = snap.review_material_changes(app, decision, session["user"]["name"],
@@ -2374,7 +3875,7 @@ class LosService:
     # generated outputs (GAP-P1-06)
     def generate_output(self, application_id: str, session: dict, kind: str) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Generated outputs")
+        self._workspace_may(app, session, "Generated outputs", review=True)
         at = self.now().replace(microsecond=0).isoformat(timespec="seconds")
         if kind == "executive_summary":
             name, html = "Executive Summary", self._output_executive_summary(app)
@@ -2637,8 +4138,8 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
                                  f"{' / '.join(self.wf.roles.get(r, r) for r in LETTER_ROLES[kind])} role")
         case = None
         if self.cases and self.cases.get(app["entity_id"]):
-            case, _ = self._credit_case(app["entity_id"])
-        deviations = build_deviations(app, case, committee_deviations(case))
+            case, _ = self._app_case(app)
+        deviations = build_deviations(app, case, committee_deviations(case) + manual_deviations(app))
         from src.los.ip_note import _thresholds
         versions = app.setdefault("letters", {}).setdefault(kind, [])
         doc = lt.build_letter(kind, app, self.companies.get(app["entity_id"]), case, deviations, _thresholds(),
@@ -2671,8 +4172,10 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         by_app: dict[str, list[dict]] = {}
         for e in events:
             by_app.setdefault(e["application_id"], []).append(e)
-        return build_mis(apps, by_app, self.wf, self.now(),
-                         [e for e in events if e["action"] in ("copilot_action", "copilot_ask")])
+        mis = build_mis(apps, by_app, self.wf, self.now(),
+                        [e for e in events if e["action"] in ("copilot_action", "copilot_ask")])
+        mis["agents"] = agent_metrics(apps, events, self.field_registry)     # Populate → Verify headline numbers
+        return mis
 
     # ── copilot ──────────────────────────────────────────────────────────────
     def _is_holder(self, app: dict, session: Optional[dict]) -> bool:
@@ -2885,7 +4388,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
     # ── review & committee pack ──────────────────────────────────────────────
     def committee_pack(self, application_id: str, session: Optional[dict] = None) -> dict:
         app = self._require(application_id)
-        case, final = self._credit_case(app["entity_id"])
+        case, final = self._app_case(app)
         review_summary = self.assessment(application_id, session)["review_summary"] if case else {}
         events = self.get(application_id)["events"]
         pack = build_committee_pack(case, final, app, events, review_summary,
@@ -3010,8 +4513,11 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             app["entity"] = {"entity_incorporated": True, "entity_incorporated_by": "Demo seed",
                              "latest_material_information_date": at.date().isoformat(),
                              "latest_material_information_by": "Demo seed"}
-            app["ip_assignments"] = {"lpf_analyst": "Vivek Iyer", "lpf_senior_analyst": "Sunil Chopra",
-                                     "crac_recommendation": "Proceed to detailed appraisal with the recorded controls."}
+            # Same keys and CRAC vocabulary as save_ip_assignments, so the seeded record displays.
+            app["ip_assignments"] = {"lpfg_analyst": "Vivek Iyer", "lpfg_senior_analyst": "Sunil Chopra",
+                                     "crac_recommendation": "Recommend sanction with conditions",
+                                     "crac_remarks": "Proceed to detailed appraisal with the recorded controls.",
+                                     "crac_by": "Demo seed"}
             for f in app.get("facilities", []):
                 f.setdefault("change_history", []).append(
                     {"at": stamp, "by": "Demo seed", "change": "Facility terms and operational references recorded"})
@@ -3250,7 +4756,11 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         registry = app.setdefault("documents", dreg.initial_registry())
         v = at.isoformat(timespec="seconds")
         for d in registry:
-            if d.get("mandatory_stage") != stage or d["versions"]:
+            if d.get("mandatory_stage") != stage:
+                continue
+            if d["versions"]:                     # linked by the document agent: the review is the seeded part
+                if d["status"] not in dreg.MANDATORY_STATUSES:
+                    d.update(status="reviewed", reviewer="Legacy system (demo seed)", reviewed_at=v)
                 continue
             if stage == "AP" and d["name"].startswith("Valuation") and not app.get("securities"):
                 continue
@@ -3399,7 +4909,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             if step.id == "pos_maker":               # seeded history: conditions satisfied, consent recorded
                 app = self.store.get(application_id)
                 for c in app.get("conditions") or []:
-                    if c["type"] in ("CP", "CPS"):
+                    if c["type"] in ("PC", "CP", "CPS"):
                         c.update(status="satisfied", note="Satisfied (seeded demo history)", updated_by="Demo seed",
                                  updated_at=at.isoformat(timespec="seconds"))
                 app["consent"] = {"acknowledged_by": "Customer authorisation (demo seed)", "consent_date": at.date().isoformat(),
@@ -3422,13 +4932,31 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             if step.id == "ap_risk_maker":           # seeded history: CMA recorded, pricing benchmark set
                 self._seed_ap_workspace(application_id, at)
                 self._seed_stage_docs(application_id, "AP", at)
+            if step.id == ES_MAKER_STEP:             # seeded history: the ESMS screen and categorisation
+                app = self.store.get(application_id)
+                esms = app.setdefault("esms", es.initial_esms(app))
+                esms.update(screening_date=at.date().isoformat(), category=esms.get("category") or
+                            esms.get("proposed_category") or "B", information_source="Seeded demo history",
+                            checklist=[{"id": i, "label": label, "answer": "No", "remarks": "Screened (seeded demo history)",
+                                        "source": "Demo seed"} for i, label in es.ES_CHECKLIST], status="complete")
+                if esms["category"] == "A" and not esms.get("esdd"):
+                    esms["esdd"] = "ESDD required (seeded demo history)"
+                self.store.save(app)
+            if step.id == ES_PREP_STEP:              # seeded history: the ESMS Approval Note was generated
+                app = self.store.get(application_id)
+                dreg.register_generated(app.setdefault("documents", []), name="ESMS Approval Note",
+                                        kind="esms_approval_note", by_name="Demo seed", at=at.isoformat(timespec="seconds"))
+                self.store.save(app)
             if step.id in RISK_MAKER_STEPS:          # seeded history: the assessment is recorded as done
                 app = self.store.get(application_id)
                 app["credit_assessment"] = self._seed_assessment_summary(app)
                 self.store.save(app)
-            self.act(application_id, session, action, at=at, allocate_to=allocate_to,
+            required = {f["id"]: at.date().isoformat() if wfmod.DECISION_FIELD_TYPES[f["id"]] == "date"
+                        else "None (seeded demo history)" for f in step.decision_fields if f.get("required")}
+            self.act(application_id, session, action, at=at, allocate_to=allocate_to, decision_data=required,
                      comment="Sanctioned by the committee (seeded demo history)." if action == "sanction"
-                     else ("Post-sanction documentation verified (seeded demo history)." if step.id == "pos_checker" else ""))
+                     else ("Post-sanction documentation verified (seeded demo history)." if step.id == "pos_checker"
+                           else f"{step.name}: {action} (seeded demo history)."))
 
     def _seed_assessment_summary(self, app: dict) -> dict:
         """For applications seeded past the Risk Maker: the borrower's stored credit case, if any."""
@@ -3446,7 +4974,8 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         app["credit_assessment"] = self._seed_assessment_summary(app)
         self.store.save(app)
         maker = self._system_session(self.wf.step(app["step_id"]).role, app.get("assignee_id"))
-        self.act(application_id, maker, "submit", at=entered + (self.now() - entered) / 3)
+        self.act(application_id, maker, "submit", at=entered + (self.now() - entered) / 3,
+                 comment="Assessment complete; submitted for review (seeded demo history).")
         app = self.store.get(application_id)
         reviewer = self._system_session(self.wf.step(app["step_id"]).role, app.get("assignee_id"))
         self.act(application_id, reviewer, "return", at=entered + (self.now() - entered) * 2 / 3,

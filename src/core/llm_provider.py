@@ -2,9 +2,19 @@
 LLM Provider Abstraction Layer
 Supports Mock, OpenAI, Anthropic, Azure OpenAI, and Ollama.
 Switch providers via config/llm_providers.yaml — no code changes.
+
+Every provider offers:
+  generate(prompt, system_prompt, temperature, max_tokens, images)   free text
+  generate_structured(prompt, schema, ...)                           a JSON object validated
+                                                                     against a JSON schema
+Images (``[{"mime": "image/png", "data": bytes}]``) are sent to providers whose
+config sets ``vision: true``. ``max_parallel_llm`` caps the calls one provider
+has in flight across the whole process, however many agents run in parallel.
 """
 
+import base64
 import copy
+import functools
 import json
 import logging
 import os
@@ -26,10 +36,51 @@ def strip_reasoning(text: str) -> str:
     return _REASONING_BLOCK.sub("", text or "").strip()
 
 
+class LLMUnavailableError(RuntimeError):
+    """No model output is available (e.g. the mock provider); callers fall back to deterministic logic."""
+
+
+class StructuredOutputError(ValueError):
+    """The model did not return a JSON object matching the schema, even after a retry."""
+
+
+def _b64_images(images) -> list[tuple[str, str]]:
+    """``[(mime, base64)]`` from ``[{"mime", "data": bytes|base64 str}]``."""
+    out = []
+    for img in images or []:
+        data = img.get("data")
+        b64 = data if isinstance(data, str) else base64.b64encode(data or b"").decode("ascii")
+        out.append((img.get("mime") or "image/png", b64))
+    return out
+
+
 class BaseLLMProvider(ABC):
     name: str = "base"
     # Attribute holding the model name (Azure uses its deployment, Gemini model_name).
     _model_attr: str = "model"
+    # Shared by copies (with_model) so a routed model still counts against the provider's cap.
+    _llm_semaphore: "threading.Semaphore | None" = None
+    supports_vision: bool = False
+    supports_structured: bool = True
+
+    def __init_subclass__(cls, **kwargs):
+        # Every provider's generate() waits for a slot under the provider's max_parallel_llm,
+        # so parallel agents (fan-outs of documents, sections, checks) cannot flood an endpoint.
+        super().__init_subclass__(**kwargs)
+        gen = cls.__dict__.get("generate")
+        if gen is None or getattr(gen, "_llm_limited", False):
+            return
+
+        @functools.wraps(gen)
+        def limited(self, *args, **kwargs):
+            sem = self._llm_semaphore
+            if sem is None:
+                return gen(self, *args, **kwargs)
+            with sem:
+                return gen(self, *args, **kwargs)
+
+        limited._llm_limited = True
+        cls.generate = limited
 
     def with_model(self, model: str) -> "BaseLLMProvider":
         """This provider, same settings and client, but calling ``model`` — used to route
@@ -38,10 +89,44 @@ class BaseLLMProvider(ABC):
         setattr(clone, self._model_attr, model)
         return clone
 
+    @property
+    def model_id(self) -> str:
+        return str(getattr(self, self._model_attr, "") or "")
+
     @abstractmethod
     def generate(self, prompt: str, system_prompt: str = "",
-                 temperature: float = 0.1, max_tokens: int = 4000) -> str:
+                 temperature: float = 0.1, max_tokens: int = 4000, images: list | None = None) -> str:
         pass
+
+    def generate_structured(self, prompt: str, schema: dict, system_prompt: str = "",
+                            images: list | None = None, max_tokens: int | None = None,
+                            retries: int = 1) -> dict:
+        """A JSON object conforming to ``schema``. Provider-agnostic: the schema is given in
+        the instructions, the reply is parsed and validated, and an invalid reply is sent
+        back once with the errors so the model can correct it."""
+        from src.agentic.schema import parse_json_object, validate
+
+        if images and not self.supports_vision:
+            raise LLMUnavailableError(f"{self.name} ({self.model_id}) is not configured for images (vision: true)")
+        instructions = ((system_prompt.strip() + "\n\n") if system_prompt else "") + (
+            "Reply with exactly one JSON object that conforms to this JSON schema — no prose, no markdown.\n"
+            f"JSON schema:\n{json.dumps(schema, ensure_ascii=False)}")
+        ask, problems = prompt, []
+        for attempt in range(retries + 1):
+            text = self.generate(ask, system_prompt=instructions, temperature=0.0,
+                                 max_tokens=max_tokens, images=images)
+            try:
+                data = parse_json_object(text)
+                problems = validate(data, schema)
+            except ValueError as e:
+                data, problems = None, [str(e)]
+            if not problems:
+                return data
+            log.info("%s structured output invalid (attempt %d): %s", self.name, attempt + 1, problems[:3])
+            ask = (f"{prompt}\n\nYour previous reply was invalid: {'; '.join(problems[:6])}.\n"
+                   "Reply again with only the corrected JSON object.")
+        raise StructuredOutputError(f"{self.name}: no valid JSON object after {retries + 1} attempt(s): "
+                                    + "; ".join(problems[:6]))
 
     @abstractmethod
     def test_connection(self) -> dict:
@@ -115,13 +200,26 @@ def _warn_if_truncated(provider: str, truncated: bool, limit) -> None:
 
 class MockLLMProvider(BaseLLMProvider):
     name = "mock"
+    supports_structured = False
 
     def generate(self, prompt: str, system_prompt: str = "",
-                 temperature: float = 0.1, max_tokens: int = 4000) -> str:
+                 temperature: float = 0.1, max_tokens: int = 4000, images: list | None = None) -> str:
         return "[Mock Mode — using deterministic template rendering]"
+
+    def generate_structured(self, prompt: str, schema: dict, system_prompt: str = "",
+                            images: list | None = None, max_tokens: int | None = None, retries: int = 1) -> dict:
+        raise LLMUnavailableError("mock provider: no model output — use the deterministic fallback")
 
     def test_connection(self) -> dict:
         return {"status": "ok", "provider": "mock", "message": "Mock provider always available"}
+
+
+def _openai_content(prompt: str, images):
+    """OpenAI chat content: plain text, or text plus data-URI image parts."""
+    if not images:
+        return prompt
+    return [{"type": "text", "text": prompt}] + [
+        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}} for mime, b64 in _b64_images(images)]
 
 
 class OpenAIProvider(BaseLLMProvider):
@@ -153,11 +251,11 @@ class OpenAIProvider(BaseLLMProvider):
         return openai.OpenAI(**kwargs)
 
     def generate(self, prompt: str, system_prompt: str = "",
-                 temperature: float = None, max_tokens: int = None) -> str:
+                 temperature: float = None, max_tokens: int = None, images: list | None = None) -> str:
         msgs = []
         if system_prompt:
             msgs.append({"role": "system", "content": system_prompt})
-        msgs.append({"role": "user", "content": prompt})
+        msgs.append({"role": "user", "content": _openai_content(prompt, images)})
         limit = max_tokens or self._max
         extra = {"reasoning_effort": self._reasoning_effort} if self._reasoning_effort else {}
         if self._chat_template_kwargs:
@@ -196,14 +294,17 @@ class AnthropicProvider(BaseLLMProvider):
         return anthropic.Anthropic(api_key=self.api_key, max_retries=self._max_retries)
 
     def generate(self, prompt: str, system_prompt: str = "",
-                 temperature: float = None, max_tokens: int = None) -> str:
+                 temperature: float = None, max_tokens: int = None, images: list | None = None) -> str:
         limit = max_tokens or self._max
+        content = prompt if not images else [
+            {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}}
+            for mime, b64 in _b64_images(images)] + [{"type": "text", "text": prompt}]
         r = self._client.get().messages.create(
             model=self.model,
             max_tokens=limit,
             system=system_prompt or "You are a helpful assistant.",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature or self._temp,
+            messages=[{"role": "user", "content": content}],
+            temperature=self._temp if temperature is None else temperature,
         )
         _warn_if_truncated(self.name, r.stop_reason == "max_tokens", limit)
         return "".join(block.text for block in r.content if getattr(block, "type", "") == "text")
@@ -236,11 +337,11 @@ class AzureOpenAIProvider(BaseLLMProvider):
         )
 
     def generate(self, prompt: str, system_prompt: str = "",
-                 temperature: float = None, max_tokens: int = None) -> str:
+                 temperature: float = None, max_tokens: int = None, images: list | None = None) -> str:
         msgs = []
         if system_prompt:
             msgs.append({"role": "system", "content": system_prompt})
-        msgs.append({"role": "user", "content": prompt})
+        msgs.append({"role": "user", "content": _openai_content(prompt, images)})
         limit = max_tokens or self._max
         r = self._client.get().chat.completions.create(
             model=self.deployment, messages=msgs,
@@ -281,19 +382,22 @@ class VertexAIGeminiProvider(BaseLLMProvider):
         return self._cached_client.get()
 
     def generate(self, prompt: str, system_prompt: str = "",
-                 temperature: float = None, max_tokens: int = None) -> str:
+                 temperature: float = None, max_tokens: int = None, images: list | None = None) -> str:
         from google.genai import types
         limit = max_tokens or self._max
         config = types.GenerateContentConfig(
             system_instruction=system_prompt or None,
-            temperature=temperature or self._temp,
+            temperature=self._temp if temperature is None else temperature,
             max_output_tokens=limit,
         )
+        contents = prompt if not images else [
+            types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
+            for mime, b64 in _b64_images(images)] + [prompt]
         # The google-genai SDK does not retry on its own; rate limits are likely
         # when several CAM sections are generated in parallel.
         response = _call_with_retries(
             lambda: self._client().models.generate_content(
-                model=self.model_name, contents=prompt, config=config,
+                model=self.model_name, contents=contents, config=config,
             ),
             provider=self.name, max_retries=self._max_retries,
         )
@@ -400,7 +504,7 @@ class OllamaProvider(BaseLLMProvider):
         return window
 
     def generate(self, prompt: str, system_prompt: str = "",
-                 temperature: float = None, max_tokens: int = None) -> str:
+                 temperature: float = None, max_tokens: int = None, images: list | None = None) -> str:
         import httpx
         full = self._full_prompt(system_prompt, prompt)
         num_predict = self._max if max_tokens is None else max_tokens
@@ -420,6 +524,8 @@ class OllamaProvider(BaseLLMProvider):
             payload["think"] = bool(self._think)
         if self._keep_alive is not None:
             payload["keep_alive"] = self._keep_alive
+        if images:
+            payload["images"] = [b64 for _, b64 in _b64_images(images)]
 
         parts: list[str] = []
         final: dict = {}
@@ -484,6 +590,24 @@ _PROVIDERS = {
 }
 
 
+_semaphores: dict[tuple, threading.Semaphore] = {}
+_semaphores_lock = threading.Lock()
+
+
+def _provider_semaphore(provider_config: dict) -> "threading.Semaphore | None":
+    """One semaphore per configured endpoint and limit, shared by every provider instance
+    built from that config (the factory is called per request in places)."""
+    limit = provider_config.get("max_parallel_llm")
+    if not limit:
+        return None
+    key = (provider_config.get("type"), provider_config.get("base_url"), provider_config.get("model"),
+           provider_config.get("deployment"), int(limit))
+    with _semaphores_lock:
+        if key not in _semaphores:
+            _semaphores[key] = threading.BoundedSemaphore(int(limit))
+        return _semaphores[key]
+
+
 def create_llm_provider(provider_config: dict) -> BaseLLMProvider:
     ptype = provider_config.get("type")
     if not ptype:
@@ -494,6 +618,9 @@ def create_llm_provider(provider_config: dict) -> BaseLLMProvider:
     provider = factory(provider_config)
     # Optional per-provider cap on concurrent CAM section calls (None = use the narrative default).
     provider.max_parallel_sections = provider_config.get("max_parallel_sections")
+    # Process-wide cap on this provider's calls in flight, across every parallel agent.
+    provider._llm_semaphore = _provider_semaphore(provider_config)
+    provider.supports_vision = bool(provider_config.get("vision", False))
     # Optional per-section model routing ({enabled, routes: {model: [section ids]}}); see
     # model_routing in config/llm_providers.yaml and cam_llm_renderer.render_cam_with_llm.
     provider.model_routing = provider_config.get("model_routing")

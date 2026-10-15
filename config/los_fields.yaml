@@ -1,0 +1,143 @@
+# LOS field registry — every field the system populates and people verify.
+#
+# Populate → Verify → Lock: resolvers propose a value for each field with its source,
+# evidence and confidence; the verify queue shows a step holder only what needs a
+# human look; a confirmed or overridden value is never overwritten by a later run
+# (a different new proposal becomes a *conflict* to resolve instead).
+#
+# A field not listed under `fields` takes its domain's defaults, so a resolver can
+# introduce fields without a registry change; list a field to tighten its policy.
+
+version: 1
+
+verify:
+  # Proposals at or above this confidence, with no critic issues and verify: bulk,
+  # arrive pre-ticked for bulk confirmation. Nothing is accepted without a person.
+  pretick_confidence: 0.85
+  history_limit: 20
+
+# Default confidence of a resolver value by its provenance class
+# (src/engines/data_provenance.py). Extraction resolvers report their own.
+provenance_confidence:
+  source: 0.95
+  external: 0.9
+  calculated: 0.95
+  derived: 0.9
+  template: 0.7
+  ai: 0.6
+  synthetic_demo: 0.4        # demo stand-ins for bank models: never pre-ticked
+  unavailable: 0.0
+
+# Domains: where each group of fields is verified (workflow step ids).
+domains:
+  sourcing:   {label: Prospect sourcing,      verify_at: [ps_maker]}
+  post_sanction: {label: Sanction acceptance & execution, verify_at: [pos_maker]}
+  disbursement:  {label: Drawdown request & beneficiary,  verify_at: [dis_maker]}
+  customer:   {label: Customer info,          verify_at: [ip_risk_maker, ap_risk_maker]}
+  financials: {label: Financial statements,   verify_at: [ip_risk_maker, ap_risk_maker]}
+  rating:     {label: Risk rating,            verify_at: [ip_risk_maker, ap_risk_maker]}
+  project:    {label: Project info,           verify_at: [ip_risk_maker, ap_risk_maker]}
+  security:   {label: Security & collateral,  verify_at: [ip_risk_maker, ap_risk_maker]}
+  terms:      {label: Terms & covenants,      verify_at: [ip_risk_maker, ap_risk_maker]}
+  pricing:    {label: Pricing & RAROC,        verify_at: [ip_risk_maker, ap_risk_maker]}
+  esms:       {label: ESMS / ESDD,            verify_at: [ip_risk_maker, ap_risk_maker]}
+  decision:   {label: Decision signoff,       verify_at: [ip_risk_maker, ap_risk_maker]}
+  # Governed workspaces populated by the reconciliation agents (src/los/reconcile.py)
+  parties:          {label: Related parties,     verify_at: [ip_note, ap_note]}
+  securities:       {label: Securities,          verify_at: [ip_note, ap_note]}
+  exposure:         {label: Exposure,            verify_at: [ip_note, ap_note]}
+  narrative:        {label: Proposal narrative,  verify_at: [ip_note, ap_note]}
+  cma:              {label: CMA / financials,    verify_at: [ip_risk_maker, ap_risk_maker]}
+  internal_rating:  {label: Internal rating,     verify_at: [ip_risk_maker, ap_risk_maker]}
+  facility_pricing: {label: Facility pricing,    verify_at: [ip_risk_maker, ap_risk_maker]}
+  conduct:          {label: Account conduct,     verify_at: [ip_risk_maker, ap_risk_maker]}
+  # What the bank's own CAM states (src/los/cam_intake.py), checked against the record
+  cam:              {label: CAM (uploaded),      verify_at: [ip_note, ap_note]}
+  # IP and AP pre-fill agents (src/los/prefill.py) and the T&C agent (src/los/terms.py)
+  external_rating:  {label: External rating,     verify_at: [ip_note, ap_note]}
+  shareholding:     {label: Shareholding,        verify_at: [ip_note, ap_note]}
+  banking:          {label: Banking arrangement, verify_at: [ip_note, ap_note]}
+  projects:         {label: Project,             verify_at: [ip_note, ap_note]}
+  esms_screening:   {label: ESMS screening,      verify_at: [ip_note, ap_note, ap_es_maker]}
+  fees:             {label: Fees,                verify_at: [ip_note, ap_note]}
+  inter_firm:       {label: Inter-firm comparison, verify_at: [ap_note]}
+  cma_projection:   {label: CMA projections,     verify_at: [ap_risk_maker]}
+  tnc:              {label: Terms & conditions,  verify_at: [ap_note]}
+  # The carry-forward agent (src/los/carry_forward.py): the disbursement record from the sanctioned record
+  dis_carry:        {label: Carried forward to disbursement, verify_at: [dis_maker]}
+  decision_notes:   {label: Decision notes,      verify_at: [ip_note, ap_note]}
+  security_notes:   {label: Security remarks,    verify_at: [ap_note]}
+
+# Resolvers: the agents / engines that propose values. They run in parallel in the
+# population graph (src/los/fields/population.py); later sprints add document intake,
+# external sources and the reconciliation agents per domain.
+resolvers:
+  document_intake:
+    description: The intake agent reading the borrower's documents (src/los/intake.py, later_intake.py)
+    domains: [sourcing, post_sanction, disbursement]
+  cam_document:
+    description: The CAM intake agent reading the bank's own CAM (src/los/cam_intake.py); listed first, so a
+      CAM's text wins over the engine drafts
+    domains: [narrative, cam]
+  reconciliation:
+    description: One agent per workspace domain, reconciling the credit case, the record and the documents
+    domains: [cma, parties, securities, exposure, internal_rating, facility_pricing, conduct, narrative]
+  prefill:
+    description: The IP / AP pre-fill agents (src/los/prefill.py) — remaining narratives, external rating,
+      shareholding, banking, project, ESMS screening, fees, inter-firm comparison, CMA projections — and the
+      T&C agent (src/los/terms.py) drafting the terms & conditions from the reassessment (M6)
+    domains: [narrative, external_rating, shareholding, banking, projects, esms_screening, fees, inter_firm,
+              cma_projection, tnc, decision_notes, security_notes]
+  carry_forward:
+    description: The carry-forward agent (src/los/carry_forward.py) — interest terms, repayment (Annexure I), fee
+      collection and security (Annexure IV) proposed from the sanctioned record at the Disbursement Maker
+    domains: [dis_carry]
+  risk_maker:
+    description: The credit case (fact pack and M1–M7) laid out as the Risk Maker fields
+    domains: [customer, financials, rating, project, security, terms, pricing, esms, decision]
+
+# Per-field policy. verify: bulk (may be bulk-confirmed) | must_verify (a person
+# confirms it individually; never pre-ticked, never in a bulk confirm).
+fields:
+  sourcing.proposal.amount_cr:                                     {verify: must_verify}
+  # Drafted text is read before it is accepted
+  narrative.background.borrower_and_business:                      {verify: must_verify}
+  narrative.background.industry_outlook:                           {verify: must_verify}
+  narrative.background.strengths:                                  {verify: must_verify}
+  narrative.background.key_risks:                                  {verify: must_verify}
+  narrative.background.weaknesses:                                 {verify: must_verify}
+  narrative.background.marketing_arrangements:                     {verify: must_verify}
+  narrative.background.corporate_governance:                       {verify: must_verify}
+  narrative.background.other_material_information:                 {verify: must_verify}
+  narrative.background.market_enquiries:                           {verify: must_verify}
+  narrative.background.asset_quality_status:                       {verify: must_verify}
+  narrative.background.committee_directions:                       {verify: must_verify}
+  narrative.background.past_proposals:                             {verify: must_verify}
+  narrative.background.committee_reason:                           {verify: must_verify}
+  narrative.background.justification:                              {verify: must_verify}
+  decision_notes.policy_compliance:                                {verify: must_verify}
+  decision_notes.previous_relaxations:                             {verify: must_verify}
+  decision_notes.ip_observations:                                  {verify: must_verify}
+  cam.rating.internal_rating:                                      {verify: must_verify}
+  external_rating.borrower.rating:                                 {verify: must_verify}
+  banking.arrangement.type:                                        {verify: must_verify}
+  esms_screening.proposed_category:                                {verify: must_verify}
+  esms_screening.es_basel_waste:                                   {verify: must_verify}
+  esms_screening.es_illegal:                                       {verify: must_verify}
+  esms_screening.es_wmd:                                           {verify: must_verify}
+  esms_screening.es_hazardous:                                     {verify: must_verify}
+  projects.primary.commercial_viability:                           {verify: must_verify}
+  cam.decision.recommendation:                                     {verify: must_verify}
+  cam.decision.deviations:                                         {verify: must_verify}
+  internal_rating.borrower.grade:                                  {verify: must_verify}
+  sourcing.borrower.legal_name:                                    {verify: must_verify}
+  rating.scoring_model_credit_intelligence_engine.risk_grade:      {verify: must_verify}
+  rating.scoring_model_credit_intelligence_engine.system_recommendation: {verify: must_verify}
+  rating.internal_rating_mlra_demo_mapping.internal_risk_rating:   {verify: must_verify}
+  decision.recommended_decision.decision:                          {verify: must_verify}
+  decision.recommended_decision.recommended:                       {verify: must_verify}
+  decision.recommended_decision.structure:                         {verify: must_verify}
+  decision.approval_note.any_deviations_from_policy:               {verify: must_verify}
+  terms.deviations.deviation_applicable:                           {verify: must_verify}
+  customer.kyc_verification.kyc_status:                            {verify: must_verify}
+  customer.kyc_verification.watchlist_wilful_defaulter_check:      {verify: must_verify}

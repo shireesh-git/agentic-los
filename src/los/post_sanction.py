@@ -176,7 +176,7 @@ def covenant_summary(conditions: list[dict], today: str) -> dict:
 
 
 def condition_summary(conditions: list[dict], today: str) -> dict:
-    cps = [c for c in conditions if c["type"] == "CP"]
+    cps = [c for c in conditions if c["type"] in ("PC", "CP")]     # pre-commitment and pre-disbursement
     cps_sub = [c for c in conditions if c["type"] == "CPS"]
     css = [c for c in conditions if c["type"] in ("PD", "CS", "FC", "NC")]
     states = lambda rows: [condition_state(c, today) for c in rows]
@@ -205,7 +205,9 @@ def build_deviations(app: dict, case: Optional[dict], committee_deviations: list
                      "detail": detail, "authority": auth, "status": st, "source": source})
 
     for d in committee_deviations:
-        add("Policy", d[0], f"{d[1]} — {d[2]}".strip(" —"), authority, status, "Credit case (M2–M6)")
+        manual = "(manual)" in d[0]
+        add("Manual" if manual else "Policy", d[0], f"{d[1]} — {d[2]}".strip(" —"), authority, status,
+            "Raised at the IP / AP maker step" if manual else "Credit case (M2–M6)")
     for stage, s in sanctions.items():
         label = {"IP": "In-principle sanction", "AP": "Final sanction"}.get(stage, stage)
         auth = f"{s['by_name']}, {s['at'][:10]}"

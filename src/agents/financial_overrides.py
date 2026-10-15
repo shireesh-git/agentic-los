@@ -78,6 +78,68 @@ def _statement_from_upload(
         line_items=line_items,
     )
 
+def _apply_facility(company_data: dict, wanted: dict) -> list:
+    """The facility the application requests (amount, tenor, type, purpose) replaces the one on the
+    borrower record, so the credit case assesses what this application asks for."""
+    fac = company_data.get("facility")
+    if fac is None or not wanted:
+        return []
+    from src.models.canonical_model import FacilityType
+
+    applied = []
+    amount = wanted.get("amount_cr")
+    if amount not in (None, ""):
+        fac.amount_requested_cr = round(float(amount), 4)
+        if getattr(fac, "proposed_limit_cr", None) is not None:
+            fac.proposed_limit_cr = fac.amount_requested_cr
+        applied.append("amount_requested_cr")
+    if wanted.get("tenor_months") not in (None, ""):
+        fac.tenor_months = int(float(wanted["tenor_months"]))
+        applied.append("tenor_months")
+    if wanted.get("purpose"):
+        fac.purpose = str(wanted["purpose"])
+        applied.append("purpose")
+    try:
+        fac.facility_type = FacilityType(wanted.get("facility_type"))
+        applied.append("facility_type")
+    except ValueError:
+        pass                                # an LOS facility type the engine does not know: keep the record's
+    return applied
+
+
+def apply_verified_overrides(company_data: dict, overrides: dict) -> dict:
+    """Values a person verified (overrode) in the LOS, applied to the borrower record before a run:
+
+        {"financials": {period: {line_item: value}}, "collateral": {description: market_value_cr},
+         "facility": {amount_cr, tenor_months, facility_type, purpose}}   # the application's request
+
+    A verified value replaces the extracted / recorded one for that run, and later engine steps
+    recompute everything that depends on it. Returns what was applied."""
+    applied = {"financials": [], "collateral": []}
+    financials = dict(company_data.get("financials") or {})
+    for period, items in (overrides.get("financials") or {}).items():
+        fs = financials.get(period)
+        if fs is None:
+            continue
+        line_items = dict(fs.line_items or {})
+        for key, value in items.items():
+            line_items[key] = round(float(value), 4)
+            applied["financials"].append(f"{period}.{key}")
+        financials[period] = FinancialStatement(entity_id=fs.entity_id, period=fs.period,
+                                                statement_type=fs.statement_type, source=fs.source,
+                                                as_of_date=fs.as_of_date, line_items=line_items)
+    company_data["financials"] = financials
+    wanted = overrides.get("collateral") or {}
+    for c in company_data.get("collateral") or []:
+        desc = getattr(c, "description", None)
+        if desc in wanted:
+            c.market_value_cr = round(float(wanted[desc]), 4)
+            applied["collateral"].append(desc)
+    applied["facility"] = _apply_facility(company_data, overrides.get("facility") or {})
+    company_data["verified_overrides"] = applied
+    return applied
+
+
 def apply_uploaded_financial_overrides(company_data: dict, extraction: dict, emit=None) -> None:
     if not extraction:
         return
@@ -106,10 +168,20 @@ def apply_uploaded_financial_overrides(company_data: dict, extraction: dict, emi
         "finance_cost": _first_numeric(audited_data.get("finance_cost")),
     }
     audited_values = {key: value for key, value in audited_values.items() if value > 0}
+    # A value a person verified in the LOS wins over the extracted one (apply_verified_overrides).
+    verified = set((company_data.get("verified_overrides") or {}).get("financials") or [])
+    if verified:
+        audited_values = {k: v for k, v in audited_values.items() if f"{latest_period}.{k}" not in verified}
     # A document for an earlier year must not overwrite the latest period (e.g. annual_report_fy2024.pdf
     # selected while the latest statement is FY2025). Files without a year in the name keep the old behaviour.
     import re
     doc_year = re.search(r"fy\s*_?(\d{4})", str(selected_docs.get("audited_financials") or ""), flags=re.I)
+    if audited_values and doc_year and not financials:
+        # A new prospect has no statements yet: the uploaded audited statement is the first one, for
+        # the year it states (not a year guessed from today's date).
+        year = int(doc_year.group(1))
+        latest_period, latest_as_of = f"FY{year}", date(year, 3, 31)
+        override_summary["latest_period"] = latest_period
     if audited_values and doc_year and f"FY{doc_year.group(1)}" != latest_period:
         override_summary["audited_override_skipped"] = (
             f"{selected_docs.get('audited_financials')} is for FY{doc_year.group(1)}, latest period is {latest_period}")

@@ -39,6 +39,17 @@ def committee_deviations(case: Optional[dict]) -> list[list]:
                if fr.get("deviation_route_required") else []))
 
 
+DEVIATION_TYPES = ("policy", "pricing", "security", "tenor", "exposure", "documentation", "other")
+
+
+def manual_deviations(app: dict) -> list[list]:
+    """Deviations people added at the IP / AP maker steps (G-W5), in the committee format
+    [[deviation, value, basis], ...]; removed ones are left out."""
+    return [[f"{str(d['type']).capitalize()} (manual): {d['description']}", f"Raised by {d['raised_by']} at {d['raised_at_step']}",
+             f"Justification: {d['justification']}"]
+            for d in app.get("manual_deviations") or [] if not d.get("removed")]
+
+
 def build_committee_pack(case: Optional[dict], final_cam: Optional[dict], app: dict, events: list[dict],
                          review_summary: Optional[dict] = None, step_names: Optional[dict] = None) -> dict:
     if not case or not (final_cam or {}).get("available"):
@@ -58,7 +69,7 @@ def build_committee_pack(case: Optional[dict], final_cam: Optional[dict], app: d
                   "tab": fid.split(".", 1)[0]}
                  for fid, r in (app.get("field_reviews") or {}).items() if r.get("status") == "overridden"]
 
-    deviations = committee_deviations(case)
+    deviations = committee_deviations(case) + manual_deviations(app)
 
     comments = [{"at": e["at"], "actor": e.get("actor_name"), "role": e.get("actor_role_name"), "action": e["action"],
                  "step": step_names.get(e.get("from_step"), e.get("from_step")), "comment": e["comment"]}

@@ -3113,13 +3113,10 @@ def render_complete_cam(fact_pack: dict) -> str:
         render_section_7_risk_assessment(fact_pack),
     ]
     # Insert core banking section for ETB companies if data present
-    cb = fact_pack.get("core_banking")
-    if cb and cb.get("loan_accounts"):
-        sections.append(render_section_8a_core_banking(fact_pack))
-    # Insert social media section if data present
-    sm = fact_pack.get("social_media_analysis")
-    if sm:
-        sections.append(render_section_8b_social_media(fact_pack))
+    # 8A and 8B are always present, so every borrower's CAM has the same sections (an existing
+    # borrower's and a new prospect's alike); a section without data says so.
+    sections.append(render_section_8a_core_banking(fact_pack))
+    sections.append(render_section_8b_social_media(fact_pack))
     sections += [
         render_section_8_compliance(fact_pack),
         render_section_9_covenants(fact_pack),
@@ -3143,7 +3140,9 @@ def render_complete_cam(fact_pack: dict) -> str:
 def render_section_8a_core_banking(fp: dict) -> str:
     cb = fp.get("core_banking")
     if not cb or not cb.get("loan_accounts"):
-        return ""
+        return (_h("8A. CORE BANKING POSITION (ETB ONLY)")
+                + "No loan accounts with the bank on the core-banking record (new-to-bank, or not "
+                  "connected): the account position and conduct are " + NOT_AVAILABLE.lower() + ".\n\n---\n\n")
     out = _h("8A. CORE BANKING POSITION (ETB ONLY)")
 
     # 8A.1 Loan Account Position
@@ -3224,7 +3223,9 @@ def render_section_8b_social_media(fp: dict) -> str:
     """Render Social Media & Digital Intelligence section."""
     sm = fp.get("social_media_analysis")
     if not sm:
-        return ""
+        return (_h("8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE")
+                + "No social-media or digital-intelligence data was collected for this borrower: "
+                + NOT_AVAILABLE.lower() + ". Reputation risk is assessed from the other sources in this CAM.\n\n---\n\n")
 
     out = _h("8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE")
 

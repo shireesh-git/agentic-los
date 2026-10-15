@@ -56,6 +56,8 @@ def blank_facility(index: int) -> dict:
         "total_limit_id": None, "fund_limit_id": None, "non_fund_limit_id": None, "limit_suffix": None,
         "loan_account": None, "next_review_date": None,
         "linked_project_ids": [], "linked_security_ids": [], "linked_condition_ids": [],
+        # the bank's IP facility fields (F-6); "secured" is derived from the securities record
+        "parent_facility": None, "first_disbursement_date": None, "takeover": None,
         "change_history": [],
     }
 
@@ -144,6 +146,9 @@ def normalise_facility(raw: dict, index: int, defaults: Optional[dict] = None) -
         "non_fund_limit_id": merged.get("non_fund_limit_id") or None, "limit_suffix": merged.get("limit_suffix") or None,
         "loan_account": merged.get("loan_account") or None,
         "next_review_date": _date(merged.get("next_review_date"), "next review date", index),
+        "parent_facility": _flag(merged.get("parent_facility")),
+        "first_disbursement_date": _date(merged.get("first_disbursement_date"), "expected first disbursement date", index),
+        "takeover": _flag(merged.get("takeover")),
     })
     # preserve any server-managed lifecycle/history values on edits
     for key in ("sanctioned_cr", "committed_cr", "executed_cr", "disbursed_cr", "outstanding_cr", "balance_cr",
@@ -152,6 +157,14 @@ def normalise_facility(raw: dict, index: int, defaults: Optional[dict] = None) -
         if key in merged:
             rec[key] = merged[key]
     return rec
+
+
+def _flag(value) -> Optional[bool]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("yes", "true", "1", "y")
 
 
 def normalise_facilities(rows: list[dict], defaults: Optional[dict] = None) -> list[dict]:

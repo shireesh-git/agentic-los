@@ -151,7 +151,12 @@ function camCaseDetail() {
         this.loadWorkspaceExtras(eid);
         await this.setWorkspaceTab(tab);
       } catch {
-        this.notify('Run the pipeline for this company first', 'error');
+        // No CAM has been run for this borrower yet (e.g. opened from an LOS application at Prospect
+        // Sourcing): say so on the page and offer to run it, instead of leaving the previous page up.
+        const company = (this.companies || []).find(c => c.entity_id === eid);
+        this.noCase = { entity_id: eid, name: company?.company_name || company?.name || eid };
+        window.scrollTo({ top: 0 });
+        this.page = 'nocase';
       } finally { this.loading = false; }
     },
 

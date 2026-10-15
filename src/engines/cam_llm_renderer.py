@@ -1,6 +1,6 @@
 """
 LLM-Powered CAM Renderer — Section-by-Section Generation
-Pass 2 per IDEA.MD: LLM converts approved factual JSON into credit narrative.
+Pass 2: LLM converts approved factual JSON into credit narrative.
 Each section is generated independently (several at once when the provider
 allows it) and checkpointed as soon as it is written; a failed run resumes
 from the completed sections. An LLM failure stops the run (no silent template
@@ -203,7 +203,10 @@ def render_cam_template_only(fact_pack: dict, on_section_progress: Callable = No
             continue
 
         if not _should_render_section(section, fact_pack):
-            section_results[sid] = "skipped"
+            # no data: the section still appears (the same CAM format for every borrower), saying so —
+            # rendered from the template, never sent to the LLM
+            rendered_sections.append(_get_template_fallback(sid, fact_pack).strip())
+            section_results[sid] = "not_available"
             continue
 
         idx += 1
@@ -307,7 +310,8 @@ def render_cam_with_llm(
                 slots.append(fn(fact_pack))
             continue
         if not _should_render_section(section, fact_pack):
-            section_results[sid] = "skipped"
+            slots.append(_get_template_fallback(sid, fact_pack))       # "not available", not sent to the LLM
+            section_results[sid] = "not_available"
             continue
         prompt, data_json = _section_prompt(section, fact_pack)
         max_tokens = int((section_max_tokens or {}).get(sid)

@@ -33,6 +33,12 @@ STORAGE_ROOT = DOCUMENTS_ROOT
 
 # Document categories and their expected files
 DOCUMENT_CATEGORIES = {
+    "cam": {
+        "description": "Credit Appraisal Memorandum (bank's own CAM)",
+        "source_hint": "The bank's CAM for the proposal, uploaded to start an LOS application from it.",
+        "public_record_note": "This category is not supplied by verified public records.",
+        "expected_files": [],
+    },
     "kyc": {
         "description": "KYC & Identity Documents",
         "source_hint": "Borrower identity pack and statutory approvals uploaded by RM or borrower.",
@@ -415,7 +421,8 @@ class DocumentStore:
         """List all companies with document folders."""
         if not self.root.exists():
             return []
-        return [d.name for d in self.root.iterdir() if d.is_dir()]
+        # "_"-prefixed folders are internal (e.g. _staging for prospects not yet registered)
+        return [d.name for d in self.root.iterdir() if d.is_dir() and not d.name.startswith("_")]
 
     # ── Internal ─────────────────────────────────────────────────
 

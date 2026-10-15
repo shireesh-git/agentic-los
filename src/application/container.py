@@ -115,7 +115,8 @@ def build_container(pipeline_factory=default_pipeline_factory) -> ServiceContain
     los_service = LosService(LosStore(RUNTIME_DB_PATH), load_workflow, state.companies,
                              cases=case_service, final_cam=final_cam_service,
                              documents_root=DOCUMENTS_ROOT, doc_store=doc_store,
-                             llm_factory=final_cam_service.llm_factory)
+                             llm_factory=final_cam_service.llm_factory,
+                             company_registrar=company_service.register_prospect)
     los_service.seed_demo()          # first start only: seeds the demo pipeline when no applications exist
 
     return ServiceContainer(

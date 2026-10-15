@@ -90,7 +90,9 @@ class DMSService:
         existing_files = list(entity_dir.rglob("*"))
         existing_files = [f for f in existing_files if f.is_file() and f.name != "metadata.json"]
 
-        if len(existing_files) >= 5:
+        # Documents on file are the borrower's (uploaded through the LOS, or a previous fetch): never mixed
+        # with simulated DMS documents — a new prospect with four real documents keeps exactly those.
+        if existing_files:
             emit(f"DMS cache hit — {len(existing_files)} documents already in storage")
             result["cache_hit"] = True
             result["files_fetched"] = [

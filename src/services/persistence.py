@@ -95,9 +95,15 @@ def deserialize_company_payload(payload: dict[str, Any]) -> dict[str, Any]:
         borrower_type=_enum_value(BorrowerType, borrower_payload.get("borrower_type"), BorrowerType.LISTED),
         sector=_enum_value(Sector, borrower_payload.get("sector"), Sector.MANUFACTURING),
         subsector=str(borrower_payload.get("subsector") or "General"),
-        date_of_incorporation=_parse_date(borrower_payload.get("date_of_incorporation"), date(2000, 1, 1)) or date(2000, 1, 1),
-        registered_state=str(borrower_payload.get("registered_state") or "Unknown"),
-        registered_address=str(borrower_payload.get("registered_address") or "Unknown"),
+        # A prospect sourced in the LOS may have no known incorporation date or address yet:
+        # keep them empty rather than inventing one (seeded and onboarded records always carry them).
+        date_of_incorporation=(_parse_date(borrower_payload.get("date_of_incorporation"))
+                               if payload.get("source") == "los_prospect"
+                               else _parse_date(borrower_payload.get("date_of_incorporation"), date(2000, 1, 1)) or date(2000, 1, 1)),
+        registered_state=(borrower_payload.get("registered_state") or None) if payload.get("source") == "los_prospect"
+        else str(borrower_payload.get("registered_state") or "Unknown"),
+        registered_address=(borrower_payload.get("registered_address") or None) if payload.get("source") == "los_prospect"
+        else str(borrower_payload.get("registered_address") or "Unknown"),
         authorized_capital=float(borrower_payload.get("authorized_capital") or 0.0),
         paid_up_capital=float(borrower_payload.get("paid_up_capital") or 0.0),
         listed_exchange=borrower_payload.get("listed_exchange"),

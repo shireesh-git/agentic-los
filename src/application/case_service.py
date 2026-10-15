@@ -51,6 +51,7 @@ def build_case_result(entity_id: str, company_data: dict, context: dict, pipelin
         "rationale": rec.rationale if rec else "",
         "cam_text": narrative.get("cam_text", ""),
         "narrative_mode": narrative.get("narrative_mode", "template"),
+        "narrative_warning": narrative.get("narrative_warning"),
         "data_provider": company_data.get("data_provider", "internal"),
         "fact_pack": narrative.get("fact_pack", {}),
         "pipeline_log": pipeline_log,
@@ -265,9 +266,11 @@ class CaseService:
     # ── Pipeline execution ───────────────────────────────────────────────
 
     def run(self, entity_id: str, on_progress: ProgressCallback | None = None,
-            enrich: bool = True) -> tuple[dict, list]:
+            enrich: bool = True, overrides: dict | None = None) -> tuple[dict, list]:
         """Run the full analysis pipeline and persist the resulting case.
 
+        ``overrides``: values a person verified in the LOS (e.g. a corrected revenue), applied to a
+        copy of the borrower record for this run only — the shared record is not changed.
         Returns ``(case_record, pipeline_log)``. Raises if a critical agent fails.
         """
         if not self.companies.exists(entity_id):
@@ -282,6 +285,11 @@ class CaseService:
                                             llm_model=provider.get("model") or provider.get("deployment"))
         try:
             company = self.companies.ensure_enriched(entity_id) if enrich else self.companies.get(entity_id)
+            if overrides:
+                import copy
+                from src.agents.financial_overrides import apply_verified_overrides
+                company = copy.deepcopy(company)
+                apply_verified_overrides(company, overrides)
             pipeline = self._pipeline_factory()
             context = pipeline.execute_pipeline(company, on_progress=on_progress,
                                                 stores=self.state.pipeline_stores())

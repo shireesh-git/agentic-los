@@ -30,7 +30,9 @@ def test_all_42_walkthrough_changes_have_seeded_or_live_demo_evidence(tmp_path):
         ("04 deduplication", bool(svc.borrower_identity("ABCE001").get("los_duplicates"))),
         ("05 sourcing decision and Customer ID", bool(ihcl["sourcing_decision"].get("customer_id_selection"))),
         ("06 prospect and facility capture", bool(ihcl["prospect_discussion"].get("detailed_discussion"))),
-        ("07 IP Note assignments", len(abce.get("ip_assignments", {})) == 3),
+        # seeded under the keys the IP Note screen reads, with a CRAC value from the governed vocabulary
+        ("07 IP Note assignments", bool((abce.get("ip_assignments") or {}).get("lpfg_analyst"))
+         and (abce.get("ip_assignments") or {}).get("crac_recommendation") in LosService.CRAC_VOCABULARY),
         ("08 facility lifecycle and history", all(f.get("change_history") for f in abce["facilities"])),
         ("09 all fifteen checks", len(abce["due_diligence"]["checks"]) == 15),
         ("10 persistent DD comments", bool(dd_by_id["kyc"].get("comments"))),
@@ -47,7 +49,8 @@ def test_all_42_walkthrough_changes_have_seeded_or_live_demo_evidence(tmp_path):
         ("21 security lifecycle", bool(mrf["securities"]) and bool(mrf["securities"][0].get("history"))),
         ("22 pricing fees and schedule", bool(mrf["pricing"]["fees"]) and bool(mrf["pricing"]["tentative_schedules"])),
         ("23 external work parties", len(mrf["ewps"]) == 5),
-        ("24 twenty-five-step workflow", len(svc.wf.steps) == 25 and len(svc.wf.roles) == 18),
+        ("24 the bank's workflow (31 steps incl. Post Rating VP, ES stages and DMD; S7)",
+         len(svc.wf.steps) == 31 and len(svc.wf.roles) == 23),
         ("25 alternate decisions and rework", mfl["status"] == "RETURNED" and
          any(e["action"] == "return" for e in svc.store.events(mfl["application_id"]))),
         ("26 authority and sanction evidence", apol["step_id"] == "ip_sanction"),

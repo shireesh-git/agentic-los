@@ -10,6 +10,21 @@
 #   allocation  assigns the work to a person in the next role (allocate)
 #   committee   decides (sanction | return | reject)
 # sla_days: calendar days allowed in the step before it is flagged as an SLA breach.
+# actions: the step's outcomes (default: the kind's); labels: the process wording for a button;
+# decision_fields: recorded with the decision (required ones on submit / approve / sanction);
+#   ap_record is the standard AP decision record (date of last material information, key matters for
+#   the committee, proposal for confirmation / ratification, purpose of seeking approval, significant changes).
+# returns_to: where a return goes by default (else the previous maker step in the stage).
+# enabled: false switches a step off without deleting it.
+#
+# Step order is the process order. The bank's manuals differ on the end of AP: the AP manual has
+# ES process -> DMD Approval -> Committee Sanction; the POS manual has ES stages -> Committee Sanction.
+# The default below follows the AP manual; set ap_dmd to enabled: false for the POS-manual order
+# (pending the bank's confirmation: docs/planning/REFERENCE_JOURNEY_GAP_ASSESSMENT.md section 2.2).
+
+# Every decision records the acting user, step, time, outcome and remarks (process §3).
+# 'all': remarks on every action except allocation; 'negative': only returns, drops, …
+remarks_required: all
 
 groups:
   - id: sourcing
@@ -19,11 +34,12 @@ groups:
   - id: credit
     name: Credit & Risk
     description: Credit appraisal, risk assessment, internal rating and allocation decisions.
-    roles: [crp_evp, crp_vp, risk_analyst, risk_reviewer, post_risk_maker, compliance_vp]
+    roles: [crp_evp, crp_vp, risk_analyst, risk_reviewer, post_risk_maker, compliance_vp,
+            es_maker, es_preparer, es_reviewer, es_recommender]
   - id: committee
     name: Executive & Committee
     description: EVP-level recommendations and final sanction authority for large exposures.
-    roles: [evp_recommender, recommendations_committee, sanction_committee]
+    roles: [evp_recommender, recommendations_committee, dmd, sanction_committee]
   - id: operations
     name: Operations & Fulfilment
     description: Post-sanction documentation, verification and disbursement processing.
@@ -42,6 +58,11 @@ roles:
   risk_reviewer: Risk Reviewer
   post_risk_maker: Post Risk Rating Maker
   compliance_vp: Compliance VP
+  es_maker: CRP ES Maker
+  es_preparer: ES Preparation (ESMS Analyst)
+  es_reviewer: ES Reviewer
+  es_recommender: ES Recommender
+  dmd: Deputy Managing Director (DMD)
   evp_recommender: EVP Recommender
   recommendations_committee: Recommendations Committee
   sanction_committee: Sanction Committee
@@ -65,6 +86,11 @@ users:
   - {id: u_evp, name: Sunil Chopra, email: sunil.chopra@demo.bank, branch: HO, roles: [evp_recommender]}
   - {id: u_rc, name: Recommendations Committee Secretariat, email: recom@demo.bank, branch: HO, roles: [recommendations_committee]}
   - {id: u_cc, name: Credit Committee Secretariat, email: committee@demo.bank, branch: HO, roles: [sanction_committee]}
+  - {id: u_esm, name: Divya Sharma, email: divya.sharma@demo.bank, branch: HO, roles: [es_maker]}
+  - {id: u_esp, name: Nikhil Joshi, email: nikhil.joshi@demo.bank, branch: HO, roles: [es_preparer]}
+  - {id: u_esr, name: Shalini Gupta, email: shalini.gupta@demo.bank, branch: HO, roles: [es_reviewer]}
+  - {id: u_esrec, name: Anil Kapoor, email: anil.kapoor@demo.bank, branch: HO, roles: [es_recommender]}
+  - {id: u_dmd, name: R. Venkatesh, email: r.venkatesh@demo.bank, branch: HO, roles: [dmd]}
   - {id: u_posm, name: Farah Sheikh, email: farah.sheikh@demo.bank, branch: MUM-OPS, roles: [pos_maker]}
   - {id: u_posc, name: Gautam Das, email: gautam.das@demo.bank, branch: MUM-OPS, roles: [pos_checker]}
   - {id: u_dism, name: Lakshmi Narayan, email: lakshmi.narayan@demo.bank, branch: MUM-OPS, roles: [dis_maker]}
@@ -79,40 +105,49 @@ stages:
     # Client One stage 1 has no separate review: Prospect Submit goes straight to
     # IP Note Processing (the LPF VP review now sits in the IP stage, client stage 3).
     steps:
-      - {id: ps_maker, name: Prospect Sourcing, role: ps_maker, kind: maker, sla_days: 5}
+      - {id: ps_maker, name: Prospect Sourcing, role: ps_maker, kind: maker, sla_days: 5, actions: [submit, defer, drop, withdraw], labels: {submit: Submit to IP Note}}
   - id: IP
     name: In-Principle
     steps:
-      - {id: ip_note, name: IP Note Processing, role: ps_maker, kind: maker, sla_days: 3}
+      - {id: ip_note, name: IP Note Processing, role: ps_maker, kind: maker, sla_days: 3, actions: [submit, defer, drop], labels: {submit: Recommend IP proposal}}
       - {id: ip_note_review, name: IP Note VP Review, role: lpf_vp, kind: checker, sla_days: 2}
       - {id: ip_crp_evp, name: CRP EVP Allocation, role: crp_evp, kind: allocation, sla_days: 1, allocates_to: crp_vp}
       - {id: ip_crp_vp, name: CRP VP Allocation, role: crp_vp, kind: allocation, sla_days: 1, allocates_to: risk_analyst}
       - {id: ip_risk_maker, name: Risk Maker (Credit Assessment), role: risk_analyst, kind: maker, sla_days: 7}
-      - {id: ip_risk_review, name: CRP VP Risk Review, role: risk_reviewer, kind: checker, sla_days: 3}
-      - {id: ip_evp, name: IP Note EVP Recommendation, role: evp_recommender, kind: checker, sla_days: 2}
-      - {id: ip_sanction, name: IP Sanction Committee, role: sanction_committee, kind: committee, sla_days: 5}
+      - {id: ip_risk_review, name: CRP VP Risk Review, role: risk_reviewer, kind: checker, sla_days: 3, labels: {return: Rework}}
+      # G-W1: the IP flow's Post Rating VP Review
+      - {id: ip_post_rating_vp, name: Post Rating VP Review, role: crp_vp, kind: checker, sla_days: 1, labels: {return: Rework}}
+      - {id: ip_evp, name: IP Note EVP Recommendation, role: evp_recommender, kind: checker, sla_days: 2, decision_fields: [significant_changes], labels: {approve: Recommend for sanction}}
+      - {id: ip_sanction, name: IP Sanction Committee, role: sanction_committee, kind: committee, sla_days: 5, labels: {sanction: Sanction (in-principle)}}
   - id: AP
     name: Application Processing
     steps:
-      - {id: ap_note, name: Application Note Processing, role: ps_maker, kind: maker, sla_days: 5}
-      - {id: ap_review, name: LPF VP AP Review, role: lpf_vp, kind: checker, sla_days: 2}
+      - {id: ap_note, name: Application Note Processing, role: ps_maker, kind: maker, sla_days: 5, actions: [submit, drop, withdraw], labels: {submit: Submit appraisal}, decision_fields: ap_record}
+      - {id: ap_review, name: LPF VP AP Review, role: lpf_vp, kind: checker, sla_days: 2, labels: {return: Rework}, decision_fields: ap_record}
       - {id: ap_crp_vp, name: CRP VP Allocation, role: crp_vp, kind: allocation, sla_days: 1, allocates_to: risk_analyst}
-      - {id: ap_risk_maker, name: Risk Maker (Credit Reassessment), role: risk_analyst, kind: maker, sla_days: 5}
-      - {id: ap_risk_review, name: Risk Review, role: risk_reviewer, kind: checker, sla_days: 3}
-      - {id: ap_post_rating, name: Post Risk Rating Processing, role: post_risk_maker, kind: maker, sla_days: 2}
-      - {id: ap_rating_vp, name: Post-Rating VP Review, role: crp_vp, kind: checker, sla_days: 1}
-      - {id: ap_evp, name: EVP Recommendation, role: evp_recommender, kind: checker, sla_days: 2}
-      - {id: ap_recommend, name: Recommendations Committee, role: recommendations_committee, kind: committee, sla_days: 2}
-      - {id: ap_sanction, name: Committee Sanction, role: sanction_committee, kind: committee, sla_days: 5}
+      - {id: ap_risk_maker, name: Risk Maker (Credit Reassessment), role: risk_analyst, kind: maker, sla_days: 5, decision_fields: ap_record}
+      - {id: ap_risk_review, name: Risk Review, role: risk_reviewer, kind: checker, sla_days: 3, labels: {return: Rework}, decision_fields: ap_record}
+      - {id: ap_post_rating, name: Post Risk Rating Processing, role: post_risk_maker, kind: maker, sla_days: 2, decision_fields: ap_record}
+      - {id: ap_rating_vp, name: Post-Rating VP Review, role: crp_vp, kind: checker, sla_days: 1, labels: {return: Rework}, decision_fields: ap_record}
+      - {id: ap_evp, name: EVP Recommendation, role: evp_recommender, kind: checker, sla_days: 2, actions: [approve, return], decision_fields: [significant_changes], labels: {approve: Recommend for sanction, return: Rework}}
+      - {id: ap_recommend, name: Recommendations Committee, role: recommendations_committee, kind: committee, sla_days: 2, actions: [sanction, return], decision_fields: [minutes, ceac_recommendation], labels: {sanction: Recommend for sanction, return: Rework}}
+      # G-W2: the Environmental and Social (ESMS) process
+      - {id: ap_es_maker, name: CRP ES Maker, role: es_maker, kind: maker, sla_days: 2, actions: [submit], returns_to: ap_post_rating, labels: {submit: Submit for ES preparation}}
+      - {id: ap_es_prep, name: ES Preparation, role: es_preparer, kind: maker, sla_days: 3, actions: [submit], labels: {submit: Submit for ES review}}
+      - {id: ap_es_review, name: ES Review, role: es_reviewer, kind: checker, sla_days: 2, actions: [approve, return], labels: {approve: Reviewed, return: Rework}}
+      - {id: ap_es_recommend, name: ES Recommendation, role: es_recommender, kind: checker, sla_days: 2, actions: [approve, return], decision_fields: [{id: esms_recommendation, required: true}], labels: {approve: Recommend (ES), return: Rework}}
+      # G-W3: DMD approval before the committee (enabled: false for the POS-manual order)
+      - {id: ap_dmd, name: DMD Approval, role: dmd, kind: checker, sla_days: 2, actions: [approve, return], returns_to: ap_post_rating, labels: {approve: Approve for committee, return: Rework}}
+      - {id: ap_sanction, name: Committee Sanction, role: sanction_committee, kind: committee, sla_days: 5, returns_to: ap_post_rating, labels: {sanction: Final sanction, return: Rework}}
   - id: POS
     name: Post Sanction
     steps:
-      - {id: pos_maker, name: Post Sanction Maker, role: pos_maker, kind: maker, sla_days: 5}
-      - {id: pos_checker, name: Post Sanction Checker, role: pos_checker, kind: checker, sla_days: 2}
+      - {id: pos_maker, name: Post Sanction Maker, role: pos_maker, kind: maker, sla_days: 5, actions: [submit, propose_modification, withdraw], decision_fields: [significant_changes], labels: {withdraw: Application withdrawn, propose_modification: Modification proposed}}
+      - {id: pos_checker, name: Post Sanction Checker, role: pos_checker, kind: checker, sla_days: 2, actions: [approve, recommend_modification, return, drop], labels: {approve: Recommend for disbursement, recommend_modification: Recommend for modification, return: Rework}}
   - id: DIS
     name: Disbursement
     steps:
       - {id: dis_maker, name: Disbursement Maker, role: dis_maker, kind: maker, sla_days: 2}
-      - {id: dis_checker, name: Disbursement Checker, role: dis_checker, kind: checker, sla_days: 1}
-      - {id: dis_vp_review, name: Disbursement VP Review, role: dis_vp, kind: vp_review, sla_days: 1}
-      - {id: dis_approver, name: Disbursement Approver, role: dis_approver, kind: checker, sla_days: 1}
+      - {id: dis_checker, name: Disbursement Checker, role: dis_checker, kind: checker, sla_days: 1, actions: [approve, return], labels: {approve: Submit to VP review, return: Rework}}
+      - {id: dis_vp_review, name: Disbursement VP Review, role: dis_vp, kind: vp_review, sla_days: 1, decision_fields: [significant_changes]}
+      - {id: dis_approver, name: Disbursement Approver, role: dis_approver, kind: checker, sla_days: 1, actions: [approve, return], labels: {approve: Approve disbursement, return: Rework}}

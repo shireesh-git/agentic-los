@@ -25,29 +25,39 @@ ANSWERS = ("Yes", "No", "Not Available")
 ES_CATEGORIES = ("A", "B", "C")          # documented E&S risk category classes
 GATES = ("no_esdd", "esdd_required", "excluded")
 
+# Screening checklist against NaBFID's Excluded Activities (Annex 5-2), as on the bank's ESMS screen:
+# a "Yes" means the project / entity is involved in an excluded activity — the proposal cannot proceed.
 ES_CHECKLIST = [
-    ("es_exploration", "The activity is not an excluded activity under the NaBFID list"),
-    ("es_coastal", "The project is not within a restricted coastal regulatory zone (or impact assessed)"),
-    ("es_resettlement", "No large-scale forced resettlement, or a resettlement plan is in place"),
-    ("es_environmental", "Environmental impact assessed with a mitigation plan where required"),
-    ("es_litigation", "No material pending E&S litigation"),
+    ("es_basel_waste", "The project supports or uses material involving transboundary movements of waste prohibited "
+                       "under international law (Basel Convention)"),
+    ("es_illegal", "The project activities are illegal under Indian laws or regulations or international conventions "
+                   "and agreements, or subject to international phase-outs or bans"),
+    ("es_wmd", "The project activities support production or trade in weapons of mass destruction"),
+    ("es_hazardous", "The project uses and produces hazardous materials (such as asbestos fibres) and products "
+                     "(chemical products, pharmaceuticals, pesticides / herbicides, ozone-depleting substances or "
+                     "any other hazardous product)"),
+    ("es_forced_labour", "The project activities / entity are reported to involve forced labour / harmful child labour"),
 ]
+# Activity items the sector rule can screen; forced labour is the entity's conduct (a person answers it).
+SECTOR_SCREENABLE = ("es_basel_waste", "es_illegal", "es_wmd", "es_hazardous")
 
 
 def initial_esms(app: dict) -> dict:
     return {"screening_date": None, "checklist": [], "category": None, "cpcb_category": None,
             "coastal_zone_impact": None, "resettlement": None, "environmental_impact": None,
-            "es_litigation": None, "information_source": None, "remarks": None,
+            "es_litigation": None, "monuments_impact": None, "eia_category": None,     # Annex 5-4
+            "information_source": None, "remarks": None,
             "proposed_category": None, "introduction": None, "proposal_summary": None,
             "company_es_risk_assessment": None, "esdd": None, "additional_conditions": [],
             "committee_recommendation": None, "evidence": [], "status": "not_started"}
 
 
 def normalise_checklist(items: list[dict], current: list[dict]) -> list[dict]:
-    by_id = {i["id"]: dict(i) for i in current or []}
-    if not by_id:
-        by_id = {i: {"id": i, "label": label, "answer": None, "remarks": None, "source": None}
-                 for i, label in ES_CHECKLIST}
+    # every documented item, with what is already recorded (an agent may have screened only some)
+    by_id = {i: {"id": i, "label": label, "answer": None, "remarks": None, "source": None}
+             for i, label in ES_CHECKLIST}
+    for i in current or []:
+        by_id[i["id"]] = dict(i)
     for raw in items or []:
         item = by_id.get(str(raw.get("id") or ""))
         if not item:
@@ -58,7 +68,7 @@ def normalise_checklist(items: list[dict], current: list[dict]) -> list[dict]:
         remarks = (str(raw.get("remarks") or "").strip() or None)
         if answer in ("Yes", "Not Available") and not remarks:
             raise InvalidRequestError(
-                f"ESMS item {item['id']}: a remark is mandatory for a '{answer}' answer (GAP-P2-01)")
+                f"ESMS item {item['id']}: a remark is mandatory for a '{answer}' answer")
         item.update(answer=answer or None, remarks=remarks, source=(str(raw.get("source") or "").strip() or None))
     return list(by_id.values())
 
@@ -69,6 +79,10 @@ def esms_gate(esms: dict) -> Optional[str]:
         return "ESMS screening has not been started"
     if not esms.get("screening_date"):
         return "The ESMS screening date is required"
+    excluded = [i["label"] for i in esms.get("checklist", []) if i.get("answer") == "Yes"]
+    if excluded:
+        return ("The proposal involves an excluded activity under NaBFID's list (Annex 5-2) and cannot proceed: "
+                + "; ".join(x[:90] for x in excluded[:2]))
     open_items = [i["label"] for i in esms.get("checklist", []) if not i.get("answer")]
     if open_items:
         return "The excluded-activity checklist is not complete: " + "; ".join(open_items[:3]) + \

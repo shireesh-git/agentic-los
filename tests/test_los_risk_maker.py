@@ -138,7 +138,9 @@ def test_risk_maker_runs_the_assessment_and_it_is_audited(svc):
     after = svc.assessment(app["application_id"], analyst)
     assert after["view"]["available"] and after["recorded"]["decision"] == "REDUCED_MODIFIED"
     actions = [e["action"] for e in svc.get(app["application_id"])["events"]]
-    assert actions[:2] == ["assessment", "assessment_started"]
+    # the new run's fields are populated (by the agent) as soon as the assessment completes
+    assert actions[:3] == ["fields_populated", "assessment", "assessment_started"]
+    assert job["populated"]["new"] > 0 and after["verify"]["stats"]["total"] == job["populated"]["new"]
 
 
 def test_only_the_risk_maker_can_run_it(svc):

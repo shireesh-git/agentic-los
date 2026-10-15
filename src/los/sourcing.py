@@ -32,7 +32,8 @@ _ANNUAL_ONLY = r"quarterly|unaudited|provisional"   # interim figures are not th
 # id, label, group, kind, patterns, application target
 FIELDS: list[dict] = [
     {"id": "legal_name", "label": "Legal name", "group": "Borrower", "kind": "text",
-     "patterns": [r"Legal Name:\s*(.+?)(?:\s+CIN:|\s+Incorporated:|$)"]},
+     "patterns": [r"Legal Name:\s*(.+?)(?:\s+CIN:|\s+Incorporated:|$)",
+                  r"Name of the (?:Borrower|Applicant):\s*(.+?)(?:\s+CIN:|\s+PAN:|\s+Constitution:|$)"]},
     {"id": "cin", "label": "CIN", "group": "Borrower", "kind": "id",
      "patterns": [r"CIN:\s*([LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6})"]},
     {"id": "pan", "label": "PAN", "group": "Borrower", "kind": "id",
@@ -47,12 +48,14 @@ FIELDS: list[dict] = [
      "patterns": [r"Listed Exchange:\s*([A-Z, ]+?)(?:\s+Corporate|\s+[A-Z][a-z]|$)"]},
     {"id": "authorised_signatory", "label": "Authorised signatory", "group": "Borrower", "kind": "text",
      "patterns": [r"Board authori[sz]es\s+(.+?)\s+to execute"]},
-    {"id": "facility_type", "label": "Facility type", "group": "Proposal", "kind": "code", "target": "facility_type",
-     "patterns": [r"Facility (?:Requested|type):\s*([a-z_]+)", r"for the proposed\s+([a-z_]+)\."]},
+    {"id": "facility_type", "label": "Facility type", "group": "Proposal", "kind": "facility", "target": "facility_type",
+     "patterns": [r"Facility (?:Requested|type):\s*([a-z_]+)", r"for the proposed\s+([a-z_]+)\.",
+                  r"(?:Facility|Nature of Facility|Facility Type) ?(?:Proposed)?:\s*((?:Working Capital|Term Loan|Project Finance)[A-Za-z ]*?)(?=\s+[A-Z][A-Za-z ]{2,30}:|\.|$)"]},
     {"id": "case_type", "label": "Case type", "group": "Proposal", "kind": "code", "target": "case_type",
      "patterns": [r"Case Type:\s*(ETB|NTB)"]},
     {"id": "amount_cr", "label": "Proposed amount (₹ Cr)", "group": "Proposal", "kind": "amount", "target": "amount_cr",
-     "patterns": [r"Amount Requested:\s*" + _AMT, r"Requested limit under review:\s*" + _AMT]},
+     "patterns": [r"Amount Requested:\s*" + _AMT, r"Requested limit under review:\s*" + _AMT,
+                  r"Proposed (?:Limit|Amount):\s*" + _AMT]},
     {"id": "tenor_months", "label": "Tenor (months)", "group": "Proposal", "kind": "int", "target": "tenor_months",
      "patterns": [r"Tenor:\s*(\d+)\s*months"]},
     {"id": "purpose", "label": "Purpose", "group": "Proposal", "kind": "text", "target": "purpose",
@@ -101,8 +104,15 @@ def read_documents(entity_dir: Path) -> list[dict]:
 
 # ─── Normalising and comparing ──────────────────────────────────────────────
 
+_FACILITY_CODES = (("working capital", "working_capital"), ("term loan", "term_loan"),
+                   ("project financ", "project_finance"))
+
+
 def _norm(kind: str, raw: str):
     raw = raw.strip().strip(".,;")
+    if kind == "facility":                     # a CAM says "Working Capital Term Loan"; the form wants a code
+        low = raw.lower().replace("_", " ")
+        return next((code for words, code in _FACILITY_CODES if words in low), re.sub(r"[^a-z0-9]+", "_", low).strip("_"))
     if kind in ("amount", "int"):
         try:
             v = float(raw.replace(",", ""))
@@ -296,7 +306,16 @@ def build_prefill(docs: list[dict], master: dict, llm_factory: Optional[Callable
                 ai.update(used=True, status="ok", model=getattr(llm, "model", None) or getattr(llm, "name", "llm"))
             except Exception as e:                                         # the deterministic prefill stands
                 ai.update(status=f"failed: {e}")
-    fields = [_resolve(spec, hits[spec["id"]], master.get(spec["id"])) for spec in FIELDS]
+    engine = "Pattern extraction with cross-document corroboration" + (" + AI fallback" if ai["used"] else "")
+    return finish_prefill(docs, hits, master, ai, engine, now)
+
+
+def finish_prefill(docs: list[dict], hits: dict[str, list[dict]], master: dict, ai: dict, engine: str,
+                   now: Optional[datetime] = None, specs: Optional[list[dict]] = None) -> dict:
+    """Resolve every field from its hits (corroboration, conflicts, record match) into the prefill
+    record the Prospect Sourcing screen shows. Shared by build_prefill and the intake agent
+    (``specs``: another field set, e.g. the post-sanction and disbursement documents)."""
+    fields = [_resolve(spec, hits.get(spec["id"]) or [], master.get(spec["id"])) for spec in (specs or FIELDS)]
     per_doc: dict[str, int] = {}
     for f in fields:
         for s in f["sources"]:
@@ -305,7 +324,7 @@ def build_prefill(docs: list[dict], master: dict, llm_factory: Optional[Callable
     return {
         "version": PREFILL_VERSION,
         "generated_at": (now or datetime.now()).isoformat(timespec="seconds"),
-        "engine": "Pattern extraction with cross-document corroboration" + (" + AI fallback" if ai["used"] else ""),
+        "engine": engine,
         "ai": ai,
         "documents": [{"document": d["document"], "category": d["category"], "pages": len(d["pages"]),
                        "fields_found": per_doc.get(d["document"], 0)} for d in docs],

@@ -102,6 +102,8 @@
       "## 7. RISK ASSESSMENT & INTERNAL CREDIT RATING",
       "## 8. COMPLIANCE & REGULATORY CHECKS",
       "## 10. ACCOUNT CONDUCT & RELATIONSHIP REVIEW",
+      "## 8A. CORE BANKING POSITION (ETB ONLY)",
+      "## 8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE",
       "## 4. FINANCIAL ANALYSIS",
       "## 12. DETAILED OPERATIONAL ANALYSIS & INDUSTRY KPIs",
       "## 11. PEER COMPARISON & BENCHMARKING",
@@ -156,14 +158,11 @@
     ],
     "exceptions": [
       "DOC_REVENUE_CROSS_SOURCE",
-      "DOC_REVENUE_CROSS_SOURCE",
-      "DOC_REVENUE_CROSS_SOURCE",
       "STRUCT_EBITDA_INCONSISTENT",
       "STRUCT_EBITDA_INCONSISTENT",
       "STRUCT_EBITDA_INCONSISTENT",
       "STRUCT_EBITDA_INCONSISTENT",
-      "TEMP_STALE_FINANCIALS",
-      "XSRC_REVENUE_MISMATCH"
+      "TEMP_STALE_FINANCIALS"
     ],
     "fact_pack_keys": [
       "approving_authority",
@@ -230,6 +229,7 @@
       "## 7. RISK ASSESSMENT & INTERNAL CREDIT RATING",
       "## 8. COMPLIANCE & REGULATORY CHECKS",
       "## 10. ACCOUNT CONDUCT & RELATIONSHIP REVIEW",
+      "## 8A. CORE BANKING POSITION (ETB ONLY)",
       "## 8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE",
       "## 4. FINANCIAL ANALYSIS",
       "## 12. DETAILED OPERATIONAL ANALYSIS & INDUSTRY KPIs",
@@ -267,6 +267,7 @@
       79.0
     ],
     "conditions": [
+      "Resolve 1 HIGH exception(s) before disbursement",
       "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure"
     ],
     "tier1": [
@@ -279,6 +280,7 @@
       "HR_WILFUL_DEFAULTER:not_verified"
     ],
     "exceptions": [
+      "DOC_REVENUE_CROSS_SOURCE",
       "TEMP_STALE_FINANCIALS"
     ],
     "fact_pack_keys": [
@@ -384,7 +386,6 @@
       76.0
     ],
     "conditions": [
-      "Resolve 1 HIGH exception(s) before disbursement",
       "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure",
       "MANDATORY: Additional collateral required before disbursement"
     ],
@@ -400,10 +401,7 @@
       "HR_WILFUL_DEFAULTER:not_verified"
     ],
     "exceptions": [
-      "DOC_REVENUE_CROSS_SOURCE",
-      "DOC_REVENUE_CROSS_SOURCE",
-      "TEMP_STALE_FINANCIALS",
-      "XSRC_REVENUE_MISMATCH"
+      "TEMP_STALE_FINANCIALS"
     ],
     "fact_pack_keys": [
       "approving_authority",
@@ -470,6 +468,7 @@
       "## 7. RISK ASSESSMENT & INTERNAL CREDIT RATING",
       "## 8. COMPLIANCE & REGULATORY CHECKS",
       "## 10. ACCOUNT CONDUCT & RELATIONSHIP REVIEW",
+      "## 8A. CORE BANKING POSITION (ETB ONLY)",
       "## 8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE",
       "## 4. FINANCIAL ANALYSIS",
       "## 12. DETAILED OPERATIONAL ANALYSIS & INDUSTRY KPIs",
@@ -597,6 +596,7 @@
       "## 7. RISK ASSESSMENT & INTERNAL CREDIT RATING",
       "## 8. COMPLIANCE & REGULATORY CHECKS",
       "## 10. ACCOUNT CONDUCT & RELATIONSHIP REVIEW",
+      "## 8A. CORE BANKING POSITION (ETB ONLY)",
       "## 8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE",
       "## 4. FINANCIAL ANALYSIS",
       "## 12. DETAILED OPERATIONAL ANALYSIS & INDUSTRY KPIs",
@@ -721,6 +721,7 @@
       "## 7. RISK ASSESSMENT & INTERNAL CREDIT RATING",
       "## 8. COMPLIANCE & REGULATORY CHECKS",
       "## 10. ACCOUNT CONDUCT & RELATIONSHIP REVIEW",
+      "## 8A. CORE BANKING POSITION (ETB ONLY)",
       "## 8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE",
       "## 4. FINANCIAL ANALYSIS",
       "## 12. DETAILED OPERATIONAL ANALYSIS & INDUSTRY KPIs",
@@ -765,7 +766,7 @@
       "HR_BUREAU_STATUS:not_verified",
       "HR_COMPANY_ACTIVE:not_verified",
       "HR_FRAUD_REGISTRY:not_verified",
-      "HR_KYC_COMPLETE:fail",
+      "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:fail",
       "HR_RBI_DEFAULTER:not_verified",
@@ -773,9 +774,9 @@
       "HR_WILFUL_DEFAULTER:not_verified"
     ],
     "exceptions": [
-      "POL_MISSING_BOARD_RES",
-      "POL_MISSING_COLLATERAL_DOCS",
-      "POL_MISSING_KYC",
+      "DOC_REVENUE_CROSS_SOURCE",
+      "DOC_REVENUE_CROSS_SOURCE",
+      "DOC_REVENUE_CROSS_SOURCE",
       "TEMP_STALE_FINANCIALS"
     ],
     "fact_pack_keys": [
@@ -843,6 +844,7 @@
       "## 7. RISK ASSESSMENT & INTERNAL CREDIT RATING",
       "## 8. COMPLIANCE & REGULATORY CHECKS",
       "## 10. ACCOUNT CONDUCT & RELATIONSHIP REVIEW",
+      "## 8A. CORE BANKING POSITION (ETB ONLY)",
       "## 8B. SOCIAL MEDIA & DIGITAL INTELLIGENCE",
       "## 4. FINANCIAL ANALYSIS",
       "## 12. DETAILED OPERATIONAL ANALYSIS & INDUSTRY KPIs",

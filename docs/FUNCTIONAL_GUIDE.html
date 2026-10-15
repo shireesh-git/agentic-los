@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic LOS Functional Guide</title>
+<meta name="description" content="How a corporate loan moves through the agentic Loan Origination System: who does what, what the agents prepare, and what people verify and decide.">
+<style>
+:root{
+  --bg:#f7f8fa; --surface:#ffffff; --surface-2:#f0f3f7; --text:#1b2330; --muted:#5b6678; --line:#dde3ea;
+  --accent:#0b5cad; --accent-soft:#e3eefa; --agent:#6a3fb5; --agent-soft:#efe8fb;
+  --ok:#1d7a46; --ok-soft:#e2f4ea; --warn:#9a5b00; --warn-soft:#fdf1dc; --bad:#b3261e; --bad-soft:#fbe5e3;
+  --ps:#0b5cad; --ip:#6a3fb5; --ap:#a0466e; --pos:#9a5b00; --dis:#1d7a46;
+  --radius:12px; --shadow:0 1px 2px rgba(16,24,40,.06),0 2px 8px rgba(16,24,40,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1319; --surface:#171c24; --surface-2:#1e2530; --text:#e4e8ee; --muted:#9aa5b5; --line:#2b3340;
+    --accent:#6aa8ec; --accent-soft:#16283d; --agent:#b393ec; --agent-soft:#271d3b;
+    --ok:#5cc28a; --ok-soft:#16301f; --warn:#e3a94b; --warn-soft:#33260f; --bad:#f08a80; --bad-soft:#3a1916;
+    --ps:#6aa8ec; --ip:#b393ec; --ap:#e08bb0; --pos:#e3a94b; --dis:#5cc28a;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1319; --surface:#171c24; --surface-2:#1e2530; --text:#e4e8ee; --muted:#9aa5b5; --line:#2b3340;
+  --accent:#6aa8ec; --accent-soft:#16283d; --agent:#b393ec; --agent-soft:#271d3b;
+  --ok:#5cc28a; --ok-soft:#16301f; --warn:#e3a94b; --warn-soft:#33260f; --bad:#f08a80; --bad-soft:#3a1916;
+  --ps:#6aa8ec; --ip:#b393ec; --ap:#e08bb0; --pos:#e3a94b; --dis:#5cc28a;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+a{color:var(--accent)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+header.hero{padding:48px 0 28px;border-bottom:1px solid var(--line);background:var(--surface)}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-size:clamp(28px,4vw,40px);line-height:1.15;margin:8px 0 12px}
+h2{font-size:26px;margin:0 0 6px}
+h3{font-size:19px;margin:24px 0 8px}
+.lede{font-size:18px;color:var(--muted);max-width:760px;margin:0}
+nav.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding-top:8px;padding-bottom:8px;align-items:center}
+nav.toc a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:14px;padding:6px 10px;border-radius:8px}
+nav.toc a:hover{background:var(--surface-2);color:var(--text)}
+#theme{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:5px 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+section{padding:44px 0;border-bottom:1px solid var(--line)}
+.sub{color:var(--muted);margin:0 0 22px;max-width:780px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+@media (max-width:820px){.grid3,.grid2{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow)}
+.card h3{margin-top:0}
+.big{font-size:30px;font-weight:700;line-height:1}
+.icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:700;margin-bottom:10px}
+.i-agent{background:var(--agent-soft);color:var(--agent)}
+.i-person{background:var(--accent-soft);color:var(--accent)}
+.i-decide{background:var(--ok-soft);color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;background:var(--surface-2)}
+.tbl{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow-x:auto;box-shadow:var(--shadow)}
+.tbl table{min-width:640px}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.chip.agent{background:var(--agent-soft);color:var(--agent);border-color:transparent}
+.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.chip.blue{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+/* journey */
+.journey{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:8px}
+@media (max-width:820px){.journey{grid-template-columns:1fr}}
+.stage{position:relative;border-radius:var(--radius);padding:16px;background:var(--surface);border:1px solid var(--line);border-top:5px solid var(--c);text-decoration:none;color:var(--text);box-shadow:var(--shadow);cursor:pointer;transition:transform .12s}
+.stage:hover{transform:translateY(-2px)}
+.stage .code{font-weight:800;color:var(--c);font-size:14px;letter-spacing:.05em}
+.stage .name{font-weight:700;font-size:17px;margin:2px 0 6px}
+.stage .meta{font-size:13px;color:var(--muted)}
+.exit{margin-top:10px;text-align:right;font-weight:700;color:var(--ok)}
+/* tabs */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{border:1px solid var(--line);background:var(--surface);color:var(--text);padding:8px 14px;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--c,var(--accent));color:#fff;border-color:transparent}
+:root[data-theme="dark"] .tabs button[aria-selected="true"]{color:#0f1319}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tabs button[aria-selected="true"]{color:#0f1319}}
+.panel[hidden]{display:none}
+.steps{display:flex;flex-direction:column;gap:10px}
+.step{display:grid;grid-template-columns:44px 1fr;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.num{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--surface-2);color:var(--muted);font-size:14px}
+.step.prep .num{background:var(--agent-soft);color:var(--agent)}
+.step h4{margin:0 0 2px;font-size:16px}
+.step .who{font-size:13px;color:var(--muted);margin-bottom:6px}
+.step .rows{display:grid;grid-template-columns:120px 1fr;gap:4px 10px;font-size:14.5px}
+.step .rows .k{color:var(--muted);font-weight:600;font-size:13px;padding-top:1px}
+@media (max-width:560px){.step{grid-template-columns:1fr}.step .rows{grid-template-columns:1fr}}
+.agentbox{border-left:3px solid var(--agent);background:var(--agent-soft);padding:2px 10px;border-radius:0 6px 6px 0}
+/* field mock */
+.field-mock{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:0;overflow:hidden;box-shadow:var(--shadow)}
+.fm-row{display:grid;grid-template-columns:28px 1.1fr 1fr auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);font-size:14.5px}
+.fm-row:last-child{border-bottom:0}
+.fm-row .src{font-size:12.5px;color:var(--muted)}
+.box{width:18px;height:18px;border:2px solid var(--line);border-radius:4px}
+.box.on{background:var(--accent);border-color:var(--accent)}
+@media (max-width:640px){.fm-row{grid-template-columns:24px 1fr}.fm-row>:nth-child(3),.fm-row>:nth-child(4){grid-column:2}}
+/* lifecycle */
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flow .node{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px}
+.flow .arrow{color:var(--muted)}
+.callout{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--surface);padding:14px 18px;border-radius:0 var(--radius) var(--radius) 0;margin:18px 0}
+.callout.agent{border-left-color:var(--agent)}
+.callout.warn{border-left-color:var(--warn)}
+ul.tight{margin:6px 0;padding-left:20px}
+ul.tight li{margin:3px 0}
+dl.gloss{display:grid;grid-template-columns:150px 1fr;gap:8px 18px;margin:0}
+dl.gloss dt{font-weight:700}
+dl.gloss dd{margin:0;color:var(--muted)}
+@media (max-width:560px){dl.gloss{grid-template-columns:1fr}dl.gloss dd{margin-bottom:8px}}
+footer{padding:28px 0 48px;color:var(--muted);font-size:14px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:10px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Corporate lending · Proof of concept</div>
+    <h1>How a corporate loan moves through the agentic LOS</h1>
+    <p class="lede">A guide for credit, risk and operations colleagues. It covers each stage from the first prospect conversation to disbursement: who acts, what the AI agents prepare, and what you verify and decide.</p>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <div class="wrap">
+    <a href="#idea">The idea</a>
+    <a href="#journey">The journey</a>
+    <a href="#stages">Stage by stage</a>
+    <a href="#verify">Verifying agent work</a>
+    <a href="#decisions">Decisions &amp; controls</a>
+    <a href="#roles">Who's who</a>
+    <a href="#mis">Measuring it</a>
+    <a href="#demo">What is demo</a>
+    <a href="#glossary">Glossary</a>
+    <button id="theme" type="button" aria-label="Switch colour theme">Theme</button>
+  </div>
+</nav>
+
+<main>
+
+<!-- ───────────────────────── 1. The idea ───────────────────────── -->
+<section id="idea">
+  <div class="wrap">
+    <h2>The idea in one minute</h2>
+    <p class="sub">In a conventional LOS, people type data from the borrower's documents into screens, and the credit analysis is built separately. In this LOS, AI agents read the documents and run the credit analysis. They then fill the screens for you, showing where each value came from. Your job moves from keying to <strong>checking and deciding</strong>.</p>
+    <div class="grid3">
+      <div class="card">
+        <div class="icon i-agent">1</div>
+        <h3>Agents prepare</h3>
+        <p>When an application reaches a preparation step, agents start work at the same time. They read documents, run due-diligence checks and build the credit case (CAM). Then they fill each workspace. Every value carries its source: <em>document · page · confidence</em>.</p>
+      </div>
+      <div class="card">
+        <div class="icon i-person">2</div>
+        <h3>You verify by exception</h3>
+        <p>A <strong>verify queue</strong> shows what needs your eye. High-confidence values arrive pre-ticked, so you can confirm them in one click. Conflicts, low-confidence values and AI-drafted text are flagged for individual review. Anything can be changed, with a reason.</p>
+      </div>
+      <div class="card">
+        <div class="icon i-decide">3</div>
+        <h3>People decide</h3>
+        <p>No agent submits, approves, returns, sanctions or disburses. Each decision belongs to a named person in a named role. A remark is required with every decision, and everything goes into the audit trail.</p>
+      </div>
+    </div>
+
+    <h3>What changes for the team</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Task</th><th>Conventional LOS</th><th>Agentic LOS</th></tr></thead>
+        <tbody>
+          <tr><td>Start from a CAM</td><td>The CAM is written separately; the LOS screens are keyed again from it</td><td>Use a CAM already generated in the CAM workspace, upload the bank's own CAM, or generate one. The IP Note opens pre-filled from it: narratives, terms, security, ratings and figures, each citing the CAM section and page. Figures that disagree with the audited statements are flagged.</td></tr>
+          <tr><td>Open a new-to-bank prospect</td><td>RM keys identity and facility details from PDFs</td><td>RM uploads the documents. The intake agent proposes legal name, CIN, incorporation date, registered office, facility type, amount, tenor and purpose, each citing its page. The RM confirms and creates the application.</td></tr>
+          <tr><td>Due-diligence checks</td><td>Run one by one, results noted manually</td><td>All automated checks (MCA, bureau, litigation, GSTIN, LEI, name screening and others) run in parallel. The RM records the manual checks (CRILC, KYC, MLRA and others).</td></tr>
+          <tr><td>CMA, securities, exposure, rating, pricing</td><td>Analyst keys each workspace from the CAM and the file</td><td>Reconciliation agents fill each workspace from the credit case and the documents. The analyst verifies.</td></tr>
+          <tr><td>Proposal narrative</td><td>Written from scratch</td><td>Drafted from the confirmed facts (background, industry, strengths, key risks). It is never pre-ticked, so a person must read it.</td></tr>
+          <tr><td>Correcting a figure</td><td>Correct it in the screen; the analysis may not follow</td><td>Change it with a reason. The credit case <strong>re-runs automatically</strong> with your figure, and the ratios follow.</td></tr>
+          <tr><td>Sanction consent, drawdown</td><td>Keyed from the signed letter and the request</td><td>The agent reads the signed letter, the agreement and the drawdown request, and pre-fills the forms.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 2. Journey ───────────────────────── -->
+<section id="journey">
+  <div class="wrap">
+    <h2>The journey at a glance</h2>
+    <p class="sub">Five stages, 31 steps. Each step belongs to one role. Click a stage to see its steps.</p>
+    <div class="journey">
+      <a class="stage" style="--c:var(--ps)" href="#stages" data-open="PS"><div class="code">PS</div><div class="name">Prospect Sourcing</div><div class="meta">1 step · RM<br>Documents in, identity, due diligence</div></a>
+      <a class="stage" style="--c:var(--ip)" href="#stages" data-open="IP"><div class="code">IP</div><div class="name">In-Principle</div><div class="meta">8 steps · RM → VP → Risk → EVP → Committee<br>IP Note, credit assessment, IP sanction</div></a>
+      <a class="stage" style="--c:var(--ap)" href="#stages" data-open="AP"><div class="code">AP</div><div class="name">Application Processing</div><div class="meta">10 steps · RM → VP → Risk → EVP → Committees<br>Reassessment, final sanction</div></a>
+      <a class="stage" style="--c:var(--pos)" href="#stages" data-open="POS"><div class="code">POS</div><div class="name">Post Sanction</div><div class="meta">2 steps · Maker → Checker<br>Consent, execution, conditions</div></a>
+      <a class="stage" style="--c:var(--dis)" href="#stages" data-open="DIS"><div class="code">DIS</div><div class="name">Disbursement</div><div class="meta">4 steps · Maker → Checker → VP → Approver<br>Tranche, beneficiary, checklist</div></a>
+    </div>
+    <div class="exit">→ Exit (approved for release)</div>
+    <div class="legend">
+      <span><span class="chip agent">Agent prepares</span> agents run when the step opens or on <em>Prepare with agents</em></span>
+      <span><span class="chip">Maker</span> does the work and submits</span>
+      <span><span class="chip">Checker / VP</span> reviews, approves or returns</span>
+      <span><span class="chip">Committee</span> sanctions, returns or rejects</span>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 3. Stage by stage ───────────────────────── -->
+<section id="stages">
+  <div class="wrap">
+    <h2>Stage by stage</h2>
+    <p class="sub">For each step: who acts, what the agents have prepared, what you do, and what must be in place before you can move on. SLAs are in calendar days.</p>
+
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="PS" style="--c:var(--ps)" aria-selected="true">PS · Prospect Sourcing</button>
+      <button role="tab" data-tab="IP" style="--c:var(--ip)" aria-selected="false">IP · In-Principle</button>
+      <button role="tab" data-tab="AP" style="--c:var(--ap)" aria-selected="false">AP · Application Processing</button>
+      <button role="tab" data-tab="POS" style="--c:var(--pos)" aria-selected="false">POS · Post Sanction</button>
+      <button role="tab" data-tab="DIS" style="--c:var(--dis)" aria-selected="false">DIS · Disbursement</button>
+    </div>
+
+    <!-- PS -->
+    <div class="panel" data-panel="PS" role="tabpanel">
+      <div class="steps">
+        <div class="step prep">
+          <div class="num">1</div>
+          <div>
+            <h4>Prospect Sourcing <span class="chip agent">Agent prepares</span></h4>
+            <div class="who">Prospect Sourcing Maker (RM) · SLA 5 days</div>
+            <div class="rows">
+              <div class="k">Agents</div><div class="agentbox">For a <strong>new prospect</strong>, the RM uploads the request letter, KYC and audited financials before the borrower exists in the system. The intake agent reads every document in parallel and proposes identity and facility values with page references. It also checks for an existing customer or application with the same PAN, CIN or name. Once the application is created, three lanes run in parallel: <em>identity &amp; duplicate check</em>, <em>automated due-diligence checks</em> and <em>document intake</em>.</div>
+              <div class="k">You</div><div>Review the proposed values and use <strong>Accept all high-confidence</strong>, editing anything that is wrong with a reason. If a scanned page could not be read, type the value in. Choose the sector. Record the sourcing decision and the prospect discussion. Record the manual checks (CRILC, Central Fraud Registry, CEIB, Enhanced Due Diligence, UDIN, KYC, MLRA).</div>
+              <div class="k">Gate</div><div>Mandatory due-diligence checks (MCA, CRILC, KYC, name screening, MLRA) must be complete. A match or failure on a mandatory check needs a <strong>Compliance VP exception</strong>.</div>
+              <div class="k">Actions</div><div><span class="chip">Submit to IP Note</span> <span class="chip">Defer</span> <span class="chip">Drop</span> <span class="chip">Withdraw</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="callout agent"><strong>The agent reports what it can't read; it doesn't guess.</strong> If a value sits on a scanned page and no image-reading model is configured, the field is left empty and marked <em>scanned page not read</em>. A borrower created from documents never gets placeholder identifiers.</div>
+    </div>
+
+    <!-- IP -->
+    <div class="panel" data-panel="IP" role="tabpanel" hidden>
+      <div class="steps">
+        <div class="step prep"><div class="num">1</div><div>
+          <h4>IP Note Processing <span class="chip agent">Agent prepares</span></h4>
+          <div class="who">RM · SLA 3 days</div>
+          <div class="rows">
+            <div class="k">Agents</div><div class="agentbox">The <strong>credit case</strong> (the full CAM analysis) and the automated checks run in parallel. Then one <strong>reconciliation agent per workspace</strong> fills the CMA, related parties, securities, exposure, internal rating, facility pricing, account conduct and proposal narrative. Finally the <strong>IP Note is drafted</strong>.</div>
+            <div class="k">You</div><div>Confirm the pre-ticked fields. Read and confirm the drafted narrative. Recommend the IP proposal.</div>
+            <div class="k">Gate</div><div>IP Note generated; no blocking due-diligence item; the IP-stage documents on file.</div>
+            <div class="k">Actions</div><div><span class="chip">Recommend IP proposal</span> <span class="chip">Defer</span> <span class="chip">Drop</span> <span class="chip">Withdraw</span></div>
+          </div></div></div>
+        <div class="step"><div class="num">2</div><div>
+          <h4>IP Note VP Review</h4><div class="who">LPF VP · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div>Review the IP Note (read-only). Approve, return to the RM, or reject.</div></div></div></div>
+        <div class="step"><div class="num">3</div><div>
+          <h4>CRP EVP Allocation</h4><div class="who">CRP EVP · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div>Allocate to a CRP VP.</div></div></div></div>
+        <div class="step"><div class="num">4</div><div>
+          <h4>CRP VP Allocation</h4><div class="who">CRP VP · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div>Allocate to a Risk Analyst.</div></div></div></div>
+        <div class="step prep"><div class="num">5</div><div>
+          <h4>Risk Maker (Credit Assessment) <span class="chip agent">Agent prepares</span></h4><div class="who">Risk Analyst · SLA 7 days</div>
+          <div class="rows">
+            <div class="k">Agents</div><div class="agentbox">Reuses the credit case already pinned to this application (no second run). Lays it out as the Risk Maker fields across nine tabs: customer, financials, risk rating, project, security, terms, pricing &amp; RAROC, ESMS, decision.</div>
+            <div class="k">You</div><div>Work through the verify queue. Grade, system recommendation, internal rating and decision fields must each be confirmed individually. Change a CMA or collateral figure, and the credit case re-runs with it.</div>
+            <div class="k">Gate</div><div>A credit assessment recorded; mandatory due diligence complete.</div>
+          </div></div></div>
+        <div class="step"><div class="num">6</div><div>
+          <h4>CRP VP Risk Review</h4><div class="who">Risk Reviewer · SLA 3 days</div>
+          <div class="rows"><div class="k">You</div><div>Review the Risk Maker's work and the <strong>committee pack</strong>: decision headline, overrides, unresolved risks, deviations and conditions. Approve or rework.</div></div></div></div>
+        <div class="step"><div class="num">6a</div><div>
+          <h4>Post Rating VP Review</h4><div class="who">CRP VP · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div>Review the rating outcome. Approve or rework.</div></div></div></div>
+        <div class="step"><div class="num">7</div><div>
+          <h4>IP Note EVP Recommendation</h4><div class="who">EVP Recommender · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div>Record any significant changes. Then <em>Recommend for sanction</em> or return.</div></div></div></div>
+        <div class="step"><div class="num">8</div><div>
+          <h4>IP Sanction Committee</h4><div class="who">Sanction Committee · SLA 5 days</div>
+          <div class="rows"><div class="k">You</div><div><em>Sanction (in-principle)</em> with the amount, or return or reject. A sanction that differs from the recommendation needs minutes. The amount can't exceed the request. An AI committee brief can be generated, and every figure in it is checked against the CAM.</div></div></div></div>
+      </div>
+    </div>
+
+    <!-- AP -->
+    <div class="panel" data-panel="AP" role="tabpanel" hidden>
+      <div class="steps">
+        <div class="step prep"><div class="num">1</div><div>
+          <h4>Application Note Processing <span class="chip agent">Agent prepares</span></h4><div class="who">RM · SLA 5 days</div>
+          <div class="rows">
+            <div class="k">Agents</div><div class="agentbox">Same preparation as the IP Note step. The <strong>T&amp;C agent</strong> drafts the terms &amp; conditions by category from the credit reassessment, the proposed covenants (with stipulated values) and the bank's standard conditions; other agents add the inter-firm comparison, fees, project and ESMS proposals. RAROC is computed by the agent once the rating and rate are verified.</div>
+            <div class="k">You</div><div>Verify. Author the T&amp;C: confirm, edit (with a reason), remove (with a reason) or add. Complete the ESMS screen if a project exists. Issue the term sheet if needed. Submit — the <em>What to do now</em> panel lists anything still blocking. At final sanction the T&amp;C you authored become the conditions tracked after sanction.</div>
+            <div class="k">Actions</div><div><span class="chip">Submit appraisal</span> <span class="chip">Drop</span> <span class="chip">Withdraw</span></div>
+          </div></div></div>
+        <div class="step"><div class="num">2</div><div>
+          <h4>LPF VP AP Review</h4><div class="who">LPF VP · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div>Read-only review. Record the <strong>material-information date</strong> (required), committee matters and significant changes. Approve or return.</div></div></div></div>
+        <div class="step"><div class="num">3</div><div>
+          <h4>CRP VP Allocation</h4><div class="who">CRP VP · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div>Allocate to a Risk Analyst.</div></div></div></div>
+        <div class="step prep"><div class="num">4</div><div>
+          <h4>Risk Maker (Credit Reassessment) <span class="chip agent">Agent prepares</span></h4><div class="who">Risk Analyst · SLA 5 days</div>
+          <div class="rows"><div class="k">Agents</div><div class="agentbox">Refreshes the fields. A value you already confirmed is never overwritten. If the agent now proposes something different, it shows up as a <strong>conflict</strong> for you to resolve.</div>
+          <div class="k">You</div><div>Verify. The <strong>IP → AP comparison</strong> shows what changed in the proposal, the assessment and the sanction.</div></div></div></div>
+        <div class="step"><div class="num">5</div><div>
+          <h4>Risk Review</h4><div class="who">Risk Reviewer · SLA 3 days</div>
+          <div class="rows"><div class="k">You</div><div>Approve or return.</div></div></div></div>
+        <div class="step"><div class="num">6</div><div>
+          <h4>Post Risk Rating Processing</h4><div class="who">Post Risk Rating Maker · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div>Complete the post-rating work and submit.</div></div></div></div>
+        <div class="step"><div class="num">7</div><div>
+          <h4>Post-Rating VP Review</h4><div class="who">CRP VP · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div>Approve or return.</div></div></div></div>
+        <div class="step"><div class="num">8</div><div>
+          <h4>EVP Recommendation</h4><div class="who">EVP Recommender · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div>Record significant changes. <em>Recommend for sanction</em> or return.</div></div></div></div>
+        <div class="step"><div class="num">9</div><div>
+          <h4>Recommendations Committee</h4><div class="who">Recommendations Committee · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div>Record the minutes and the CEAC recommendation. <em>Recommend for sanction</em> or rework.</div></div></div></div>
+        <div class="step"><div class="num">9a</div><div>
+          <h4>ESMS process: CRP ES Maker → ES Preparation → ES Review → ES Recommendation</h4><div class="who">ES roles · SLA 2–3 days each</div>
+          <div class="rows"><div class="k">Agents</div><div class="agentbox">The ESMS screening and the proposed E&amp;S category were pre-filled at the IP / AP Note; the ES Maker confirms them.</div>
+            <div class="k">You</div><div>Record the E&amp;S category; complete the screen and generate the ESMS Approval Note; review; record the ES recommendation.</div></div></div></div>
+        <div class="step"><div class="num">9b</div><div>
+          <h4>DMD Approval</h4><div class="who">Deputy Managing Director · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div>Approve for the committee or rework. (The AP manual has this step; the POS manual does not — the bank confirms.)</div></div></div></div>
+        <div class="step"><div class="num">10</div><div>
+          <h4>Committee Sanction</h4><div class="who">Sanction Committee · SLA 5 days</div>
+          <div class="rows"><div class="k">You</div><div><em>Final sanction</em>. This creates the <strong>conditions tracker</strong> (CPs and CSs).</div></div></div></div>
+      </div>
+    </div>
+
+    <!-- POS -->
+    <div class="panel" data-panel="POS" role="tabpanel" hidden>
+      <div class="steps">
+        <div class="step prep"><div class="num">1</div><div>
+          <h4>Post Sanction Maker <span class="chip agent">Agent prepares</span></h4><div class="who">POS Maker · SLA 5 days</div>
+          <div class="rows">
+            <div class="k">Agents</div><div class="agentbox">Upload the <strong>signed sanction letter</strong> and the <strong>facility agreement</strong>, then click <em>Prepare with agents</em>. The agent reads the sanction reference, who accepted and when, the sanctioned amount, and the agreement date and amount. The consent form arrives pre-filled.</div>
+            <div class="k">You</div><div>Check and save the consent and per-facility execution. Saving an unchanged value counts as confirming it; a changed value is recorded as an override. Issue the sanction letter. Clear, defer or waive conditions precedent (deferrals and waivers need a reason). Review material changes since sanction.</div>
+            <div class="k">Gate</div><div>Consent recorded; no condition precedent open; material changes reviewed.</div>
+            <div class="k">Actions</div><div><span class="chip">Submit</span> <span class="chip">Propose modification</span> <span class="chip">Drop</span> <span class="chip">Withdraw</span></div>
+          </div></div></div>
+        <div class="step"><div class="num">2</div><div>
+          <h4>Post Sanction Checker</h4><div class="who">POS Checker · SLA 2 days</div>
+          <div class="rows"><div class="k">You</div><div><em>Recommend for disbursement</em>, which also approves every waiver and deferral. Otherwise recommend for modification or return.</div></div></div></div>
+      </div>
+      <div class="callout"><strong>Deviation register.</strong> One list of everything that departs from policy or the proposal. It covers policy exceptions accepted at sanction, a sanction different from the recommendation, an IP → AP change in amount, and condition waivers or deferrals. Each entry shows the approving authority.</div>
+    </div>
+
+    <!-- DIS -->
+    <div class="panel" data-panel="DIS" role="tabpanel" hidden>
+      <div class="steps">
+        <div class="step prep"><div class="num">1</div><div>
+          <h4>Disbursement Maker <span class="chip agent">Agent prepares</span></h4><div class="who">DIS Maker · SLA 2 days</div>
+          <div class="rows">
+            <div class="k">Agents</div><div class="agentbox">Upload the borrower's <strong>drawdown request</strong> and prepare. The agent reads the amount, value date, purpose, beneficiary name, account number and IFSC, and pre-fills the tranche and beneficiary. The <strong>carry-forward agent</strong> fills the interest terms, the repayment schedule (Annexure I), the fee collection and the security details (Annexure IV) from the sanctioned record.</div>
+            <div class="k">You</div><div>Check and save the carried values (a change is recorded as your correction). Save the beneficiary and the tranche. Complete the CIF, limits, CBS security numbers, the operating checklist and the memo, then submit.</div>
+            <div class="k">Gate</div><div>Tranche recorded (within the undisbursed limit); checklist complete.</div>
+          </div></div></div>
+        <div class="step"><div class="num">2</div><div>
+          <h4>Disbursement Checker</h4><div class="who">DIS Checker · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div>Verify the tranche. <em>Submit to VP review</em> or return.</div></div></div></div>
+        <div class="step"><div class="num">3</div><div>
+          <h4>Disbursement VP Review</h4><div class="who">Disbursement VP · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div>Read-only review. Record significant changes. <em>Submit</em> or <em>Rework</em> back to the maker.</div></div></div></div>
+        <div class="step"><div class="num">4</div><div>
+          <h4>Disbursement Approver</h4><div class="who">Disbursement Approver · SLA 1 day</div>
+          <div class="rows"><div class="k">You</div><div><em>Approve disbursement</em> or return. The tranche is <strong>approved for release</strong> and the application reaches <strong>Exit</strong>.</div></div></div></div>
+      </div>
+      <div class="callout warn">The LOS ends at the <em>authorisation to release</em>. Payment execution and reconciliation with core banking happen outside the LOS.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 4. Verify ───────────────────────── -->
+<section id="verify">
+  <div class="wrap">
+    <h2>Verifying agent work</h2>
+    <p class="sub">Every step that agents prepare has an <strong>Agents · verify by exception</strong> card. It shows how much was filled, how much you have verified, and the queue of items that need you.</p>
+
+    <h3>What a proposed value looks like</h3>
+    <div class="field-mock" aria-label="Example verify queue">
+      <div class="fm-row"><span class="box on"></span><div><strong>Revenue from operations, FY2025</strong><div class="src">audited_financials_fy2025.pdf · page 1</div></div><div>₹ 312.40 Cr</div><span class="chip ok">high · pre-ticked</span></div>
+      <div class="fm-row"><span class="box on"></span><div><strong>CIN</strong><div class="src">certificate_of_incorporation.pdf · page 2</div></div><div>U15400MH2015PTC123456</div><span class="chip ok">high · pre-ticked</span></div>
+      <div class="fm-row"><span class="box"></span><div><strong>Risk grade</strong><div class="src">credit case · scoring model</div></div><div>BBB</div><span class="chip blue">must verify</span></div>
+      <div class="fm-row"><span class="box"></span><div><strong>Key risks (narrative)</strong><div class="src">drafted from the confirmed facts</div></div><div>“Customer concentration…”</div><span class="chip agent">AI draft · read it</span></div>
+      <div class="fm-row"><span class="box"></span><div><strong>Collateral market value</strong><div class="src">valuation report p.3 vs securities record</div></div><div>₹ 62.0 / ₹ 58.5 Cr</div><span class="chip warn">conflict</span></div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">Illustration. The values are for a fictional borrower.</p>
+
+    <div class="grid2" style="margin-top:18px">
+      <div class="card">
+        <h3>Arrives pre-ticked when</h3>
+        <ul class="tight">
+          <li>Confidence is 85% or higher, for example when several documents agree or the value matches the record.</li>
+          <li>The critic found no issue with its evidence or figures.</li>
+          <li>The field may be bulk-confirmed.</li>
+        </ul>
+        <p style="margin:6px 0 0">Even then, nothing is accepted until a person clicks <em>Confirm selected</em>.</p>
+      </div>
+      <div class="card">
+        <h3>Always needs individual review</h3>
+        <ul class="tight">
+          <li>Decision-driving fields: risk grade, system recommendation, internal rating, decision, structure, deviations, KYC status, watch-list check, legal name, requested amount.</li>
+          <li>AI-drafted narrative.</li>
+          <li>Demo values standing in for bank models.</li>
+          <li>Conflicts and low-confidence values.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>What you can do with a value</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Action</th><th>When</th><th>Needs</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip ok">Confirm</span></td><td>The value is right</td><td>—</td></tr>
+        <tr><td><span class="chip blue">Change…</span></td><td>The value is wrong or incomplete</td><td>The correct value and a reason</td></tr>
+        <tr><td><span class="chip warn">Keep</span></td><td>A new run proposes something different from what was already decided, and the decided value is still right</td><td>A reason</td></tr>
+        <tr><td><span class="chip">Reopen</span></td><td>A decided value needs another look</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>The life of a field</h3>
+    <div class="flow">
+      <span class="node" style="border-color:var(--agent)">Proposed by an agent</span><span class="arrow">→</span>
+      <span class="node" style="border-color:var(--ok)">Confirmed</span><span class="arrow">or</span>
+      <span class="node" style="border-color:var(--accent)">Overridden (with reason)</span><span class="arrow">→</span>
+      <span class="node">Locked against re-runs</span><span class="arrow">→ if a later run disagrees →</span>
+      <span class="node" style="border-color:var(--warn)">Conflict, for you to resolve</span>
+    </div>
+
+    <div class="callout agent">
+      <strong>Your corrections flow back into the analysis.</strong> If you change a financial (CMA) figure or a collateral value, the credit case re-runs automatically with your figure. The ratios, risk view and CAM then reflect it. In a test, changing revenue from ₹1,050 Cr to ₹1,400 Cr re-ran the case, and the EBITDA margin moved to 3.2%. The engine's own value is kept alongside yours for audit.
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 5. Decisions ───────────────────────── -->
+<section id="decisions">
+  <div class="wrap">
+    <h2>Decisions &amp; controls</h2>
+    <p class="sub">The workflow decides who may act. People take every decision, and every decision is recorded.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Decision</th><th>Who / where</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Submit</strong></td><td>Makers</td><td>Moves to the next step once the step's gate is satisfied.</td></tr>
+        <tr><td><strong>Approve</strong> / <strong>Recommend</strong></td><td>Checkers, VPs, EVP</td><td>Moves forward. The label follows the bank's wording, such as <em>Recommend for sanction</em> or <em>Recommend for disbursement</em>.</td></tr>
+        <tr><td><strong>Return</strong></td><td>Checkers, VPs, committees</td><td>Back to the stage's maker, assigned to the person who last worked it, with your comment shown on their step.</td></tr>
+        <tr><td><strong>Reject</strong></td><td>Checkers, committees</td><td>Ends the application.</td></tr>
+        <tr><td><strong>Allocate</strong></td><td>CRP EVP, CRP VP</td><td>Assigns the next step to a named person who holds the right role.</td></tr>
+        <tr><td><strong>Sanction</strong></td><td>Committees</td><td>Records the amount, the minutes and a snapshot of the facility.</td></tr>
+        <tr><td><strong>Defer</strong></td><td>PS and IP Note makers</td><td>Puts the application on hold until a date. The SLA is paused and only <em>Reactivate</em> is offered.</td></tr>
+        <tr><td><strong>Drop</strong> / <strong>Withdraw</strong></td><td>Makers</td><td>Closes the application, for the bank's reason or at the customer's request. A reason is required.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="grid2" style="margin-top:18px">
+      <div class="card">
+        <h3>Controls built in</h3>
+        <ul class="tight">
+          <li><strong>A remark on every decision</strong>, at every step.</li>
+          <li><strong>Maker–checker</strong> throughout; a checker cannot edit the maker's record (reviewers are read-only).</li>
+          <li><strong>Gates</strong> before submit: due diligence, IP Note, assessment, consent and CPs, tranche and checklist.</li>
+          <li><strong>Decision fields</strong> where the process asks for them, such as the material-information date, significant changes and committee minutes.</li>
+          <li><strong>Compliance VP exception</strong> is the only way past a mandatory due-diligence match.</li>
+          <li><strong>Escalate</strong> and <strong>Reassign</strong> on any active application.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What the AI is not allowed to do</h3>
+        <ul class="tight">
+          <li>Take any workflow or credit decision.</li>
+          <li>Invent a figure. Any AI text that quotes a number not in the record is rejected.</li>
+          <li>Accept a value on a person's behalf.</li>
+          <li>Overwrite a value a person has confirmed or changed.</li>
+          <li>Act unseen. Agent work appears in the audit trail like any other action, labelled with the agent's name.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Where a value comes from</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Label</th><th>Meaning</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td><span class="chip">Source</span></td><td>Read from the borrower's documents or record</td><td>Legal name, audited revenue</td></tr>
+        <tr><td><span class="chip">External</span></td><td>From an external data service</td><td>MCA data, rating agency</td></tr>
+        <tr><td><span class="chip">Calculated</span></td><td>Deterministic calculation</td><td>Ratios, security cover, RAROC arithmetic</td></tr>
+        <tr><td><span class="chip">Derived</span></td><td>Rule-based analysis</td><td>Risk grade, conditions from the reassessment</td></tr>
+        <tr><td><span class="chip agent">AI</span></td><td>Model-written, figure-checked, never pre-ticked</td><td>Narrative, IP Note summary, committee brief</td></tr>
+        <tr><td><span class="chip warn">Demo</span></td><td>Stand-in for a bank model that isn't connected</td><td>Internal rating scale, PD/LGD, pricing grid</td></tr>
+        <tr><td><span class="chip bad">Not available</span></td><td>Not in the submitted information. It is never filled in by guessing.</td><td>A PAN on an unread scan</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 6. Roles ───────────────────────── -->
+<section id="roles">
+  <div class="wrap">
+    <h2>Who's who (demo users)</h2>
+    <p class="sub">Sign-in is a demo picker with no passwords: choose a group, a user and a role. A user with two roles switches between them in the sidebar.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Group</th><th>Role</th><th>Demo user</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2">Sourcing &amp; Relationship</td><td>Prospect Sourcing Maker (RM)</td><td>Ananya Rao, Karan Malhotra</td></tr>
+        <tr><td>LPF VP</td><td>Vivek Iyer</td></tr>
+        <tr><td rowspan="5">Credit &amp; Risk</td><td>CRP EVP</td><td>Meera Krishnan</td></tr>
+        <tr><td>CRP VP / Risk Reviewer</td><td>Rahul Bansal</td></tr>
+        <tr><td>Risk Analyst (Risk Maker)</td><td>Neha Kulkarni, Arjun Menon</td></tr>
+        <tr><td>Post Risk Rating Maker</td><td>Arjun Menon</td></tr>
+        <tr><td>Compliance VP</td><td>Priya Raghavan</td></tr>
+        <tr><td>CRP ES Maker / ES Preparation / ES Reviewer / ES Recommender</td><td>Divya Sharma / Nikhil Joshi / Shalini Gupta / Anil Kapoor</td></tr>
+        <tr><td rowspan="4">Executive &amp; Committee</td><td>EVP Recommender</td><td>Sunil Chopra</td></tr>
+        <tr><td>Recommendations Committee</td><td>Recommendations Committee Secretariat</td></tr>
+        <tr><td>DMD</td><td>R. Venkatesh</td></tr>
+        <tr><td>Sanction Committee</td><td>Credit Committee Secretariat</td></tr>
+        <tr><td rowspan="2">Operations &amp; Fulfilment</td><td>Post Sanction Maker / Checker</td><td>Farah Sheikh / Gautam Das</td></tr>
+        <tr><td>Disbursement Maker / Checker / VP / Approver</td><td>Lakshmi Narayan / Rohit Saxena / Vikram Desai / Pooja Venkat</td></tr>
+        <tr><td>System Administration</td><td>LOS System Admin</td><td>LOS Administrator</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 7. MIS ───────────────────────── -->
+<section id="mis">
+  <div class="wrap">
+    <h2>Measuring it</h2>
+    <p class="sub">The Management MIS covers the usual pipeline measures: stage distribution, ageing, turnaround, SLA compliance by role, return rates and sanctions. It also has an <strong>Agents · populate → verify</strong> panel that measures the agents' contribution.</p>
+    <div class="grid3">
+      <div class="card"><div class="big">84.6%</div><p>of fields <strong>filled by agents</strong> (populated)</p></div>
+      <div class="card"><div class="big">100%</div><p>of verified values <strong>accepted unchanged</strong></p></div>
+      <div class="card"><div class="big">74</div><p>values <strong>nobody had to type</strong></p></div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">Example figures from a test application with 143 fields. 51.7% of its fields had been verified at the time.</p>
+    <div class="tbl" style="margin-top:14px"><table>
+      <thead><tr><th>Measure</th><th>What it tells you</th></tr></thead>
+      <tbody>
+        <tr><td>Populated %</td><td>The share of fields the agents filled.</td></tr>
+        <tr><td>Verified %</td><td>The share people have confirmed or changed.</td></tr>
+        <tr><td>Accepted unchanged %</td><td>Of the verified values, the share confirmed as proposed. This is the main measure of agent accuracy.</td></tr>
+        <tr><td>Overridden / open conflicts</td><td>Where people corrected the agents, and what is still to resolve.</td></tr>
+        <tr><td>Preparations and average time</td><td>How often agents prepared a step, and how long it took.</td></tr>
+        <tr><td>Feedback re-runs</td><td>How often a person's correction re-ran the credit case.</td></tr>
+        <tr><td>Prospects from documents</td><td>New borrowers created straight from their documents.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 8. Demo ───────────────────────── -->
+<section id="demo">
+  <div class="wrap">
+    <h2>What is demo in this proof of concept</h2>
+    <p class="sub">The workflow, the agents, the verification and the controls are real. The bank's own systems and models are not yet connected, and the screens label the stand-ins.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Labelled demo stand-ins</h3>
+        <ul class="tight">
+          <li>Core banking (CIF, limits, CBS security IDs), bureau, MCA and screening services</li>
+          <li>Internal rating scale, PD/LGD, RAROC and the pricing grid</li>
+          <li>The authority matrix (shown; routing follows a fixed chain)</li>
+          <li>Sign-in (a picker, not the bank's identity system)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Outside the LOS</h3>
+        <ul class="tight">
+          <li>Payment execution and reconciliation</li>
+          <li>Reading scanned pages needs an image-capable AI model, or OCR software, to be configured</li>
+          <li>Demo documents: a fictional borrower, <em>Zeta Foods Private Limited</em>. The bank's own document set is the next step.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── 9. Glossary ───────────────────────── -->
+<section id="glossary">
+  <div class="wrap">
+    <h2>Glossary</h2>
+    <div class="card">
+      <dl class="gloss">
+        <dt>Agent</dt><dd>A piece of software that does a defined job: reading documents, running checks, or filling a workspace from the credit case. It proposes values; it never decides.</dd>
+        <dt>AP</dt><dd>Application Processing: the full appraisal and final sanction stage.</dd>
+        <dt>CAM</dt><dd>Credit Appraisal Memorandum. Here it is produced by the credit-intelligence engine, which runs the analysis and writes the sections.</dd>
+        <dt>CMA</dt><dd>Credit Monitoring Arrangement data: the financial statements and projections in the bank's format.</dd>
+        <dt>Confidence</dt><dd>How sure the agent is about a value. It is higher when documents agree with each other or with the record.</dd>
+        <dt>Conflict</dt><dd>A new proposal that differs from a value already decided, or documents that disagree with each other.</dd>
+        <dt>CP / CS</dt><dd>Conditions precedent (before disbursement) and conditions subsequent (after it, due in 90 days by default).</dd>
+        <dt>CRILC</dt><dd>RBI's Central Repository of Information on Large Credits.</dd>
+        <dt>CRP / LPF</dt><dd>Credit Risk Policy team / Lending &amp; Project Finance team.</dd>
+        <dt>Critic</dt><dd>An automatic check on every agent proposal: is there evidence, and does every quoted figure appear in the source?</dd>
+        <dt>DD</dt><dd>Due diligence: the 15 checks (8 automated, 7 recorded by a person).</dd>
+        <dt>DIS</dt><dd>Disbursement stage.</dd>
+        <dt>ESMS / ESDD</dt><dd>Environmental &amp; Social Management System / Due Diligence.</dd>
+        <dt>IP</dt><dd>In-Principle stage: the IP Note, the first credit assessment and the in-principle sanction.</dd>
+        <dt>MLRA</dt><dd>Money-laundering risk assessment.</dd>
+        <dt>NTB / ETB</dt><dd>New to bank / existing to bank.</dd>
+        <dt>Pinned credit case</dt><dd>The specific credit-case run tied to an application, so every step looks at the same analysis until something changes.</dd>
+        <dt>POS</dt><dd>Post Sanction stage: consent, documentation and conditions.</dd>
+        <dt>Pre-ticked</dt><dd>A high-confidence value selected in advance for one-click confirmation. It still needs a person to confirm it.</dd>
+        <dt>PS</dt><dd>Prospect Sourcing stage.</dd>
+        <dt>RAROC</dt><dd>Risk-adjusted return on capital.</dd>
+        <dt>SLA</dt><dd>Target days for a step. Breaches are flagged on the step, the dashboard and the MIS.</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">Agentic Corporate LOS: proof of concept. The technical design is in <a href="TECHNICAL_ARCHITECTURE.html">Technical Architecture</a> and the demo walkthrough in <a href="POC_DEMO_SCRIPT.md">POC_DEMO_SCRIPT.md</a>.</div>
+</footer>
+
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('theme');
+  try{var t=localStorage.getItem('los-doc-theme'); if(t) root.setAttribute('data-theme',t);}catch(e){}
+  btn.addEventListener('click',function(){
+    var dark=root.getAttribute('data-theme')==='dark'||(!root.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);
+    var next=dark?'light':'dark'; root.setAttribute('data-theme',next);
+    try{localStorage.setItem('los-doc-theme',next);}catch(e){}
+  });
+  function open(id){
+    document.querySelectorAll('[data-tab]').forEach(function(b){b.setAttribute('aria-selected',b.dataset.tab===id?'true':'false');});
+    document.querySelectorAll('[data-panel]').forEach(function(p){p.hidden=p.dataset.panel!==id;});
+  }
+  document.querySelectorAll('[data-tab]').forEach(function(b){b.addEventListener('click',function(){open(b.dataset.tab);});});
+  document.querySelectorAll('[data-open]').forEach(function(a){a.addEventListener('click',function(){open(a.dataset.open);});});
+})();
+</script>
+</body>
+</html>

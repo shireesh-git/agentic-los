@@ -50,6 +50,7 @@ function camApp() {
 
     /* Borrower workspace (#case/{id}/{tab}) */
     detail: null,
+    noCase: null,         // a borrower opened by link before any CAM was run for it
     wtab: 'overview',
     _docLoadedFor: null,   /* borrower whose Documents tab data is loaded */
     detailExtraction: null,

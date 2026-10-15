@@ -108,7 +108,10 @@ def external_rating_entry(raw: dict, parties: list[dict]) -> dict:
             "term_class": term, "grade": (str(raw.get("grade") or rating.split("/")[0]).strip() or None),
             "date": str(raw.get("date") or date.today().isoformat()),
             "instrument": (str(raw.get("instrument") or "").strip() or None),
-            "rationale": (str(raw.get("rationale") or "").strip() or None)}
+            "rationale": (str(raw.get("rationale") or "").strip() or None),
+            # POS manual: key credit weaknesses / observations from the rating rationale (F-10)
+            "credit_weaknesses": (str(raw.get("credit_weaknesses") or "").strip() or None),
+            "outlook": (str(raw.get("outlook") or "").strip() or None)}
 
 
 def internal_rating_entry(raw: dict) -> dict:
@@ -187,7 +190,7 @@ def compute_raroc(app: dict, facility_id: str, case: Optional[dict], at: str, by
                         "internal_grade": (internal or {}).get("grade"),
                         "expected_loss_cr": round(el, 3), "revenue_cr": round(revenue, 3),
                         "cost_of_funds_cr": round(cost_of_funds, 3), "capital_cr": round(capital, 3)},
-             "raroc_pct": raroc, "meets_hurdle": raroc >= 14.0,
+             "raroc_pct": raroc + 0.0, "meets_hurdle": raroc >= 14.0,
              "input_hash": raroc_input_hash(f, internal), "model": "LOS demo RAROC model — bank-approved "
              "formulas require confirmation (spec §22/P0-08)",
              "computed_at": at, "computed_by": by_name}

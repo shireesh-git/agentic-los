@@ -188,7 +188,7 @@ def _to_ip_note(svc):
     svc.run_prefill(app_id, rm)
     svc.apply_prefill(app_id, rm, [{"field_id": "pan"}, {"field_id": "collateral_mv_cr"},
                                    {"field_id": "collateral_fsv_cr"}])
-    svc.act(app_id, rm, "submit")                             # ps_maker → IP Note (the RM holds it)
+    svc.act(app_id, rm, "submit", comment="submit (test)")                             # ps_maker → IP Note (the RM holds it)
     app = svc.get(app_id)
     assert app["step"]["id"] == "ip_note"
     return app_id, svc.sign_in(app["assignee_id"], app["step"]["role"])
@@ -212,9 +212,10 @@ def test_ip_note_uses_accepted_values_and_prescreens_against_policy(svc):
 def test_ip_note_step_cannot_be_submitted_without_the_note(svc):
     app_id, maker = _to_ip_note(svc)
     with pytest.raises(InvalidRequestError, match="Generate the IP Note"):
-        svc.act(app_id, maker, "submit")
+        svc.act(app_id, maker, "submit", comment="submit (test)")
     svc.generate_ip_note(app_id, maker, with_ai=False)
-    assert svc.act(app_id, maker, "submit")["step"]["id"] == "ip_note_review"
+    svc._seed_stage_docs(app_id, "IP", svc.now())                  # the IP Note gate's documents
+    assert svc.act(app_id, maker, "submit", comment="submit (test)")["step"]["id"] == "ip_note_review"
 
 
 def test_seeded_applications_past_the_ip_note_carry_one(svc):

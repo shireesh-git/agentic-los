@@ -34,16 +34,18 @@ DEC = {"decision": "Refer for in-principle", "mandatory_remarks": "Test — refe
 
 def test_definition_matches_the_demo_lifecycle(wf):
     assert [s["id"] for s in wf.stages] == ["PS", "IP", "AP", "POS", "DIS"]
-    assert len(wf.groups) == 5 and len(wf.roles) == 18 and len(wf.steps) == 25
+    assert len(wf.groups) == 5 and len(wf.roles) == 23 and len(wf.steps) == 31
     assert [s.id for s in wf.steps if s.stage_id == "PS"] == ["ps_maker"]
     assert [s.id for s in wf.steps if s.stage_id == "AP"] == [
         "ap_note", "ap_review", "ap_crp_vp", "ap_risk_maker", "ap_risk_review",
-        "ap_post_rating", "ap_rating_vp", "ap_evp", "ap_recommend", "ap_sanction"]
+        "ap_post_rating", "ap_rating_vp", "ap_evp", "ap_recommend",
+        "ap_es_maker", "ap_es_prep", "ap_es_review", "ap_es_recommend", "ap_dmd", "ap_sanction"]   # G-W2 / G-W3
     assert wf.step("ap_rating_vp").kind == "checker" and wf.step("ap_rating_vp").role == "crp_vp"
     assert (wf.step("ap_recommend").kind, wf.step("ap_recommend").role) == (
         "committee", "recommendations_committee")
     ip = [s.name for s in wf.steps if s.stage_id == "IP"]
     assert ip[0] == "IP Note Processing" and ip[-1] == "IP Sanction Committee" and "Risk Maker (Credit Assessment)" in ip
+    assert ip.index("Post Rating VP Review") == ip.index("CRP VP Risk Review") + 1                 # G-W1
     assert wf.first_step.id == "ps_maker" and wf.steps[-1].id == "dis_approver"
     assert [s.id for s in wf.steps if s.stage_id == "DIS"] == ["dis_maker", "dis_checker", "dis_vp_review", "dis_approver"]
 
@@ -52,7 +54,7 @@ def test_disbursement_vp_review_is_a_submit_rework_gate(wf):
     vp = wf.step("dis_vp_review")
     assert (vp.role, vp.kind, vp.sla_days) == ("dis_vp", "vp_review", 1)
     assert wf.actions_for(vp) == ("submit", "return")
-    fwd = transition(wf, vp, "submit")
+    fwd = transition(wf, vp, "submit", comment="endorsed")
     assert (fwd.step_id, fwd.status) == ("dis_approver", "UNDER_REVIEW")
     back = transition(wf, vp, "return", comment="rework")
     assert (back.step_id, back.status) == ("dis_maker", "RETURNED")      # back to the stage's maker
@@ -73,12 +75,16 @@ def test_definition_is_validated():
 
 def test_transitions(wf):
     risk_review = wf.step("ip_risk_review")
-    assert transition(wf, wf.step("ps_maker"), "submit").step_id == "ip_note"
+    assert transition(wf, wf.step("ps_maker"), "submit", comment="ok").step_id == "ip_note"
     back = transition(wf, risk_review, "return", comment="rework")
     assert (back.step_id, back.status) == ("ip_risk_maker", "RETURNED")
-    assert transition(wf, wf.step("ap_recommend"), "sanction").step_id == "ap_sanction"
-    assert transition(wf, wf.step("ip_sanction"), "sanction").step_id == "ap_note"      # next stage
-    done = transition(wf, wf.step("dis_approver"), "approve")
+    assert transition(wf, wf.step("ap_recommend"), "sanction", comment="ok").step_id == "ap_es_maker"
+    assert transition(wf, wf.step("ap_dmd"), "approve", comment="ok").step_id == "ap_sanction"
+    # rework routes: within the ES process to ES Preparation; DMD and the committee as before
+    assert transition(wf, wf.step("ap_es_review"), "return", comment="x").step_id == "ap_es_prep"
+    assert transition(wf, wf.step("ap_sanction"), "return", comment="x").step_id == "ap_post_rating"
+    assert transition(wf, wf.step("ip_sanction"), "sanction", comment="ok").step_id == "ap_note"      # next stage
+    done = transition(wf, wf.step("dis_approver"), "approve", comment="approved")
     assert done.step_id is None and done.status == "APPROVED"
     assert transition(wf, risk_review, "reject", comment="no").status == "REJECTED"
     with pytest.raises(WorkflowError, match="comment is required"):
@@ -127,6 +133,21 @@ def test_sla_ageing_escalation(wf):
 
 # ─── Service: create, act, permissions, audit ───────────────────────────────
 
+def es_work(svc, app_id, session, step_id):
+    """The Environmental & Social steps as their holders work them (G-W2): the CRP ES Maker completes the
+    ESMS screen with the category; ES Preparation generates the ESMS Approval Note."""
+    from src.los.esms import ES_CHECKLIST
+    if step_id == "ap_es_maker":
+        esms = svc.get(app_id).get("esms") or {}
+        category = esms.get("category") or esms.get("proposed_category") or "C"
+        svc.update_esms(app_id, session, {"screening_date": svc.now().date().isoformat(), "category": category,
+                                          **({"esdd": "ESDD required (test)"} if category == "A" else {}),
+                                          "checklist": [{"id": i, "answer": "No", "remarks": "Screened (test)"}
+                                                        for i, _ in ES_CHECKLIST]})
+    if step_id == "ap_es_prep":
+        svc.generate_output(app_id, session, "esms_approval_note")
+
+
 def _clear_dd(svc, app_id, rm):
     """Run the API checks, record the manual ones as clear and release any match with a Compliance VP exception."""
     svc.run_due_diligence(app_id, rm)
@@ -151,20 +172,21 @@ def test_maker_checker_flow_with_audit(svc):
     assert app["application_id"].startswith("LOS-2026-") and app["status"] == "DRAFT"
     assert app["amount_cr"] == 250.0 and app["facility"]["facility_type"] == "working_capital"
     with pytest.raises(InvalidRequestError, match="mandatory due-diligence"):
-        svc.act(app["application_id"], rm, "submit")
+        svc.act(app["application_id"], rm, "submit", comment="application_id (test)")
     _clear_dd(svc, app["application_id"], rm)
-    v = svc.act(app["application_id"], rm, "submit")
-    assert (v["step"]["id"], v["assignee_id"]) == ("ip_note", "u_rm2")       # load-balanced to the other RM
-    rm2 = sign(svc, "u_rm2", "ps_maker")
+    v = svc.act(app["application_id"], rm, "submit", comment="application_id (test)")
+    assert (v["step"]["id"], v["assignee_id"]) == ("ip_note", "u_rm1")       # the sourcing RM keeps the IP Note
+    rm2 = rm
     with pytest.raises(InvalidRequestError, match="not available"):
-        svc.act(app["application_id"], rm2, "approve")
+        svc.act(app["application_id"], rm2, "approve", comment="application_id (test)")
     svc.generate_ip_note(app["application_id"], rm2)
-    v = svc.act(app["application_id"], rm2, "submit")
+    svc._seed_stage_docs(app["application_id"], "IP", svc.now())        # the IP Note gate's documents
+    v = svc.act(app["application_id"], rm2, "submit", comment="application_id (test)")
     assert (v["step"]["id"], v["status"], v["assignee_id"]) == ("ip_note_review", "UNDER_REVIEW", "u_lpf")
     vp = sign(svc, "u_lpf", "lpf_vp")
     assert svc.get(app["application_id"], vp)["actions"] == ["approve", "return", "reject", "recommend_modification", "drop"]
     v = svc.act(app["application_id"], vp, "return", comment="Add the group structure")
-    assert (v["step"]["id"], v["status"], v["assignee_id"]) == ("ip_note", "RETURNED", "u_rm2")   # back to its maker
+    assert (v["step"]["id"], v["status"], v["assignee_id"]) == ("ip_note", "RETURNED", "u_rm1")   # back to its maker
     assert [e["action"] for e in v["events"][:4]] == ["return", "submit", "ip_note", "submit"]
     assert {"dd_trigger", "dd_record", "dd_exception"} <= {e["action"] for e in v["events"]}
     assert v["events"][0]["comment"] == "Add the group structure" and v["events"][0]["actor_name"] == "Vivek Iyer"
@@ -263,13 +285,13 @@ def test_assignee_guard_and_reassign(svc):
     rm1, rm2 = sign(svc, "u_rm1", "ps_maker"), sign(svc, "u_rm2", "ps_maker")
     app = svc.create(rm1, entity_id="APOL001", sourcing_decision=DEC)
     with pytest.raises(ForbiddenError, match="Assigned to Ananya Rao"):
-        svc.act(app["application_id"], rm2, "submit")
+        svc.act(app["application_id"], rm2, "submit", comment="application_id (test)")
     v = svc.reassign(app["application_id"], rm1, "u_rm2")
     assert v["assignee_id"] == "u_rm2" and v["events"][0]["action"] == "reassign"
     with pytest.raises(InvalidRequestError, match="does not hold"):
         svc.reassign(app["application_id"], rm1, "u_ra1")
     _clear_dd(svc, app["application_id"], rm2)
-    assert svc.act(app["application_id"], rm2, "submit")["step"]["id"] == "ip_note"
+    assert svc.act(app["application_id"], rm2, "submit", comment="application_id (test)")["step"]["id"] == "ip_note"
 
 
 def test_only_the_first_role_creates_and_roles_must_be_held(svc):
@@ -287,10 +309,11 @@ def test_reject_is_terminal_and_escalation_is_flagged(svc):
     rm = sign(svc, "u_rm1", "ps_maker")
     app = svc.create(rm, entity_id="MFL001", sourcing_decision=DEC)
     _clear_dd(svc, app["application_id"], rm)
-    svc.act(app["application_id"], rm, "submit")
-    rm2 = sign(svc, "u_rm2", "ps_maker")
+    svc.act(app["application_id"], rm, "submit", comment="application_id (test)")
+    rm2 = rm                                                             # the sourcing RM keeps the IP Note
     svc.generate_ip_note(app["application_id"], rm2)
-    svc.act(app["application_id"], rm2, "submit")
+    svc._seed_stage_docs(app["application_id"], "IP", svc.now())        # the IP Note gate's documents
+    svc.act(app["application_id"], rm2, "submit", comment="application_id (test)")
     vp = sign(svc, "u_lpf", "lpf_vp")
     v = svc.escalate(app["application_id"], vp, "Large exposure")
     assert v["escalated"] is True
@@ -299,7 +322,7 @@ def test_reject_is_terminal_and_escalation_is_flagged(svc):
     ip_stage = next(s for s in v["rail"] if s["id"] == "IP")
     assert ip_stage["steps"][1]["state"] == "rejected"
     with pytest.raises(Exception):
-        svc.act(app["application_id"], vp, "approve")
+        svc.act(app["application_id"], vp, "approve", comment="application_id (test)")
 
 
 def test_due_diligence_is_governed_and_the_vp_exception_is_the_only_release(svc):
@@ -313,7 +336,7 @@ def test_due_diligence_is_governed_and_the_vp_exception_is_the_only_release(svc)
     d = svc.run_due_diligence(app_id, rm)
     assert any(c["status"] == "pending" and c["mandatory"] for c in d["checks"])
     with pytest.raises(InvalidRequestError, match="mandatory due-diligence"):
-        svc.act(app_id, rm, "submit")
+        svc.act(app_id, rm, "submit", comment="submit (test)")
     # Name screening of IHCL matches a PEP record — a mandatory match.
     pep = next(c for c in svc.due_diligence(app_id, rm)["checks"] if c["id"] == "name_screening")
     assert pep["status"] == "matched" and pep["mandatory"]
@@ -423,17 +446,17 @@ def test_api_end_to_end(http):
         "sourcing_decision": {"decision": "Refer for in-principle", "mandatory_remarks": "e2e test — refer"}})
     app_id = created.json()["application_id"]
     assert created.json()["amount_cr"] == 90.0
-    assert http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "submit"}).status_code == 400
+    assert http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "submit", "comment": "test"}).status_code == 400
     assert http.post(f"/api/los/applications/{app_id}/due-diligence/run", headers=h).status_code == 200
     d = http.get(f"/api/los/applications/{app_id}/due-diligence", headers=h).json()
     for c in d["checks"]:
         if c["mode"] == "manual":
             assert http.post(f"/api/los/applications/{app_id}/due-diligence/record", headers=h,
                              json={"check_id": c["id"], "result": "clear", "remarks": "ok"}).status_code == 200
-    r = http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "submit"})
+    r = http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "submit", "comment": "test"})
     assert r.json()["step"]["id"] == "ip_note"
-    r = http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "approve"})
-    assert r.status_code == 403                                                 # u_rm1 is not the holder of ip_note
+    r = http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "approve", "comment": "test"})
+    assert r.status_code == 400                                                 # u_rm1 keeps the IP Note; approve is not a maker action
     assert any(e["application_id"] == app_id for e in http.get("/api/los/audit", headers=h).json()["events"])
     assert http.post("/api/los/demo/reset", headers=h).status_code == 403             # admin only
 
@@ -469,5 +492,5 @@ def test_seed_note_clears_when_the_application_moves_on(svc):
     abce = next(a for a in svc.list() if a["entity_id"] == "ABCE001")
     assert abce["demo_note"]
     analyst = sign(svc, abce["assignee_id"], "risk_analyst")
-    moved = svc.act(abce["application_id"], analyst, "submit")
+    moved = svc.act(abce["application_id"], analyst, "submit", comment="application_id (test)")
     assert moved["step"]["id"] == "ip_risk_review" and "demo_note" not in moved

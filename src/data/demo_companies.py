@@ -18,7 +18,7 @@ OCF + investing + financing). The one deliberate inconsistency is the GST
 turnover for FY2026, which is ~12% below the reported revenue — the data
 reliability concern (revenue recognised on milestones not yet invoiced).
 
-Expected observations: docs/CREDIT_OBSERVATIONS.md and
+Expected observations: docs/cam-engine/CREDIT_OBSERVATIONS.md and
 tests/fixtures/abce001_expected_observations.json.
 """
 

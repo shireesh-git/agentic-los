@@ -14,12 +14,15 @@ finished, so independent agents run side by side:
 
 In sequential mode they run one at a time in list order. Either way the
 pipeline log is kept in list order, so its shape does not depend on timing.
+
+Scheduling is done by the platform's AgentGraph (src/agentic/graph.py), the same
+engine every other agent workflow runs on.
 """
 
 import logging
 import threading
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
+from src.agentic.graph import AgentGraph, Node
 from src.agents.analysis_agents import BenchmarkAgent, FinancialAnalysisAgent, PolicyAgent, ValidationAgent
 from src.agents.base_agent import AgentResult, BaseAgent
 from src.agents.ingestion_agent import DataIngestionAgent
@@ -61,9 +64,28 @@ class SuperAgent:
     def _trace(message: str) -> None:
         log.info("[PIPELINE] %s", message)
 
-    @staticmethod
-    def _missing_requirements(agent: BaseAgent, results: dict) -> list[str]:
-        return [name for name in agent.requires if name not in results]
+    def graph(self, emit=None, entries: dict[int, dict] | None = None) -> AgentGraph:
+        """The pipeline as an AgentGraph: one node per agent, with the agent's own
+        dependencies. ``parallel=False`` runs it one agent at a time in list order."""
+        entries = {} if entries is None else entries
+        by_name = {agent.name: agent for agent in self.agents}
+
+        def on_start(node: Node, step: int) -> None:
+            agent = by_name[node.name]
+            self._trace(f">>> Starting agent {step}/{len(self.agents)}: {agent.name}")
+            if emit:
+                emit({"type": "agent_start", "agent": agent.name, "description": agent.description,
+                      "step": step, "total": len(self.agents), "lane": node.lane})
+
+        def on_result(node: Node, step: int, result: AgentResult) -> None:
+            self._record(step, by_name[node.name], result, emit, entries)
+
+        nodes = [Node(name=agent.name, execute=agent.execute, requires=tuple(agent.requires),
+                      waits_for=tuple(agent.waits_for), critical=agent.critical,
+                      lane="llm" if agent.uses_llm else "deterministic", description=agent.description)
+                 for agent in self.agents]
+        return AgentGraph(nodes, max_workers=max(1, len(self.agents)), ordered=not self.parallel,
+                          name="cam-agent", on_start=on_start, on_result=on_result)
 
     def execute_pipeline(self, company_data: dict, on_progress=None, stores=None) -> dict:
         context = {"company_data": company_data, "results": {}}
@@ -74,11 +96,16 @@ class SuperAgent:
         if stores:
             context["_stores"] = stores
 
-        run = self._run_parallel if self.parallel else self._run_sequential
         entries: dict[int, dict] = {}
+        graph = self.graph(emit, entries)
         try:
-            run(context, emit, entries)
+            graph.run(context)
         finally:
+            # Agents still running when a critical failure stopped the run are logged too.
+            for step, agent in enumerate(self.agents, start=1):
+                result = getattr(graph, "last_run", None) and graph.last_run.results.get(agent.name)
+                if result is not None and step not in entries:
+                    entries[step] = result.to_dict()
             self.pipeline_log = [entries[i] for i in sorted(entries)]
         return context
 
@@ -96,24 +123,9 @@ class SuperAgent:
 
     # ── One agent ────────────────────────────────────────────────────────
 
-    def _execute_one(self, step: int, agent: BaseAgent, context: dict, emit) -> AgentResult:
-        total = len(self.agents)
-        self._trace(f">>> Starting agent {step}/{total}: {agent.name}")
-        if emit:
-            emit({"type": "agent_start", "agent": agent.name, "description": agent.description,
-                  "step": step, "total": total})
-
-        missing = self._missing_requirements(agent, context["results"])
-        if missing:
-            return AgentResult(agent_name=agent.name, status="failed",
-                               error=f"Missing results from required agent(s): {', '.join(missing)}",
-                               diagnostics={"execution_mode": "skipped", "llm_invoked": False, "llm_calls": 0,
-                                            "output_present": False, "skip_reason": "missing requirements"})
-        return agent.execute(context)
-
-    def _record(self, step: int, agent: BaseAgent, result: AgentResult, context: dict, emit,
-                entries: dict[int, dict]) -> None:
-        """Store an agent's outcome (on the orchestrator thread) and raise on a critical failure."""
+    def _record(self, step: int, agent: BaseAgent, result: AgentResult, emit, entries: dict[int, dict]) -> None:
+        """Log and announce an agent's outcome (on the scheduling thread). The graph then
+        stores the result and stops the pipeline on a critical failure."""
         self._trace(f"<<< Agent {agent.name}: {result.status} ({result.duration_ms}ms)")
         d = result.diagnostics or {}
         # One line per agent that tells a fast deterministic agent from a skipped or empty one.
@@ -129,59 +141,8 @@ class SuperAgent:
             emit({"type": "agent_complete", "agent": agent.name, "status": result.status,
                   "duration_ms": result.duration_ms, "error": result.error,
                   "step": step, "total": len(self.agents), "completed": len(entries),
-                  "execution_mode": d.get("execution_mode"), "llm_invoked": d.get("llm_invoked", False)})
-
-        if result.status == "completed" and result.data:
-            context["results"][agent.name] = result.data
-        elif result.status == "failed" and agent.critical:
-            raise RuntimeError(f"Critical agent '{agent.name}' failed: {result.error}")
-
-    # ── Schedulers ───────────────────────────────────────────────────────
-
-    def _run_sequential(self, context: dict, emit, entries: dict[int, dict]) -> None:
-        for step, agent in enumerate(self.agents, start=1):
-            result = self._execute_one(step, agent, context, emit)
-            self._record(step, agent, result, context, emit, entries)
-
-    def _run_parallel(self, context: dict, emit, entries: dict[int, dict]) -> None:
-        names = {agent.name for agent in self.agents}
-        pending = list(enumerate(self.agents, start=1))
-        finished: set[str] = set()
-
-        def ready(agent: BaseAgent) -> bool:
-            # A dependency that is not in this pipeline can never finish; let the
-            # agent start so the missing-requirements check reports it.
-            return all(dep in finished or dep not in names
-                       for dep in (*agent.requires, *agent.waits_for))
-
-        with ThreadPoolExecutor(max_workers=max(1, len(self.agents)),
-                                thread_name_prefix="cam-agent") as pool:
-            running = {}
-            try:
-                while pending or running:
-                    for item in [item for item in pending if ready(item[1])]:
-                        pending.remove(item)
-                        step, agent = item
-                        running[pool.submit(self._execute_one, step, agent, context, emit)] = item
-                    if not running:
-                        # Dependency cycle: nothing can start. Fail loudly rather than hang.
-                        raise RuntimeError("Pipeline agents have circular requirements: "
-                                           + ", ".join(agent.name for _, agent in pending))
-                    done, _ = wait(running, return_when=FIRST_COMPLETED)
-                    for future in sorted(done, key=lambda f: running[f][0]):
-                        step, agent = running.pop(future)
-                        finished.add(agent.name)
-                        self._record(step, agent, future.result(), context, emit, entries)
-            except BaseException:
-                # Stop scheduling; agents already running finish (they cannot be
-                # interrupted) and are recorded so the log shows what happened.
-                for future, (step, agent) in list(running.items()):
-                    try:
-                        result = future.result()
-                    except Exception as e:  # execute() catches agent errors; this is defensive
-                        result = AgentResult(agent_name=agent.name, status="failed", error=str(e))
-                    entries[step] = result.to_dict()
-                raise
+                  "execution_mode": d.get("execution_mode"), "llm_invoked": d.get("llm_invoked", False),
+                  "lane": "llm" if agent.uses_llm else "deterministic"})
 
     def get_agent_list(self) -> list[dict]:
         return [agent.describe() for agent in self.agents]

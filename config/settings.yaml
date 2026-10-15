@@ -17,6 +17,12 @@ pipeline:
   # ingestion; ratio analysis alongside validation). false = one at a time.
   parallel_agents: true
 
+agentic:
+  # Threads shared by an agent graph run (fan-outs of documents, parties, checks,
+  # field domains). LLM calls are capped separately per provider: max_parallel_llm
+  # in config/llm_providers.yaml.
+  max_workers: 16
+
 validation:
   balance_sheet_tolerance: 0.20
   revenue_exchange_tolerance: 0.05

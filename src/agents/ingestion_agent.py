@@ -29,6 +29,12 @@ class DataIngestionAgent(BaseAgent):
         dms = self._fetch_from_dms(entity_id, cd, emit) or {}
         downloaded_reports = self._ingest_downloaded_reports(entity_id, emit)
         self._extract_documents(entity_id, cd, extraction_store, downloaded_reports, emit)
+        if not cd.get("financials"):
+            # Every engine after this point analyses financial statements; without one (e.g. a new
+            # prospect whose audited statements were not uploaded) stop with what is needed.
+            raise RuntimeError(f"No financial statements for {entity_id}: none on record and none could be read "
+                               "from the uploaded documents — upload the audited financial statements "
+                               "(financials/audited_financials_fy<year>.pdf)")
         self._verify_authenticity(entity_id, cd, emit)
         cd["document_inventory"] = self._document_inventory(entity_id, cd)
         self._run_etb_analytics(entity_id, cd, extraction_store, etb_store, emit)

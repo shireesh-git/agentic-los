@@ -62,7 +62,7 @@
 
   <div class="card" x-show="page === 'dashboard'" x-init="loadIntegrations()">
     <div class="summary-table-head"><h3>Integration registry</h3><span class="text-muted">Honest state of every source — no live system is connected in this demo</span></div>
-    <p class="text-muted los-small" x-show="integrations" x-text="integrations.note"></p>
+    <p class="text-muted los-small" x-show="integrations" x-text="integrations?.note"></p>
     <table class="data-table" x-show="integrations">
       <thead><tr><th>Source</th><th>State</th><th>Label</th><th>Used for</th><th>Last used</th></tr></thead>
       <tbody><template x-for="a in integrations?.adapters || []" :key="a.key">

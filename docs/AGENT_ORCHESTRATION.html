@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Orchestration</title>
+<meta name="description" content="How the LOS agents are orchestrated: what starts them, the master agents, who hands off to whom, and how a run ends.">
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#fff; --surface-2:#eef1f5; --text:#18202b; --muted:#5a6577; --line:#d9dfe7;
+  --accent:#0b5cad; --accent-soft:#e2edf9; --master:#b3261e; --master-soft:#fbe5e3;
+  --agent:#6a3fb5; --agent-soft:#eee7fa; --det:#1d7a46; --det-soft:#e1f3e8; --llm:#b05a00; --llm-soft:#fcefdc;
+  --human:#0b5cad; --human-soft:#e2edf9; --mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1218; --surface:#161b23; --surface-2:#1d2430; --text:#e3e8ef; --muted:#97a3b4; --line:#2a3240;
+  --accent:#6aa8ec; --accent-soft:#15273b; --master:#f08a80; --master-soft:#3a1916; --agent:#b393ec; --agent-soft:#261c3a;
+  --det:#5cc28a; --det-soft:#14301f; --llm:#eaa25a; --llm-soft:#33240f; --human:#6aa8ec; --human-soft:#15273b;}}
+:root[data-theme="dark"]{
+  --bg:#0e1218; --surface:#161b23; --surface-2:#1d2430; --text:#e3e8ef; --muted:#97a3b4; --line:#2a3240;
+  --accent:#6aa8ec; --accent-soft:#15273b; --master:#f08a80; --master-soft:#3a1916; --agent:#b393ec; --agent-soft:#261c3a;
+  --det:#5cc28a; --det-soft:#14301f; --llm:#eaa25a; --llm-soft:#33240f; --human:#6aa8ec; --human-soft:#15273b;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:60px}
+body{margin:0;background:var(--bg);color:var(--text);font:15.5px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+code{font-family:var(--mono);font-size:.88em;background:var(--surface-2);padding:1px 5px;border-radius:5px}
+a{color:var(--accent)}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+header{padding:40px 0 24px;background:var(--surface);border-bottom:1px solid var(--line)}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-size:clamp(26px,4vw,34px);line-height:1.2;margin:6px 0 10px}
+h2{font-size:23px;margin:0 0 6px}
+h3{font-size:17px;margin:20px 0 8px}
+.lede{color:var(--muted);margin:0;font-size:17px;max-width:780px}
+nav{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:2px;overflow-x:auto;padding-top:8px;padding-bottom:8px;align-items:center}
+nav a{white-space:nowrap;text-decoration:none;color:var(--muted);font-size:13.5px;padding:5px 9px;border-radius:8px}
+nav a:hover{background:var(--surface-2);color:var(--text)}
+#theme{margin-left:auto;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer}
+section{padding:36px 0;border-bottom:1px solid var(--line)}
+.sub{color:var(--muted);margin:0 0 18px;max-width:800px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:720px){.grid2{grid-template-columns:1fr}}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;letter-spacing:.03em;white-space:nowrap}
+.t-master{background:var(--master-soft);color:var(--master)}
+.t-agent{background:var(--agent-soft);color:var(--agent)}
+.t-det{background:var(--det-soft);color:var(--det)}
+.t-llm{background:var(--llm-soft);color:var(--llm)}
+.t-human{background:var(--human-soft);color:var(--human)}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);background:var(--surface-2)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.tbl table{min-width:640px}
+/* hierarchy */
+.tree{display:flex;flex-direction:column;align-items:center;gap:0}
+.tbox{border-radius:10px;padding:9px 14px;font-weight:600;font-size:14px;text-align:center;border:2px solid var(--c);background:var(--surface);min-width:200px}
+.tbox small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.vline{width:2px;height:18px;background:var(--line)}
+.branches{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;position:relative;padding-top:18px}
+.branches::before{content:"";position:absolute;top:0;left:16.6%;right:16.6%;height:2px;background:var(--line)}
+.branch{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative}
+.branch::before{content:"";position:absolute;top:-18px;left:50%;width:2px;height:18px;background:var(--line)}
+.leaf{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:5px 10px;font-size:13px;background:var(--surface);width:100%}
+.leaf small{color:var(--muted);font-size:11.5px}
+@media (max-width:760px){.branches{grid-template-columns:1fr}.branches::before{display:none}.branch::before{display:none}}
+/* sequence */
+.seq{display:flex;flex-direction:column;gap:0;margin-top:6px}
+.hop{display:grid;grid-template-columns:34px 1fr;gap:12px;position:relative;padding-bottom:14px}
+.hop:not(:last-child)::after{content:"";position:absolute;left:16px;top:32px;bottom:0;width:2px;background:var(--line)}
+.dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;background:var(--c-soft);color:var(--c);border:2px solid var(--c)}
+.hop .body{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 13px}
+.hop .body b{font-size:14.5px}
+.hop .body p{margin:3px 0 0;font-size:14px;color:var(--muted)}
+.hop .par{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin-top:8px}
+.hop .par div{border:1px dashed var(--line);border-radius:8px;padding:6px 9px;font-size:13px}
+.m{--c:var(--master);--c-soft:var(--master-soft)} .a{--c:var(--agent);--c-soft:var(--agent-soft)} .d{--c:var(--det);--c-soft:var(--det-soft)} .l{--c:var(--llm);--c-soft:var(--llm-soft)} .h{--c:var(--human);--c-soft:var(--human-soft)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px}
+.tabs button{border:1px solid var(--line);background:var(--surface);color:var(--text);padding:7px 13px;border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:#fff;border-color:transparent}
+:root[data-theme="dark"] .tabs button[aria-selected="true"]{color:#0e1218}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tabs button[aria-selected="true"]{color:#0e1218}}
+.panel[hidden]{display:none}
+.callout{border-left:4px solid var(--accent);background:var(--surface);border:1px solid var(--line);border-left-width:4px;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:10px}
+footer{padding:26px 0 46px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="eyebrow">Technical · agent orchestration</div>
+  <h1>How the agents are orchestrated</h1>
+  <p class="lede">What starts the agents, which agent is in charge, who hands work to whom, and how a run ends: from the moment someone signs in to the verify queue they see.</p>
+</div></header>
+
+<nav aria-label="Contents"><div class="wrap">
+  <a href="#login">1 · Sign-in</a><a href="#cast">2 · The cast</a><a href="#triggers">3 · Triggers</a>
+  <a href="#handoffs">4 · Hand-offs</a><a href="#end">5 · How it ends</a><a href="#journey">6 · Across the journey</a>
+  <button id="theme" type="button">Theme</button>
+</div></nav>
+
+<main class="wrap">
+
+<section id="login">
+  <h2>1 · What happens when someone signs in</h2>
+  <p class="sub">Signing in does <b>not</b> start any agent. Agents are started by work on an application, not by a user's presence.</p>
+  <div class="seq">
+    <div class="hop h"><div class="dot">1</div><div class="body"><b>Sign-in</b> <span class="tag t-human">person</span><p><code>POST /api/los/session</code> creates a session for the chosen user and role. The token is sent on every call as <code>X-LOS-Session</code>.</p></div></div>
+    <div class="hop d"><div class="dot">2</div><div class="body"><b>Dashboard and copilot digest</b> <span class="tag t-det">rules</span><p>The dashboard loads the user's queue. The copilot's rule-based planner ranks each item's next best action (SLA breaches first). This is a read: no agent runs and nothing is written.</p></div></div>
+    <div class="hop h"><div class="dot">3</div><div class="body"><b>The user opens an application</b> <span class="tag t-human">person</span><p>The step card shows the step, the actions, and the <i>Prepared by agents, verified by you</i> card. It shows whether agents have prepared this step and offers <b>Prepare with agents</b> to the step holder.</p></div></div>
+    <div class="hop m"><div class="dot">4</div><div class="body"><b>A trigger fires</b> <span class="tag t-master">orchestrator</span><p>Creating a prospect from documents, clicking <b>Prepare with agents</b>, running the credit assessment or correcting an engine input starts an orchestrated run in the background (§3).</p></div></div>
+  </div>
+</section>
+
+<section id="cast">
+  <h2>2 · The cast: master agents and workers</h2>
+  <p class="sub">There are two levels of command. The <b>Preparation Orchestrator</b> is the master agent for an application step. It picks a playbook and runs it as a graph. One of its workers, the credit case, has its own master: the <b>CAM SuperAgent</b>, which runs the seven credit-pipeline agents.</p>
+
+  <div class="card">
+    <div class="tree">
+      <div class="tbox" style="--c:var(--master)">Preparation Orchestrator<small><code>LosService._prepare</code> · master agent for an application step</small></div>
+      <div class="vline"></div>
+      <div class="tbox" style="--c:var(--line);min-width:0;border-width:1px">routes by the current step</div>
+      <div class="branches">
+        <div class="branch">
+          <div class="tbox" style="--c:var(--agent);min-width:0;width:100%">Sourcing playbook<small>ps_maker</small></div>
+          <div class="leaf" style="--c:var(--agent)">Identity &amp; duplicate check</div>
+          <div class="leaf" style="--c:var(--det)">Due-diligence checks <small>× each check</small></div>
+          <div class="leaf" style="--c:var(--llm)">Document intake agent <small>× each document</small></div>
+        </div>
+        <div class="branch">
+          <div class="tbox" style="--c:var(--agent);min-width:0;width:100%">Appraisal playbook<small>ip_note · ap_note · Risk Makers</small></div>
+          <div class="leaf" style="--c:var(--master)">Credit case → <b>CAM SuperAgent</b> <small>7 agents</small></div>
+          <div class="leaf" style="--c:var(--det)">Due-diligence checks <small>× each check</small></div>
+          <div class="leaf" style="--c:var(--agent)">Risk Maker resolver</div>
+          <div class="leaf" style="--c:var(--agent)">Reconciliation agents <small>× 8 domains</small></div>
+          <div class="leaf" style="--c:var(--det)">Critic <small>× each domain</small></div>
+          <div class="leaf" style="--c:var(--llm)">IP Note drafter <small>IP Note only</small></div>
+        </div>
+        <div class="branch">
+          <div class="tbox" style="--c:var(--agent);min-width:0;width:100%">Fulfilment playbook<small>pos_maker · dis_maker</small></div>
+          <div class="leaf" style="--c:var(--llm)">Later-stage intake agent <small>× each document</small></div>
+          <div class="leaf" style="--c:var(--agent)">Field merge into the stage's domain</div>
+        </div>
+      </div>
+    </div>
+    <div class="legend"><span class="tag t-master">master</span><span class="tag t-agent">agent</span><span class="tag t-det">deterministic tool</span><span class="tag t-llm">may call the LLM</span></div>
+  </div>
+
+  <h3>Who does what</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Agent</th><th>Role</th><th>Hands its output to</th></tr></thead>
+    <tbody>
+      <tr><td><b>Preparation Orchestrator</b> <span class="tag t-master">master</span></td><td>Checks the caller holds the step, starts one background job per application, picks the playbook and builds its graph, reports lanes, records the outcome</td><td>The single writer, then the person (verify queue)</td></tr>
+      <tr><td><b>CAM SuperAgent</b> <span class="tag t-master">master</span><br><code>agents/pipeline.py</code></td><td>Runs the credit pipeline as a graph: data_ingestion, pep_screening, financial_analysis, validation, benchmark, policy, narrative</td><td>The Preparation Orchestrator (a <i>credit case</i> with a <code>run_id</code>)</td></tr>
+      <tr><td>CAM intake <span class="tag t-llm">LLM (headings only)</span><br><code>los/cam_intake.py</code></td><td>Reads the bank's CAM: sections → proposal narratives, security, terms, covenants, deviations, recommendation; labels → sector, banking arrangement, ratings, recommended limit, pricing, figures. Checks the figures against the record</td><td>The single writer (narrative and <i>cam</i> fields); the population graph as its first resolver</td></tr>
+      <tr><td>Document intake <span class="tag t-llm">LLM</span></td><td>Reads PDFs (vision for scans), extracts by pattern, AI fallback with a verbatim check, corroborates</td><td>The single writer (sourcing / post_sanction / disbursement fields)</td></tr>
+      <tr><td>Identity &amp; duplicate check</td><td>Core-banking search (demo) and other LOS applications with the same PAN, CIN or name</td><td>The application's identity block</td></tr>
+      <tr><td>Due-diligence checks</td><td>One child per automated check: MCA, bureau, litigation, early warning, GSTIN, LEI, name screening</td><td>The due-diligence workspace (with history)</td></tr>
+      <tr><td>Risk Maker resolver</td><td>Turns the credit case into the 9-tab Risk Maker fields</td><td>The critic</td></tr>
+      <tr><td>Reconciliation agents (8)</td><td>CMA, parties, securities, exposure, internal rating, facility pricing, conduct, narrative</td><td>The critic</td></tr>
+      <tr><td>Pre-fill agents (9)<br><code>los/prefill.py</code></td><td>Remaining narratives and the proposal summary, external rating, shareholding, banking arrangement, project, ESMS screening, fees, inter-firm comparison, CMA projections</td><td>The critic (same population graph)</td></tr>
+      <tr><td>T&amp;C agent<br><code>los/terms.py</code></td><td>Drafts the terms &amp; conditions by category from the reassessment (M6), the proposed covenants (with stipulated values), the policy conditions, the facilities and the bank's standard conditions</td><td>The AP maker (verified at Application Note Processing); at final sanction, the post-sanction conditions tracker</td></tr>
+      <tr><td>Carry-forward agent<br><code>los/carry_forward.py</code></td><td>At the Disbursement Maker, in parallel with the document intake: proposes the interest terms, the repayment schedule (Annexure I), the fee collection and the security details (Annexure IV) from the sanctioned facility, the fees approved at AP and the securities record. List rows are matched on natural keys, so a saved row is never duplicated</td><td>The Disbursement Maker (verified in the <code>dis_carry</code> domain); the maker's saved sections are recorded as confirmed or overridden</td></tr>
+      <tr><td>Proposal and decision agents (S10)</td><td>Draft the bank's mandatory AP narratives (market enquiries from market signals, SMA / NPA status from CRILC and the checks, past proposals from the LOS history, the reason for the committee from the approval matrix, the justification from the reassessment) and the decision-tab notes (policy compliance from the hard rules, IP observations from the IP sanction). Pledged shares, corporate actions and unhedged exposure have no source and are left to the RM</td><td>The IP / AP maker (must verify)</td></tr>
+      <tr><td>RAROC agent</td><td>Computes each facility's RAROC once the internal rating grade and the facility's rate are verified, and again when they change</td><td>The Ratings &amp; RAROC workspace</td></tr>
+      <tr><td>Critic</td><td>Evidence check and figure check on every proposal; flags issues</td><td>The single writer</td></tr>
+      <tr><td>Single writer (merge)</td><td>Applies all proposals under a per-application lock, then materialises them into the workspaces</td><td>The application record and its audit event</td></tr>
+      <tr><td>IP Note drafter <span class="tag t-llm">LLM</span></td><td>Builds the IP Note; an optional AI summary is figure-checked</td><td>The application (IP Note)</td></tr>
+      <tr><td>Copilot <span class="tag t-llm">LLM</span></td><td>On request only: next best action, one whitelisted tool, drafts, Q&amp;A</td><td>The person</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="triggers">
+  <h2>3 · What starts the agents</h2>
+  <p class="sub">Every trigger is an action a person takes. The orchestrator then runs in the background, and the screen follows its lanes.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Trigger</th><th>Who / where</th><th>What runs</th></tr></thead>
+    <tbody>
+      <tr><td><b>Start from a CAM</b> (New Application, or <i>Start LOS application</i> in the CAM workspace)</td><td>RM</td><td>
+        <i>Workspace CAM</i>: the case is linked to the application and the population graph fills the IP fields at once.
+        <i>Bank's CAM</i>: the <b>CAM intake agent</b> reads it (sections and labels, page evidence; the LLM may map unknown headings
+        that exist in the document). Its values are merged by the single writer and re-proposed first in every later population run.
+        <i>Generate</i>: the Sourcing playbook gains a <b>credit_case</b> lane (the CAM SuperAgent).</td></tr>
+      <tr><td><b>Read documents with the intake agent</b></td><td>RM, New Application → New prospect from documents</td><td>The intake agent alone, on the staged documents (before the borrower exists). The RM sees its proposals on the form.</td></tr>
+      <tr><td><b>Create draft</b> (new prospect)</td><td>RM</td><td>The borrower is registered, then the Orchestrator starts <b>automatically</b> with the <i>Sourcing playbook</i>.</td></tr>
+      <tr><td><b>Prepare with agents</b></td><td>The step holder at PS, IP Note, AP Note, either Risk Maker, POS Maker or DIS Maker</td><td>The Orchestrator, with the playbook for that step.</td></tr>
+      <tr><td><b>Run / Re-run credit assessment</b></td><td>Risk Maker</td><td>The CAM SuperAgent directly. When it finishes, the result is recorded and pinned and the fields are re-populated.</td></tr>
+      <tr><td><b>Change…</b> on a CMA or security value</td><td>Whoever verifies that domain</td><td><b>Feedback agent</b>: a credit-case re-run with the person's value, then re-population. Decided fields stay locked.</td></tr>
+      <tr><td><b>Do it</b> on a copilot suggestion</td><td>Step holder</td><td>One whitelisted tool: run prefill, accept high-confidence, run due diligence, generate IP Note, start assessment, committee brief or issue sanction letter.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><b>Guard rails on starting.</b> Only the holder of the current step can trigger a preparation. Only one preparation and one credit run can be in progress per application; a second click is refused with <i>already being prepared</i>. Login, opening a page and the dashboard digest never start a run.</div>
+</section>
+
+<section id="handoffs">
+  <h2>4 · Who hands off to whom</h2>
+  <p class="sub">Hand-offs are not chat messages between agents. Each worker returns its result into the graph's shared context, keyed by its name. The graph starts the next worker once the results it <code>requires</code> are in. Work that has no dependency runs at the same time.</p>
+
+  <div class="tabs" role="tablist">
+    <button data-tab="s" aria-selected="true">Sourcing playbook</button>
+    <button data-tab="a" aria-selected="false">Appraisal playbook</button>
+    <button data-tab="c" aria-selected="false">Inside the CAM SuperAgent</button>
+    <button data-tab="f" aria-selected="false">Fulfilment playbook</button>
+    <button data-tab="b" aria-selected="false">Feedback loop</button>
+  </div>
+
+  <div class="panel" data-panel="s">
+    <div class="seq">
+      <div class="hop h"><div class="dot">0</div><div class="body"><b>RM clicks Create draft</b><p>The borrower is registered from the confirmed identity, documents are moved into its folder, the application is created and the Orchestrator is started.</p></div></div>
+      <div class="hop m"><div class="dot">1</div><div class="body"><b>Orchestrator: Sourcing playbook</b><p>Builds the graph <code>prospect-prep</code> with three lanes that do not depend on each other.</p>
+        <div class="par"><div><b>identity</b><br>core-banking search + duplicate applications</div><div><b>checks</b><br>fans out: one child per automated due-diligence check</div><div><b>intake</b><br>fans out per document → patterns per document → AI fallback</div></div></div></div>
+      <div class="hop a"><div class="dot">2</div><div class="body"><b>Join</b><p>The graph waits for all three lanes. A failed lane is marked unavailable; the others still count.</p></div></div>
+      <div class="hop d"><div class="dot">3</div><div class="body"><b>Single writer</b><p>Under the application lock: writes the identity, finishes each check with its history, merges the intake proposals into the <i>sourcing</i> fields, and saves once with one audit event.</p></div></div>
+      <div class="hop h"><div class="dot">4</div><div class="body"><b>Ends at the RM</b><p>The job is marked done. The RM sees the prefill with confidence bands, the check results and the verify queue.</p></div></div>
+    </div>
+  </div>
+
+  <div class="panel" data-panel="a" hidden>
+    <div class="seq">
+      <div class="hop h"><div class="dot">0</div><div class="body"><b>Step holder clicks Prepare with agents</b><p>At IP Note, AP Note or a Risk Maker step.</p></div></div>
+      <div class="hop m"><div class="dot">1</div><div class="body"><b>Orchestrator: Appraisal playbook</b><p>Builds the graph <code>appraisal-prep</code>.</p>
+        <div class="par"><div><b>credit_case</b><br>uses the pinned run if one exists; otherwise hands off to the <b>CAM SuperAgent</b></div><div><b>checks</b><br>one child per automated check (at due-diligence steps)</div></div></div></div>
+      <div class="hop d"><div class="dot">2</div><div class="body"><b>Record and pin</b><p>A new credit case is recorded on the application with its <code>run_id</code>, so later steps reuse it. The check results are written under the lock.</p></div></div>
+      <div class="hop a"><div class="dot">3</div><div class="body"><b>Population graph</b><p>The credit case is handed to the resolvers, which run in parallel.</p>
+        <div class="par"><div>Risk Maker resolver</div><div>CMA</div><div>parties</div><div>securities</div><div>exposure</div><div>internal rating</div><div>facility pricing</div><div>conduct</div><div>narrative</div></div></div></div>
+      <div class="hop a"><div class="dot">4</div><div class="body"><b>Critic</b><p>Waits for all resolvers, combines their proposals (the registry decides precedence), then fans out one check per domain for evidence and figures.</p></div></div>
+      <div class="hop d"><div class="dot">5</div><div class="body"><b>Single writer + materialise</b><p>Merges under the lock. Confirmed values are kept, and differences become conflicts. It then writes values into the CMA, securities and other workspaces, never over a person's entry.</p></div></div>
+      <div class="hop l"><div class="dot">6</div><div class="body"><b>IP Note drafter</b> (IP Note step only)<p>Builds the IP Note from the populated record.</p></div></div>
+      <div class="hop h"><div class="dot">7</div><div class="body"><b>Ends at the step holder</b><p>The <code>application_prepared</code> event records the lanes and timings. The verify queue opens with pre-ticked items, conflicts and must-verify fields.</p></div></div>
+    </div>
+  </div>
+
+  <div class="panel" data-panel="c" hidden>
+    <p class="sub">The SuperAgent is the master of the credit pipeline. It runs its seven agents as a graph using each agent's declared dependencies.</p>
+    <div class="seq">
+      <div class="hop m"><div class="dot">0</div><div class="body"><b>SuperAgent receives the company record</b><p>A copy that includes any verified overrides.</p></div></div>
+      <div class="hop a"><div class="dot">1</div><div class="body"><b>Start together</b><div class="par"><div><b>data_ingestion</b><br>documents, external (demo) data, extraction</div><div><b>pep_screening</b><br>directors against PEP and sanctions lists</div></div></div></div>
+      <div class="hop d"><div class="dot">2</div><div class="body"><b>After ingestion, together</b><div class="par"><div><b>financial_analysis</b><br>ratios, trends</div><div><b>validation</b><br>cross-checks, exceptions</div></div></div></div>
+      <div class="hop d"><div class="dot">3</div><div class="body"><b>benchmark</b><p>Needs financial_analysis.</p></div></div>
+      <div class="hop d"><div class="dot">4</div><div class="body"><b>policy</b><p>Needs financial_analysis, validation and benchmark. Produces the decision and grade.</p></div></div>
+      <div class="hop l"><div class="dot">5</div><div class="body"><b>narrative</b><p>Needs all of the above and uses pep_screening if present. Writes the 21 CAM sections in parallel, up to the provider's LLM cap. Figures are checked, and sections are checkpointed.</p></div></div>
+      <div class="hop m"><div class="dot">6</div><div class="body"><b>Hands back</b><p>The credit case (with its <code>run_id</code>) goes to the Orchestrator. The composed CAM (observations, challenges, repayment, stress test, reassessment) is built from it when read.</p></div></div>
+    </div>
+  </div>
+
+  <div class="panel" data-panel="f" hidden>
+    <div class="seq">
+      <div class="hop h"><div class="dot">0</div><div class="body"><b>Maker uploads and clicks Prepare with agents</b><p>POS: the signed sanction letter and the facility agreement. DIS: the drawdown request.</p></div></div>
+      <div class="hop m"><div class="dot">1</div><div class="body"><b>Orchestrator: Fulfilment playbook</b><p>Picks the field set for the step: post-sanction (acceptance, execution) or disbursement (tranche, beneficiary).</p></div></div>
+      <div class="hop l"><div class="dot">2</div><div class="body"><b>Later-stage intake agent</b><p>The same intake graph as sourcing (per document → patterns → AI fallback), on the stage's fields.</p></div></div>
+      <div class="hop d"><div class="dot">3</div><div class="body"><b>Single writer</b><p>Merges into the <i>post_sanction</i> or <i>disbursement</i> fields and keeps the reading for the form.</p></div></div>
+      <div class="hop h"><div class="dot">4</div><div class="body"><b>Ends at the maker</b><p>The consent form, or the tranche and beneficiary, opens pre-filled. When the maker saves it, each value is <b>mirrored</b> back: equal means confirmed, different means overridden.</p></div></div>
+    </div>
+  </div>
+
+  <div class="panel" data-panel="b" hidden>
+    <div class="seq">
+      <div class="hop h"><div class="dot">0</div><div class="body"><b>Person clicks Change… on an engine input</b><p>For example, CMA revenue 1,050 → 1,400, with a reason.</p></div></div>
+      <div class="hop d"><div class="dot">1</div><div class="body"><b>Decision recorded</b><p>The field becomes <i>overridden</i> and is locked.</p></div></div>
+      <div class="hop a"><div class="dot">2</div><div class="body"><b>Feedback agent</b><p>Collects the verified CMA and security values as engine overrides.</p></div></div>
+      <div class="hop m"><div class="dot">3</div><div class="body"><b>CAM SuperAgent re-runs</b><p>On a copy of the company with the overrides applied, giving a new <code>run_id</code>.</p></div></div>
+      <div class="hop a"><div class="dot">4</div><div class="body"><b>Re-population → critic → single writer</b><p>Ratios and grade follow the person's figure. Decided fields are not touched; new differences become conflicts.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="end">
+  <h2>5 · How a run ends</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0">When everything succeeds</h3>
+      <ol style="margin:0;padding-left:20px">
+        <li>The last node finishes and the graph <b>joins</b> its results by name. The output does not depend on finishing order.</li>
+        <li>The <b>single writer</b> takes the application lock, merges, materialises and saves once, with one audit event.</li>
+        <li>The Orchestrator records <code>application_prepared</code>, with the lanes, durations and peak parallelism, and marks the job <b>done</b>.</li>
+        <li>The screen stops showing <i>Agents preparing…</i> and opens the <b>verify queue</b>.</li>
+        <li>The agents' part is over. The <b>person</b> verifies and takes the step's decision. The next step's agents start only when its holder triggers them.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">When something fails</h3>
+      <ul style="margin:0;padding-left:20px">
+        <li>A failed lane, such as one check or one document, is marked <b>unavailable</b>. The other lanes still complete and are written.</li>
+        <li>A failure in something others <code>require</code>, such as no credit case, skips its dependants. The job ends <b>failed</b> with the reason, which the screen shows as <i>Preparation failed: …</i>.</li>
+        <li>An LLM that is down or set to <code>mock</code> is not fatal. Pattern extraction and deterministic drafts still run; scanned pages are reported as unread.</li>
+        <li>Nothing partial is written outside the single writer, so a failed run never leaves half-merged fields.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="journey">
+  <h2>6 · Agents across the whole journey</h2>
+  <p class="sub">Which playbook is available at each step. Every other step is a pure human review: no agent runs.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Stage</th><th>Step</th><th>Agents</th><th>Then the person</th></tr></thead>
+    <tbody>
+      <tr><td>New Application</td><td>—</td><td>Intake agent on staged documents</td><td>confirms identity → Create draft</td></tr>
+      <tr><td>PS</td><td>Prospect Sourcing</td><td><span class="tag t-agent">Sourcing playbook</span> (automatic for a new prospect)</td><td>accepts, records checks, submits</td></tr>
+      <tr><td>IP</td><td>IP Note Processing</td><td><span class="tag t-agent">Appraisal playbook</span>: first credit case, populate, IP Note</td><td>verifies, recommends</td></tr>
+      <tr><td>IP</td><td>Risk Maker</td><td><span class="tag t-agent">Appraisal playbook</span>: reuses the pinned case · feedback re-runs</td><td>verifies, corrects, submits</td></tr>
+      <tr><td>IP</td><td>Reviews, allocations, EVP, committee</td><td>None (optional AI committee brief)</td><td>reviews and decides</td></tr>
+      <tr><td>AP</td><td>Application Note · Risk Maker (reassessment)</td><td><span class="tag t-agent">Appraisal playbook</span>: refresh; conflicts against decided values</td><td>resolves, submits</td></tr>
+      <tr><td>AP</td><td>Reviews, post-rating, committees</td><td>None</td><td>reviews and sanctions</td></tr>
+      <tr><td>POS</td><td>Post Sanction Maker</td><td><span class="tag t-agent">Fulfilment playbook</span>: signed letter + agreement</td><td>saves the consent, clears CPs, submits</td></tr>
+      <tr><td>DIS</td><td>Disbursement Maker</td><td><span class="tag t-agent">Fulfilment playbook</span>: drawdown request</td><td>records the tranche and beneficiary, submits</td></tr>
+      <tr><td>DIS</td><td>Checker → VP → Approver</td><td>None</td><td>approves → <b>Exit</b></td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><b>In one line:</b> a person's action triggers the <b>Preparation Orchestrator</b> (master), which runs a playbook graph of parallel workers, including the <b>CAM SuperAgent</b> when a credit case is needed. The <b>critic</b> checks their proposals and one <b>single writer</b> saves them. The run ends in a verify queue, and a <b>person</b> takes the decision that moves the application on.</div>
+</section>
+
+</main>
+<footer><div class="wrap">Agentic Corporate LOS: proof of concept. The full design is in <a href="TECHNICAL_ARCHITECTURE.html">Technical Architecture</a>; the user's view is in <a href="JOURNEY_WALKTHROUGH.html">Journey Walkthrough</a>.</div></footer>
+<script>
+(function(){var r=document.documentElement,b=document.getElementById('theme');
+try{var t=localStorage.getItem('los-doc-theme');if(t)r.setAttribute('data-theme',t);}catch(e){}
+b.addEventListener('click',function(){var d=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme: dark)').matches);var n=d?'light':'dark';r.setAttribute('data-theme',n);try{localStorage.setItem('los-doc-theme',n);}catch(e){}});
+document.querySelectorAll('[data-tab]').forEach(function(btn){btn.addEventListener('click',function(){
+document.querySelectorAll('[data-tab]').forEach(function(x){x.setAttribute('aria-selected',x===btn?'true':'false');});
+document.querySelectorAll('[data-panel]').forEach(function(p){p.hidden=p.dataset.panel!==btn.dataset.tab;});});});})();
+</script>
+</body>
+</html>
