@@ -300,6 +300,8 @@ class LosService:
         view["documents_gate"] = dreg.stage_gate(app)
         view["material_changes"] = snap.material_changes(app) if app.get("snapshots") else []
         view["material_change_gate"] = snap.material_change_gate(app) if app.get("snapshots") else None
+        view["assessment_stale"] = (self._case_stale(self._app_case(app)[0] or {}, app)
+                                    if self.cases and (app.get("credit_assessment") or {}).get("run_id") else None)
         view["snapshots"] = [s["ref"] for s in sorted(app.get("snapshots") or [], key=lambda s: (s.get("seq", 0), s.get("at") or ""))]
         view["rules_failed"] = [r for r in rules_mod.evaluate(app) if r["status"] == "failed"]
         view["disops"] = do.disops_view(app) if app.get("stage_id") in ("POS", "DIS") or app.get("disops", {}).get("sop") else None
@@ -658,6 +660,43 @@ class LosService:
                 "modes": list(CAM_MODES)}
 
     @staticmethod
+    def _has_master_financials(company: dict) -> bool:
+        """Statements on record other than those the engine extracted from an RM upload (a prospect has none)."""
+        return any(not str(getattr(fs, "source", "")).startswith("rm_upload")
+                   for fs in (company.get("financials") or {}).values())
+
+    def _case_stale(self, case: dict, app: dict) -> Optional[str]:
+        """Why the pinned CAM no longer fits this application, or None."""
+        other = self._cam_for_other_request(case, app)
+        if other or self._has_master_financials(self.companies.get(app.get("entity_id")) or {}):
+            return other
+        stmt = self._accepted_statement(app)
+        if not stmt:
+            return None
+        used = (((case.get("fact_pack") or {}).get("financial_summary") or {}).get("periods") or {}).get(stmt["period"]) or {}
+        keys = {"revenue_operating": "revenue_cr", "ebitda": "ebitda_cr", "pat": "pat_cr",
+                "total_equity": "net_worth_cr", "total_debt": "total_debt_cr"}
+        differ = [k for k, v in stmt["items"].items()
+                  if abs(float(used.get(keys[k]) or 0) - float(v)) > 0.01 * max(abs(float(v)), 1.0)]
+        return (f"the financials accepted at Prospect Sourcing ({', '.join(keys[k].replace('_cr', '').replace('_', ' ') for k in differ)}) "
+                f"differ from those the CAM was generated with") if differ else None
+
+    @staticmethod
+    def _cam_for_other_request(case: dict, app: dict) -> Optional[str]:
+        """Why an existing CAM does not assess this application's request (amount or facility), or None."""
+        fr = (case.get("reassessment") or {}).get("facility_recommendation") or {}
+        assessed = fr.get("requested_cr") or case.get("requested_amount_cr")
+        wanted = app.get("amount_cr")
+        fac = app.get("facility") or (app.get("facilities") or [{}])[0]
+        reasons = []
+        if assessed and wanted and abs(float(assessed) - float(wanted)) > 0.005 * max(float(wanted), 1.0):
+            reasons.append(f"it assessed ₹{float(assessed):,.2f} Cr, this application requests ₹{float(wanted):,.2f} Cr")
+        ctype, atype = case.get("facility_type"), fac.get("facility_type")
+        if ctype and atype and str(ctype) != str(atype):
+            reasons.append(f"it assessed a {str(ctype).replace('_', ' ')}, this application is a {str(atype).replace('_', ' ')}")
+        return ("the CAM in the workspace is for another request: " + "; ".join(reasons)) if reasons else None
+
+    @staticmethod
     def _check_cam_borrower(d: Path, company: dict) -> None:
         """A CAM uploaded for an existing borrower must be about that borrower: a PAN or CIN read from
         it that differs from the borrower's is another company's CAM."""
@@ -710,8 +749,15 @@ class LosService:
             case = self._credit_case(app["entity_id"], cam.get("run_id"))[0]
             if not case:
                 raise ConflictError("There is no CAM for this borrower in the CAM workspace — generate one")
-            self._record_assessment(application_id, case, actor)
-            detail = {"mode": mode, "run_id": case.get("run_id")}
+            other = self._cam_for_other_request(case, app)
+            if other:
+                # the CAM in the workspace assessed another proposal (e.g. the catalogue's ₹1,200 Cr) — pinning
+                # it would put that amount in the assessment, pricing and decision; generate one for this request
+                mode = "generate"
+                detail = {"mode": mode, "replaced_run_id": case.get("run_id"), "reason": other}
+            else:
+                self._record_assessment(application_id, case, actor)
+                detail = {"mode": mode, "run_id": case.get("run_id")}
         elif mode == "document":
             if not reading:
                 raise InvalidRequestError("Upload the CAM (category CAM) and read it before creating the application")
@@ -733,7 +779,8 @@ class LosService:
             comment = {"workspace": f"Started from the CAM in the CAM workspace (run {detail.get('run_id')})",
                        "document": f"Started from the bank's CAM {detail.get('document')}: "
                                    f"{detail.get('sections', 0)} sections and {detail.get('labels', 0)} values read",
-                       "generate": "The CAM will be generated by the preparation agent"}[mode]
+                       "generate": "The CAM will be generated by the preparation agent"
+                                   + (f" — {detail['reason']}" if detail.get("reason") else "")}[mode]
             self.store.save(app, self._event(app, "cam_attached", actor=actor, from_step=app["step_id"],
                                              to_step=app["step_id"], comment=comment, detail=detail))
         if mode == "workspace":
@@ -940,6 +987,14 @@ class LosService:
                 names = "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4])
                 add("Resolve the outstanding mandatory due-diligence check(s) before "
                     f"submitting: {names}" + (f" (+{len(stuck) - 4} more)" if len(stuck) > 4 else ""), "checks")
+        # the stage's mandatory documents, present and reviewed, at the step that answers for them
+        if action == "submit" and step.id == "ps_maker":
+            add(dreg.stage_gate(app), "documents")
+        if action == "submit" and step.id == "ap_note":
+            add(dreg.stage_gate(app, skip={dreg.CMA_DOC}), "documents")       # the CMA is the Risk Maker's
+        if action == "submit" and step.id == "ap_risk_maker":
+            dreg.link_workspace(app, self.now().isoformat(timespec="seconds"))     # the CMA, once recorded
+            add(dreg.stage_gate(app, only={dreg.CMA_DOC}), "documents")
         if action == "submit" and step.id == "ip_note" and not app.get("ip_note"):
             add("Generate the IP Note before submitting it for review", "task")
         if action == "submit" and step.id == "pos_maker":
@@ -960,6 +1015,11 @@ class LosService:
             add(terms_mod.submit_gate(app.get("terms"), app.get("fields")), "terms")
         if action == "submit" and step.id in RISK_MAKER_STEPS and self.cases and not app.get("credit_assessment"):
             add("Run the credit assessment before submitting the Risk Maker step", "assessment")
+        if action == "submit" and step.id in RISK_MAKER_STEPS and (app.get("credit_assessment") or {}).get("run_id"):
+            stale = self._case_stale(self._app_case(app)[0] or {}, app)
+            if stale:
+                add("Re-run the credit assessment: " + stale.replace("the CAM in the workspace", "the assessment"),
+                    "assessment")
         if action == "submit" and step.id in ("ap_risk_maker",):
             # the CMA in the governed workspace; benchmark and spread for fund-based facilities (RUL-07);
             # an ESMS screen in progress (or any project) complete (RUL-06)
@@ -1567,6 +1627,14 @@ class LosService:
                 desc = (target[1].get("new") or {}).get("description") if len(target) > 1 and isinstance(target[1], dict) else None
                 if desc:
                     out["collateral"][desc] = value
+        # A new prospect has no statements on record: the figures the RM accepted from its audited
+        # statements at Prospect Sourcing are its statement for that year (the engine's own extraction
+        # reads the P&L only — without these, debt and net worth would be zero).
+        company = self.companies.get(app.get("entity_id")) or {}
+        if not self._has_master_financials(company):
+            stmt = self._accepted_statement(app)
+            if stmt:
+                out["statement"] = stmt
         # The credit case assesses this application's request, not the facility on the borrower record
         # (which, for a catalogue borrower, can be a different proposal altogether).
         fac = app.get("facility") or (app.get("facilities") or [{}])[0]
@@ -1579,6 +1647,28 @@ class LosService:
                 or (wanted["facility_type"] and wanted["facility_type"] != getattr(getattr(rec, "facility_type", None), "value", None))):
             out["facility"] = wanted
         return {k: v for k, v in out.items() if v}
+
+    _ACCEPTED_STATEMENT = {"revenue_cr": "revenue_operating", "ebitda_cr": "ebitda", "pat_cr": "pat",
+                           "net_worth_cr": "total_equity", "total_debt_cr": "total_debt"}
+
+    def _accepted_statement(self, app: dict) -> Optional[dict]:
+        """{"period", "as_of", "items"} from the financial figures accepted at Prospect Sourcing, or None."""
+        accepted = ((app.get("sourcing") or {}).get("accepted")) or {}
+        items, docs = {}, []
+        for fid, key in self._ACCEPTED_STATEMENT.items():
+            a = accepted.get(fid)
+            try:
+                items[key] = float(str((a or {}).get("value")).replace(",", ""))
+            except (TypeError, ValueError):
+                continue
+            docs.append(str(((a or {}).get("source") or {}).get("document") or ""))
+        if not items:
+            return None
+        year = next((int(m.group(1)) for d in docs for m in [re.search(r"fy\s*_?(\d{4})", d, re.I)] if m), None)
+        if year is None:                                     # the last completed financial year
+            today = self.now().date()
+            year = today.year if today.month > 3 else today.year - 1
+        return {"period": f"FY{year}", "as_of": f"{year}-03-31", "items": items}
 
     def _run_case(self, entity_id: str, app: dict, on_progress=None) -> tuple:
         """Run the credit case for this application, with the person's verified overrides."""
@@ -1835,6 +1925,8 @@ class LosService:
         facilities = list(app.get("facilities") or [])
         if facilities:
             facilities[0] = {**facilities[0], **facility, "facility_id": facilities[0].get("facility_id", "FAC-001")}
+            if facility.get("amount_cr") is not None and not facilities[0].get("sanctioned_cr"):
+                facilities[0]["proposed_cr"] = facility["amount_cr"]       # the request, everywhere
         else:
             facilities = [dict(facility, facility_id="FAC-001")]
         app["facilities"] = facilities
@@ -2243,6 +2335,8 @@ class LosService:
             entity_id, step_id = app["entity_id"], app["step_id"]
             company = self.companies.get(entity_id) or {}
             pinned = self._app_case(app)[0] if (app.get("credit_assessment") or {}).get("run_id") else None
+            if pinned and self._case_stale(pinned, app):
+                pinned = None           # the request changed since the CAM: assess this one (with the app's facility)
             check_ids = self._checks_to_refresh(app) if step_id in DD_STEPS else []
 
             def credit_case(ctx):
@@ -2337,8 +2431,10 @@ class LosService:
                 nodes.append(Node("intake", description="document intake agent",
                                   run=lambda ctx: intake.run_intake(self._entity_dir(entity_id),
                                                                     master_values(company, app), llm, now=self.now())))
-            generate = ((app.get("cam_source") or {}).get("mode") == "generate"
-                        and not (app.get("credit_assessment") or {}).get("run_id") and self.cases)
+            pinned = self._app_case(app)[0] if (app.get("credit_assessment") or {}).get("run_id") else None
+            generate = bool(self.cases) and (
+                ((app.get("cam_source") or {}).get("mode") == "generate" and not pinned)
+                or bool(pinned and self._case_stale(pinned, app)))
             if generate:
                 nodes.append(Node("credit_case", description="generate the CAM (credit-intelligence pipeline)",
                                   run=lambda ctx: self._run_case(entity_id, self._require(application_id))[0]))
@@ -5006,6 +5102,8 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
     def _seed_assessment_summary(self, app: dict) -> dict:
         """For applications seeded past the Risk Maker: the borrower's stored credit case, if any."""
         case = self.cases.get(app["entity_id"]) if self.cases else None
+        if case and self._case_stale(case, app):          # the stored case is for another request: assess this one
+            case = self._run_case(app["entity_id"], app)[0]
         rea = (case or {}).get("reassessment") or {}
         fr = rea.get("facility_recommendation") or {}
         return {"run_id": (case or {}).get("run_id"), "run_at": (case or {}).get("run_at"),

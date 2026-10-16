@@ -136,6 +136,7 @@
           Generate the CAM when the application is created</label>
         <label><input type="radio" name="cammode" value="none" x-model="cam.mode"> No CAM now (generated at the IP Note)</label>
       </div>
+      <div class="status-inline status-inline-warn" x-show="camMismatch()" x-text="camMismatch()"></div>
       <template x-if="cam.mode === 'document' && !prospectMode">
         <div class="los-src-upload">
           <input class="input" type="file" accept="application/pdf" x-ref="camFile" aria-label="CAM (PDF)">

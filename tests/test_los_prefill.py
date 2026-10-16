@@ -172,6 +172,7 @@ def _at_ap_note(svc):
 
 def test_the_ap_maker_authors_the_terms_and_the_gate_holds_until_drafts_are_decided(svc):
     app_id, maker = _at_ap_note(svc)
+    svc._seed_stage_docs(app_id, "AP", svc.now())        # the AP documents on file, so the T&C gate is the one left
     t = svc.terms(app_id, maker)
     assert t["editable"] and t["summary"]["from_agent"] >= 8 and t["gate"]
     with pytest.raises(InvalidRequestError, match="need your confirmation"):

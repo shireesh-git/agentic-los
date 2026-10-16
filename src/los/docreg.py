@@ -87,6 +87,8 @@ def link_on_file(registry: list[dict], files: list[str], at: str) -> list[str]:
     return linked
 
 
+CMA_DOC = "CMA (prepared in the CMA workspace)"
+
 # Checklist items prepared in a workspace rather than uploaded: (workspace label, "it has data")
 WORKSPACE_ITEMS = {
     "CMA (prepared in the CMA workspace)":
@@ -105,8 +107,8 @@ def link_workspace(app: dict, at: str) -> list[str]:
             continue
         doc["versions"].append({"v": 1, "file_name": label, "uploaded_by": "Document agent", "at": at,
                                 "source": "workspace", "detail": "prepared in the " + label})
-        if doc["status"] == "pending":
-            doc["status"] = "uploaded"
+        if doc["status"] in ("pending", "uploaded"):   # the step's own work, reviewed where it is prepared
+            doc.update(status="reviewed", reviewer="Prepared in the " + label, reviewed_at=at)
         linked.append(name)
     return linked
 
@@ -157,7 +159,10 @@ def register_generated(registry: list[dict], *, name: str, kind: str, by_name: s
     v = len(target["versions"]) + 1
     target["versions"].append({"v": v, "file_name": f"{kind}-{v}", "uploaded_by": by_name, "at": at,
                                "source": "generated", "kind": kind, "detail": detail})
-    if target["status"] == "pending":
+    if target["name"] in WORKSPACE_ITEMS:       # prepared in its workspace: the step's own reviewed work
+        target.update(status="reviewed", reviewer=f"Prepared in the {WORKSPACE_ITEMS[target['name']][0]} by {by_name}",
+                      reviewed_at=at)
+    elif target["status"] == "pending":
         target["status"] = "uploaded"
     return target
 
@@ -200,10 +205,11 @@ def _required_for_stage(app: dict) -> list[str]:
     return [name for name, _ in CHECKLIST.get(stage, [])]
 
 
-def stage_gate(app: dict) -> Optional[str]:
-    """Mandatory documents for the application's stage must be present and reviewed."""
+def stage_gate(app: dict, only: Optional[set] = None, skip: Optional[set] = None) -> Optional[str]:
+    """Mandatory documents for the application's stage must be present and reviewed
+    (``only`` / ``skip``: the subset a step answers for, e.g. the CMA at the AP Risk Maker)."""
     registry = app.get("documents") or []
-    required = _required_for_stage(app)
+    required = [n for n in _required_for_stage(app) if (only is None or n in only) and n not in (skip or set())]
     missing = []
     for name in required:
         doc = next((d for d in registry if d["name"] == name), None)

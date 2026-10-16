@@ -273,7 +273,8 @@
                     <tbody>
                       <template x-for="i in rm?.verify?.queue || []" :key="i.field_id">
                         <tr :class="{'los-verify-conflict': i.status === 'conflict'}">
-                          <td><input type="checkbox" x-show="i.bulk" :checked="isPicked(i)"
+                          <td><span class="los-small text-muted" x-show="!i.bulk" title="Read it and confirm individually">one by one</span>
+                              <input type="checkbox" x-show="i.bulk" :checked="isPicked(i)"
                                      @change="verifyPick = {...verifyPick, [i.field_id]: $event.target.checked}"></td>
                           <td><span class="text-muted" x-text="i.domain_label"></span><br><strong x-text="i.label"></strong></td>
                           <td>

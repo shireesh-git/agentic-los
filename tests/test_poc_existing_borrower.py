@@ -71,6 +71,7 @@ def test_an_existing_borrower_from_the_catalogue_to_exit():
             svc.save_term(app_id, s, {"action": "add", "category": "GC",
                                       "text": "Quarterly hospital occupancy report to be submitted (POC)"})
             assert svc.terms(app_id, s)["gate"] is None
+            svc._seed_stage_docs(app_id, "AP", svc.now())     # the valuation / TEV reports on file (demo)
             # the ESMS screen the agent started (project + excluded-activity proposal) is completed by the maker
             esms = svc.get(app_id)["esms"]
             print("ESMS agent:", {k: esms.get(k) for k in ("proposed_category", "information_source")},

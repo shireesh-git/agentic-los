@@ -285,6 +285,9 @@ function losApp() {
       const v = this.rm?.verify?.step_stats || {};
       if (this.rm?.can_prepare && !(this.rm?.prep?.lanes || []).length && !v.total)
         out.unshift({ text: 'Let the agents prepare this step (Prepare with agents).', where: 'task', target: '.los-verify-card', blocking: false });
+      if (c.assessment_stale && !(c.blockers || []).some(b => b.where === 'assessment'))
+        out.push({ text: 'The credit assessment is out of date — ' + c.assessment_stale.replace('the CAM in the workspace', 'it')
+                   + '. The agents re-assess it when this step is prepared (Prepare with agents).', where: 'task', target: '.los-verify-card', blocking: false });
       const pend = (this.ps?.conditions || []).filter(x => ['deferred', 'waived'].includes(x.status) && !x.approval?.by);
       if (c.step.id === 'pos_checker' && pend.length)
         out.push({ text: 'Approving also approves ' + pend.length + ' deferred / waived condition(s): '
@@ -525,9 +528,18 @@ function losApp() {
         this.current = await this.api('applications/' + encodeURIComponent(this.current.application_id));
       } catch {} finally { this.busy = false; }
     },
-    confirmSelected() {
+    async confirmSelected() {
       const ids = this.verifySelected();
-      if (ids.length) return this.verifyPost('bulk-confirm', { field_ids: ids }, ids.length + ' field(s) confirmed');
+      if (!ids.length) return this.notify('Nothing selected — tick the fields to confirm, or use "Select all bulk-eligible"', 'error');
+      await this.verifyPost('bulk-confirm', { field_ids: ids }, ids.length + ' field(s) confirmed');
+      // what bulk confirmation cannot do: drafted text and decision-driving values are read one by one
+      const left = (this.rm?.verify?.queue || []).filter(i => !i.bulk);
+      if (left.length) {
+        const text = left.filter(i => i.domain === 'narrative' || /Drafted text/.test(i.why || '')).length;
+        this.notify(ids.length + ' field(s) confirmed. ' + left.length + ' still need an individual decision'
+                    + (text ? ' (' + text + ' drafted text — read each, then Confirm or Change)' : '') + '.', 'ok');
+        this.$nextTick(() => this.showWork('.los-verify'));
+      }
     },
     verifyOne(i, action) {
       const d = { field_id: i.field_id, action, reason: this.verifyReason[i.field_id] || '' };
@@ -1363,6 +1375,19 @@ function losApp() {
       if (!w || !f) return;
       this.newApp.facilities[0] = { ...f, facility_type: w.facility_type || f.facility_type, amount_cr: w.amount_cr ?? f.amount_cr,
                                     tenor_months: w.tenor_months ?? f.tenor_months, purpose: w.purpose || f.purpose };
+    },
+    camMismatch() {
+      // the CAM in the workspace assessed another request: a new one is generated for this application
+      const w = this.cam.options?.workspace, f = this.newApp.facilities?.[0];
+      if (this.prospectMode || this.cam.mode !== 'workspace' || !w || !f) return '';
+      const total = this.newApp.facilities.reduce((t, x) => t + (Number(x.amount_cr) || 0), 0);
+      const assessed = Number(w.requested_cr ?? w.facility?.amount_cr);
+      const out = [];
+      if (assessed && total && Math.abs(assessed - total) > 0.005 * Math.max(total, 1))
+        out.push('it assessed ₹' + assessed.toLocaleString('en-IN') + ' Cr, this application requests ₹' + total.toLocaleString('en-IN') + ' Cr');
+      if (w.facility?.facility_type && f.facility_type && w.facility.facility_type !== f.facility_type)
+        out.push('it assessed a ' + w.facility.facility_type.replaceAll('_', ' ') + ', this is a ' + f.facility_type.replaceAll('_', ' '));
+      return out.length ? 'The CAM in the workspace is for another request (' + out.join('; ') + '). A new CAM will be generated for this application when it is created.' : '';
     },
     camPreview() { return this.prospectMode ? this.prospect.read?.cam : this.cam.read?.cam; },
     camConflicts() {

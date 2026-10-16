@@ -162,6 +162,9 @@ def _clear_dd(svc, app_id, rm):
         for cid in bad:
             svc.exception_check(app_id, compvp, cid, "Exception approved (test)")
         if not svc.due_diligence(app_id, rm)["blocking"]:
+            stage = svc.get(app_id).get("stage_id")
+            if stage:                    # the stage's mandatory documents on file and reviewed (demo)
+                svc._seed_stage_docs(app_id, stage, svc.now())
             return d
     raise AssertionError("due diligence never became clear")
 
@@ -431,7 +434,9 @@ def http():
     from src.application.container import build_container
     container = build_container()
     container.los.seed_demo(force=True)
-    return TestClient(create_app(container))
+    client = TestClient(create_app(container))
+    client.container = container
+    return client
 
 
 def test_api_end_to_end(http):
@@ -453,6 +458,9 @@ def test_api_end_to_end(http):
         if c["mode"] == "manual":
             assert http.post(f"/api/los/applications/{app_id}/due-diligence/record", headers=h,
                              json={"check_id": c["id"], "result": "clear", "remarks": "ok"}).status_code == 200
+    r = http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "submit", "comment": "test"})
+    assert r.status_code == 400 and "Mandatory documents" in r.json()["detail"]     # documents not on file yet
+    http.container.los._seed_stage_docs(app_id, "PS", http.container.los.now())
     r = http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "submit", "comment": "test"})
     assert r.json()["step"]["id"] == "ip_note"
     r = http.post(f"/api/los/applications/{app_id}/actions", headers=h, json={"action": "approve", "comment": "test"})

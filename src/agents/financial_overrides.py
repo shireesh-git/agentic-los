@@ -61,6 +61,17 @@ def _statement_from_upload(
     if line_items.get("revenue_operating", 0) > 0 and line_items.get("total_income", 0) <= 0:
         line_items["total_income"] = line_items["revenue_operating"]
 
+    # EBIT is rarely printed on a statement: derive it when the extraction did not find it (a statement read
+    # from an upload has PBT and finance cost, or EBITDA and depreciation) — a missing EBIT is not zero
+    if line_items.get("ebit", 0) <= 0:
+        if line_items.get("pbt", 0) > 0 and line_items.get("finance_cost", 0) > 0:
+            line_items["ebit"] = round(line_items["pbt"] + line_items["finance_cost"], 2)
+        elif line_items.get("ebitda", 0) > 0 and line_items.get("depreciation", 0) > 0:
+            line_items["ebit"] = round(line_items["ebitda"] - line_items["depreciation"], 2)
+    if (line_items.get("depreciation", 0) <= 0 and line_items.get("ebitda", 0) > 0
+            and 0 < line_items.get("ebit", 0) <= line_items["ebitda"]):
+        line_items["depreciation"] = round(line_items["ebitda"] - line_items["ebit"], 2)
+
     rhs = (
         line_items.get("total_equity", 0)
         + line_items.get("long_term_debt", 0)
@@ -117,6 +128,19 @@ def apply_verified_overrides(company_data: dict, overrides: dict) -> dict:
     recompute everything that depends on it. Returns what was applied."""
     applied = {"financials": [], "collateral": []}
     financials = dict(company_data.get("financials") or {})
+    stmt = overrides.get("statement")
+    if stmt:
+        # a prospect's statement: the figures a person accepted from its audited statements, over what an
+        # earlier run extracted (the extraction reads the P&L only — debt and net worth would stay zero)
+        borrower = company_data.get("borrower")
+        prior = financials.get(stmt["period"])
+        items = dict(getattr(prior, "line_items", None) or {})
+        items.update({k: round(float(v), 4) for k, v in stmt["items"].items()})
+        financials[stmt["period"]] = FinancialStatement(
+            entity_id=getattr(borrower, "entity_id", "") or "", period=stmt["period"], statement_type="standalone",
+            source=getattr(prior, "source", None) or "audited", as_of_date=date.fromisoformat(stmt["as_of"]),
+            line_items=items)
+        applied["financials"] += [f"{stmt['period']}.{k}" for k in stmt["items"]]
     for period, items in (overrides.get("financials") or {}).items():
         fs = financials.get(period)
         if fs is None:

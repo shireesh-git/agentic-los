@@ -65,6 +65,7 @@ def ap_maker_authors_terms_and_esms(svc, app_id, s):
     """The AP maker step as a person works it: confirm the T&C agent's drafts, complete the ESMS screen
     the agents started (project / excluded-activity proposal)."""
     from src.los.esms import ES_CHECKLIST
+    svc._seed_stage_docs(app_id, "AP", svc.now())          # the AP documents on file and reviewed (demo)
     t = svc.terms(app_id, s)
     pending = [r["field_id"] for r in t["rows"] if r["field_status"] == "proposed" and not r["removed"]]
     if pending:
