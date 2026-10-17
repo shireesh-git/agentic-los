@@ -417,6 +417,20 @@ async def exception_check(application_id: str, body: CheckId, x_los_session: Opt
     return svc.los.exception_check(application_id, _session(svc, x_los_session), body.check_id, body.remarks)
 
 
+@router.post("/applications/{application_id}/due-diligence/exception-request")
+async def request_exception(application_id: str, body: CheckId, x_los_session: Optional[str] = Header(None),
+                            svc: ServiceContainer = Depends(get_container)):
+    """The step holder asks the Compliance VP for an exception (it appears in the Compliance VP's queue)."""
+    return svc.los.request_exception(application_id, _session(svc, x_los_session), body.check_id, body.remarks)
+
+
+@router.post("/applications/{application_id}/due-diligence/exception-decline")
+async def decline_exception(application_id: str, body: CheckId, x_los_session: Optional[str] = Header(None),
+                            svc: ServiceContainer = Depends(get_container)):
+    """Compliance VP only: decline a requested exception, with the reason the step holder sees."""
+    return svc.los.decline_exception(application_id, _session(svc, x_los_session), body.check_id, body.remarks)
+
+
 class CheckEvidence(BaseModel):
     check_id: str
     name: str

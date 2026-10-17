@@ -433,3 +433,23 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
 .los-review-item{display:flex;gap:8px;align-items:flex-start;margin:6px 0;text-transform:none;letter-spacing:0;font-size:13px;font-weight:500;color:var(--text)}
 .los-review-item input{margin-top:2px}
 .status-inline-warn{background:var(--amber-bg,#fff7e6);border-color:var(--amber-border,#f5d48a);color:var(--amber,#b45309)}
+
+/* Exception request status on a due-diligence check */
+.los-exc-req{margin-top:6px;padding:6px 10px;border-radius:8px;font-size:12.5px}
+.los-exc-pending{background:var(--amber-bg,#fff7e6);color:var(--amber,#b45309)}
+.los-exc-declined{background:var(--red-bg);color:var(--red)}
+.los-exc-approved{background:var(--green-bg,#ecfdf5);color:var(--green,#047857)}
+
+/* Copilot: a drawer on the right, opened from a button that is always in view */
+.los-cop-fab{position:fixed;right:20px;bottom:24px;z-index:950;display:flex;align-items:center;gap:8px;padding:10px 16px;
+  border:none;border-radius:999px;background:var(--accent,#003366);color:#fff;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer}
+.los-cop-fab-n{background:#c9a227;color:#111;border-radius:999px;min-width:22px;height:22px;display:inline-flex;align-items:center;
+  justify-content:center;font-size:12px;padding:0 6px}
+.los-cop-drawer{position:fixed!important;top:72px;right:16px;bottom:16px;width:min(420px,calc(100vw - 32px));z-index:960;
+  overflow:auto;margin:0!important;box-shadow:0 16px 48px rgba(0,0,0,.28);background:#fff}
+.los-cop-result{margin:10px 0;padding:10px 12px;border-radius:10px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.los-cop-resolved{background:var(--green-bg,#ecfdf5);color:var(--green,#047857)}
+.los-cop-partial{background:var(--amber-bg,#fff7e6);color:var(--amber,#b45309)}
+.los-cop-unchanged{background:var(--red-bg);color:var(--red)}
+.los-exc-banner{border-left:4px solid var(--amber,#b45309);display:flex;flex-direction:column;gap:4px}
+.los-check-excepted{background:var(--amber-bg,#fff7e6)}

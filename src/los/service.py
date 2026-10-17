@@ -300,6 +300,7 @@ class LosService:
         view["documents_gate"] = dreg.stage_gate(app)
         view["material_changes"] = snap.material_changes(app) if app.get("snapshots") else []
         view["material_change_gate"] = snap.material_change_gate(app) if app.get("snapshots") else None
+        view["exception_requests"] = self._pending_exception_requests(app)
         view["assessment_stale"] = (self._case_stale(self._app_case(app)[0] or {}, app)
                                     if self.cases and (app.get("credit_assessment") or {}).get("run_id") else None)
         view["snapshots"] = [s["ref"] for s in sorted(app.get("snapshots") or [], key=lambda s: (s.get("seq", 0), s.get("at") or ""))]
@@ -337,7 +338,10 @@ class LosService:
                 continue
             if stage and app.get("stage_id") != stage:
                 continue
-            if mine and session:
+            if mine and session and session["role"] == "compliance_vp":
+                if app["status"] in TERMINAL or not self._pending_exception_requests(app):
+                    continue
+            elif mine and session:
                 step = self.wf.step(app["step_id"]) if app.get("step_id") else None
                 if not step or app["status"] in TERMINAL or step.role != session["role"]:
                     continue
@@ -349,6 +353,12 @@ class LosService:
                     continue
             out.append(self._view(app, session, now))
         return out
+
+    @staticmethod
+    def _pending_exception_requests(app: dict) -> list[dict]:
+        return [{**c["exception_request"], "check_id": c["id"], "name": c["name"], "check_status": c["status"]}
+                for c in (app.get("due_diligence") or {}).get("checks") or []
+                if (c.get("exception_request") or {}).get("status") == "pending" and not c.get("exception")]
 
     def get(self, application_id: str, session: Optional[dict] = None) -> dict:
         app = self._require(application_id)
@@ -981,15 +991,26 @@ class LosService:
                     + "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4]), "checks")
             add(dreg.stage_gate(app), "documents")
         # Mandatory gates (due diligence, consent)
+        waiting = {r["check_id"]: r for r in self._pending_exception_requests(app)}
+        if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence") and waiting:
+            add("Waiting for the Compliance VP's exception decision on: "
+                + "; ".join(f"{r['name']} (requested {r['at'][:10]})" for r in waiting.values()), "checks")
         if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence"):
-            stuck = dd.blocking(app["due_diligence"]["checks"], now=self.now())
+            stuck = [c for c in dd.blocking(app["due_diligence"]["checks"], now=self.now()) if c["id"] not in waiting]
             if stuck:
                 names = "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4])
                 add("Resolve the outstanding mandatory due-diligence check(s) before "
                     f"submitting: {names}" + (f" (+{len(stuck) - 4} more)" if len(stuck) > 4 else ""), "checks")
         # the stage's mandatory documents, present and reviewed, at the step that answers for them
         if action == "submit" and step.id == "ps_maker":
-            add(dreg.stage_gate(app), "documents")
+            gate = dreg.stage_gate(app)
+            if gate:                       # documents on file the agent has not linked yet: say how
+                import copy
+                trial = copy.deepcopy(app)
+                if self._link_documents(trial, self.now().isoformat(timespec="seconds")):
+                    gate = gate.replace("for this stage:", "for this stage (the borrower's documents on file can be "
+                                        "linked — click “Prepare with agents”, then review each in Documents):", 1)
+            add(gate, "documents")
         if action == "submit" and step.id == "ap_note":
             add(dreg.stage_gate(app, skip={dreg.CMA_DOC}), "documents")       # the CMA is the Risk Maker's
         if action == "submit" and step.id == "ap_risk_maker":
@@ -2686,6 +2707,46 @@ class LosService:
                                          detail={"check_id": check_id}))
         return self.due_diligence(application_id, session)
 
+    def request_exception(self, application_id: str, session: dict, check_id: str, note: str) -> dict:
+        """The step holder asks the Compliance VP for an exception on a check only that authority can release
+        (a match / failure, or a mandatory 'unavailable'). The request is in the Compliance VP's queue."""
+        app = self._require(application_id)
+        self._dd_may(app, session, "Requesting a Compliance VP exception")
+        if not (note or "").strip():
+            raise InvalidRequestError("Say why an exception is justified (the Compliance VP decides on it)")
+        c = self._dd_check(app, check_id)
+        if c["status"] not in ("matched", "failed", "unavailable"):
+            raise ConflictError(f"{c['name']} is {c['status']} — an exception applies to a match, a failure or "
+                                "an unavailable result")
+        if dd.effective_exception(c, self.now()):
+            raise ConflictError(f"{c['name']} already has a Compliance VP exception")
+        at = self.now().isoformat(timespec="seconds")
+        c["exception_request"] = {"status": "pending", "by": session["user"]["id"], "by_name": session["user"]["name"],
+                                  "at": at, "note": note.strip()}
+        actor = {"id": session["user"]["id"], "role": session["role"]}
+        self.store.save(app, self._event(app, "dd_exception_requested", actor=actor, from_step=app["step_id"],
+                                         to_step=app["step_id"], comment=f"Exception requested for {c['name']}: {note.strip()}",
+                                         detail={"check_id": check_id, "status": c["status"]}))
+        return self.due_diligence(application_id, session)
+
+    def decline_exception(self, application_id: str, session: dict, check_id: str, reason: str) -> dict:
+        if session["role"] != "compliance_vp":
+            raise ForbiddenError("Only the Compliance VP decides on a due-diligence exception")
+        if not (reason or "").strip():
+            raise InvalidRequestError("Give the reason for declining — the step holder sees it")
+        app = self._require(application_id)
+        c = self._dd_check(app, check_id)
+        req = c.get("exception_request") or {}
+        if req.get("status") != "pending":
+            raise ConflictError(f"There is no pending exception request on {c['name']}")
+        req.update(status="declined", decided_by=session["user"]["name"], decided_at=self.now().isoformat(timespec="seconds"),
+                   decision_note=reason.strip())
+        actor = {"id": session["user"]["id"], "role": session["role"]}
+        self.store.save(app, self._event(app, "dd_exception_declined", actor=actor, from_step=app["step_id"],
+                                         to_step=app["step_id"], comment=f"Exception declined for {c['name']}: {reason.strip()}",
+                                         detail={"check_id": check_id}))
+        return self.due_diligence(application_id, session)
+
     def exception_check(self, application_id: str, session: dict, check_id: str, reason: str) -> dict:
         """The only thing that releases a mandatory match/failure block: a recorded Compliance VP exception.
         Under the ``vp_approval`` unavailable policy the same authority also releases a mandatory check
@@ -2701,6 +2762,9 @@ class LosService:
         c["exception"] = {"by": session["user"]["id"], "by_name": session["user"]["name"],
                           "at": self.now().isoformat(timespec="seconds"), "reason": reason.strip(),
                           "expires_at": dd.exception_expiry(self.now().isoformat(timespec="seconds"))}
+        if (c.get("exception_request") or {}).get("status") == "pending":
+            c["exception_request"].update(status="approved", decided_by=session["user"]["name"],
+                                          decided_at=self.now().isoformat(timespec="seconds"), decision_note=reason.strip())
         # Time-based expiry note: the exception lapses 90 days after it is granted (UAT-P0-2).
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "dd_exception", actor=actor, from_step=app["step_id"],
@@ -4337,7 +4401,9 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
              "status": app["status"], "holder": view.get("assignee_name"), "is_holder": self._is_holder(app, session),
              "sla": sla, "can_submit": bool(view.get("actions")), "committee_steps": COMMITTEE_STEPS,
              "documents": len(self._documents_on_file(app["entity_id"])),
-             "credit_assessment": bool(app.get("credit_assessment"))}
+             "credit_assessment": bool(app.get("credit_assessment")),
+             "exception_requests": ([r["name"] for r in self._pending_exception_requests(app)]
+                                    if session and session["role"] == "compliance_vp" else [])}
         if app["status"] == "RETURNED":
             ret = next((e for e in self.store.events(application_id=app["application_id"], limit=50)
                         if e["action"] == "return"), None)
@@ -4353,7 +4419,13 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             s["ip_note"] = {"breaches": app["ip_note"]["prescreen"]["breaches"]}
         if app.get("due_diligence"):
             checks = app["due_diligence"]["checks"]
-            s["due_diligence"] = {"blocking": [c["name"] for c in dd.blocking(checks, now=self.now())],
+            blocking = dd.blocking(checks, now=self.now())
+            s["due_diligence"] = {"blocking": [c["name"] for c in blocking],
+                                  "need_exception": [c["name"] for c in blocking if c["status"] in ("matched", "failed", "unavailable")
+                                                     and (c.get("exception_request") or {}).get("status") != "pending"],
+                                  "awaiting_exception": [c["name"] for c in blocking
+                                                         if (c.get("exception_request") or {}).get("status") == "pending"],
+                                  "runnable": [c["name"] for c in blocking if c["status"] == "pending"],
                                   "pending": sum(1 for c in checks if c["status"] == "pending"),
                                   "at_dd_step": bool(step and step.id in DD_STEPS)}
         with self._jobs_lock:
@@ -4405,6 +4477,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             raise ForbiddenError("The copilot acts only for the person holding the step")
         # Audit first: the tool saves the application itself (an assessment saves from its own thread), so the
         # copilot must not save an older copy afterwards.
+        before = self._open_items(application_id)
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "copilot_action", actor=actor, from_step=app.get("step_id"),
                                          to_step=app.get("step_id"),
@@ -4429,7 +4502,57 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             self.committee_brief(application_id, session)
         elif tool == "issue_sanction_letter":
             self.generate_letter(application_id, session, "sanction_letter")
-        return self.copilot(application_id, session) | {"ran": tool, "message": cp.TOOLS[tool] + " — done"}
+        after = self._open_items(application_id)
+        b_items, a_items = self._atomise(before), self._atomise(after)
+        resolved = [k for k in b_items if k not in a_items]
+        changed = [f"{k}: {b_items[k]} → {a_items[k]}" for k in b_items if k in a_items and b_items[k] != a_items[k] and b_items[k]]
+        still = after
+        detail = ""
+        if tool == "run_due_diligence":                      # what the checks came back with
+            checks = (self._require(application_id).get("due_diligence") or {}).get("checks") or []
+            bad = [f"{c['name']}: {c['status']}" for c in checks if c["mode"] == "api" and c["status"] in ("matched", "failed", "unavailable")]
+            detail = ("Checks run. Needing attention: " + "; ".join(bad)) if bad else "Checks run — all API checks came back clear."
+        outcome = "resolved" if before and not still else "partial" if resolved else "unchanged"
+        message = {"resolved": "Done — this cleared everything that was blocking the step.",
+                   "partial": f"Done — resolved {len(resolved)} item(s); {len(still)} still open.",
+                   "unchanged": "Done, but nothing that blocks the step was resolved by it."}[outcome]
+        if not before and not still:
+            outcome, message = "resolved", "Done — nothing is blocking the step."
+        return self.copilot(application_id, session) | {
+            "ran": tool, "message": cp.TOOLS[tool] + ": " + message,
+            "outcome": outcome, "resolved": resolved, "changed": changed, "still_open": still, "detail": detail}
+
+    @staticmethod
+    def _atomise(messages: list[str]) -> dict:
+        """Blocker messages as {item: state}: "Resolve …: MCA (pending); KYC (pending)" → {"MCA": "pending", …}."""
+        out = {}
+        for m in messages:
+            head, _, rest = m.partition(": ")
+            parts, depth, cur = [], 0, ""
+            for ch in (rest or head):
+                depth += ch == "("
+                depth -= ch == ")" and depth > 0
+                if ch == ";" and not depth:
+                    parts.append(cur); cur = ""
+                else:
+                    cur += ch
+            parts.append(cur)
+            for p in parts:
+                p = p.strip().rstrip("…").strip()
+                if not p or p.startswith("(+"):
+                    continue
+                name, _, state = p.partition(" (")
+                out[name.strip()] = state.rstrip(")").strip()
+        return out
+
+    def _open_items(self, application_id: str) -> list[str]:
+        """What still blocks the step holder's forward action (the same gates as Submit / Approve)."""
+        app = self._require(application_id)
+        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        if not step:
+            return []
+        action = {"maker": "submit", "checker": "approve", "vp_review": "submit"}.get(step.kind)
+        return [m for m, _ in self._gates(app, step, action)] if action else []
 
     def copilot_draft(self, application_id: str, session: dict, kind: str) -> dict:
         app = self._require(application_id)

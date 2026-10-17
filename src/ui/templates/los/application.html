@@ -51,6 +51,78 @@
           <button class="btn btn-sm btn-ghost" @click="lastError = ''" aria-label="Dismiss">✕</button>
         </div>
         <!-- Page sections: one at a time, so the page shows only what the person is working on -->
+        <!-- the copilot, one click away on every tab -->
+        <button class="los-cop-fab" x-show="copilot && !copilotOpen" @click="copilotOpen = true" title="Copilot: next best actions, drafts and questions">
+          <span>Copilot</span>
+          <span class="los-cop-fab-n" x-show="(copilot?.actions || []).length" x-text="(copilot?.actions || []).length"></span>
+        </button>
+        <!-- Copilot: next best actions (runs tools for the step holder), drafts and Q&A on this application -->
+        <div class="card los-copilot los-cop-drawer" x-show="copilot && copilotOpen" x-transition.opacity @keydown.escape.window="copilotOpen = false">
+          <div class="los-rm-head">
+            <div>
+              <span class="los-kicker">Copilot · agentic assistant</span>
+              <h3>Next best actions</h3>
+              <span class="text-muted">Proposals from the application's state. The copilot can run the marked tasks for you;
+                it never submits, approves, returns or sanctions.</span>
+            </div>
+            <div class="los-action-row">
+              <span class="badge sm" :class="copilot?.ai_available ? 'badge-green' : 'badge-grey'"
+                    x-text="copilot?.ai_available ? 'AI connected' : 'Rule-based'"></span>
+              <button class="btn btn-sm btn-ghost" @click="copilotOpen = false" aria-label="Close the copilot">✕</button>
+            </div>
+          </div>
+          <!-- what the last task did: resolved, partly, or not -->
+          <div class="los-cop-result" x-show="copilotResult" :class="'los-cop-' + copilotResult?.outcome">
+            <strong x-text="copilotResult?.message"></strong>
+            <div x-show="copilotResult?.detail" x-text="copilotResult?.detail"></div>
+            <template x-for="(r, ri) in copilotResult?.resolved || []" :key="'r' + ri"><div>✓ Resolved: <span x-text="r"></span></div></template>
+            <template x-for="(r, ri) in copilotResult?.changed || []" :key="'c' + ri"><div>↻ Changed: <span x-text="r"></span></div></template>
+            <div x-show="(copilotResult?.still_open || []).length" style="margin-top:4px"><strong>Still to do:</strong></div>
+            <template x-for="(r, ri) in copilotResult?.still_open || []" :key="'o' + ri"><div>• <span x-text="splitMsg(r).head"></span></div></template>
+          </div>
+          <ol class="los-cop-list">
+            <template x-for="a in copilot?.actions || []" :key="a.id">
+              <li :class="'los-cop-' + a.priority">
+                <div class="los-cop-text"><strong x-text="a.title"></strong><span class="text-muted" x-text="a.why"></span></div>
+                <div class="los-action-row">
+                  <button class="btn btn-sm btn-primary" x-show="a.tool && copilot?.is_holder" :disabled="!!copilotBusy"
+                          @click="copilotRun(a.tool)" x-text="copilotBusy === a.tool ? 'Working…' : 'Do it'"></button>
+                  <button class="btn btn-sm btn-outline" x-show="['dd_exception', 'dd_waiting', 'exception_decision'].includes(a.id)"
+                          @click="copilotOpen = false; goTo('checks')">Go to Checks</button>
+                  <button class="btn btn-sm btn-outline" x-show="a.draft" :disabled="!!copilotBusy"
+                          @click="copilotDraft(a.draft)" x-text="a.draft === 'return_note' ? 'Draft return note' : 'Draft request'"></button>
+                </div>
+              </li>
+            </template>
+          </ol>
+          <template x-if="draft">
+          <div class="los-cop-draft">
+            <div class="los-rm-head"><strong x-text="draft?.kind === 'return_note' ? 'Draft return note' : 'Draft document request'"></strong>
+              <div class="los-action-row">
+                <button class="btn btn-sm btn-outline" x-show="draft?.kind === 'return_note' && current?.actions?.includes('return')" @click="comment = draft.text; notify('Draft copied into the comment box — edit, then Return', 'ok')">Use as comment</button>
+                <button class="btn btn-sm btn-outline" @click="copyDraft()">Copy</button>
+                <button class="btn btn-sm btn-outline" @click="draft = null">Close</button>
+              </div></div>
+            <textarea class="input" rows="7" x-model="draft.text" aria-label="Draft text"></textarea>
+            <p class="text-muted los-note" x-text="draft?.note"></p>
+          </div>
+          </template>
+          <div class="los-cop-ask">
+            <form class="los-cop-askrow" @submit.prevent="copilotAsk()">
+              <input class="input" x-model="question" maxlength="500" placeholder="Ask about this application — e.g. Why was the limit reduced? What conditions are open?" aria-label="Ask the copilot">
+              <button class="btn btn-primary" :disabled="asking || !question.trim()" x-text="asking ? 'Thinking…' : 'Ask'"></button>
+            </form>
+            <template x-for="(h, i) in copilot?.history || []" :key="i">
+              <div class="los-cop-qa">
+                <div class="los-cop-q"><span x-text="h.question"></span> <span class="text-muted los-small" x-text="h.by_name + ' · ' + fmtDateTime(h.at)"></span></div>
+                <div class="los-cop-a"><span class="prov" :class="h.mode === 'ai' ? 'prov-ai' : 'prov-source'" x-text="h.mode === 'ai' ? 'AI' : 'Record'"></span>
+                  <span class="los-pre" x-text="h.answer"></span></div>
+                <div class="text-muted los-small" x-show="h.note" x-text="h.note"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+
         <nav class="los-page-tabs">
           <template x-for="t in pageTabs()" :key="t[0]">
             <button type="button" :class="{active: pageTab === t[0]}"
@@ -158,7 +230,7 @@
             <span x-text="'This step is assigned to ' + (current?.assignee_name || 'someone else') + '. Assign it to yourself to work on it.'"></span>
             <button class="btn btn-sm btn-primary" x-show="current?.can_reassign" :disabled="busy" @click="reassignTo = session.user.id; reassign()">Assign to me</button>
           </div>
-          <p class="text-muted" x-show="!current?.actions?.length && !current?.assigned_to_other && current?.status !== 'REJECTED' && !['WITHDRAWN','DROPPED'].includes(current?.status)"
+          <p class="text-muted" x-show="!current?.actions?.length && !(session?.role === 'compliance_vp' && (current?.exception_requests || []).length) && !current?.assigned_to_other && current?.status !== 'REJECTED' && !['WITHDRAWN','DROPPED'].includes(current?.status)"
              x-text="'This step is with the ' + current?.step?.role_name + ' role' + (current?.assignee_name ? ' (' + current?.assignee_name + ')' : '') + '. Switch role or sign in as that user to act on it.'"></p>
           <p class="status-inline status-inline-error" x-show="current?.status === 'REJECTED'">This application was rejected.</p>
           <p class="status-inline status-inline-error" x-show="current?.status === 'WITHDRAWN'"
@@ -361,19 +433,23 @@
           </div>
           <!-- What blocks the submission, first -->
           <div class="los-todo" x-show="ddBlocking().length">
-            <div class="los-todo-head los-todo-blocked"><strong x-text="ddBlocking().length + ' mandatory check(s) blocking submission'"></strong></div>
+            <div class="los-todo-head los-todo-blocked"><strong x-text="session?.role === 'compliance_vp' ? ddBlocking().length + ' check(s) waiting for your exception decision' : ddBlocking().length + ' mandatory check(s) blocking submission'"></strong></div>
             <ul><template x-for="c in ddBlocking()" :key="'b' + c.id">
               <li class="los-todo-block"><span class="los-todo-icon">!</span>
                 <span x-text="c.name + ' — ' + ddNextStep(c)"></span>
                 <button class="btn btn-sm btn-outline" x-show="dd.can_edit && c.mode === 'manual'" @click="startDdRecord(c); $nextTick(() => scrollToEl(document.getElementById('chk-' + c.id)))">Record</button>
                 <button class="btn btn-sm btn-outline" x-show="dd.can_edit && c.mode === 'api' && c.status !== 'matched'" :disabled="busy" @click="ddTrigger(c.id)">Run</button>
-                <button class="btn btn-sm btn-outline" x-show="c.status === 'matched' || c.status === 'failed'" @click="scrollToEl(document.getElementById('chk-' + c.id))">View</button>
+                <button class="btn btn-sm btn-primary" x-show="ddCanRequest(c)" :disabled="busy" @click="requestException(c)">Request exception…</button>
+                <span class="badge sm badge-amber" x-show="c.exception_request?.status === 'pending' && session?.role !== 'compliance_vp'">Waiting for the Compliance VP</span>
+                <button class="btn btn-sm btn-primary" x-show="ddCvpDecides(c)" :disabled="busy" @click="ddEdit = c.id; ddResult = 'exception'; ddRemarks = ''; $nextTick(() => scrollToEl(document.getElementById('chk-' + c.id)))">Approve…</button>
+                <button class="btn btn-sm btn-outline" x-show="ddCvpDecides(c) && c.exception_request?.status === 'pending'" :disabled="busy" @click="declineException(c)">Decline…</button>
+                <button class="btn btn-sm btn-ghost" x-show="c.status === 'matched' || c.status === 'failed'" @click="scrollToEl(document.getElementById('chk-' + c.id))">View the hit</button>
               </li>
             </template></ul>
           </div>
           <div class="los-checks">
             <template x-for="c in ddSorted()" :key="c.id">
-              <div class="los-check-row" :id="'chk-' + c.id" :class="{'los-check-bad': c.status === 'matched' || c.status === 'failed', 'los-check-open': ddEdit === c.id}">
+              <div class="los-check-row" :id="'chk-' + c.id" :class="{'los-check-bad': (c.status === 'matched' || c.status === 'failed') && !c.exception, 'los-check-excepted': c.exception, 'los-check-open': ddEdit === c.id}">
                 <div class="los-check-main">
                   <div><strong x-text="c.name"></strong>
                     <span class="badge sm badge-red" x-show="c.mandatory">mandatory</span>
@@ -381,6 +457,11 @@
                     <span class="badge sm badge-amber" x-show="c.exception">VP exception</span></div>
                   <div class="text-muted los-small" x-text="c.detail || (c.status === 'pending' ? 'Not recorded yet' : '—')"></div>
                   <div class="text-muted los-small" x-show="c.error" x-text="c.error"></div>
+                  <div class="los-exc-req" x-show="c.exception_request && !c.exception" :class="'los-exc-' + c.exception_request?.status">
+                    <strong x-text="{pending: 'Exception requested — waiting for the Compliance VP', declined: 'Exception declined by ' + (c.exception_request?.decided_by || ''), approved: 'Exception approved'}[c.exception_request?.status]"></strong>
+                    <span x-text="' · ' + (c.exception_request?.by_name || '') + ', ' + (c.exception_request?.at || '').slice(0, 10) + ': ' + (c.exception_request?.note || '')"></span>
+                    <div x-show="c.exception_request?.decision_note" x-text="'Reason: ' + c.exception_request?.decision_note"></div>
+                  </div>
                   <div class="los-small" x-show="c.exception" style="color:var(--amber,#b45309);" x-text="'Exception: ' + c.exception?.reason + ' — ' + c.exception?.by_name + ', ' + c.exception?.at + (c.exception?.expires_at ? ' (expires ' + c.exception.expires_at + ')' : '')"></div>
                   <template x-for="(ie, iei) in c.exception_history || []" :key="iei">
                     <div class="text-muted los-small" x-text="'Invalidated ' + ie.invalidated_at + ': ' + ie.reason + ' (approved by ' + ie.by_name + ')'" style="color:var(--amber,#b45309)"></div>
@@ -435,6 +516,8 @@
                   </div>
                   <button class="btn btn-sm btn-primary" x-show="session?.role === 'compliance_vp' && ((c.status === 'matched' || c.status === 'failed') || (c.status === 'unavailable' && c.mandatory)) && !c.exception && ddEdit !== c.id"
                           :disabled="busy" @click="ddEdit = c.id; ddResult = 'exception'; ddRemarks = ''" x-text="c.status === 'unavailable' ? 'Approve (unavailable)…' : 'Approve exception…'"></button>
+                  <button class="btn btn-sm btn-outline" x-show="ddCvpDecides(c) && c.exception_request?.status === 'pending' && ddEdit !== c.id" :disabled="busy" @click="declineException(c)">Decline…</button>
+                  <button class="btn btn-sm btn-primary" x-show="ddCanRequest(c)" :disabled="busy" @click="requestException(c)">Request exception…</button>
                 </div>
               </div>
             </template>
@@ -1415,6 +1498,14 @@
 
         </div><!-- /workspaces -->
         <div x-show="pageTab === 'task'" class="los-task-stack">
+        <!-- the Compliance VP: the exception requests waiting for a decision on this application -->
+        <div class="card los-exc-banner" x-show="session?.role === 'compliance_vp' && (current?.exception_requests || []).length">
+          <strong x-text="(current?.exception_requests || []).length + ' exception request(s) waiting for your decision'"></strong>
+          <template x-for="r in current?.exception_requests || []" :key="r.check_id">
+            <div class="los-small" x-text="r.name + ' (' + r.check_status + ') — requested by ' + r.by_name + ' on ' + (r.at || '').slice(0, 10) + ': ' + r.note"></div>
+          </template>
+          <button class="btn btn-sm btn-primary" style="margin-top:6px;align-self:flex-start" @click="goTo('checks')">Review in Checks</button>
+        </div>
         <!-- Review & committee pack (Risk Review, EVP, Sanction Committee) -->
         <div class="card los-pack" x-show="pack?.available && (pack?.at_committee_step || pack?.sanctions && Object.keys(pack.sanctions).length)">
           <div class="los-rm-head">
@@ -1502,59 +1593,6 @@
                 <span class="text-muted" x-text="' by ' + s.by_name + ' on ' + fmtDateTime(s.at) + ' (recommended ' + (s.recommended_cr ? '₹' + fmtAmount(s.recommended_cr) + ' Cr' : '—') + ')'"></span>
                 <span class="badge sm badge-amber" x-show="s.deviates_from_recommendation">Differs from recommendation</span>
                 <br><span x-show="s.minutes" x-text="'Minutes: ' + s.minutes"></span></p>
-            </template>
-          </div>
-        </div>
-
-        <!-- Copilot: next best actions (runs tools for the step holder), drafts and Q&A on this application -->
-        <div class="card los-copilot" x-show="copilot">
-          <div class="los-rm-head">
-            <div>
-              <span class="los-kicker">Copilot · agentic assistant</span>
-              <h3>Next best actions</h3>
-              <span class="text-muted">Proposals from the application's state. The copilot can run the marked tasks for you;
-                it never submits, approves, returns or sanctions.</span>
-            </div>
-            <span class="badge sm" :class="copilot?.ai_available ? 'badge-green' : 'badge-grey'"
-                  x-text="copilot?.ai_available ? 'AI connected' : 'Rule-based (AI not configured)'"></span>
-          </div>
-          <ol class="los-cop-list">
-            <template x-for="a in copilot?.actions || []" :key="a.id">
-              <li :class="'los-cop-' + a.priority">
-                <div class="los-cop-text"><strong x-text="a.title"></strong><span class="text-muted" x-text="a.why"></span></div>
-                <div class="los-action-row">
-                  <button class="btn btn-sm btn-primary" x-show="a.tool && copilot?.is_holder" :disabled="!!copilotBusy"
-                          @click="copilotRun(a.tool)" x-text="copilotBusy === a.tool ? 'Working…' : 'Do it'"></button>
-                  <button class="btn btn-sm btn-outline" x-show="a.draft" :disabled="!!copilotBusy"
-                          @click="copilotDraft(a.draft)" x-text="a.draft === 'return_note' ? 'Draft return note' : 'Draft request'"></button>
-                </div>
-              </li>
-            </template>
-          </ol>
-          <template x-if="draft">
-          <div class="los-cop-draft">
-            <div class="los-rm-head"><strong x-text="draft?.kind === 'return_note' ? 'Draft return note' : 'Draft document request'"></strong>
-              <div class="los-action-row">
-                <button class="btn btn-sm btn-outline" x-show="draft?.kind === 'return_note' && current?.actions?.includes('return')" @click="comment = draft.text; notify('Draft copied into the comment box — edit, then Return', 'ok')">Use as comment</button>
-                <button class="btn btn-sm btn-outline" @click="copyDraft()">Copy</button>
-                <button class="btn btn-sm btn-outline" @click="draft = null">Close</button>
-              </div></div>
-            <textarea class="input" rows="7" x-model="draft.text" aria-label="Draft text"></textarea>
-            <p class="text-muted los-note" x-text="draft?.note"></p>
-          </div>
-          </template>
-          <div class="los-cop-ask">
-            <form class="los-cop-askrow" @submit.prevent="copilotAsk()">
-              <input class="input" x-model="question" maxlength="500" placeholder="Ask about this application — e.g. Why was the limit reduced? What conditions are open?" aria-label="Ask the copilot">
-              <button class="btn btn-primary" :disabled="asking || !question.trim()" x-text="asking ? 'Thinking…' : 'Ask'"></button>
-            </form>
-            <template x-for="(h, i) in copilot?.history || []" :key="i">
-              <div class="los-cop-qa">
-                <div class="los-cop-q"><span x-text="h.question"></span> <span class="text-muted los-small" x-text="h.by_name + ' · ' + fmtDateTime(h.at)"></span></div>
-                <div class="los-cop-a"><span class="prov" :class="h.mode === 'ai' ? 'prov-ai' : 'prov-source'" x-text="h.mode === 'ai' ? 'AI' : 'Record'"></span>
-                  <span class="los-pre" x-text="h.answer"></span></div>
-                <div class="text-muted los-small" x-show="h.note" x-text="h.note"></div>
-              </div>
             </template>
           </div>
         </div>

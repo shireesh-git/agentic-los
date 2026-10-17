@@ -60,6 +60,10 @@ def next_actions(s: dict) -> list[dict]:
     if not step:
         return [_act("done", "Nothing to do — the application is complete",
                      "The workflow has finished for this application.", "low")]
+    if s.get("exception_requests"):                  # the Compliance VP: a decision waits for them
+        return [_act("exception_decision", "Decide the exception request(s)",
+                     "Requested on: " + ", ".join(s["exception_requests"]) + ". Open Checks to approve or decline.",
+                     "high")]
     if not s.get("is_holder"):
         return [_act("not_yours", f"This step is with {s.get('holder') or 'another user'}",
                      f"{s.get('step_name')} belongs to the {s.get('role_name')} role.", "low")]
@@ -74,13 +78,20 @@ def next_actions(s: dict) -> list[dict]:
         out.append(_act("returned", "Address the return comment",
                         f"Returned with: “{s['returned_comment']}”", "high"))
     d = s.get("due_diligence") or {}
-    if d.get("blocking"):
-        out.append(_act("dd", f"Resolve {len(d['blocking'])} mandatory due-diligence check(s)",
-                        "Blocking the submission: " + ", ".join(d["blocking"][:3]) +
-                        (" (+more)" if len(d["blocking"]) > 3 else "") +
-                        ". Run the API checks, record the manual ones; a Compliance VP exception releases a match.",
-                        "high", tool="run_due_diligence"))
-    elif d.get("pending") and d.get("at_dd_step"):
+    if d.get("runnable"):                            # what running the checks can fix: pending ones
+        out.append(_act("dd", f"Complete {len(d['runnable'])} pending mandatory check(s)",
+                        "Pending: " + ", ".join(d["runnable"][:3]) + (" (+more)" if len(d["runnable"]) > 3 else "")
+                        + ". The copilot runs the API checks; record the manual ones in Checks.", "high",
+                        tool="run_due_diligence"))
+    if d.get("need_exception"):                      # what only the Compliance VP can release
+        out.append(_act("dd_exception", "Ask the Compliance VP for an exception",
+                        ", ".join(d["need_exception"][:3]) + " came back matched / failed / unavailable. Re-running "
+                        "will not change that — open Checks and use “Request exception”, with your reason.", "high"))
+    if d.get("awaiting_exception"):
+        out.append(_act("dd_waiting", "Waiting for the Compliance VP",
+                        "Exception requested on: " + ", ".join(d["awaiting_exception"][:3])
+                        + ". Nothing to do until the Compliance VP decides.", "medium"))
+    if not d.get("blocking") and d.get("pending") and d.get("at_dd_step"):
         out.append(_act("dd", f"Run the {d['pending']} pending due-diligence check(s)",
                         "Optional checks are still pending — run them before the next review.",
                         "medium", tool="run_due_diligence"))

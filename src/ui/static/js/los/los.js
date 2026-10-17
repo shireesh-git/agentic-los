@@ -93,6 +93,7 @@ function losApp() {
     termEdit: null, termReason: '',
     toast: '', toastType: '', _toastTimer: null,
     dis: { cif: {}, limit: { kind: 'fund' }, account: {}, ben: { payment_mode: 'NEFT' }, dd: {}, cbs: {} },
+    copilotOpen: false, copilotResult: null,
     dlg: { open: false, title: '', text: '', input: false, required: false, value: '', placeholder: '', ok: 'OK', danger: false, resolve: null },
 
     async init() {
@@ -962,10 +963,12 @@ function losApp() {
       } catch { this.copilot = null; }
     },
     async copilotRun(tool) {
-      this.copilotBusy = tool;
+      this.copilotBusy = tool; this.copilotResult = null;
       try {
         const out = await this.post(this.appPath('copilot/run'), { tool });  // the app reload below refreshes every panel
-        this.notify('Copilot: ' + out.message, 'ok');
+        this.copilotResult = { outcome: out.outcome, message: out.message, detail: out.detail,
+                               resolved: out.resolved || [], changed: out.changed || [], still_open: out.still_open || [] };
+        this.notify(out.message, out.outcome === 'unchanged' ? 'error' : 'ok');
         await this.loadApp(this.current.application_id);
       } catch {} finally { this.copilotBusy = ''; }
     },
@@ -1119,16 +1122,56 @@ function losApp() {
     ddIsBlocking(c) {
       return c.mandatory && !c.exception && ['pending', 'matched', 'failed', 'unavailable'].includes(c.status);
     },
-    ddBlocking() { return (this.dd?.checks || []).filter(c => this.ddIsBlocking(c)); },
+    ddBlocking() {
+      const all = (this.dd?.checks || []).filter(c => this.ddIsBlocking(c));
+      return this.session?.role === 'compliance_vp' ? all.filter(c => this.ddCvpDecides(c)) : all;   // only her decisions
+    },
     ddSorted() {
       const rank = c => this.ddIsBlocking(c) ? 0 : (c.status === 'matched' || c.status === 'failed') ? 1 : c.status === 'pending' ? 2 : c.status === 'unavailable' ? 3 : 4;
       return [...(this.dd?.checks || [])].sort((a, b) => rank(a) - rank(b));
     },
+    ddCanRequest(c) {
+      // the step holder asks for what only the Compliance VP can release
+      return this.dd?.can_edit && this.session?.role !== 'compliance_vp' && c.mandatory && !c.exception
+        && ['matched', 'failed', 'unavailable'].includes(c.status) && c.exception_request?.status !== 'pending';
+    },
+    ddCvpDecides(c) {
+      return this.session?.role === 'compliance_vp' && !c.exception && ['matched', 'failed', 'unavailable'].includes(c.status);
+    },
+    async requestException(c) {
+      const note = await this.ask('Request a Compliance VP exception', {
+        text: c.name + ' came back ' + c.status + (c.detail ? ': ' + c.detail : '') + '. The Compliance VP sees your reason in their queue and approves or declines.',
+        placeholder: 'Why is an exception justified? e.g. the hit is a namesake — different DOB and nationality', ok: 'Send request' });
+      if (!note) return;
+      this.busy = true;
+      try {
+        this.dd = await this.post(this.appPath('due-diligence/exception-request'), { check_id: c.id, remarks: note });
+        this.notify('Exception requested — it is now in the Compliance VP\'s queue', 'ok');
+        await this.refreshCurrent();
+      } catch {} finally { this.busy = false; }
+    },
+    async declineException(c) {
+      const reason = await this.ask('Decline the exception', { text: c.name + ' — requested by ' + (c.exception_request?.by_name || '') + ': ' + (c.exception_request?.note || ''),
+                                                               placeholder: 'Reason (the step holder sees it)', ok: 'Decline' });
+      if (!reason) return;
+      this.busy = true;
+      try {
+        this.dd = await this.post(this.appPath('due-diligence/exception-decline'), { check_id: c.id, remarks: reason });
+        this.notify('Exception declined', 'ok');
+        await this.refreshCurrent();
+      } catch {} finally { this.busy = false; }
+    },
     ddNextStep(c) {
+      if (c.exception_request?.status === 'pending' && this.session?.role !== 'compliance_vp')
+        return 'exception requested ' + (c.exception_request.at || '').slice(0, 10) + ' — waiting for the Compliance VP to decide';
       if ((c.status === 'matched' || c.status === 'failed') && this.session?.role === 'compliance_vp')
-        return 'review the hit and use Approve exception… below if it is acceptable';
-      if (c.status === 'matched' || c.status === 'failed') return 'resolve and re-run it, or ask the Compliance VP for an exception';
-      if (c.status === 'unavailable') return 'the provider returned nothing: re-run, or the Compliance VP approves';
+        return c.exception_request?.status === 'pending' ? 'read the requester’s reason, then Approve or Decline'
+                                                         : 'review the hit; approve an exception only if it is acceptable';
+      if (c.exception_request?.status === 'declined')
+        return 'the Compliance VP declined the exception (' + (c.exception_request.decision_note || '') + ') — resolve the hit, or request again with more evidence';
+      if (c.status === 'matched' || c.status === 'failed')
+        return 'only a Compliance VP exception clears a hit — use Request exception (re-run only if the underlying record has changed)';
+      if (c.status === 'unavailable') return 'the provider returned nothing — re-run it, or request a Compliance VP exception';
       return c.mode === 'manual' ? 'record the result with its evidence' : 'run the check';
     },
     startDdRecord(c) { this.ddEdit = c.id; this.ddResult = 'clear'; this.ddRemarks = ''; },
