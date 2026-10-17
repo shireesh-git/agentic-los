@@ -2646,18 +2646,21 @@ class LosService:
                 continue
             rescreen = dd.rescreen_state(c, now) if c["status"] == "clear" else None
             settled = (c["status"] == "clear" and not (rescreen and rescreen["state"] == "overdue")) or \
-                (c["status"] in ("matched", "failed") and bool(dd.effective_exception(c, now)))
+                (c["status"] in ("matched", "failed", "unavailable") and bool(dd.effective_exception(c, now)))
             if not settled:
                 out.append(c["id"])
         return out
 
     def run_due_diligence(self, application_id: str, session: dict) -> dict:
-        """Run every API check that has no clear result yet (re-screens include matched and failed)."""
+        """Run every API check that still needs a result. A settled check — clear (not due for re-screening),
+        or a match / failure released by a valid Compliance VP exception — is left alone: re-running it would
+        void the exception and send it back to the Compliance VP."""
         app = self._require(application_id)
         self._dd_may(app, session, "Running the due-diligence checks")
-        ids = [c["id"] for c in app["due_diligence"]["checks"] if c["mode"] == "api" and c["status"] != "clear"]
+        ids = self._checks_to_refresh(app)
         if not ids:
-            raise ConflictError("Every API check already has a clear result — trigger individual checks to re-run")
+            raise ConflictError("Every API check is settled (clear, or released by a Compliance VP exception) — "
+                                "re-run a single check only if its underlying record changed")
         # The providers are called in parallel (one lane per check); results are applied one by one,
         # each with its own audit event, exactly as a single trigger would.
         company = self.companies.get(app["entity_id"]) or {}
@@ -4445,7 +4448,8 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
                                                                       if c["exception_request"].get("to_name") else "")
                                                          for c in blocking
                                                          if (c.get("exception_request") or {}).get("status") == "pending"],
-                                  "runnable": [c["name"] for c in blocking if c["status"] == "pending"],
+                                  "runnable": [c["name"] for c in blocking if c["status"] == "pending" and c["mode"] == "api"],
+                                  "to_record": [c["name"] for c in blocking if c["status"] == "pending" and c["mode"] == "manual"],
                                   "pending": sum(1 for c in checks if c["status"] == "pending"),
                                   "at_dd_step": bool(step and step.id in DD_STEPS)}
         with self._jobs_lock:

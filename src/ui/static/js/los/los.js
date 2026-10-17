@@ -1118,6 +1118,11 @@ function losApp() {
       catch {} finally { this.busy = false; }
     },
     async ddTrigger(id) {
+      const c = (this.dd?.checks || []).find(x => x.id === id);
+      if (c?.exception && !(await this.askConfirm('Re-run ' + c.name + '?', {
+            text: 'It has an exception approved by ' + (c.exception.by_name || 'the Compliance VP') + '. Re-running it cancels that '
+                  + 'approval — if it comes back with the same hit, the exception has to be requested again. Re-run only if '
+                  + 'the underlying record has changed.', ok: 'Re-run anyway', danger: true }))) return;
       this.busy = true;
       try { this.dd = await this.post(this.appPath('due-diligence/trigger'), { check_id: id }); this.notify('Check re-run — the earlier result is kept in its history', 'ok'); await this.refreshCurrent(); }
       catch {} finally { this.busy = false; }

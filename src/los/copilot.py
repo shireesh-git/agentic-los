@@ -78,11 +78,14 @@ def next_actions(s: dict) -> list[dict]:
         out.append(_act("returned", "Address the return comment",
                         f"Returned with: “{s['returned_comment']}”", "high"))
     d = s.get("due_diligence") or {}
-    if d.get("runnable"):                            # what running the checks can fix: pending ones
-        out.append(_act("dd", f"Complete {len(d['runnable'])} pending mandatory check(s)",
+    if d.get("runnable"):                            # what running the checks can fix: pending API checks
+        out.append(_act("dd", f"Run {len(d['runnable'])} pending automatic check(s)",
                         "Pending: " + ", ".join(d["runnable"][:3]) + (" (+more)" if len(d["runnable"]) > 3 else "")
-                        + ". The copilot runs the API checks; record the manual ones in Checks.", "high",
-                        tool="run_due_diligence"))
+                        + ". The copilot can run these for you.", "high", tool="run_due_diligence"))
+    if d.get("to_record"):                           # what only a person can do: record the manual checks
+        out.append(_act("dd_record", f"Record {len(d['to_record'])} manual check(s)",
+                        ", ".join(d["to_record"][:3]) + (" (+more)" if len(d["to_record"]) > 3 else "")
+                        + " — record each result with its evidence in Checks (the copilot cannot record them).", "high"))
     if d.get("need_exception"):                      # what only the Compliance VP can release
         out.append(_act("dd_exception", "Ask the Compliance VP for an exception",
                         ", ".join(d["need_exception"][:3]) + " came back matched / failed / unavailable. Re-running "

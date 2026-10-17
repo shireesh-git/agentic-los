@@ -455,3 +455,7 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
 .los-check-excepted{background:var(--amber-bg,#fff7e6)}
 .los-approvers{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
 .los-approver{display:inline-flex;gap:6px;align-items:baseline}
+.los-cop-drawer > .los-rm-head{position:relative;padding-right:44px;display:block}
+.los-cop-close{position:absolute;top:-4px;right:-6px;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);
+  background:#fff;color:var(--text);font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.los-cop-close:hover{background:var(--bg-card-alt,#f3f4f6)}

@@ -209,3 +209,22 @@ def test_the_los_page_script_parses():
     r = subprocess.run([node, "-e", "new Function(require('fs').readFileSync(process.argv[1], 'utf8'))", str(script)],
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr[-800:]
+
+
+def test_running_the_checks_again_keeps_an_approved_exception():
+    """After the Compliance VP releases a hit, "Run the API checks" (or the copilot) must not void it."""
+    svc = _svc()
+    rm = svc.sign_in("u_rm1", "ps_maker")
+    aid = _app(svc, rm, 100, entity="INFY001")
+    _matched_name_screening(svc, rm, aid)
+    svc.request_exception(aid, rm, "name_screening", "Namesake")
+    cvp = sign(svc, "u_compvp", "compliance_vp")
+    svc.exception_check(aid, cvp, "name_screening", "Namesake confirmed")
+    app = svc._require(aid)                                   # another API check still needs a result
+    next(c for c in app["due_diligence"]["checks"] if c["id"] == "mca")["status"] = "pending"
+    svc.store.save(app)
+    svc.copilot_run(aid, rm, "run_due_diligence")
+    c = next(c for c in svc._require(aid)["due_diligence"]["checks"] if c["id"] == "name_screening")
+    assert c["status"] == "matched" and c["exception"] and c["exception"]["by_name"] == "Priya Raghavan"
+    assert not any("Name screening" in b["message"] for b in svc.get(aid, rm)["blockers"])
+    assert "dd_exception" not in {a["id"] for a in svc.copilot(aid, rm)["actions"]}

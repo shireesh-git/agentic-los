@@ -60,16 +60,15 @@
         <div class="card los-copilot los-cop-drawer" x-show="copilot && copilotOpen" x-transition.opacity @keydown.escape.window="copilotOpen = false">
           <div class="los-rm-head">
             <div>
-              <span class="los-kicker">Copilot · agentic assistant</span>
+              <span class="los-kicker">Copilot · agentic assistant
+                <span class="badge sm" :class="copilot?.ai_available ? 'badge-green' : 'badge-grey'"
+                      x-text="copilot?.ai_available ? 'AI connected' : 'Rule-based'"></span></span>
               <h3>Next best actions</h3>
               <span class="text-muted">Proposals from the application's state. The copilot can run the marked tasks for you;
                 it never submits, approves, returns or sanctions.</span>
             </div>
-            <div class="los-action-row">
-              <span class="badge sm" :class="copilot?.ai_available ? 'badge-green' : 'badge-grey'"
-                    x-text="copilot?.ai_available ? 'AI connected' : 'Rule-based'"></span>
-              <button class="btn btn-sm btn-ghost" @click="copilotOpen = false" aria-label="Close the copilot">✕</button>
-            </div>
+            <button class="los-cop-close" @click="copilotOpen = false" title="Hide the copilot (it stays one click away)"
+                    aria-label="Hide the copilot">✕</button>
           </div>
           <!-- what the last task did: resolved, partly, or not -->
           <div class="los-cop-result" x-show="copilotResult" :class="'los-cop-' + copilotResult?.outcome">
@@ -87,7 +86,7 @@
                 <div class="los-action-row">
                   <button class="btn btn-sm btn-primary" x-show="a.tool && copilot?.is_holder" :disabled="!!copilotBusy"
                           @click="copilotRun(a.tool)" x-text="copilotBusy === a.tool ? 'Working…' : 'Do it'"></button>
-                  <button class="btn btn-sm btn-outline" x-show="['dd_exception', 'dd_waiting', 'exception_decision'].includes(a.id)"
+                  <button class="btn btn-sm btn-outline" x-show="['dd_record', 'dd_exception', 'dd_waiting', 'exception_decision'].includes(a.id)"
                           @click="copilotOpen = false; goTo('checks')">Go to Checks</button>
                   <button class="btn btn-sm btn-outline" x-show="a.draft" :disabled="!!copilotBusy"
                           @click="copilotDraft(a.draft)" x-text="a.draft === 'return_note' ? 'Draft return note' : 'Draft request'"></button>
