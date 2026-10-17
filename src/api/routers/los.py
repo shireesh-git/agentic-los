@@ -375,6 +375,7 @@ async def due_diligence(application_id: str, x_los_session: Optional[str] = Head
 class CheckId(BaseModel):
     check_id: str
     remarks: str = ""
+    to: Optional[str] = None          # an exception request: the Compliance VP it is addressed to
 
 
 @router.post("/applications/{application_id}/due-diligence/run")
@@ -421,7 +422,8 @@ async def exception_check(application_id: str, body: CheckId, x_los_session: Opt
 async def request_exception(application_id: str, body: CheckId, x_los_session: Optional[str] = Header(None),
                             svc: ServiceContainer = Depends(get_container)):
     """The step holder asks the Compliance VP for an exception (it appears in the Compliance VP's queue)."""
-    return svc.los.request_exception(application_id, _session(svc, x_los_session), body.check_id, body.remarks)
+    return svc.los.request_exception(application_id, _session(svc, x_los_session), body.check_id, body.remarks,
+                                     to=body.to)
 
 
 @router.post("/applications/{application_id}/due-diligence/exception-decline")

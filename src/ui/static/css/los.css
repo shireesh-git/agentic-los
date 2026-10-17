@@ -453,3 +453,5 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
 .los-cop-unchanged{background:var(--red-bg);color:var(--red)}
 .los-exc-banner{border-left:4px solid var(--amber,#b45309);display:flex;flex-direction:column;gap:4px}
 .los-check-excepted{background:var(--amber-bg,#fff7e6)}
+.los-approvers{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.los-approver{display:inline-flex;gap:6px;align-items:baseline}

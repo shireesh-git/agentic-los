@@ -86,7 +86,8 @@ def next_actions(s: dict) -> list[dict]:
     if d.get("need_exception"):                      # what only the Compliance VP can release
         out.append(_act("dd_exception", "Ask the Compliance VP for an exception",
                         ", ".join(d["need_exception"][:3]) + " came back matched / failed / unavailable. Re-running "
-                        "will not change that — open Checks and use “Request exception”, with your reason.", "high"))
+                        "will not change that — open Checks and use “Request exception”, with your reason."
+                        + (f" Who can approve: {s['approvers']}." if s.get("approvers") else ""), "high"))
     if d.get("awaiting_exception"):
         out.append(_act("dd_waiting", "Waiting for the Compliance VP",
                         "Exception requested on: " + ", ".join(d["awaiting_exception"][:3])

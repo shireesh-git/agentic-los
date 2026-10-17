@@ -94,7 +94,8 @@ function losApp() {
     toast: '', toastType: '', _toastTimer: null,
     dis: { cif: {}, limit: { kind: 'fund' }, account: {}, ben: { payment_mode: 'NEFT' }, dd: {}, cbs: {} },
     copilotOpen: false, copilotResult: null,
-    dlg: { open: false, title: '', text: '', input: false, required: false, value: '', placeholder: '', ok: 'OK', danger: false, resolve: null },
+    dlg: { open: false, title: '', text: '', input: false, required: false, value: '', placeholder: '', ok: 'OK', danger: false, resolve: null, choices: [], choice: '', choiceLabel: '' },
+    dlgChoice: '',
 
     async init() {
       this.directory = await this.api('directory', {}, { auth: false });
@@ -128,10 +129,12 @@ function losApp() {
     },
     post(path, body) { return this.api(path, { method: 'POST', body: JSON.stringify(body || {}) }); },
 
-    ask(title, { text = '', placeholder = '', required = true, ok = 'Save' } = {}) {
+    ask(title, { text = '', placeholder = '', required = true, ok = 'Save', choices = [], choiceLabel = '' } = {}) {
       // a reason / remark, typed in the page's own dialog; resolves to the text, or null when cancelled
+      // (``choices``: a pick list shown above it — the pick is left in ``dlgChoice``)
       return new Promise(resolve => {
-        this.dlg = { open: true, title, text, input: true, required, value: '', placeholder, ok, danger: false, resolve };
+        this.dlg = { open: true, title, text, input: true, required, value: '', placeholder, ok, danger: false, resolve,
+                     choices, choice: choices[0]?.value || '', choiceLabel };
         this.$nextTick(() => this.$refs.dlgInput?.focus());
       });
     },
@@ -139,7 +142,7 @@ function losApp() {
       return new Promise(resolve => { this.dlg = { open: true, title, text, input: false, required: false, value: '', placeholder: '', ok, danger, resolve }; });
     },
     closeDlg(result) {
-      const r = this.dlg.resolve; this.dlg = { ...this.dlg, open: false, resolve: null };
+      const r = this.dlg.resolve; this.dlgChoice = this.dlg.choice; this.dlg = { ...this.dlg, open: false, resolve: null };
       if (r) r(result);
     },
     notify(msg, type) {
@@ -1130,6 +1133,11 @@ function losApp() {
       const rank = c => this.ddIsBlocking(c) ? 0 : (c.status === 'matched' || c.status === 'failed') ? 1 : c.status === 'pending' ? 2 : c.status === 'unavailable' ? 3 : 4;
       return [...(this.dd?.checks || [])].sort((a, b) => rank(a) - rank(b));
     },
+    approvers() { return this.usersWithRole('compliance_vp'); },
+    approverText() {
+      const a = this.approvers();
+      return a.length ? a.map(u => u.name + (u.branch ? ' (' + u.branch + ')' : '')).join(', ') : 'no Compliance VP is set up';
+    },
     ddCanRequest(c) {
       // the step holder asks for what only the Compliance VP can release
       return this.dd?.can_edit && this.session?.role !== 'compliance_vp' && c.mandatory && !c.exception
@@ -1139,14 +1147,21 @@ function losApp() {
       return this.session?.role === 'compliance_vp' && !c.exception && ['matched', 'failed', 'unavailable'].includes(c.status);
     },
     async requestException(c) {
+      const people = this.approvers();
       const note = await this.ask('Request a Compliance VP exception', {
-        text: c.name + ' came back ' + c.status + (c.detail ? ': ' + c.detail : '') + '. The Compliance VP sees your reason in their queue and approves or declines.',
+        text: c.name + ' came back ' + c.status + (c.detail ? ': ' + c.detail : '') + '. '
+              + (people.length > 1 ? 'Choose who decides; ' : people.length ? people[0].name + ' (' + (people[0].email || people[0].branch || 'Compliance VP') + ') decides; ' : '')
+              + 'they see your reason in their queue and approve or decline.',
+        choices: people.length > 1 ? people.map(u => ({ value: u.id, label: u.name + (u.branch ? ' · ' + u.branch : '') + (u.email ? ' · ' + u.email : '') })) : [],
+        choiceLabel: 'Send to',
         placeholder: 'Why is an exception justified? e.g. the hit is a namesake — different DOB and nationality', ok: 'Send request' });
       if (!note) return;
+      const to = people.length > 1 ? this.dlgChoice : people[0]?.id;
+      const toName = people.find(u => u.id === to)?.name || 'the Compliance VP';
       this.busy = true;
       try {
-        this.dd = await this.post(this.appPath('due-diligence/exception-request'), { check_id: c.id, remarks: note });
-        this.notify('Exception requested — it is now in the Compliance VP\'s queue', 'ok');
+        this.dd = await this.post(this.appPath('due-diligence/exception-request'), { check_id: c.id, remarks: note, to });
+        this.notify('Exception requested — it is now in ' + toName + '’s queue', 'ok');
         await this.refreshCurrent();
       } catch {} finally { this.busy = false; }
     },
@@ -1163,15 +1178,16 @@ function losApp() {
     },
     ddNextStep(c) {
       if (c.exception_request?.status === 'pending' && this.session?.role !== 'compliance_vp')
-        return 'exception requested ' + (c.exception_request.at || '').slice(0, 10) + ' — waiting for the Compliance VP to decide';
+        return 'exception requested ' + (c.exception_request.at || '').slice(0, 10) + ' — waiting for '
+               + (c.exception_request.to_name || 'a Compliance VP') + ' to decide';
       if ((c.status === 'matched' || c.status === 'failed') && this.session?.role === 'compliance_vp')
         return c.exception_request?.status === 'pending' ? 'read the requester’s reason, then Approve or Decline'
                                                          : 'review the hit; approve an exception only if it is acceptable';
       if (c.exception_request?.status === 'declined')
         return 'the Compliance VP declined the exception (' + (c.exception_request.decision_note || '') + ') — resolve the hit, or request again with more evidence';
       if (c.status === 'matched' || c.status === 'failed')
-        return 'only a Compliance VP exception clears a hit — use Request exception (re-run only if the underlying record has changed)';
-      if (c.status === 'unavailable') return 'the provider returned nothing — re-run it, or request a Compliance VP exception';
+        return 'only a Compliance VP exception clears a hit (' + this.approverText() + ' can approve) — use Request exception';
+      if (c.status === 'unavailable') return 'the provider returned nothing — re-run it, or request an exception from ' + this.approverText();
       return c.mode === 'manual' ? 'record the result with its evidence' : 'run the check';
     },
     startDdRecord(c) { this.ddEdit = c.id; this.ddResult = 'clear'; this.ddRemarks = ''; },

@@ -166,11 +166,14 @@ def test_the_rm_requests_an_exception_and_the_compliance_vp_sees_and_decides_it(
     _matched_name_screening(svc, rm, aid)
     copilot = {a["id"]: a for a in svc.copilot(aid, rm)["actions"]}
     assert "dd_exception" in copilot and not copilot["dd_exception"].get("tool")   # re-running cannot clear a hit
+    assert "Priya Raghavan (priya.raghavan@demo.bank)" in copilot["dd_exception"]["why"]   # who can approve, by name
     with pytest.raises(Exception, match="why an exception"):
         svc.request_exception(aid, rm, "name_screening", " ")
     svc.request_exception(aid, rm, "name_screening", "Namesake: different DOB and nationality")
+    req = next(c for c in svc._require(aid)["due_diligence"]["checks"] if c["id"] == "name_screening")["exception_request"]
+    assert (req["to_id"], req["to_name"], req["to_email"]) == ("u_compvp", "Priya Raghavan", "priya.raghavan@demo.bank")
     msgs = [b["message"] for b in svc.get(aid, rm)["blockers"]]
-    assert any("Waiting for the Compliance VP" in m for m in msgs)
+    assert any("Waiting for Priya Raghavan (Compliance VP)" in m for m in msgs)
     assert not any("Resolve the outstanding" in m and "Name screening" in m for m in msgs)
     cvp = sign(svc, "u_compvp", "compliance_vp")
     assert aid in [a["application_id"] for a in svc.list(cvp, mine=True)]           # in the Compliance VP's queue

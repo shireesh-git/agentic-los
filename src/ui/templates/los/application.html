@@ -440,7 +440,10 @@
                 <button class="btn btn-sm btn-outline" x-show="dd.can_edit && c.mode === 'manual'" @click="startDdRecord(c); $nextTick(() => scrollToEl(document.getElementById('chk-' + c.id)))">Record</button>
                 <button class="btn btn-sm btn-outline" x-show="dd.can_edit && c.mode === 'api' && c.status !== 'matched'" :disabled="busy" @click="ddTrigger(c.id)">Run</button>
                 <button class="btn btn-sm btn-primary" x-show="ddCanRequest(c)" :disabled="busy" @click="requestException(c)">Request exception…</button>
-                <span class="badge sm badge-amber" x-show="c.exception_request?.status === 'pending' && session?.role !== 'compliance_vp'">Waiting for the Compliance VP</span>
+                <span class="badge sm badge-amber" x-show="c.exception_request?.status === 'pending' && session?.role !== 'compliance_vp'"
+                      x-text="'Waiting for ' + (c.exception_request?.to_name || 'a Compliance VP')"></span>
+                <a class="los-link los-small" x-show="c.exception_request?.status === 'pending' && c.exception_request?.to_email && session?.role !== 'compliance_vp'"
+                   :href="'mailto:' + c.exception_request?.to_email + '?subject=' + encodeURIComponent('Exception request: ' + c.name + ' — ' + current?.application_id + ' ' + (current?.borrower_name || ''))">email</a>
                 <button class="btn btn-sm btn-primary" x-show="ddCvpDecides(c)" :disabled="busy" @click="ddEdit = c.id; ddResult = 'exception'; ddRemarks = ''; $nextTick(() => scrollToEl(document.getElementById('chk-' + c.id)))">Approve…</button>
                 <button class="btn btn-sm btn-outline" x-show="ddCvpDecides(c) && c.exception_request?.status === 'pending'" :disabled="busy" @click="declineException(c)">Decline…</button>
                 <button class="btn btn-sm btn-ghost" x-show="c.status === 'matched' || c.status === 'failed'" @click="scrollToEl(document.getElementById('chk-' + c.id))">View the hit</button>
@@ -457,8 +460,18 @@
                     <span class="badge sm badge-amber" x-show="c.exception">VP exception</span></div>
                   <div class="text-muted los-small" x-text="c.detail || (c.status === 'pending' ? 'Not recorded yet' : '—')"></div>
                   <div class="text-muted los-small" x-show="c.error" x-text="c.error"></div>
+                  <div class="los-small los-approvers" x-show="ddCanRequest(c)">
+                    <strong>Who can approve an exception:</strong>
+                    <template x-for="u in approvers()" :key="u.id">
+                      <span class="los-approver"><span x-text="u.name + (u.branch ? ' · ' + u.branch : '')"></span>
+                        <a class="los-link" x-show="u.email" :href="'mailto:' + u.email" x-text="u.email"></a></span>
+                    </template>
+                  </div>
                   <div class="los-exc-req" x-show="c.exception_request && !c.exception" :class="'los-exc-' + c.exception_request?.status">
-                    <strong x-text="{pending: 'Exception requested — waiting for the Compliance VP', declined: 'Exception declined by ' + (c.exception_request?.decided_by || ''), approved: 'Exception approved'}[c.exception_request?.status]"></strong>
+                    <strong x-text="{pending: 'Exception requested — waiting for ' + (c.exception_request?.to_name || 'a Compliance VP'), declined: 'Exception declined by ' + (c.exception_request?.decided_by || ''), approved: 'Exception approved'}[c.exception_request?.status]"></strong>
+                    <a class="los-link" x-show="c.exception_request?.status === 'pending' && c.exception_request?.to_email"
+                       :href="'mailto:' + c.exception_request?.to_email + '?subject=' + encodeURIComponent('Exception request: ' + c.name + ' — ' + current?.application_id)"
+                       x-text="' · ' + c.exception_request?.to_email"></a>
                     <span x-text="' · ' + (c.exception_request?.by_name || '') + ', ' + (c.exception_request?.at || '').slice(0, 10) + ': ' + (c.exception_request?.note || '')"></span>
                     <div x-show="c.exception_request?.decision_note" x-text="'Reason: ' + c.exception_request?.decision_note"></div>
                   </div>

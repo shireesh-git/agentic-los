@@ -104,6 +104,10 @@
     <div class="los-modal" role="dialog" aria-modal="true" @click.outside="closeDlg(null)">
       <h3 x-text="dlg.title"></h3>
       <p class="text-muted" x-show="dlg.text" x-text="dlg.text"></p>
+      <label class="los-field" x-show="(dlg.choices || []).length"><span x-text="dlg.choiceLabel || 'Choose'"></span>
+        <select class="input" x-model="dlg.choice">
+          <template x-for="o in dlg.choices || []" :key="o.value"><option :value="o.value" x-text="o.label"></option></template>
+        </select></label>
       <textarea class="input" rows="3" x-show="dlg.input" x-ref="dlgInput" x-model="dlg.value" :placeholder="dlg.placeholder"
                 @keydown.enter.prevent="!dlg.required || dlg.value.trim() ? closeDlg(dlg.value.trim()) : null"></textarea>
       <div class="los-action-row" style="justify-content:flex-end;margin-top:12px">

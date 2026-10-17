@@ -339,7 +339,8 @@ class LosService:
             if stage and app.get("stage_id") != stage:
                 continue
             if mine and session and session["role"] == "compliance_vp":
-                if app["status"] in TERMINAL or not self._pending_exception_requests(app):
+                if app["status"] in TERMINAL or not [r for r in self._pending_exception_requests(app)
+                                                       if r.get("to_id") in (None, session["user"]["id"])]:
                     continue
             elif mine and session:
                 step = self.wf.step(app["step_id"]) if app.get("step_id") else None
@@ -993,7 +994,8 @@ class LosService:
         # Mandatory gates (due diligence, consent)
         waiting = {r["check_id"]: r for r in self._pending_exception_requests(app)}
         if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence") and waiting:
-            add("Waiting for the Compliance VP's exception decision on: "
+            who = {r.get("to_name") for r in waiting.values()} - {None}
+            add(f"Waiting for {', '.join(sorted(who)) if who else 'a Compliance VP'} (Compliance VP) to decide the exception on: "
                 + "; ".join(f"{r['name']} (requested {r['at'][:10]})" for r in waiting.values()), "checks")
         if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence"):
             stuck = [c for c in dd.blocking(app["due_diligence"]["checks"], now=self.now()) if c["id"] not in waiting]
@@ -2707,7 +2709,16 @@ class LosService:
                                          detail={"check_id": check_id}))
         return self.due_diligence(application_id, session)
 
-    def request_exception(self, application_id: str, session: dict, check_id: str, note: str) -> dict:
+    def _approvers(self, role: str = "compliance_vp") -> list[dict]:
+        return [{"id": u["id"], "name": u["name"], "email": u.get("email"), "branch": u.get("branch")}
+                for u in self.wf.users_with_role(role)]
+
+    @staticmethod
+    def _who(people: list[dict]) -> str:
+        return ", ".join(f"{p['name']} ({p['email']})" if p.get("email") else p["name"] for p in people)
+
+    def request_exception(self, application_id: str, session: dict, check_id: str, note: str,
+                          to: Optional[str] = None) -> dict:
         """The step holder asks the Compliance VP for an exception on a check only that authority can release
         (a match / failure, or a mandatory 'unavailable'). The request is in the Compliance VP's queue."""
         app = self._require(application_id)
@@ -2721,8 +2732,14 @@ class LosService:
         if dd.effective_exception(c, self.now()):
             raise ConflictError(f"{c['name']} already has a Compliance VP exception")
         at = self.now().isoformat(timespec="seconds")
+        approvers = self._approvers()
+        target = next((p for p in approvers if p["id"] == to), None) if to else (approvers[0] if len(approvers) == 1 else None)
+        if to and not target:
+            raise InvalidRequestError("Choose a Compliance VP from the list")
         c["exception_request"] = {"status": "pending", "by": session["user"]["id"], "by_name": session["user"]["name"],
-                                  "at": at, "note": note.strip()}
+                                  "at": at, "note": note.strip(),
+                                  "to_id": (target or {}).get("id"), "to_name": (target or {}).get("name"),
+                                  "to_email": (target or {}).get("email")}
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "dd_exception_requested", actor=actor, from_step=app["step_id"],
                                          to_step=app["step_id"], comment=f"Exception requested for {c['name']}: {note.strip()}",
@@ -4402,6 +4419,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
              "sla": sla, "can_submit": bool(view.get("actions")), "committee_steps": COMMITTEE_STEPS,
              "documents": len(self._documents_on_file(app["entity_id"])),
              "credit_assessment": bool(app.get("credit_assessment")),
+             "approvers": self._who(self._approvers()),
              "exception_requests": ([r["name"] for r in self._pending_exception_requests(app)]
                                     if session and session["role"] == "compliance_vp" else [])}
         if app["status"] == "RETURNED":
@@ -4423,7 +4441,9 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             s["due_diligence"] = {"blocking": [c["name"] for c in blocking],
                                   "need_exception": [c["name"] for c in blocking if c["status"] in ("matched", "failed", "unavailable")
                                                      and (c.get("exception_request") or {}).get("status") != "pending"],
-                                  "awaiting_exception": [c["name"] for c in blocking
+                                  "awaiting_exception": [c["name"] + (f" — with {c['exception_request']['to_name']}"
+                                                                      if c["exception_request"].get("to_name") else "")
+                                                         for c in blocking
                                                          if (c.get("exception_request") or {}).get("status") == "pending"],
                                   "runnable": [c["name"] for c in blocking if c["status"] == "pending"],
                                   "pending": sum(1 for c in checks if c["status"] == "pending"),
