@@ -1,0 +1,246 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Guided demo scenarios — the scripted walkthroughs shown in the "Guided
+# Demo" section of the portal. Each scenario names the institution profile
+# (or null = any profile), the role to sign in as, the stage, the action,
+# the expected behaviour and the next step.
+# ═══════════════════════════════════════════════════════════════════════
+
+scenarios:
+  - id: dfi_project_finance
+    profile: dfi
+    title: "DFI project finance — a clean approval path"
+    outcome: success
+    application_entity: KAVG001
+    product: project_finance
+    borrower_name: "Kaveri Greenways Energy LLP"
+    start_role: risk_analyst
+    start_step: ap_risk_maker
+    feature: "Project-finance product gates and the product-specific authority route (ESMS on)"
+    story: >
+      A 300 MW solar SPV (Kaveri Greenways Energy LLP) applies for ₹650 Cr of project
+      finance. The application is seeded part-way through its journey, at the AP Risk
+      Maker, so the demo opens on a fully appraised file: CMA recorded, project
+      documents on the checklist, the product-finance authority route visible.
+    steps:
+      - {role: credit_officer, stage: "Credit Assessment (AP)",
+         action: "Open the application as Risk Analyst and run/confirm the credit assessment",
+         expected: "The case pipeline and CMA are on file; the AP stage gate is satisfied by the checklist on the Documents page.",
+         next: "Risk Review"}
+      - {role: risk_reviewer, stage: "Credit Assessment (AP)",
+         action: "Approve at Risk Review, then walk the file to the Sanction Committee",
+         expected: "Authority note shows 'Project Sanction Committee (preliminary) with EVP note' (₹650 Cr band of the project-finance product matrix).",
+         next: "Sanction"}
+      - {role: credit_committee, stage: "Credit Assessment (AP)",
+         action: "Sanction with conditions at the Sanction Committee",
+         expected: "Conditions are recorded; the file moves to Post-Sanction with the letter workflow available.",
+         next: "Post-Sanction → Disbursement"}
+
+  - id: corporate_working_capital
+    profile: corporate
+    title: "Corporate working capital — lean journey to in-principle"
+    outcome: success
+    application_entity: BLUE001
+    product: working_capital
+    borrower_name: "BlueOrchid Polymers Ltd"
+    start_role: ps_maker
+    start_step: ip_note
+    feature: "Working-capital product tenor/amount gates and the lean corporate check set"
+    story: >
+      BlueOrchid Polymers Ltd seeks a ₹90 Cr cash-credit limit against stock and book
+      debts. Seeded at the In-Principle Note step: sourcing done, checks recorded,
+      the lean corporate check set (no project-finance or ES module) is visible.
+    steps:
+      - {role: credit_officer, stage: "In-Principle (IP)",
+         action: "Prepare and submit the In-Principle Note",
+         expected: "The IP gate requires only the profile's mandatory checks (bureau, CRILC, litigation, screening) and the IP documents — no EWS block because the account-conduct record is clean.",
+         next: "IP reviews and sanction"}
+      - {role: credit_committee, stage: "In-Principle (IP)",
+         action: "Sanction at the IP Sanction step",
+         expected: "Authority note: 'Credit Manager (preliminary)' — ₹90 Cr is inside the ₹100 Cr first band of the corporate profile.",
+         next: "Credit Assessment (AP)"}
+
+  - id: nbfc_msme
+    profile: msme_lender
+    title: "NBFC MSME loan — scorecard path, simplified approvals"
+    outcome: success
+    application_entity: KARI001
+    product: msme_loan
+    borrower_name: "Karigari Textiles Pvt Ltd"
+    start_role: risk_analyst
+    start_step: ap_risk_maker
+    feature: "Simplified NBFC journey (no ESMS, no CMA, no recommendations) with the MSME authority matrix"
+    story: >
+      Karigari Textiles Pvt Ltd applies for a ₹12 Cr MSME term loan. Seeded at the AP
+      Risk Maker. The MSME profile runs no CMA and no ES process: the checklist shows
+      the GST summary instead, and the authority matrix is the simplified two-tier
+      MSME committee.
+    steps:
+      - {role: credit_officer, stage: "Credit Assessment (AP)",
+         action: "Confirm the scorecard-based assessment at the Risk Maker",
+         expected: "No CMA workspace is required (module off); the document checklist has the GST summary and no CMA item.",
+         next: "Risk Review"}
+      - {role: credit_committee, stage: "Credit Assessment (AP)",
+         action: "Approve at the MSME Credit Committee",
+         expected: "Authority note: 'MSME Approval Panel with MD note' — ₹12 Cr sits above the ₹10 Cr first band.",
+         next: "Post-Sanction"}
+
+  - id: rework_send_back
+    profile: null
+    title: "Rework — a document sent back and re-uploaded"
+    outcome: exception
+    product: null
+    borrower_name: "Any application in a review step"
+    start_role: ps_maker
+    start_step: ip_note
+    feature: "Document rework, version history and re-approval through the stage gate"
+    story: >
+      Any application in a review step demonstrates the governed rework loop: a reviewer
+      rejects a mandatory document, the gate re-locks, the maker re-uploads a new
+      version, the review is repeated and the gate clears.
+    steps:
+      - {role: credit_manager, stage: "In-Principle (IP) / Credit Assessment (AP)",
+         action: "In Documents, send a mandatory document back: status 'rework' with remarks",
+         expected: "The stage gate now lists that document again — the maker's submit is blocked until it is fixed.",
+         next: "Maker fixes it"}
+      - {role: credit_officer, stage: "In-Principle (IP) / Credit Assessment (AP)",
+         action: "Re-upload a new version of the document (version history keeps both)",
+         expected: "The document returns to review; the previous version is retained in its history.",
+         next: "Reviewer accepts"}
+      - {role: credit_manager, stage: "In-Principle (IP) / Credit Assessment (AP)",
+         action: "Review the new version and accept it",
+         expected: "The stage gate clears; the maker can submit the step.",
+         next: "Journey resumes"}
+
+  - id: approval_escalation
+    profile: corporate
+    title: "Approval escalation — a ticket that needs the MD's note"
+    outcome: exception
+    application_entity: DECC001
+    product: term_loan
+    borrower_name: "Deccan Agro Foods Ltd"
+    start_role: ps_maker
+    start_step: ip_note
+    feature: "Delegation of powers — amount-band escalation in the profile's approval matrix"
+    story: >
+      Deccan Agro Foods Ltd's ₹240 Cr term loan is above the corporate profile's first
+      band (₹100 Cr) and inside the second (₹400 Cr): the authority note escalates to
+      'Credit Sanction Committee with MD note', and the rating outlook (Negative) is
+      flagged on the file.
+    steps:
+      - {role: credit_officer, stage: "In-Principle (IP)",
+         action: "Open the authority panel on the application",
+         expected: "The delegation matrix highlights the ₹400 Cr band: 'Credit Sanction Committee with MD note' — the MD's note must be minuted before sanction.",
+         next: "IP reviews"}
+      - {role: credit_committee, stage: "In-Principle (IP)",
+         action: "Sanction with the MD's note attached to the committee decision",
+         expected: "The decision records the elevated authority and the note; the committee pack reflects it.",
+         next: "Credit Assessment (AP)"}
+
+  - id: validation_failure_correction
+    profile: corporate
+    title: "Validation failure — a proposal the product gates reject, then corrected"
+    outcome: exception
+    product: working_capital
+    borrower_name: "BlueOrchid Polymers Ltd (new application)"
+    start_role: ps_maker
+    start_step: ps_maker
+    feature: "Creation-time product gates with clear, correctable errors"
+    story: >
+      Create a new Working Capital application for a demo borrower with a 60-month
+      tenor. The product template (6–24 months for working capital) rejects it with a
+      clear gate message; correcting the tenor to 12 months lets the same proposal
+      through.
+    steps:
+      - {role: relationship_officer, stage: "Prospect Sourcing (PS)",
+         action: "Create a Working Capital application with tenor 60 months",
+         expected: "The create is refused: 'a Working Capital tenor is at most 24 months' — the product's gate, not a generic error.",
+         next: "Correct and retry"}
+      - {role: relationship_officer, stage: "Prospect Sourcing (PS)",
+         action: "Re-create the same application with a 12-month tenor",
+         expected: "The application is accepted at Prospect Sourcing, stamped with the Working Capital product, and its checklist/checks come from the product + profile.",
+         next: "Sourcing and IP"}
+
+
+  - id: corporate_risk_showcase
+    profile: corporate
+    title: "Risk assessment and deviations"
+    outcome: success
+    application_entity: INFY001
+    product: term_loan
+    borrower_name: "Infosys Limited"
+    start_role: risk_analyst
+    start_step: ip_risk_maker
+    feature: "Financial analysis, due diligence, policy deviations, edit permissions and decision history"
+    story: "A prepared credit file opens directly at Preliminary Credit Assessment so the Risk role can demonstrate the enhanced appraisal controls."
+    steps:
+      - {role: risk_analyst, stage: "Preliminary Credit Assessment", action: "Open Credit assessment, Checks and Decision", expected: "Financial analysis, risk checks, deviations, permissions and decision records are visible.", next: "Independent Credit Review"}
+
+  - id: corporate_preliminary_committee
+    profile: corporate
+    title: "Preliminary committee governance"
+    outcome: success
+    application_entity: SAPT001
+    product: term_loan
+    borrower_name: "Saptagiri Transit Infrastructure Ltd"
+    start_role: sanction_committee
+    start_step: ip_sanction
+    feature: "Authority routing, attendance, quorum, voting, dissent and structured minutes"
+    story: "A prepared application opens at the Preliminary Sanction Committee with the governed committee workspace available."
+    steps:
+      - {role: sanction_committee, stage: "Preliminary Sanction Committee", action: "Open the committee workspace", expected: "Agenda, attendance, quorum, votes, dissent and minutes controls are visible.", next: "Detailed Application Processing"}
+
+  - id: corporate_esms_showcase
+    profile: corporate
+    title: "Environmental and social governance"
+    outcome: exception
+    application_entity: ABCE001
+    product: term_loan
+    borrower_name: "ABC Engineering & Infrastructure Ltd."
+    start_role: es_maker
+    start_step: ap_es_maker
+    feature: "E&S exclusion screening, ESMS processing and governed exception approval"
+    story: "An infrastructure borrower opens directly at E&S screening so the exclusion and exception route can be demonstrated."
+    steps:
+      - {role: es_maker, stage: "E&S Screening", action: "Review the exclusion checklist and ES category", expected: "The ESMS workspace and exception route are visible in the same corporate journey.", next: "E&S Preparation and Review"}
+
+  - id: corporate_final_committee
+    profile: corporate
+    title: "Final sanction committee"
+    outcome: success
+    application_entity: MFL001
+    product: term_loan
+    borrower_name: "Madras Fertilizers Limited"
+    start_role: sanction_committee
+    start_step: ap_sanction
+    feature: "Final authority, approval summary, conditions, deviations and committee decision"
+    story: "A fully appraised file opens at Final Sanction Committee with the approval and governance summaries ready."
+    steps:
+      - {role: sanction_committee, stage: "Final Sanction Committee", action: "Review the case summary and committee record", expected: "Authority, open documents, deviations, conditions and structured decision controls are visible.", next: "Post-Sanction"}
+
+  - id: corporate_post_sanction_showcase
+    profile: corporate
+    title: "Post-sanction fulfilment"
+    outcome: success
+    application_entity: MRF001
+    product: term_loan
+    borrower_name: "MRF Limited"
+    start_role: pos_maker
+    start_step: pos_maker
+    feature: "Sanction acceptance, conditions, covenants, waivers and modification routing"
+    story: "A sanctioned application opens at Post-Sanction Documentation with its governed fulfilment workspaces available."
+    steps:
+      - {role: pos_maker, stage: "Post-Sanction Documentation", action: "Open letters, acceptance, conditions and modifications", expected: "Signed-copy, covenant, waiver and modification controls are visible.", next: "Post-Sanction Verification"}
+
+  - id: corporate_disbursement_showcase
+    profile: corporate
+    title: "Disbursement maker-checker journey"
+    outcome: success
+    application_entity: KARI001
+    product: term_loan
+    borrower_name: "Karigari Textiles Pvt Ltd"
+    start_role: dis_maker
+    start_step: dis_maker
+    feature: "Drawdown preparation, operational checklist, maker-checker review and final approval route"
+    story: "A fulfilled application opens at Disbursement Preparation with the complete downstream approval rail visible."
+    steps:
+      - {role: dis_maker, stage: "Disbursement Preparation", action: "Open the disbursement record and checklist", expected: "Drawdown, tranche, SOP, memo and downstream checker/head/approver stages are visible.", next: "Disbursement Verification"}

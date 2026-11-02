@@ -201,6 +201,86 @@
             <div class="status-inline" x-show="current?.status === 'DEFERRED'">
               <span x-text="'Deferred until ' + (current?.deferral?.until || '—') + ' by ' + (current?.deferral?.by_name || '—') + ': ' + (current?.deferral?.reason || '') + '. The SLA is paused; reactivate to take it up again.'"></span>
             </div>
+            <!-- R9: the committee's meeting record (attendance, quorum, vote, minutes) -->
+            <div class="card" x-show="meeting" style="margin-bottom:1rem">
+              <div class="los-rm-head">
+                <div>
+                  <span class="los-kicker">Committee meeting</span>
+                  <h3 x-text="meeting.step_name + ' — governance record'"></h3>
+                  <span class="text-muted" x-text="'Quorum: ' + meeting.quorum.present + ' of ' + meeting.quorum.required + ' present'
+                             + (meeting.quorum.excluded_conflicts ? ' (' + meeting.quorum.excluded_conflicts + ' excused on conflict of interest)' : '')
+                             + ' · ' + (meeting.quorum.met ? 'met' : 'not met') + ' · version ' + meeting.version"></span>
+                </div>
+                <div class="los-action-row">
+                  <button class="btn btn-sm btn-outline" :disabled="busy" @click="cgSeedDrafts(); cgSaveAttendance()">Save attendance</button>
+                  <button class="btn btn-sm btn-outline" :disabled="busy" @click="cgSeedDrafts(); cgSaveVotes()">Record vote</button>
+                  <button class="btn btn-sm btn-outline" :disabled="busy" @click="cgSaveMinutes()">Record minutes</button>
+                </div>
+              </div>
+              <table class="data-table">
+                <thead><tr><th>Member</th><th>Attendance</th><th>Conflict of interest</th><th>Conflict note</th><th>Vote</th><th>Vote remarks</th></tr></thead>
+                <tbody>
+                  <template x-for="r in (meeting._draft ? meeting._members : meeting.roster)" :key="r.name">
+                    <tr>
+                      <td x-text="r.name"></td>
+                      <td>
+                        <select class="input" x-show="meeting._draft" :value="r.status" @change="r.status = $event.target.value">
+                          <option value="present">Present</option><option value="absent">Absent</option><option value="excused">Excused</option>
+                        </select>
+                        <span x-show="!meeting._draft" x-text="r.status || 'absent'"></span>
+                      </td>
+                      <td>
+                        <input type="checkbox" x-show="meeting._draft" :checked="!!r.conflict_of_interest" @change="r.conflict_of_interest = $event.target.checked">
+                        <span x-show="!meeting._draft" x-text="r.conflict_of_interest ? 'Yes' : ''"></span>
+                      </td>
+                      <td>
+                        <input class="input" x-show="meeting._draft && r.conflict_of_interest" :value="r.conflict_note || ''" @input="r.conflict_note = $event.target.value">
+                        <span x-show="!meeting._draft" x-text="r.conflict_note || ''"></span>
+                        <span class="text-muted los-small" x-show="r.conflict_of_interest && r.status === 'present'">excused from vote + quorum</span>
+                      </td>
+                      <td>
+                        <select class="input" x-show="meeting._draft" :value="((meeting._votes || []).find(v => v.name === r.name) || { vote: 'approve' }).vote"
+                                @change="meeting._votes = (meeting._votes || []).map(v => v.name === r.name ? { ...v, vote: $event.target.value } : v)">
+                          <option value="approve">Approve</option><option value="abstain">Abstain</option><option value="dissent">Dissent</option>
+                        </select>
+                        <span x-show="!meeting._draft" x-text="((meeting.votes || []).find(v => v.name === r.name) || {}).vote || '—'"></span>
+                      </td>
+                      <td>
+                        <input class="input" x-show="meeting._draft" :value="((meeting._votes || []).find(v => v.name === r.name) || { remarks: '' }).remarks"
+                               @input="meeting._votes = (meeting._votes || []).map(v => v.name === r.name ? { ...v, remarks: $event.target.value } : v)">
+                        <span x-show="!meeting._draft" x-text="((meeting.votes || []).find(v => v.name === r.name) || {}).remarks || ''"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <div class="los-rm-headline" x-show="(meeting.vote_tally || {}).approve !== undefined">
+                <div><span>Vote</span><strong x-text="meeting.vote_tally.approve + ' approve · ' + meeting.vote_tally.abstain + ' abstain · ' + meeting.vote_tally.dissent + ' dissent'"></strong></div>
+                <div x-show="meeting.vote_approves !== null"><span>Outcome</span>
+                  <strong :class="meeting.vote_approves ? 'text-success' : 'text-danger'" x-text="meeting.vote_approves ? 'approves the decision' : 'does not approve'"></strong></div>
+              </div>
+              <div class="los-pack-block" x-show="meeting.minutes || meeting._draft">
+                <h4>Structured minutes <span class="text-muted" x-text="'version ' + (meeting.minutes?.version || 0)"></span></h4>
+                <div x-show="meeting.minutes && !meeting._draft">
+                  <p class="los-small"><strong>Agenda</strong><ol class="los-small"><template x-for="a in meeting.minutes.agenda" :key="a"><li x-text="a"></li></template></ol></p>
+                  <p class="los-small" x-text="'Discussion: ' + meeting.minutes.discussion"></p>
+                  <p class="los-small" x-text="'Resolution: ' + meeting.minutes.resolution + ' — recorded by ' + meeting.minutes.recorded_by_name + ' at ' + meeting.minutes.at"></p>
+                </div>
+                <template x-if="meeting._draft">
+                  <div>
+                    <label class="los-field">Agenda (one item per line)
+                      <textarea class="input" rows="3" x-model="cgAgenda"></textarea></label>
+                    <label class="los-field">Discussion
+                      <textarea class="input" rows="4" x-model="cgDiscussion"></textarea></label>
+                    <label class="los-field">Resolution
+                      <textarea class="input" rows="2" x-model="cgResolution"></textarea></label>
+                  </div>
+                </template>
+                <p class="text-muted los-small" x-show="(meeting.versions || []).length">
+                  Version history: <span x-text="meeting.versions.map(v => 'v' + v.version + ' ' + v.change + ' by ' + v.by_name).join(' → ')"></span></p>
+              </div>
+            </div>
+
             <!-- The step's decision record (configured per step in los_workflow.yaml) -->
             <template x-for="f in current?.decision_fields || []" :key="f.id">
               <label class="los-field" :id="'df-' + f.id"><span x-text="(f.label || titleCase(f.id.replaceAll('_', ' '))) + (f.required ? ' *' : '')"></span>
@@ -605,10 +685,14 @@
                   <td x-text="f.repayment?.repayment_type || '—'" :title="'Freq: ' + (f.repayment?.repayment_frequency || '—') + (f.repayment?.moratorium_months ? ' · moratorium ' + f.repayment.moratorium_months + ' m' : '')"></td>
                   <td x-text="f.next_review_date || '—'"></td>
                   <td>
-                    <div class="los-action-row" x-show="current.stage_id !== 'DIS'">
+                    <div class="los-action-row" x-show="current.stage_id !== 'DIS' && fieldPerms?.editable_now?.facility && !(current?.sanctions && Object.keys(current.sanctions).length)">
                       <button class="btn btn-sm btn-outline"
                         @click="gov.pricing = { facility_id: f.facility_id, benchmark: f.pricing?.benchmark, spread: f.pricing?.spread, interest_rate: f.pricing?.interest_rate, other_banks_comparison: f.pricing?.other_banks_comparison, justification: f.pricing?.justification, tenor_months: f.tenor_months, repayment_type: f.repayment?.repayment_type, repayment_frequency: f.repayment?.repayment_frequency, moratorium_months: f.repayment?.moratorium_months, next_review_date: f.next_review_date, total_limit_id: f.ops?.total_limit_id, fund_limit_id: f.ops?.fund_limit_id }; gov.facEdit = f.facility_id">Edit</button>
                     </div>
+                    <div class="los-small los-muted-note" x-show="current.stage_id !== 'DIS' && !(current?.sanctions && Object.keys(current.sanctions).length) && !fieldPerms?.editable_now?.facility" style="margin-top:4px"
+                         role="note" x-text="'Read-only: facility edits are closed at this step (the API enforces the same policy — see Field permissions)'"></div>
+                    <div class="los-small los-muted-note" x-show="current.stage_id !== 'DIS' && current?.sanctions && Object.keys(current.sanctions).length" style="margin-top:4px"
+                         role="note">Sanctioned — facility changes are raised as a modification (the API enforces this).</div>
                     <div class="los-panel" x-show="gov.facEdit === f.facility_id">
                       <div style="display:flex;flex-wrap:wrap;gap:8px">
                         <label class="los-field">Benchmark<select x-model="gov.pricing.benchmark"><option value="">—</option><option value="MCLR">MCLR</option><option value="external_benchmark">External benchmark</option><option value="fixed">Fixed</option><option value="nil">Nil</option></select></label>

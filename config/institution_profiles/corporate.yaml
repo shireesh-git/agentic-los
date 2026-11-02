@@ -1,0 +1,222 @@
+# ═══════════════════════════════════════════════════════════════════════
+# UNIFIED CORPORATE LENDING DEMO
+# One presentation configuration for the complete bank demo. The reusable
+# profile framework remains internal; users see this cohesive LOS journey.
+# ═══════════════════════════════════════════════════════════════════════
+
+profile:
+  id: corporate
+  name: "Enterprise Corporate Lending"
+  short_name: "ECL"
+  kind: "Corporate lending"
+  description: "Unified corporate term-loan and working-capital journey with governed credit assessment, approvals, post-sanction and disbursement."
+
+branding:
+  institution_name: "Enterprise Corporate Lending"
+  short_name: "ECL"
+  app_name: "Corporate Lending LOS"
+  logo: null                            # neutral placeholder: the portal shows the short-name monogram
+  colors:
+    primary: "#1f2a44"
+    accent: "#b08d3f"
+  paper:
+    header: "Enterprise Corporate Lending — Credit Appraisal"
+    footer: "Demonstration environment — fictional data"
+
+labels:
+  terms:
+    applicant: "borrower"
+    bank_account: "account with the Bank"
+  roles:
+    ps_maker: "Relationship Manager"
+    lpf_vp: "Business Credit Manager"
+    crp_evp: "Credit Allocation Head"
+    crp_vp: "Senior Credit Manager"
+    risk_analyst: "Credit Analyst"
+    risk_reviewer: "Independent Credit Reviewer"
+    post_risk_maker: "Rating & Policy Analyst"
+    compliance_vp: "Chief Compliance Officer"
+    es_maker: "E&S Screening Officer"
+    es_preparer: "E&S Analyst"
+    es_reviewer: "E&S Reviewer"
+    es_recommender: "E&S Recommender"
+    evp_recommender: "Executive Credit Recommender"
+    recommendations_committee: "Credit Recommendation Committee"
+    dmd: "Executive Approval Officer"
+    sanction_committee: "Credit Sanction Committee"
+    pos_maker: "Post-Sanction Officer"
+    pos_checker: "Post-Sanction Reviewer"
+    dis_maker: "Disbursement Officer"
+    dis_checker: "Disbursement Reviewer"
+    dis_vp: "Disbursement Head"
+    dis_approver: "Final Disbursement Approver"
+    los_admin: "System Administrator"
+  stages:
+    PS: "Prospect Sourcing"
+    IP: "In-Principle Approval"
+    AP: "Appraisal & Sanction"
+    POS: "Post Sanction"
+    DIS: "Disbursement"
+  steps:
+    ps_maker: "Prospect Sourcing"
+    ip_note: "Preliminary Credit Note"
+    ip_note_review: "Business Credit Review"
+    ip_crp_evp: "Credit Allocation"
+    ip_crp_vp: "Analyst Assignment"
+    ip_risk_maker: "Preliminary Credit Assessment"
+    ip_risk_review: "Independent Credit Review"
+    ip_post_rating_vp: "Preliminary Rating Review"
+    ip_evp: "Executive Credit Recommendation"
+    ip_sanction: "Preliminary Sanction Committee"
+    ap_note: "Detailed Application Processing"
+    ap_review: "Business Credit Review"
+    ap_crp_vp: "Credit Team Allocation"
+    ap_risk_maker: "Detailed Credit Appraisal"
+    ap_risk_review: "Independent Risk Review"
+    ap_post_rating: "Final Rating Assessment"
+    ap_rating_vp: "Final Rating Review"
+    ap_evp: "Executive Recommendation"
+    ap_recommend: "Credit Recommendation Committee"
+    ap_es_maker: "Environmental & Social Screening"
+    ap_es_prep: "Environmental & Social Assessment"
+    ap_es_review: "Environmental & Social Review"
+    ap_es_recommend: "Environmental & Social Recommendation"
+    ap_dmd: "Executive Approval"
+    ap_sanction: "Final Sanction Committee"
+    pos_maker: "Post-Sanction Documentation"
+    pos_checker: "Post-Sanction Verification"
+    dis_maker: "Disbursement Preparation"
+    dis_checker: "Disbursement Verification"
+    dis_vp_review: "Disbursement Head Review"
+    dis_approver: "Final Disbursement Approval"
+
+products: [term_loan, working_capital]
+
+modules:
+  esms: {enabled: true}                # visible in the unified bank demo
+  consortium: {enabled: true}
+  dmd: {enabled: true}
+  committee_recommendations: {enabled: true}
+
+checks:
+  applicable: [mca, cibil, crif, crilc, litigation, ews, gstin, kyc, name_screening, mlra]
+  mandatory: [cibil, crilc, litigation, name_screening]
+  optional: [ews]
+  names:
+    mca: "Registry check — company & corporate information"
+
+documents:
+  by_stage:
+    AP:
+      add:
+        - {name: "Board resolution authorising the facility", scope: application}
+
+approval:
+  preliminary:
+    - {max_amount: 100, authority: "Credit Manager (preliminary)"}
+    - {max_amount: 400, authority: "Credit Sanction Committee (preliminary)"}
+    - {max_amount: null, authority: "Credit Sanction Committee (preliminary) with board intimation"}
+  final:
+    - {max_amount: 100, authority: "Credit Sanction Committee"}
+    - {max_amount: 400, authority: "Credit Sanction Committee with MD note"}
+    - {max_amount: null, authority: "Credit Sanction Committee with board intimation"}
+  board_intimation_above_cr: 400
+  sub_investment_grade_concurrence: true
+  deviation_escalation_levels: 1
+
+outputs:
+  cam: {title: "Credit Appraisal Memorandum", institution_name: "Enterprise Corporate Lending"}
+  ip_note: {title_prefix: "Preliminary Credit Note"}
+  committee_pack: {title: "Credit Sanction Committee Pack"}
+  sanction_letter:
+    institution_name: "Enterprise Corporate Lending"
+    acceptance_days: 21
+    kind_titles:
+      term_sheet: "Term sheet (indicative)"
+      sanction_letter: "Sanction letter"
+
+demo_applications:
+  - entity_id: APOL001
+    target: "ps_maker"
+    days_ago: 1
+    priority: "Normal"
+    note: "START HERE - sourcing, duplicate controls, prospect discussions, facilities, documents and due diligence."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 45, tenor_months: 36, purpose: "Capacity expansion and machinery modernisation."}
+  - entity_id: BLUE001
+    target: "ip_note"
+    days_ago: 14
+    priority: "Normal"
+    note: "PRELIMINARY NOTE - document carry-forward, governed preparation and submission."
+    facilities:
+      - {facility_type: "cash_credit", amount_cr: 90, tenor_months: 12, purpose: "Cash credit against stock and book debts."}
+  - entity_id: INFY001
+    target: "ip_risk_maker"
+    days_ago: 12
+    priority: "High"
+    note: "RISK DEMO - financial analysis, due diligence, deviation detection, permissions and decision history."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 135, tenor_months: 60, purpose: "Modernisation of milling capacity and energy-efficient equipment."}
+  - entity_id: SAPT001
+    target: "ip_sanction"
+    days_ago: 11
+    priority: "High"
+    note: "PRELIMINARY COMMITTEE - authority routing, agenda, attendance, quorum, voting, dissent and minutes."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 120, tenor_months: 60, purpose: "Term loan for shuttle-rail rolling stock."}
+  - entity_id: KAVG001
+    target: "ap_risk_maker"
+    days_ago: 18
+    priority: "Normal"
+    note: "DETAILED APPRAISAL - CMA, risk reassessment, group exposure, deviations and approval summary."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 350, tenor_months: 84, purpose: "Corporate term loan supporting renewable-energy expansion."}
+  - entity_id: IHCL001
+    target: "ap_recommend"
+    days_ago: 16
+    priority: "Normal"
+    note: "RECOMMENDATIONS COMMITTEE - structured recommendation, decision records and governed controls."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 180, tenor_months: 60, purpose: "Precision-alloy line expansion and automation."}
+  - entity_id: ABCE001
+    target: "ap_es_maker"
+    days_ago: 20
+    priority: "High"
+    note: "E&S DEMO - exclusion screening, ESMS workflow, exception request and approval governance."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 275, tenor_months: 72, purpose: "Infrastructure equipment and project mobilisation funding."}
+  - entity_id: DECC001
+    target: "ap_dmd"
+    days_ago: 15
+    priority: "High"
+    note: "EXECUTIVE APPROVAL - escalated authority route, significant-change record and executive decision."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 240, tenor_months: 84, purpose: "New processing plant and working-capital bridge."}
+  - entity_id: MFL001
+    target: "ap_sanction"
+    days_ago: 14
+    priority: "High"
+    note: "FINAL COMMITTEE - final sanction, conditions, deviations, quorum, voting and structured minutes."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 210, tenor_months: 60, purpose: "Food-processing line and cold-chain infrastructure."}
+  - entity_id: MRF001
+    target: "pos_maker"
+    days_ago: 10
+    priority: "Normal"
+    note: "POST-SANCTION MAKER - sanction letter, signed acceptance, conditions, covenants and modifications."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 95, tenor_months: 48, purpose: "Processing capacity and warehouse expansion."}
+  - entity_id: PNCR001
+    target: "pos_checker"
+    days_ago: 9
+    priority: "Normal"
+    note: "POST-SANCTION CHECKER - document verification, acceptance review, waivers and modification decisions."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 110, tenor_months: 48, purpose: "Plant upgrade and working-capital stabilisation."}
+  - entity_id: KARI001
+    target: "dis_maker"
+    days_ago: 8
+    priority: "Normal"
+    note: "DISBURSEMENT MAKER - conditions, drawdown request, tranche preparation and operational checklist."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 80, tenor_months: 36, purpose: "Equipment acquisition and production ramp-up."}

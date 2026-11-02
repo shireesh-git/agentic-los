@@ -116,6 +116,7 @@ def test_an_existing_borrower_from_the_catalogue_to_exit():
     job = svc.wait_for_preparation(app_id)
     print("POS prep:", job["state"], "suggested:", svc.post_sanction(app_id, maker)["suggested"])
     svc.generate_letter(app_id, maker, "sanction_letter")
+    svc.upload_signed_letter(app_id, maker, "sanction_letter", "signed-copy-poc.pdf", b"%PDF-1.4 poc")
     svc.record_consent(app_id, maker, acknowledged_by="Apollo authorised signatory", consent_date=svc.now().date().isoformat(),
                        facilities=[{"facility_id": f["facility_id"], "execution_status": "executed",
                                     "agreement_date": svc.now().date().isoformat()} for f in svc.get(app_id)["facilities"]])

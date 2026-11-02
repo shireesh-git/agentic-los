@@ -59,7 +59,8 @@ def test_sanction_letter_is_built_from_the_record_and_versioned(svc):
     assert [c["text"] for c in doc["conditions_precedent"]] == [c["text"] for c in svc.get(app_id)["conditions"]
                                                                 if c["type"] == "CP"]
     assert any(d["description"].startswith("CP-01 waived") for d in doc["deviations"])
-    assert lt.DEMO_MARK in lt.render_markdown(doc) and "CAM Report" not in svc.letter_html(app_id, "sanction_letter")
+    assert doc["demo_mark"] and doc["demo_mark"] in lt.render_markdown(doc) \
+        and "CAM Report" not in svc.letter_html(app_id, "sanction_letter")
     svc.generate_letter(app_id, pos, "sanction_letter")
     sl = next(l for l in svc.letters(app_id, pos)["letters"] if l["kind"] == "sanction_letter")
     assert [v["version"] for v in sl["versions"]] == [2, 1]

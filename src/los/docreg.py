@@ -15,9 +15,71 @@ existing application behaviour, not a client rule.
 
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from src.application.errors import InvalidRequestError
+
+
+def doc_type_id(name: str, explicit: Optional[str] = None) -> str:
+    """The stable identifier of a logical document type.
+
+    An explicit ``type_id`` on the checklist entry always wins; otherwise the id is
+    derived deterministically from the canonical display name (lowercased, runs of
+    non-alphanumerics collapsed to underscores). Different periods remain distinct
+    types ("Bank statements (last 6 months)" != "… (last 12 months)"); the same
+    document required by the profile and by the product resolves to one type.
+    """
+    if explicit:
+        return re.sub(r"[^a-z0-9]+", "_", str(explicit).strip().lower()).strip("_") or "doc"
+    s = re.sub(r"[^a-z0-9]+", "_", str(name or "").strip().lower()).strip("_")
+    return s or "doc"
+
+
+def merge_stage(entries: list[dict]) -> list[dict]:
+    """Deduplicate one stage's document requirements by stable document-type id.
+
+    Deterministic precedence — the highest-priority source wins the display fields:
+    product template (``priority`` 2) > institution profile (1) > base checklist (0).
+    ``name`` / ``scope`` / ``file_types`` come from the highest-priority entry;
+    ``mandatory`` is the OR of all duplicates (a gate is never weakened); ``condition``
+    is the union (a requirement any source applies, applies). The merged entry keeps
+    the position of the first duplicate, so the checklist order is stable.
+    """
+    out: list[dict] = []
+    index: dict[str, int] = {}
+    for e in entries:
+        eid = doc_type_id(e.get("name"), e.get("type_id"))
+        entry = dict(e)
+        entry["type_id"] = eid
+        entry.setdefault("mandatory", True)
+        entry.setdefault("source", "checklist")
+        entry.setdefault("priority", 0)
+        conds = entry.pop("condition", None)
+        if conds:
+            entry["conditions"] = [conds]
+        if eid in index:
+            cur = out[index[eid]]
+            if int(entry["priority"]) > int(cur.get("priority", 0)):     # display fields: highest priority wins
+                cur["name"], cur["scope"], cur["priority"] = entry["name"], entry["scope"], entry["priority"]
+                if entry.get("file_types"):
+                    cur["file_types"] = entry["file_types"]
+            cur["mandatory"] = bool(cur.get("mandatory", True)) or bool(entry.get("mandatory", True))
+            cur_conds = cur.pop("condition", None)
+            cur_conds = [cur_conds] if cur_conds else list(cur.pop("conditions", None) or [])
+            merged = list(dict.fromkeys(cur_conds + list(entry.get("conditions") or [])))
+            if len(merged) == 1:
+                cur["condition"] = merged[0]
+            elif merged:
+                cur["conditions"] = merged
+            cur["merged_from"] = sorted(set(cur.get("merged_from") or [cur.get("source", "checklist")])
+                                        | {entry.get("source", "checklist")})
+            continue
+        if "conditions" in entry and len(entry["conditions"]) == 1:
+            entry["condition"] = entry.pop("conditions")[0]
+        index[eid] = len(out)
+        out.append(entry)
+    return out
 
 SCOPES = ("application", "entity", "facility", "project")
 DOC_STATUSES = ("pending", "uploaded", "reviewed", "accepted", "rejected", "rework")
@@ -113,15 +175,23 @@ def link_workspace(app: dict, at: str) -> list[str]:
     return linked
 
 
-def initial_registry() -> list[dict]:
+def initial_registry(checklist: Optional[dict] = None) -> list[dict]:
+    """The application's logical document registry, from the profile's checklist
+    ({stage: [{name, scope, condition?}]}); the documented base set is the default."""
+    if checklist is None:
+        checklist = {st: [{"name": n, "scope": s} for n, s in items] for st, items in CHECKLIST.items()}
     out = []
     n = 0
-    for stage, docs in CHECKLIST.items():
-        for name, scope in docs:
+    for stage, entries in checklist.items():
+        for e in entries:
+            name, scope = (e["name"], e["scope"]) if isinstance(e, dict) else (e[0], e[1])
+            extra = e if isinstance(e, dict) else {}
             n += 1
             out.append({"doc_id": f"DOC-{n:03d}", "name": name, "category": "mandatory",
+                        "type_id": doc_type_id(name, extra.get("type_id")),
                         "scope": scope, "mandatory_stage": stage, "versions": [], "status": "pending",
-                        "reviewer": None, "reviewed_at": None, "remarks": None})
+                        "reviewer": None, "reviewed_at": None, "remarks": None,
+                        **({"merged_from": extra["merged_from"]} if extra.get("merged_from") else {})})
     return out
 
 
@@ -183,33 +253,18 @@ def review_document(registry: list[dict], doc_id: str, status: str, reviewer: st
     return doc
 
 
-def _required_for_stage(app: dict) -> list[str]:
-    """Mandatory documents for the stage, with the documented conditional items."""
-    stage = (app.get("stage_id") or "PS").upper()
-    has_securities = bool(app.get("securities"))
-    has_projects = bool(app.get("projects"))
-    if stage == "AP":
-        names = ["CMA (prepared in the CMA workspace)"]
-        if has_securities:
-            names.append("Valuation report for the proposed security")
-        if has_projects:
-            names.append("TEV report (where project finance is proposed)")
-        return names
-    if stage == "POS":
-        names = ["Sanction letter (generated, issued and uploaded back)",
-                 "Sanction consent / acceptance", "Facility agreement (executed)"]
-        if has_securities:
-            names.append("Security documents (executed)")
-        names.append("Insurance policy (with bank clause)")
-        return names
-    return [name for name, _ in CHECKLIST.get(stage, [])]
+def _required_for_stage(app: dict, only: Optional[set] = None, skip: Optional[set] = None) -> list[str]:
+    """Mandatory documents for the application's stage + product, with the profile's
+    conditional items evaluated (securities / projects)."""
+    from src.los import profiles
+    return [n for n in profiles.required_documents(app) if (only is None or n in only) and n not in (skip or set())]
 
 
 def stage_gate(app: dict, only: Optional[set] = None, skip: Optional[set] = None) -> Optional[str]:
     """Mandatory documents for the application's stage must be present and reviewed
     (``only`` / ``skip``: the subset a step answers for, e.g. the CMA at the AP Risk Maker)."""
     registry = app.get("documents") or []
-    required = [n for n in _required_for_stage(app) if (only is None or n in only) and n not in (skip or set())]
+    required = _required_for_stage(app, only, skip)
     missing = []
     for name in required:
         doc = next((d for d in registry if d["name"] == name), None)

@@ -1,0 +1,77 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Product template — CORPORATE TERM LOAN
+# Mid-/long-term term lending for corporate borrowers (capex, refinance,
+# equipment). Every institution profile may run it (profiles: all); each
+# profile's delegation matrix and journey still apply.
+# ═══════════════════════════════════════════════════════════════════════
+
+product:
+  id: term_loan
+  name: "Corporate Term Loan"
+  category: "Term lending"
+  description: "Mid- and long-term term finance for capital expenditure, refinancing and equipment."
+  profiles: all
+
+  facility_types: [term_loan]
+  facility_defaults:
+    facility_nature: fund_based
+    benchmark: MCLR
+  borrower_fields:
+    - {id: company_name, label: "Company name", required: true}
+    - {id: cin, label: "CIN", required: true}
+    - {id: pan, label: "PAN", required: true}
+    - {id: gstin, label: "GSTIN", required: false}
+    - {id: date_of_incorporation, label: "Date of incorporation", required: true}
+    - {id: registered_address, label: "Registered office", required: true}
+    - {id: external_rating, label: "External rating", required: false}
+  facility_fields:
+    - {id: amount_cr, label: "Amount (₹ Cr)", required: true}
+    - {id: tenor_months, label: "Tenor (months)", required: true}
+    - {id: purpose, label: "Purpose", required: true}
+    - {id: benchmark, label: "Benchmark", required: true}
+    - {id: spread, label: "Spread (bps)", required: false}
+    - {id: interest_rate, label: "Interest rate (%)", required: false}
+    - {id: repayment_type, label: "Repayment method", required: true}
+    - {id: moratorium_months, label: "Moratorium (months)", required: false}
+
+  amount: {min_cr: 5, max_cr: null, currency: "₹ Cr"}
+  tenor: {min_months: 12, max_months: 84}
+  moratorium: {max_months: 18}
+
+  pricing:
+    benchmarks: [MCLR, external_benchmark, fixed]
+    grade_spreads_bps: {A: 75, B: 125, C: 175, D: 250, E: 350}
+  repayment: [annuity, bullet, quarterly_quarters, half_yearly, interest_only]
+
+  security:
+    required: true
+    min_fsv_cover: 1.25
+    acceptable_types: [movable, immovable, receivables, guarantees]
+  financial_analysis:
+    required_ratios: [dscr, current_ratio, debt_to_equity, interest_coverage_ratio]
+    cma_required: true
+
+  checks:
+    applicable: [cibil, crif, litigation, edd]
+    mandatory: [cibil, litigation]
+
+  documents:
+    by_stage:
+      AP:
+        add:
+          - {name: "Capital expenditure statement", scope: application}
+
+  workflow:
+    stages: [PS, IP, AP, POS, DIS]
+    modules: {}                       # inherit the institution profile's module switches
+
+  approval: {}                        # inherit the institution profile's delegation matrix
+
+  outputs:
+    ip_note: {title_prefix: "In-Principle Note — Term Loan"}
+    cam: {title: "Credit Appraisal Memo — Term Loan"}
+    sanction_letter: {kind_titles: {term_sheet: "Term sheet (indicative)", sanction_letter: "Sanction letter"}}
+
+  validations:
+    - {id: tl_purpose, rule: purpose_not_blank,
+       message: "the purpose of the term loan is required"}

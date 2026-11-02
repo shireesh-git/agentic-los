@@ -1,0 +1,168 @@
+# ═══════════════════════════════════════════════════════════════════════
+# DEMO INSTITUTION PROFILE — DFI / INFRASTRUCTURE FINANCER
+# A development finance institution: long-tenor project finance and
+# infrastructure term loans, project-finance delegation route, ES process
+# always on, board intimation for large tickets.
+# Fictional presentation profile — no real institution data.
+# ═══════════════════════════════════════════════════════════════════════
+
+profile:
+  id: dfi
+  name: "National Infrastructure Development Bank (demo)"
+  short_name: "NIDB"
+  kind: "Development finance institution"
+  description: "Demo profile: long-tenor project & infrastructure finance with ES process and board-level limits."
+
+branding:
+  institution_name: "National Infrastructure Development Bank (demo)"
+  short_name: "NIDB"
+  app_name: "Infrastructure Credit LOS"
+  logo: null                            # neutral placeholder: the portal shows the short-name monogram
+  colors:
+    primary: "#0b3d36"
+    accent: "#0e7c66"
+  paper:
+    header: "National Infrastructure Development Bank (demo) — Infrastructure Credit Department"
+    footer: "NIDB demo data — not a real institution"
+
+labels:
+  terms:
+    applicant: "project sponsor"
+    bank_account: "account at the Bank"
+    facility: "credit line"
+  roles:
+    relationship_officer: "Infrastructure Relationship Manager"
+    credit_manager: "Credit Manager"
+    credit_officer: "Credit Officer"
+    compliance_manager: "Compliance Officer"
+    compliance_vp: "Compliance VP"
+    credit_vp: "Credit VP"
+    credit_committee: "Credit Sanctioning Committee"
+    board: "Board of Directors"
+    los_admin: "System Administrator"
+  stages:
+    PS: "Prospect & Feasibility"
+    IP: "In-Principle Approval"
+    AP: "Credit Assessment & Sanction"
+    POS: "Post-Sanction"
+    DIS: "Disbursement"
+  decision_fields:
+    approval: "Approval decision"
+    decision: "Committee decision"
+    action: "Action taken"
+  output_terms:
+    bank: "the Bank"
+    sanction: "sanction"
+
+products: [project_finance, term_loan]
+
+modules:
+  esms: {enabled: true, trigger: "projects and infrastructure cases"}
+  consortium: {enabled: true}
+  cma: {enabled: true, trigger: "cases where a CMA is prepared"}
+
+routing:
+  enforce_concurrences: true
+  steps:
+    # the DFI's DMD approval applies to every sanctioned case (board-level institution);
+    # a demo of a routing-gated step: the ES process is only carried for project-finance tickets
+    ap_es_maker: {product: [project_finance]}
+    ap_es_prep: {product: [project_finance]}
+    ap_es_review: {product: [project_finance]}
+    ap_es_recommend: {product: [project_finance]}
+  concurrence_markers: {"MD note": "executive_note", "executive note": "executive_note"}
+  concurrence_roles: {evp_note: evp_recommender, crp_note: crp_vp,
+                      executive_note: dmd, board_intimation: sanction_committee}
+
+checks:
+  applicable: all
+  mandatory: [edd, crilc, cfr, name_screening]
+  # R5: the DFI's applicability screen — a fund-based ticket only runs the GSTIN
+  # verification; the enhanced due-diligence run covers energy and infrastructure
+  # tickets; the bureau pulls and the Central Fraud Registry run are reserved for
+  # tickets of at least ₹200 Cr.
+  applicability:
+    gstin: {facility_nature: [fund_based]}
+    edd: {sector: [energy, infrastructure]}
+    cfr: {amount_min_cr: 200}
+    cibil: {amount_min_cr: 200}
+    crif: {amount_min_cr: 200}
+  # R5: result validity — registry and screening results must be refreshed on this clock
+  validity_days: {mca: 180, name_screening: 90, crilc: 365}
+
+# R17: field-level edit policy — material fields (audited with before/after on change)
+field_material_fields: [amount_cr, tenor_months, interest_rate, purpose, facility_type]
+# per-domain edit roles (the current step's role always edits its own domain); a
+# reviewer who holds one of these roles may keep editing while reviewing
+field_edit_roles:
+  facility: [ps_maker, risk_analyst]
+  security: [ps_maker, risk_analyst]
+  project: [ps_maker, risk_analyst]
+
+# R5: the excluded-activity screen admits an exception, decided by the DMD
+esms:
+  exceptions_enabled: true
+  exception_authority: {role: dmd, name: "DMD"}
+  exception_ttl_days: 180
+
+# R9: committee governance — the Credit Sanctioning Committee meets with a quorum
+committee_governance:
+  enabled: true
+  quorum: 3
+  majority: simple
+  conflicts_exclude_from_quorum: true
+  dissent_requires_remarks: true
+  members:
+    - {user_id: u_cc, name: "Credit Committee Secretariat"}
+    - {name: "D. K. Jain (DMD)"}
+    - {name: "A. Deshmukh (EVP Credit)"}
+    - {name: "R. Iyer (CRP VP)"}
+    - {name: "S. Bhatia (RMD)"}
+
+documents:
+  by_stage:
+    AP:
+      add:
+        - {name: "Sovereign / agency guarantee documentation (where applicable)", scope: application}
+
+approval:
+  preliminary:
+    - {max_amount: 250, authority: "Project Sanctioning Committee (preliminary)"}
+    - {max_amount: 1000, authority: "Project Sanctioning Committee (preliminary) with EVP note"}
+    - {max_amount: null, authority: "Project Sanctioning Committee (preliminary) with board intimation"}
+  final:
+    - {max_amount: 250, authority: "Project Sanctioning Committee"}
+    - {max_amount: 1000, authority: "Project Sanctioning Committee with MD note"}
+    - {max_amount: null, authority: "Project Sanctioning Committee with board intimation"}
+  board_intimation_above_cr: 1000
+  sub_investment_grade_concurrence: true
+  deviation_escalation_levels: 1
+
+outputs:
+  cam: {title: "Infrastructure Credit Appraisal Memo", institution_name: "National Infrastructure Development Bank (demo)"}
+  ip_note: {title_prefix: "In-Principle Note — Infrastructure"}
+  committee_pack: {title: "Infrastructure Credit Committee Pack"}
+  sanction_letter:
+    institution_name: "National Infrastructure Development Bank (demo)"
+    acceptance_days: 30
+    kind_titles:
+      term_sheet: "Indicative term sheet (infrastructure)"
+      sanction_letter: "Sanction letter (infrastructure)"
+
+demo_applications:
+  - entity_id: KAVG001
+    target: "ap_risk_maker"
+    days_ago: 21
+    priority: "Normal"
+    note: "Demo success: 300 MW solar project finance (₹650 Cr) — clean path to Credit Assessment."
+    facilities:
+      - {facility_type: "project_finance", amount_cr: 650, tenor_months: 96,
+         purpose: "Project finance for a 300 MW utility-scale solar plant (Karnataka)."}
+  - entity_id: SAPT001
+    target: "ip_note"
+    days_ago: 6
+    priority: "Normal"
+    note: "Demo exception: rolling-stock term loan (₹120 Cr) — promoter fund movement under regulatory review; EDD before IP."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 120, tenor_months: 60,
+         purpose: "Term loan for shuttle-rail rolling stock (units 1-40)."}

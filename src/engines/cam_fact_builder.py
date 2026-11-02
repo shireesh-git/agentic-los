@@ -284,6 +284,7 @@ def build_cam_fact_pack(company_data: dict, assessment: CreditAssessment | None 
             "benchmark_pack_version": "benchmark_v1",
             "deterministic": True,
         },
+        "institution_branding": _institution_branding(),
 
         "case_summary": {
             "case_type": facility.case_type.value,
@@ -587,6 +588,16 @@ def _policy_thresholds() -> dict:
 
     configured = config.get("rules", "policy_thresholds", default={}) or {}
     return {**_DEFAULT_POLICY_THRESHOLDS, **configured}
+
+
+def _institution_branding() -> dict:
+    """The institution profile's branding for the CAM's letterhead / cover (neutral fallback)."""
+    try:
+        from src.los import profiles
+        return profiles.institution_branding()
+    except Exception:
+        return {"institution_name": "Institution", "app_name": "Credit Appraisal Memorandum",
+                "short_name": "", "logo": None, "colors": {}, "cam_title": "Credit Appraisal Memorandum"}
 
 
 def _build_approving_authority(facility, recommendation) -> dict:

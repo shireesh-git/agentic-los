@@ -1,0 +1,109 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Institution profile — CLIENT TWO (a shorter journey, different branding)
+#
+# Same application, different institution: no DMD approval and no separate
+# Recommendations Committee before the final sanction (ESMS, CMA and the
+# committees' core role stay on), a slimmer due-diligence set with a different
+# exception authority, a product-aware document checklist, its own delegation
+# matrix (with a tighter project-finance route) and its own branding and
+# output templates. No code path is different — only this file.
+#
+# Select it with:  LOS_PROFILE=client_two   (or los.profile in settings.yaml,
+# or POST /api/los/profiles/active).
+# ═══════════════════════════════════════════════════════════════════════
+
+profile:
+  id: client_two
+  name: "Client Two"
+  description: "Shortened journey — no DMD gate or Recommendations Committee; product-aware controls."
+
+branding:
+  institution_name: "Meridian Bank Ltd — Institutional Credit"
+  short_name: "Meridian Bank"
+  app_name: "Institutional Credit Portal"
+  colors:
+    primary: "#123c2e"
+    accent: "#d9a441"
+  paper:
+    header: "Institutional Credit — Sanctions & Documentation"
+
+labels:
+  terms:
+    bank: "the Institution"
+  roles:
+    crp_evp: "Head of Credit (EVP)"
+    crp_vp: "Head of Credit (VP)"
+    risk_analyst: "Credit Analyst"
+    dmd: "Executive Approval Officer"
+  stages:
+    IP: "In-Principle Assessment"
+    AP: "Application & Sanction Processing"
+  steps:
+    ip_note: "In-Principle Assessment Note"
+  decision_fields:
+    ceac_recommendation: "Committee recommendation"
+    committee_matters: "Matters for the committee's attention"
+
+# ── optional modules: the DMD gate and the Recommendations Committee leave the journey ──
+modules:
+  dmd: {enabled: false}
+  committee_recommendations: {enabled: false}
+  consortium: {enabled: false}
+
+# (workflow.steps / workflow.reorder can shorten, rename or reorder any step
+#  of the base journey; the module switches above already do it here.)
+workflow: {}
+
+checks:
+  applicable: [mca, crilc, litigation, ews, gstin, lei, kyc, name_screening, mlra]
+  mandatory: [mca, crilc, kyc, name_screening, mlra]
+  names:
+    name_screening: "PEP / sanctions screening"
+  exception_authority: {role: compliance_vp, name: "Compliance & Regulatory Officer"}
+  rescreen_days: 60
+  exception_ttl_days: 60
+
+documents:
+  by_stage:
+    AP:
+      add:
+        - {name: "Tax clearance certificate", scope: application}
+    POS:
+      remove:
+        - "Insurance policy (with bank clause)"
+  by_product:
+    project_finance:
+      AP:
+        add:
+          - {name: "Project appraisal report", scope: project}
+          - {name: "Technology evaluation report", scope: project}
+
+approval:
+  currency: "₹ Cr"
+  preliminary:
+    - {max_amount: 150, authority: "In-Principle Committee"}
+    - {max_amount: 400, authority: "In-Principle Committee with EVP note"}
+    - {max_amount: null, authority: "In-Principle Committee with EVP and Head of Credit note"}
+  final:
+    - {max_amount: 150, authority: "Credit Committee"}
+    - {max_amount: 400, authority: "Credit Committee with executive note"}
+    - {max_amount: null, authority: "Credit Committee with executive note and board intimation"}
+  sub_investment_grade_concurrence: true
+  deviation_escalation_levels: 1
+  by_product:
+    project_finance:
+      - {max_amount: 75, authority: "Project Finance Committee"}
+      - {max_amount: 250, authority: "Project Finance Committee with executive note"}
+      - {max_amount: null, authority: "Project Finance Committee with board intimation"}
+
+outputs:
+  ip_note:
+    title_prefix: "In-Principle Assessment Note"
+  cam:
+    title: "Credit Assessment Memorandum"
+  committee_pack:
+    title: "Committee Submission Pack"
+  sanction_letter:
+    kind_titles: {term_sheet: "Term sheet (indicative)", sanction_letter: "Letter of Sanction"}
+    acceptance_days: 15
+    demo_mark: "DEMO DOCUMENT — Meridian Bank demonstration; not an offer, commitment or sanction."

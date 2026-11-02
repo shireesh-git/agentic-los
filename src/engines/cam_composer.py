@@ -1274,11 +1274,12 @@ def _md_block(block: dict) -> list[str]:
     return out
 
 
-def render_final_cam_markdown(final: dict) -> str:
+def render_final_cam_markdown(final: dict, branding: dict | None = None) -> str:
+    title = (branding or {}).get("cam_title") or "Credit Appraisal Memorandum"
     if not final.get("available"):
-        return "# Credit Appraisal Memorandum\n\nThe final CAM is not available for this case."
+        return f"# {title}\n\nThe final CAM is not available for this case."
     h = final["headline"]
-    out = [f"# Credit Appraisal Memorandum — {final.get('company_name')}", "",
+    out = [f"# {title} — {final.get('company_name')}", "",
            f"**Recommended decision:** {h.get('decision_label') or 'Not available'} — "
            f"{fmt(h.get('recommended_cr'), 'cr')} (requested {fmt(h.get('requested_cr'), 'cr')}). "
            f"Internal risk grade {h.get('risk_grade')}; sanctioning authority {h.get('approving_authority') or 'n/a'}.", ""]

@@ -24,8 +24,10 @@ tests/fixtures/abce001_expected_observations.json.
 
 from datetime import date
 
+import copy as _copy
+
 from src.models.canonical_model import (
-    Borrower, BorrowerType, CaseType, Collateral, DirectorPromoter, FacilityRequest,
+    Borrower, BorrowerType, CaseType, Collateral, ConductRecord, DirectorPromoter, FacilityRequest,
     FacilityType, FinancialStatement, GroupEntity, MarketSignal, RiskSeverity, Sector,
 )
 
@@ -253,3 +255,207 @@ DEMO_COMPANIES = {
         "reference_prefix": None,
     },
 }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Fictional demo borrowers for the demo institution profiles (DFI / corporate /
+# MSME). Deliberately invented names, CINs and PANs — clearly not real customers.
+# Seeded applications under each profile (see config/institution_profiles/*.yaml)
+# are replayed to a deterministic stage; they do not need financial statements.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _fictional_borrower(entity_id, name, cin, pan, sector, subsector, state, address,
+                        inc_year, rating=None, listed=False, exchange=None):
+    return Borrower(
+        entity_id=entity_id, company_name=name, cin=cin, pan=pan,
+        borrower_type=BorrowerType.UNLISTED if not listed else BorrowerType.LISTED,
+        sector=sector, subsector=subsector,
+        date_of_incorporation=date(inc_year, 3, 15),
+        registered_state=state, registered_address=address,
+        authorized_capital=50.0, paid_up_capital=40.0,
+        listed_exchange=exchange, credit_rating=rating,
+        rating_agency=rating.split()[0] if rating else None,
+        employee_count=120, website=f"www.{name.split()[0].lower()}.example",
+    )
+
+
+def _fictional_facility(entity_id, fac_id, ftype, amount, tenor, purpose, coll_type, coll_value):
+    return FacilityRequest(
+        facility_id=fac_id, entity_id=entity_id, case_type=CaseType.NTB,
+        facility_type=ftype, amount_requested_cr=amount, purpose=purpose,
+        tenor_months=tenor, collateral_type=coll_type, collateral_value_cr=coll_value,
+        proposed_limit_cr=amount,
+    )
+
+
+KAVG = _fictional_borrower(
+    "KAVG001", "Kaveri Greenways Energy LLP", "U40101KA2021OPC987654", "AAJCK8871Q",
+    Sector.ENERGY, "Utility-scale solar EPC & operations", "Karnataka",
+    "Office 21, Level 4, Green Corridor Business Park, Whitefield, Bengaluru 560066", 2021,
+    rating=None)
+SAPT = _fictional_borrower(
+    "SAPT001", "Saptagiri Transit Infrastructure Ltd", "U45200TN2018PLC445566", "AAACS2210B",
+    Sector.INFRASTRUCTURE, "Urban transit & highway concessions", "Tamil Nadu",
+    "Saptagiri House, 14 Perambur Road, Chennai 600011", 2018, rating="CARE BB+/Stable")
+BLUE = _fictional_borrower(
+    "BLUE001", "BlueOrchid Polymers Ltd", "U29309GJ1999PLC012345", "AAACB5598F",
+    Sector.MANUFACTURING, "Specialty polymers & resins", "Gujarat",
+    "Plot 7, GIDC Dahej Industrial Estate, Vadodara 391110", 1999, rating="CRISIL BBB/Positive")
+DECC = _fictional_borrower(
+    "DECC001", "Deccan Agro Foods Ltd", "U10203MH2004PLC556677", "AAACD3324M",
+    Sector.MANUFACTURING, "Processed foods & agri supply chain", "Maharashtra",
+    "Deccan House, Bhandup (West), Mumbai 400078", 2004, rating="ICRA BBB-/Negative")
+KARI = _fictional_borrower(
+    "KARI001", "Karigari Textiles Pvt Ltd", "U13100KL2011PTC889900", "AABCK7765P",
+    Sector.MANUFACTURING, "Apparel processing & export", "Kerala",
+    "Karigari House, Kalamassery Industrial Area, Ernakulam 682007", 2011)
+NIRM = _fictional_borrower(
+    "NIRM001", "Nirmal Packaging Works", "U23200UP2008PTC112233", "AAJCN4432T",
+    Sector.MANUFACTURING, "Corrugated packaging", "Uttar Pradesh",
+    "Nirmal House, Ghaziabad Industrial Estate, Greater Noida 201306", 2008)
+
+def _conduct(entity_id, period, overdue=0, cheques=0, max_days=0, dpd90=0):
+    return ConductRecord(entity_id=entity_id, period=period, avg_bank_balance_cr=12.0,
+                         credit_turnover_cr=96.0, debit_turnover_cr=94.0,
+                         cheque_returns=cheques, limit_utilization_pct=62.0,
+                         overdue_instances=overdue, max_overdue_days=max_days, dpd_90_count=dpd90)
+
+
+
+def _fictional_financials(entity_id, revenue0, growth, margin0, margin_step, debt0, debt_step,
+                          equity0, div_pct=0.10, dep_pct=0.035):
+    """Three-plus-one years of internally consistent standalone statements (in ₹ Cr).
+
+    Identities held every year: total income = revenue + other income; EBITDA = total income -
+    costs; PBT = EBIT - finance cost; PAT = PBT - tax; equity rolls by PAT - dividend; total
+    assets = equity + long-term debt + current liabilities; cash rolls by the three cash flows.
+    """
+    out = {}
+    equity = equity0
+    cash = 0.12 * revenue0
+    nfa = 0.9 * revenue0
+    for i, (year, asof) in enumerate(((2023, (2023, 3, 31)), (2024, (2024, 3, 31)),
+                                      (2025, (2025, 3, 31)), (2026, (2026, 3, 31)))):
+        rev = round(revenue0 * (1 + growth) ** i, 1)
+        margin = margin0 + margin_step * i
+        other = round(rev * 0.005, 1)
+        tin = round(rev + other, 1)
+        costs = round(tin * (1 - margin), 1)
+        ebitda = round(tin - costs, 1)
+        raw = round(costs * 0.62, 1)
+        emp = round(costs * 0.18, 1)
+        oth_exp = round(costs - raw - emp, 1)
+        dep = round(nfa * dep_pct, 1)
+        ebit = round(ebitda - dep, 1)
+        ltd = debt0 + debt_step * i
+        std = round(ltd * 0.35, 1)
+        fc = round((ltd + std) * 0.09, 1)
+        pbt = round(ebit - fc, 1)
+        tax = round(pbt * 0.25, 1) if pbt > 0 else 0.0
+        pat = round(pbt - tax, 1)
+        dividend = round(pat * div_pct, 1) if i > 0 else 0.0
+        if i > 0:
+            equity = round(equity + pat_prev - dividend_prev, 1)
+        prev_equity = equity0 if i == 0 else equity - pat + dividend
+        rece = round(tin * 0.24, 1)
+        inv = round(tin * 0.16, 1)
+        oca = round(tin * 0.04, 1)
+        ca = round(rece + inv + cash + oca, 1)
+        tpay = round(tin * 0.20, 1)
+        ocl = round(tin * 0.12, 1)
+        cl = round(tpay + ocl, 1)
+        capex = round(rev * 0.07, 1)
+        nfa = round(nfa + capex - dep, 1)
+        cwip = round(rev * 0.03, 1)
+        integ = round(rev * 0.008, 1)
+        invst = round(equity * 0.06, 1)
+        ta = round(equity + ltd + cl, 1)
+        ocf = round(ebitda + dep - (tax + fc * 0.2) - (rece if i == 0 else 0), 1)
+        icf = round(-capex - cwip, 1)
+        fcf = round(dividend + (std if i == 0 else 0) - ocf - icf, 1)
+        cash = round(cash + ocf + icf + fcf, 1)
+        if cash < 1:
+            cash = 1.0
+        items = {
+            "revenue_operating": rev, "other_income": other, "total_income": tin,
+            "raw_material_cost": raw, "employee_cost": emp, "other_expenses": oth_exp,
+            "ebitda": ebitda, "depreciation": dep, "ebit": ebit, "finance_cost": fc,
+            "pbt": pbt, "tax_expense": tax, "pat": pat,
+            "total_equity": equity, "reserves_surplus": round(equity - 0.05 * equity0, 1),
+            "long_term_debt": ltd, "short_term_debt": std, "total_debt": round(ltd + std, 1),
+            "current_assets": ca, "inventory": inv, "trade_receivables": rece,
+            "cash_equivalents": cash, "other_current_assets": oca,
+            "current_liabilities": cl, "trade_payables": tpay, "other_current_liabilities": ocl,
+            "total_assets": ta, "net_fixed_assets": nfa, "capital_wip": cwip,
+            "intangible_assets": integ, "investments": invst,
+            "operating_cash_flow": ocf, "investing_cash_flow": icf, "financing_cash_flow": fcf,
+            "capex": capex, "dividend_paid": dividend, "contingent_liabilities": round(rev * 0.02, 1),
+        }
+        out[f"FY{year}"] = _statement(f"FY{year}", date(*asof), items)
+        pat_prev, dividend_prev = pat, dividend
+    return out
+
+
+PROFILE_DEMO_COMPANIES = {
+    "KAVG001": {"borrower": KAVG, "facility": _fictional_facility(
+        "KAVG001", "FAC_KAVG_001", FacilityType.PROJECT_FINANCE, 650.0, 96,
+        "Project finance for a 300 MW utility-scale solar plant (Karnataka): debt component "
+        "against the project's cash flows, land and PPA receivables.", "Project assets, land & PPA receivables", 980.0),
+        "financials": _fictional_financials("KAVG001", 180.0, 0.28, 0.20, 0.01, 90.0, 60.0, 220.0),
+        "collateral": [], "market_signals": [], "existing_exposure": [],
+        "conduct": [_conduct("KAVG001", "H1-FY26"), _conduct("KAVG001", "H2-FY26")],
+        "group": None, "directors": [], "provisional": None,
+        "data_provider": "fictional_demo"},
+    "SAPT001": {"borrower": SAPT, "facility": _fictional_facility(
+        "SAPT001", "FAC_SAPT_001", FacilityType.TERM_LOAN, 120.0, 60,
+        "Term loan for the Chennai suburban shuttle-rail rolling stock (units 1-40). "
+        "Note: promoter-group fund movement under regulatory review — enhanced due diligence required.",
+        "Hypothecation of rolling stock + guarantees", 140.0),
+        "financials": _fictional_financials("SAPT001", 260.0, 0.12, 0.15, 0.0, 120.0, 25.0, 310.0),
+        "collateral": [], "market_signals": [], "existing_exposure": [],
+        "conduct": [_conduct("SAPT001", "H1-FY26"), _conduct("SAPT001", "H2-FY26")],
+        "group": None, "directors": [], "provisional": None,
+        "data_provider": "fictional_demo"},
+    "BLUE001": {"borrower": BLUE, "facility": _fictional_facility(
+        "BLUE001", "FAC_BLUE_001", FacilityType.WORKING_CAPITAL, 90.0, 12,
+        "Cash credit limit against stock and book debts to fund polymer resin production.",
+        "Hypothecation of current assets", 150.0),
+        "financials": _fictional_financials("BLUE001", 940.0, 0.09, 0.19, 0.0, 420.0, 30.0, 860.0),
+        "collateral": [], "market_signals": [], "existing_exposure": [],
+        "conduct": [_conduct("BLUE001", "H1-FY26"), _conduct("BLUE001", "H2-FY26")],
+        "group": None, "directors": [], "provisional": None,
+        "data_provider": "fictional_demo"},
+    "DECC001": {"borrower": DECC, "facility": _fictional_facility(
+        "DECC001", "FAC_DECC_001", FacilityType.TERM_LOAN, 240.0, 84,
+        "Term loan for a new processing plant and working-capital bridge during commissioning. "
+        "Rating outlook Negative; monitor input-cost inflation.",
+        "Mortgage of plant land & building + hypothecation of plant", 300.0),
+        "financials": _fictional_financials("DECC001", 1350.0, 0.07, 0.16, -0.02, 640.0, 90.0, 1150.0),
+        "collateral": [], "market_signals": [], "existing_exposure": [],
+        "conduct": [_conduct("DECC001", "H1-FY26"), _conduct("DECC001", "H2-FY26")],
+        "group": None, "directors": [], "provisional": None,
+        "data_provider": "fictional_demo"},
+    "KARI001": {"borrower": KARI, "facility": _fictional_facility(
+        "KARI001", "FAC_KARI_001", FacilityType.TERM_LOAN, 12.0, 36,
+        "MSME term loan for capacity expansion (two additional sewing lines).",
+        "Hypothecation of machinery", 20.0),
+        "financials": _fictional_financials("KARI001", 55.0, 0.14, 0.17, 0.0, 18.0, 4.0, 42.0),
+        "collateral": [], "market_signals": [], "existing_exposure": [],
+        "conduct": [_conduct("KARI001", "H1-FY26"), _conduct("KARI001", "H2-FY26")],
+        "group": None, "directors": [], "provisional": None,
+        "data_provider": "fictional_demo"},
+    "NIRM001": {"borrower": NIRM, "facility": _fictional_facility(
+        "NIRM001", "FAC_NIRM_001", FacilityType.WORKING_CAPITAL, 38.0, 12,
+        "MSME working-capital limit for a large order book (corporate gifting season). "
+        "Note: GST filings for two months pending — collection risk flagged.",
+        "Hypothecation of current assets", 60.0),
+        "financials": _fictional_financials("NIRM001", 150.0, 0.10, 0.13, -0.01, 70.0, 12.0, 95.0),
+        "collateral": [], "market_signals": [], "existing_exposure": [],
+        # The exception story: two months of conduct trouble behind the pending GST filings.
+        "conduct": [_conduct("NIRM001", "H1-FY26"),
+                    _conduct("NIRM001", "H2-FY26", overdue=3, cheques=2, max_days=21)],
+        "group": None, "directors": [], "provisional": None,
+        "data_provider": "fictional_demo"},
+}
+
+DEMO_COMPANIES.update(_copy.deepcopy(PROFILE_DEMO_COMPANIES))

@@ -60,6 +60,8 @@ def shape(response) -> dict:
     if media == "application/json":
         body = response.json()
         if isinstance(body, dict):
+            # the R20 contract: error responses carry the structured ``error`` block beside
+            # the human-readable ``detail`` (code, message, corrective_action, correlation_id)
             return {"status": response.status_code, "keys": sorted(body)}
         return {"status": response.status_code, "json": type(body).__name__}
     return {"status": response.status_code, "media": media, "empty": not response.content}

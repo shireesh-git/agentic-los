@@ -139,7 +139,8 @@ def test_risk_maker_runs_the_assessment_and_it_is_audited(svc):
     assert after["view"]["available"] and after["recorded"]["decision"] == "REDUCED_MODIFIED"
     actions = [e["action"] for e in svc.get(app["application_id"])["events"]]
     # the new run's fields are populated (by the agent) as soon as the assessment completes
-    assert actions[:3] == ["fields_populated", "assessment", "assessment_started"]
+    # R1: the route is recalculated from the recorded assessment and the change is audited
+    assert actions[:4] == ["route_changed", "fields_populated", "assessment", "assessment_started"]
     assert job["populated"]["new"] > 0 and after["verify"]["stats"]["total"] == job["populated"]["new"]
 
 

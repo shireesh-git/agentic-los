@@ -1,0 +1,245 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Institution profile — NEUTRAL BASE
+#
+# The skeleton every institution profile builds on. It carries no
+# institution-specific branding, vocabulary or limits: generic role names,
+# a neutral institution name, the full base journey (config/los_workflow.yaml),
+# every optional module on, the full due-diligence catalogue with the base
+# mandatory set, the base document checklists and a labelled demo authority
+# matrix.
+#
+# An institution profile (e.g. client_one.yaml) lists only what it changes:
+# branding, label overrides, module switches, workflow overrides, its check
+# selection, its document checklists, its approval matrix and its output
+# templates. The two files are deep-merged (lists replace, dicts merge).
+#
+# Switch the institution for new work:
+#   * set los.profile in config/settings.yaml, or
+#   * LOS_PROFILE=<id> environment variable, or
+#   * POST /api/los/profiles/active  (runtime, per deployment)
+# Existing applications keep the profile they were created in.
+# ═══════════════════════════════════════════════════════════════════════
+
+profile:
+  id: base
+  name: "Neutral base profile"
+  description: "Generic skeleton — no institution branding or limits."
+
+# ── branding ────────────────────────────────────────────────────────────
+branding:
+  institution_name: "Institution — Corporate Banking"
+  short_name: "Institution"
+  app_name: "Corporate LOS"
+  logo: null                          # url / path to the institution's mark
+  colors:
+    primary: "#1f2937"
+    accent: "#6b7280"
+  paper:
+    header: "Corporate Banking — Credit Sanctions"
+    footer: "Generated from the institution profile — demo deployment."
+
+# ── labels (neutral vocabulary; an institution overrides what it wants) ──
+labels:
+  terms:
+    bank: "the institution"
+    committee: "Credit Committee"
+    sanction: "sanction"
+  roles: {}                           # role id → display name (overrides)
+  stages: {}                          # stage id → display name (overrides)
+  steps: {}                           # step id → display name (overrides)
+  decision_fields: {}                 # decision field id → wording (overrides)
+
+# ── the journey: base order from config/los_workflow.yaml; overrides below ──
+workflow:
+  source: null                        # alternate journey file (relative to config/)
+  stages: {}                          # {stage_id: {name, description}} / delete: [stage_id]
+  steps: {}                           # {step_id: {enabled, name, role, sla_days, actions, labels, …}}
+  reorder: null                       # optional explicit list of the enabled step ids
+
+# ── optional modules (off ⇒ their steps leave the journey) ──────────────
+modules:
+  esms: {enabled: true, steps: [ap_es_maker, ap_es_prep, ap_es_review, ap_es_recommend]}
+  dmd: {enabled: true, steps: [ap_dmd]}
+  cma: {enabled: true, steps: []}
+  consortium: {enabled: true, steps: []}
+  committee_ip: {enabled: true, steps: [ip_sanction]}
+  committee_recommendations: {enabled: true, steps: [ap_recommend]}
+  committee_final: {enabled: true, steps: [ap_sanction]}
+
+# ── authority-driven routing (R1) ───────────────────────────────────────────
+# The calculated authority (profile × product × amount × risk grade × deviations)
+# selects the delegation band and its concurrences; the blocks below let an
+# institution gate *optional* steps on routing inputs. A step with no conditions is
+# always included (basis: the institution's journey). Conditions (all must hold for
+# inclusion): product [..], min_amount_cr, max_amount_cr, min_risk_grade (the grade must
+# be at least this strong), max_risk_grade (only for weaker grades), es_category [..],
+# deviation_count_min. concurrence_markers maps wording in an authority label → the
+# concurrence record required at the committee (defaults: EVP note / CRP note /
+# executive credit note / board intimation); concurrence_roles assigns who records it.
+# ── governed modifications (R7) ────────────────────────────────────────────
+# A sanctioned-term modification is material when it crosses these thresholds; a material
+# modification re-enters at material_target_step (credit reassessment, full re-review),
+# a minor one is decided by the committee at minor_target_step without re-running risk.
+modifications:
+  material:
+    amount_increase_pct: 10   # increase above 10% of the sanctioned amount
+    any_tenor_change: 1       # any tenor change is material
+    any_rate_change: 0        # rate changes are minor (committee decides)
+  material_target_step: ap_risk_maker
+  minor_target_step: ap_evp
+
+# ── governed deferral (R2) ─────────────────────────────────────────────────
+deferral:
+  max_days: 180          # a deferral may not extend the case beyond this period
+  require_reason: true   # deferring and reactivating both need a reason
+
+routing:
+  # Base skeleton: no step is gated on routing inputs — every enabled step applies and the
+  # basis says so. An institution profile may add conditions (an override beats the base).
+  steps: {}
+  concurrence_markers: {}
+  concurrence_roles: {evp_note: evp_recommender, crp_note: crp_vp,
+                      executive_note: dmd, board_intimation: sanction_committee}
+
+# ── due-diligence check catalogue ───────────────────────────────────────
+# applicable: all | [check ids]; mandatory / optional: [check ids];
+# names: {check_id: display name}; exception_authority: {role, name}.
+checks:
+  applicable: all
+  mandatory: [mca, crilc, kyc, name_screening, mlra]
+  optional: [cibil, crif, litigation, ews, cfr, ceib, gstin, lei, edd, udin]
+  names: {}
+  exception_authority: {role: compliance_vp, name: "Compliance VP"}
+  rescreen_days: 90
+  exception_ttl_days: 90
+  unavailable_policy: vp_approval
+  # R5: per-check applicability conditions — a check the conditions waive does not apply
+  # (and never blocks). Keys: sector / product / proposal_type / amount_min_cr /
+  # amount_max_cr / grade_in / facility_nature / entity_type. Empty = every check applies.
+  applicability: {}
+  # R5: per-check result validity in days — a result past its validity is stale and must
+  # be re-run. Empty = results do not lapse.
+  validity_days: {}
+
+# R17: field-level edit policy — the fields a change to is a material edit (audited with
+# before/after and flagged in the decision record). Per-domain edit roles are optional
+# (empty = the current step's role edits, which is the legacy behaviour).
+field_material_fields: [amount_cr, tenor_months, interest_rate, purpose, facility_type]
+field_edit_roles: {}
+
+# ── document checklists (per stage; by_product adds/removes per facility type) ──
+# entries: {name, scope: application|entity|facility|project, condition?: securities|projects}
+documents:
+  by_stage:
+    PS:
+      set:
+        - {name: "KYC evidence (POI/POA of the borrower and key persons)", scope: application}
+        - {name: "Audited financial statements", scope: entity}
+        - {name: "Board resolution authorising the proposal", scope: application}
+    IP:
+      set:
+        - {name: "MCA certificate of incorporation", scope: entity}
+        - {name: "CIN / LLPIN certificate", scope: entity}
+    AP:
+      set:
+        - {name: "CMA (prepared in the CMA workspace)", scope: entity}
+        - {name: "Valuation report for the proposed security", scope: application, condition: securities}
+        - {name: "TEV report (where project finance is proposed)", scope: application, condition: projects}
+    POS:
+      set:
+        - {name: "Sanction letter (generated, issued and uploaded back)", scope: application}
+        - {name: "Sanction consent / acceptance", scope: application}
+        - {name: "Facility agreement (executed)", scope: facility}
+        - {name: "Security documents (executed)", scope: application, condition: securities}
+        - {name: "Insurance policy (with bank clause)", scope: application}
+    DIS:
+      set:
+        - {name: "Drawdown request", scope: application}
+        - {name: "Drawdown schedule report", scope: application}
+        - {name: "Disbursement memo (generated and reviewed)", scope: application}
+  by_product: {}                      # {facility_type: {stage: {set|add|remove}}}
+
+# ── delegation & approval matrix ────────────────────────────────────────
+# Rows run lowest → highest authority; max_amount null = no limit.
+# by_product: product-specific routing that wins for that facility type.
+approval:
+  currency: "₹ Cr"
+  preliminary:
+    - {max_amount: 200, authority: "In-Principle Sanction Committee (preliminary)"}
+    - {max_amount: 500, authority: "In-Principle Sanction Committee (preliminary) with EVP note"}
+    - {max_amount: null, authority: "In-Principle Sanction Committee (preliminary) with EVP and CRP note"}
+  final:
+    - {max_amount: 200, authority: "Credit Sanction Committee"}
+    - {max_amount: 500, authority: "Credit Sanction Committee with executive credit note"}
+    - {max_amount: null, authority: "Credit Sanction Committee with executive credit note and board intimation"}
+  sub_investment_grade_concurrence: true
+  deviation_escalation_levels: 1
+  by_product: {}
+
+# ── output templates ────────────────────────────────────────────────────
+outputs:
+  cam:
+    title: "Credit Appraisal Memo"
+    sections: all
+    headings: {}
+  ip_note:
+    title_prefix: "In-Principle Note"
+    sections: [borrower, proposal, exposure, financials, security, prescreen]
+    headings:
+      exposure: "Existing exposure with the bank"
+      financials: "Financial snapshot"
+  committee_pack:
+    title: "Committee Pack"
+    sections: [headline, decision_trail, risks, due_diligence, deviations, overrides, comments, brief]
+    headings: {}
+  sanction_letter:
+    kind_titles: {term_sheet: "Term sheet (indicative)", sanction_letter: "Sanction letter"}
+    acceptance_days: 30
+    demo_mark: "DEMO DOCUMENT generated for demonstration — not an offer, commitment or sanction of any institution."
+    sections: [terms, security, conditions_precedent, conditions_subsequent, covenants, deviations]
+    headings: {}
+
+## Session security (R18): absolute expiry and idle timeout
+session:
+  max_hours: 8
+  idle_minutes: 30
+
+## Committee governance (R9): attendance, quorum, voting and structured minutes at
+## committee steps. ``enabled: false`` is the legacy behaviour — the committee acts
+## through its step holder with its recorded minutes in the decision comment. An
+## institution profile may enable it: the roster below is the standing membership;
+## attendance, votes and minutes are recorded per meeting (per step) and a forward
+## decision (sanction/approve) is blocked until quorum is met, the minutes are on
+## file and the vote approves the decision.
+committee_governance:
+  enabled: false
+  quorum: 0                     # minimum present members (conflicts of interest excluded)
+  majority: simple              # simple = approvals > dissents; two_thirds = approvals ≥ 2/3 of voting members
+  members: []                   # standing roster: [{user_id, name}] (names are enough for a demo)
+  conflicts_exclude_from_quorum: true   # a member declaring a conflict of interest is excused from the vote and the quorum
+  dissent_requires_remarks: true
+
+## Group exposure norm (R12): the group exposure limit
+exposure:
+  group_limit_pct: 100   # % of the borrower's latest net worth
+## Waiver governance (R10): the default waiver authority and its maximum period
+waiver:
+  default_authority: Post Sanction Checker
+  max_days: 180
+
+## Policy-deviation detection (R11): automatic rules applied to the application
+deviation_rules:
+  tenor_months_max: 60
+  tenor_months_major: 120
+  amount_cr_max: 25000
+  sub_investment_grade: [BB, B, CCC, CC, C, D]
+  sector_watch: [Real estate, Mining]
+  exposure_norm_pct: 100   # % of group net worth that triggers a group-exposure deviation
+
+## E&S exceptions (R5): the excluded-activity screen's exception path. Disabled by
+## default — the base behaviour is the hard block; an institution opts in with its own
+## deciding authority and the period an approved exception holds.
+esms:
+  exceptions_enabled: false
+  exception_authority: {role: crp_vp, name: "CRP VP"}
+  exception_ttl_days: 180

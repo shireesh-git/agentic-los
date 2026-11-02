@@ -46,6 +46,7 @@ function losApp() {
 
   return {
     directory: { groups: [], roles: {}, users: [] },
+    branding: {}, profile: {},
     session: null,
     signinGroup: null, signinUser: '', signinRole: '',
     page: 'dashboard', lastList: 'dashboard',
@@ -65,10 +66,11 @@ function losApp() {
     borrowers: [], identity: null, customerIdSel: '', newApp: { entity_id: '', priority: 'Normal', facilities: [], related_parties: [],
                      prospect: { project_type: '', funding_type: '', brief_description: '', detailed_discussion: '',
                                  initial_remarks: '' },
-                     decision: { decision: '', mandatory_remarks: '', conditional_remarks: '' } },
+                     decision: { decision: '', mandatory_remarks: '', conditional_remarks: '' }, product: '' },
+    products: [], admin: null, guided: [],
     dd: null, ddEdit: '', ddResult: 'clear', ddRemarks: '', ddEv: '', ddEvName: '', ddEvNote: '', udinOpen: false, udinRows: [], udinRow: { document: '', udin_code: '', status: 'verified' }, invResolving: '', invResolution: '', subTrancheReason: '',
     consent: { acknowledged_by: '', consent_date: '', remarks: '' }, consentFacilities: [],
-    auditEvents: [],
+    auditEvents: [], fieldPerms: null,
     rm: null, rmTab: 'customer', _rmTimer: null, rmEdit: '', rmEditValue: '', rmEditReason: '', verifyPick: {}, verifyReason: {}, verifyValue: {}, verifyEdit: '',
     ipnAssign: { lpfg_analyst: '', lpfg_senior_analyst: '', crac_recommendation: '', crac_remarks: '' },
     pack: null, briefing: false, sanctionAmount: null, RISK_MAKER: RISK_MAKER_STEPS,
@@ -89,6 +91,7 @@ function losApp() {
            visit: { date_of_visit: '', place: '', address_visited: '', official: '', designation: '', observation: 'Satisfactory', remarks: '' } },
     govDocs: null, govRules: null, govSnap: null, integrations: null,
     decision: null, devForm: { type: 'policy', description: '', justification: '' },
+    meeting: null, cgAgenda: '', cgDiscussion: '', cgResolution: '',
     terms: null, termForm: { category: 'CP', text: '', facility_id: '', stipulated_value: '', frequency: '' },
     termEdit: null, termReason: '',
     toast: '', toastType: '', _toastTimer: null,
@@ -99,12 +102,33 @@ function losApp() {
 
     async init() {
       this.directory = await this.api('directory', {}, { auth: false });
+      this.branding = this.directory.branding || {};
+      this.profile = this.directory.profile || {};
+      this.applyBranding();
       const token = storage(s => s.getItem(TOKEN_KEY));
       if (token) {
         try { this.session = await this.api('session'); } catch { storage(s => s.removeItem(TOKEN_KEY)); }
       }
       window.addEventListener('hashchange', () => this.onHash());
-      if (this.session) await this.onHash();
+      if (this.session) { await this.loadIntegrations(); await this.onHash(); }
+    },
+
+    applyBranding() {
+      // Institution branding from the active profile: title, institution name and theme colours.
+      // Colours fall back to the neutral base values when the profile omits them (or is invalid).
+      const b = this.branding || {};
+      if (b.app_name) document.title = b.app_name;
+      const colors = b.colors || {};
+      const root = document.documentElement;
+      if (colors.primary) root.style.setProperty('--los-primary', colors.primary);
+      if (colors.accent) root.style.setProperty('--los-accent', colors.accent);
+      // Neutral logo placeholder: the profile's mark when configured, else the short-name monogram.
+      const mono = (b.short_name || 'LOS').slice(0, 3).toUpperCase();
+      document.querySelectorAll('.los-logo').forEach(el => {
+        if (b.logo) { el.textContent = ''; el.style.backgroundImage = `url(${b.logo})`;
+                      el.style.backgroundSize = '80%'; el.style.backgroundRepeat = 'no-repeat'; el.style.backgroundPosition = 'center'; }
+        else { el.textContent = mono; el.style.backgroundImage = ''; }
+      });
     },
 
     /* ─── API ─────────────────────────────────────────────────────── */
@@ -127,11 +151,13 @@ function losApp() {
       }
       return j;
     },
-    post(path, body) { return this.api(path, { method: 'POST', body: JSON.stringify(body || {}) }); },
+    post(path, body, opts) { return this.api(path, { method: 'POST', body: JSON.stringify(body || {}) }, opts); },
 
     ask(title, { text = '', placeholder = '', required = true, ok = 'Save', choices = [], choiceLabel = '' } = {}) {
       // a reason / remark, typed in the page's own dialog; resolves to the text, or null when cancelled
       // (``choices``: a pick list shown above it — the pick is left in ``dlgChoice``)
+      // R21: focus lands in the dialog on open and returns to the invoking control on close
+      this._dlgReturn = document.activeElement;
       return new Promise(resolve => {
         this.dlg = { open: true, title, text, input: true, required, value: '', placeholder, ok, danger: false, resolve,
                      choices, choice: choices[0]?.value || '', choiceLabel };
@@ -143,7 +169,19 @@ function losApp() {
     },
     closeDlg(result) {
       const r = this.dlg.resolve; this.dlgChoice = this.dlg.choice; this.dlg = { ...this.dlg, open: false, resolve: null };
+      // R21: return focus to the control that opened the dialog
+      if (this._dlgReturn) { try { this._dlgReturn.focus(); } catch { /* the return node may be gone */ } this._dlgReturn = null; }
       if (r) r(result);
+    },
+    // R21: keep Tab cycling inside the open dialog (focus trap)
+    dlgFocusTrap(ev) {
+      const el = ev.currentTarget;
+      const focusables = [...el.querySelectorAll('button, select, textarea, input, [tabindex]')]
+        .filter(x => !x.disabled && x.offsetParent !== null);
+      if (!focusables.length) return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (ev.shiftKey && document.activeElement === first) { last.focus(); ev.preventDefault(); }
+      else if (!ev.shiftKey && document.activeElement === last) { first.focus(); ev.preventDefault(); }
     },
     notify(msg, type) {
       if (type === 'error') this.lastError = msg;           // stays on screen until dismissed or the next success
@@ -175,6 +213,44 @@ function losApp() {
       this.notify('Acting as ' + this.session.role_name, 'ok');
       await this.refresh();
     },
+
+    /* ─── Guided demo scenarios ───────────────────────────── */
+    scenarioRoleUser(role) {
+      return (this.directory?.users || []).find(u => (u.roles || []).includes(role));
+    },
+    async _scenarioReseed(s, verb) {
+      this.busy = true;
+      try {
+        if (s.profile) {
+          const active = this.admin?.active_profile || (await this.api('profiles', {}, { auth: false })).active;
+          if (active !== s.profile)
+            await this.post('profiles/active', { profile_id: s.profile, reseed: true });
+          else
+            await this.post('admin/demo-reset', { scope: 'active_profile' });
+        }
+        this.guided = (await this.api('demo-scenarios', {}, { quiet: true })).scenarios || [];
+        const sc = (this.guided || []).find(x => x.id === s.id) || s;
+        if (sc.application_id) { this.notify(verb + ' scenario — opening ' + sc.application_id, 'ok'); this.go('app/' + sc.application_id); }
+        else this.notify(verb + ' scenario', 'ok');
+      } finally { this.busy = false; }
+    },
+    async startScenario(s) { await this._scenarioReseed(s, 'Started'); },
+    async resetScenario(s) {
+      const ok = await this.askConfirm('Reset scenario', {
+        text: 'Reseed this scenario\u2019s demo application (its current state is discarded). User-created applications are never touched.',
+        ok: 'Reset', danger: true });
+      if (!ok) return;
+      await this._scenarioReseed(s, 'Reset');
+    },
+    openScenarioApp(s) { if (s.application_id) this.go('app/' + s.application_id); },
+    async signInAsScenarioRole(s) {
+      const role = s.start_role;
+      const u = this.scenarioRoleUser(role);
+      if (!u) { this.notify('No demo user carries the role ' + (role || '?'), 'error'); return; }
+      this.signinUser = u.id; this.signinRole = role;
+      await this.signIn();
+      if (s.application_id) this.go('app/' + s.application_id);
+    },
     async signOut() {
       try { await this.api('session', { method: 'DELETE' }, { quiet: true }); } catch {}
       storage(s => s.removeItem(TOKEN_KEY));
@@ -192,6 +268,8 @@ function losApp() {
       if (page === 'dashboard' || page === 'queue') { this.lastList = page; await this.refresh(); }
       else if (page === 'app' && id) await this.loadApp(id);
       else if (page === 'new') {
+        this.newApp.product = '';
+        try { this.products = (await this.api('products', {}, { quiet: true })).products || []; } catch { this.products = []; }
         await this.loadBorrowers();
         const q = new URLSearchParams(query || '');
         if (q.get('entity')) {
@@ -202,6 +280,8 @@ function losApp() {
         }
       }
       else if (page === 'audit') this.auditEvents = (await this.api('audit')).events;
+      else if (page === 'admin') await this.loadAdmin();
+      else if (page === 'guided') this.guided = (await this.api('demo-scenarios', {}, { quiet: true })).scenarios || [];
       else if (page === 'mis') await this.loadMis();
       else await this.loadDash();
     },
@@ -244,7 +324,7 @@ function losApp() {
                           ?.execution_status || '', agreement_date: ((app.consent || {}).facilities || [])
                           .find(x => x.facility_id === f.facility_id)?.agreement_date || '' })); }
       await Promise.all([this.loadAssessment(), this.loadPack(), this.loadSourcing(), this.loadNote(), this.loadPost(),
-                         this.loadCopilot(), this.loadLetters(), this.loadDD()]);
+                         this.loadCopilot(), this.loadLetters(), this.loadDD(), this.loadFieldPerms()]);
     },
 
     /* ─── Credit assessment (Risk Maker workspace) ────────────────── */
@@ -353,6 +433,62 @@ function losApp() {
     async loadDecision() {
       if (!this.current) return;
       try { this.decision = await this.api(this.appPath('decision'), {}, { quiet: true }); } catch { this.decision = null; }
+      this.loadMeeting();
+    },
+    /* ─── R9 committee governance: attendance, vote, minutes ─────────── */
+    async loadMeeting() {
+      if (!this.current || this.current.step?.kind !== 'committee') { this.meeting = null; return; }
+      const stepId = this.current.step.id;
+      try {
+        const m = await this.api(this.appPath('committees/' + stepId), {}, { quiet: true });
+        if (this.current?.application_id) this.meeting = m.enabled ? m : null;
+      } catch { this.meeting = null; }
+    },
+    cgSeedDrafts() {
+      const m = this.meeting;
+      if (!m) return m;
+      if (!m._draft) {
+        const roster = m.roster.map(r => ({ ...r, status: r.status || 'absent',
+                                            conflict_of_interest: !!r.conflict_of_interest,
+                                            conflict_note: r.conflict_note || '' }));
+        const present = roster.filter(r => r.status === 'present' && !r.conflict_of_interest);
+        const have = Object.fromEntries((m.votes || []).map(v => [v.name, v]));
+        const votes = present.map(r => have[r.name]
+                               ? { name: r.name, vote: have[r.name].vote, remarks: have[r.name].remarks || '' }
+                               : { name: r.name, vote: 'approve', remarks: '' });
+        this.meeting = { ...m, _draft: true, _members: roster, _votes: votes };
+      }
+      return this.meeting;
+    },
+    async cgSaveAttendance() {
+      const m = this.cgSeedDrafts(); if (!m) return;
+      this.busy = true;
+      try {
+        await this.post(this.appPath('committees/' + this.current.step.id + '/attendance'), { members: m._members });
+        this.notify('Committee attendance recorded', 'ok');
+        await this.refreshCurrent(); this.loadDecision();
+      } catch {} finally { this.busy = false; }
+    },
+    async cgSaveVotes() {
+      const m = this.cgSeedDrafts(); if (!m) return;
+      this.busy = true;
+      try {
+        await this.post(this.appPath('committees/' + this.current.step.id + '/votes'), { votes: m._votes });
+        this.notify('Committee vote recorded', 'ok');
+        await this.refreshCurrent(); this.loadDecision();
+      } catch {} finally { this.busy = false; }
+    },
+    async cgSaveMinutes() {
+      const m = this.meeting; if (!m) return;
+      this.busy = true;
+      try {
+        await this.post(this.appPath('committees/' + this.current.step.id + '/minutes'), {
+          agenda: (this.cgAgenda || '').split('\n').map(x => x.trim()).filter(Boolean),
+          discussion: this.cgDiscussion, resolution: this.cgResolution });
+        this.notify('Committee minutes recorded', 'ok');
+        this.cgAgenda = this.cgDiscussion = this.cgResolution = '';
+        await this.refreshCurrent(); this.loadDecision();
+      } catch {} finally { this.busy = false; }
     },
     async addDeviation() {
       this.busy = true;
@@ -626,7 +762,17 @@ function losApp() {
     srcSelected() { return Object.keys(this.srcSel).filter(k => this.srcSel[k]); },
     async refreshCurrent() {
       this.current = await this.api('applications/' + encodeURIComponent(this.current.application_id));
+      this.loadFieldPerms();
       this.loadCopilot();
+    },
+
+    // R17: the server's field-level edit policy — the UI disables exactly the domains
+    // this role may not edit; the API enforces the same policy (a 403 is shown, not swallowed).
+    async loadFieldPerms() {
+      try {
+        this.fieldPerms = await this.api('applications/' + encodeURIComponent(this.current.application_id)
+                                         + '/field-permissions', {}, { quiet: true });
+      } catch { this.fieldPerms = null; }
     },
 
     /* ─── Governance workspaces (clientspec GAP-P0/P1/P2) ────────── */
@@ -685,6 +831,9 @@ function losApp() {
         this.openGov(this.gov.tab);
         return true;
       } catch (e) {
+        // R17: the server's field policy is the source of truth — a 403 (a domain this role
+        // may no longer edit) is shown as-is; other errors keep the previous behaviour
+        if (!/You may|read-only|available to the current step|does not allow/.test(e.message || '')) this.notify(e.message || 'Save failed', 'error');
         return false;
       }
     },
@@ -906,7 +1055,11 @@ function losApp() {
       if (w) { w.document.write('<!doctype html><meta charset="utf-8"><title>' + title + '</title>'
         + '<body style="font-family:system-ui;max-width:900px;margin:24px auto;padding:0 16px">' + html); w.document.close(); }
     },
-    async loadIntegrations() { if (!this.integrations) { try { this.integrations = await this.api('integrations', {}, { quiet: true }); } catch { this.integrations = null; } } },
+    async loadIntegrations() {
+      if (!this.session || this.integrations) return;
+      try { this.integrations = await this.api('integrations', {}, { quiet: true }); }
+      catch { this.integrations = null; }
+    },
 
     /* ─── Term sheet & sanction letter ───────────────────────────── */
     async loadLetters() {
@@ -1604,7 +1757,8 @@ function losApp() {
         const app = await this.post('applications', { entity_id: this.newApp.entity_id, priority: this.newApp.priority,
           facilities: this.newApp.facilities, related_parties: this.newApp.related_parties,
           prospect_discussion: this.newApp.prospect, sourcing_decision: this.newApp.decision,
-          customer_id_selection: this.customerIdSel || null, cam: this.camPayload() });
+          customer_id_selection: this.customerIdSel || null, cam: this.camPayload(),
+          product: this.newApp.product || null });
         this.notify('Application ' + app.application_id + ' created as draft'
                     + (app.cam_source ? ' from the CAM — agents are preparing it' : ''), 'ok');
         this.go('app/' + app.application_id);
@@ -1622,7 +1776,8 @@ function losApp() {
                       sector: i.sector, subsector: i.subsector || null },
           facilities: this.newApp.facilities, related_parties: this.newApp.related_parties,
           prospect_discussion: this.newApp.prospect, sourcing_decision: this.newApp.decision,
-          confirm_not_duplicate: this.prospect.confirm_not_duplicate, cam: this.camPayload() });
+          confirm_not_duplicate: this.prospect.confirm_not_duplicate, cam: this.camPayload(),
+          product: this.newApp.product || null });
         this.notify('Prospect ' + app.borrower_name + ' (' + app.entity_id + ') created — agents are preparing it', 'ok');
         this.prospect = { category: 'request', staging_id: null, documents: [], read: null, reading: false, identity: {},
                           confirm_not_duplicate: false };
@@ -1637,6 +1792,50 @@ function losApp() {
         this.notify('Demo pipeline reset: ' + r.seeded + ' applications', 'ok');
         this.current = null; this.go('dashboard');
       } catch {} finally { this.busy = false; }
+    },
+
+    /* ─── Administration (institution profiles, demo data) ───────── */
+    async loadAdmin() {
+      try { this.admin = await this.api('admin/overview'); }
+      catch { this.admin = null; }
+    },
+    async activateProfile(id, reseed) {
+      const p = (this.admin?.profiles || []).find(x => x.id === id);
+      const ok = await this.askConfirm('Activate ' + (p?.name || id), {
+        text: 'New work will run under this institution profile (its journey, modules, checks, documents, authority and outputs). '
+             + 'Existing applications keep the profile recorded against them.'
+             + (reseed ? ' The profile’s seeded demo applications will be recreated.' : ''), ok: 'Activate', danger: false });
+      if (!ok) return;
+      this.busy = true;
+      try {
+        const r = await this.post('profiles/active', { profile_id: id, reseed });
+        this.notify('Institution profile set to ' + (p?.short_name || id)
+                    + (r.demo_applications_created ? ' · ' + r.demo_applications_created + ' demo application(s) seeded' : ''), 'ok');
+        await this.init();                      // branding, directory and profile of the new institution
+        await this.loadAdmin();
+        this.current = null; this.go('dashboard');
+      } catch {} finally { this.busy = false; }
+    },
+    async resetDemoScope(scope) {
+      const ok = await this.askConfirm('Reset demo data', {
+        text: scope === 'all_demo'
+             ? 'Remove and recreate every seeded demo application (all institution profiles). User-created applications are never touched.'
+             : 'Remove and recreate the seeded demo applications of the active institution profile. User-created applications are never touched.',
+        ok: 'Reset', danger: true });
+      if (!ok) return;
+      this.busy = true;
+      try {
+        const r = await this.post('admin/demo-reset', { scope });
+        const by = Object.entries(r.recreated_by_profile || {}).map(([p, n]) => p + ': ' + n).join(', ');
+        this.notify('Demo reset: ' + r.removed + ' seeded application(s) removed, ' + r.recreated + ' recreated (' + (by || 'none') + ')', 'ok');
+        await this.loadAdmin();
+        this.current = null; this.go('dashboard');
+      } catch {} finally { this.busy = false; }
+    },
+    selectedProduct() {
+      const p = (this.products || []).find(x => x.id === this.newApp.product);
+      if (!p) return '';
+      return p.name + ': ' + (p.facility_types || []).map(x => this.titleCase(x)).join(', ') + ' — ' + (p.description || p.category);
     },
 
     /* ─── Display helpers (formatting only) ───────────────────────── */

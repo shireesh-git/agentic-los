@@ -1,0 +1,74 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Product template — WORKING CAPITAL
+# Short-cycle fund-based limits (cash credit / overdraft / WC DL) against
+# stock and receivables. Every institution profile may run it.
+# ═══════════════════════════════════════════════════════════════════════
+
+product:
+  id: working_capital
+  name: "Working Capital"
+  category: "Short-term lending"
+  description: "Short-cycle working-capital limits (cash credit, overdraft, WC DL) against stock and receivables."
+  profiles: all
+
+  facility_types: [working_capital, cash_credit, overdraft, wcdl]
+  facility_defaults:
+    facility_nature: fund_based
+    benchmark: MCLR
+  borrower_fields:
+    - {id: company_name, label: "Company name", required: true}
+    - {id: cin, label: "CIN", required: true}
+    - {id: pan, label: "PAN", required: true}
+    - {id: gstin, label: "GSTIN", required: true}
+    - {id: registered_address, label: "Registered office", required: true}
+  facility_fields:
+    - {id: amount_cr, label: "Limit (₹ Cr)", required: true}
+    - {id: tenor_months, label: "Tenor (months)", required: true}
+    - {id: purpose, label: "Purpose / margin estimate basis", required: true}
+    - {id: benchmark, label: "Benchmark", required: true}
+    - {id: interest_rate, label: "Interest rate (%)", required: false}
+    - {id: repayment_type, label: "Repayment method", required: true}
+
+  amount: {min_cr: 1, max_cr: 250, currency: "₹ Cr"}
+  tenor: {min_months: 6, max_months: 24}
+  moratorium: {max_months: 3}
+
+  pricing:
+    benchmarks: [MCLR, external_benchmark]
+  repayment: [interest_only]
+
+  security:
+    required: true
+    min_fsv_cover: 1.5
+    acceptable_types: [movable, receivables, guarantees]
+  financial_analysis:
+    required_ratios: [current_ratio, interest_coverage_ratio]
+    cma_required: true
+
+  checks:
+    applicable: [ews, gstin, crif, cfr]
+    mandatory: [ews]
+
+  documents:
+    by_stage:
+      AP:
+        add:
+          - {name: "Stock and receivables statement (2 months before)", scope: application}
+      POS:
+        add:
+          - {name: "Quarterly operating report arrangement", scope: application}
+
+  workflow:
+    stages: [PS, IP, AP, POS, DIS]
+    modules: {}
+
+  approval: {}
+
+  outputs:
+    ip_note: {title_prefix: "In-Principle Note — Working Capital"}
+    cam: {title: "Credit Appraisal Memo — Working Capital"}
+    sanction_letter: {kind_titles: {term_sheet: "Term sheet (indicative)", sanction_letter: "Sanction letter"}}
+
+  validations:
+    - {id: wc_purpose, rule: purpose_not_blank,
+       message: "the purpose / margin basis of the working-capital limit is required"}

@@ -52,7 +52,7 @@ DOCUMENTS: dict[str, dict] = {
     "request/drawdown_request.pdf": {"pages": [
         "Drawdown Request No. 1\nDrawdown Amount requested: Rs 20 Cr\nValue Date: 20-Nov-2026\n"
         "Purpose of drawdown: Raw material procurement for the Pune plant.\n"
-        "Beneficiary Name: Zeta Foods Private Limited Account No.: 004512300098765 Bank: Demo Bank\n"
+        "Beneficiary Name: Zeta Foods Private Limited Account No.: 004512300098765 Bank: {BANK}\n"
         "IFSC Code: DEMO0001234"]},
 }
 
@@ -151,6 +151,15 @@ def write_pdf(path: Path, pages: list[str], scanned: bool = False) -> None:
     doc.close()
 
 
+def _institution() -> str:
+    """The active institution profile's short name (neutral default if unavailable)."""
+    try:
+        from src.los import profiles
+        return str((profiles.branding().get("short_name") or "").strip()) or "The institution"
+    except Exception:
+        return "The institution"
+
+
 def write_set(root: Path, only: tuple[str, ...] = (), include_cam: bool = False) -> list[Path]:
     """Write the demo documents under ``root`` (category/name.pdf); ``only``: a subset of names;
     ``include_cam``: also the bank-format CAM (cam/credit_appraisal_memo.pdf)."""
@@ -159,6 +168,6 @@ def write_set(root: Path, only: tuple[str, ...] = (), include_cam: bool = False)
         if only and rel not in only:
             continue
         path = Path(root) / rel
-        write_pdf(path, spec["pages"], scanned=spec.get("scanned", False))
+        write_pdf(path, [p.replace("{BANK}", _institution()) for p in spec["pages"]], scanned=spec.get("scanned", False))
         out.append(path)
     return out

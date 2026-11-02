@@ -112,11 +112,20 @@ def build_container(pipeline_factory=default_pipeline_factory) -> ServiceContain
     from src.core.runtime_paths import RUNTIME_DB_PATH
     from src.los.service import load_workflow
     from src.los.store import LosStore
+    from datetime import timedelta as _td
+    _sec = {}
+    try:
+        from src.los.profiles import get_profile as _gp
+        _sec = (_gp().get("session") or {})
+    except Exception:
+        _sec = {}
     los_service = LosService(LosStore(RUNTIME_DB_PATH), load_workflow, state.companies,
                              cases=case_service, final_cam=final_cam_service,
                              documents_root=DOCUMENTS_ROOT, doc_store=doc_store,
                              llm_factory=final_cam_service.llm_factory,
-                             company_registrar=company_service.register_prospect)
+                             company_registrar=company_service.register_prospect,
+                             session_max_age=_td(hours=float(_sec.get("max_hours") or 8)),
+                             session_idle_timeout=_td(minutes=float(_sec.get("idle_minutes") or 30)))
     los_service.seed_demo()          # first start only: seeds the demo pipeline when no applications exist
 
     return ServiceContainer(

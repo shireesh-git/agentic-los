@@ -27,6 +27,90 @@ Background: [docs/planning/](docs/planning/) holds the gap analyses behind the P
 reference notes on the CAM engine (datapoint sources, credit observations, the agent harness and the CAM workspace screens).
 Open the `.html` guides directly in a browser; they need no server or internet connection.
 
+## Institution profiles (one app, many institutions)
+
+The LOS is institution-neutral: branding, vocabulary, role names, the journey, optional
+modules, due-diligence checks, document checklists, approval authority and output
+templates all come from an **institution profile** in `config/institution_profiles/`:
+
+| Profile | What it is |
+|---|---|
+| `base.yaml` | the neutral skeleton — no branding, generic labels, all modules on (never selectable) |
+| `client_one.yaml` | the bank the POC was built with (default; reproduces the legacy behaviour) |
+| `client_two.yaml` | a shorter journey: no DMD gate or Recommendations Committee, different checks, product-aware documents and its own approval matrix |
+| `dfi.yaml` | demo profile — development finance institution: project finance & infrastructure term loans, ES process, board-level limits |
+| `corporate.yaml` | unified corporate-lending demo: term loans and working capital, with E&S, consortium and committee controls enabled |
+| `msme_lender.yaml` | demo profile — NBFC MSME lender: scorecard-driven, no CMA/ES, simplified documentation & approvals |
+
+The DFI and MSME profiles each ship two deterministic seeded demo applications. The unified
+corporate profile ships twelve prepared cases across the journey. These use clearly fictional
+borrowers (e.g. Kaveri Greenways Energy LLP for the DFI project-finance demo) and are replayed
+to a fixed stage when that profile's demo data is reset.
+
+An institution file lists only what differs from `base.yaml` (deep merge). A profile can:
+
+- set branding (name, short name, app name, logo, colours) and labels (role / stage / step /
+  decision-field wording) — the UI and generated documents pick them up;
+- switch optional modules on/off (`esms`, `dmd`, `cma`, `consortium`, `committee_ip`,
+  `committee_recommendations`, `committee_final`) — their steps leave the journey;
+- shorten, rename or reorder the journey (`workflow.steps`, `workflow.reorder`) — no code
+  paths, steps stay addressable by id;
+- select the due-diligence checks, the mandatory set, the exception authority and the
+  re-screen / exception clocks;
+- configure mandatory documents by stage **and** by product (facility type);
+- configure the delegation matrix by amount band, risk grade, product and deviations;
+- configure the CAM / IP note / committee pack / sanction-letter templates (titles, sections,
+  headings, acceptance period, demo mark).
+
+Selection: an application records its profile at creation (`profile` in `POST /applications`,
+or the active profile); the active profile is set by `los.profile` in `config/settings.yaml`,
+the `LOS_PROFILE` environment variable, or `POST /api/los/profiles/active` (runtime,
+**administrator-only**). Existing applications keep the profile they were created in.
+API: `GET /api/los/profiles`, `GET /api/los/profiles/{id}?full=true`, `GET /api/los/branding`.
+
+### Reusable product templates
+
+Credit products are configuration too: `config/product_templates/*.yaml` describes one product —
+its facility types, borrower/facility fields, amount & tenor gates, pricing benchmarks,
+repayment methods, security expectations, financial-analysis requirements, the due-diligence
+checks it adds (and which are mandatory), its document additions/removals per stage, the
+workflow modules it needs, its delegation-matrix route and its output-template overrides.
+Adding a product is a new YAML file — no new code path. The four shipped products:
+
+| Product | Runs under | Gates |
+|---|---|---|
+| `term_loan` | every profile | ₹5 Cr+, 12–84 months, security 1.25× FSV |
+| `working_capital` | every profile | ₹1–250 Cr, 6–24 months, interest-only, 1.5× cover |
+| `msme_loan` | the MSME lender profile | ₹0.25–50 Cr, 6–60 months, GST + bank-statement analysis, no CMA |
+| `project_finance` | the DFI profile (and Client One) | ₹50–5000 Cr, 24–120 months, moratorium ≤ 36, ES + project documents, PF committee route |
+
+Compatibility is two-sided: a product lists the profiles it applies to (`profiles:`) and a
+profile lists the products it runs (`products:`); the New Application screen shows which
+products the active profile runs, and creating with an incompatible product is a 400. An
+application stores its product at creation (`product` in `POST /applications` / `/prospects`,
+or inferred from the facility types when the profile runs a fixed product set) and keeps it
+for life — the product's checks, documents, authority route and output templates follow the
+application, not the currently active profile. Legacy profiles without a `products` list apply
+no product gates, so Client One behaves exactly as before.
+
+### Administration & guided demos (administrator only)
+
+The **Administration** page (signed in as *LOS System Admin*, role `los_admin`) shows the
+active institution configuration (products, journey length, modules, checks, seeded demo
+applications), product templates and demo users, and offers a reset of the active profile's
+demo applications. The administrator API also supports profile activation and a reset across
+all demo profiles. Every change is audit-logged (`active_profile_changed`, `demo_reset`);
+user-created applications are never touched by a reset. The **Guided Demo**
+page lists the scripted walkthroughs for the active profile (role, stage, action, expected
+behaviour, next step) from `config/demo_scenarios.yaml` — six scenarios covering the DFI
+project-finance, corporate working-capital and NBFC MSME journeys plus rework, approval
+escalation and a validation-failure-then-correction.
+
+API: `GET /api/los/products`, `GET /api/los/products/{id}?profile_id=`, `GET /api/los/demo-scenarios`,
+`GET /api/los/admin/overview`, `POST /api/los/profiles/active` (admin, body
+`{profile_id, reseed?}`), `POST /api/los/admin/demo-reset` (admin, body `{scope}`),
+`GET /api/los/admin/audit` (admin).
+
 ## What the LOS does
 
 - **Five stages, 31 steps:** Prospect Sourcing → In-Principle → Application Processing → Post

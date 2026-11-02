@@ -112,9 +112,10 @@ class Workflow:
     stages: list[dict]
     steps: list[Step] = field(default_factory=list)
     remarks_required: str = "negative"      # "all": every decision records remarks (allocation excepted)
+    decision_field_labels: dict = field(default_factory=lambda: dict(DECISION_FIELD_LABELS))
 
     @classmethod
-    def from_config(cls, cfg: dict) -> "Workflow":
+    def from_config(cls, cfg: dict, decision_field_labels: Optional[dict] = None) -> "Workflow":
         if not cfg or not cfg.get("stages"):
             raise WorkflowError("LOS workflow configuration (config/los_workflow.yaml) is missing or empty")
         steps, index = [], 0
@@ -135,6 +136,8 @@ class Workflow:
                 index += 1
         wf = cls(groups=cfg.get("groups", []), roles=cfg.get("roles", {}), users=cfg.get("users", []),
                  stages=cfg["stages"], steps=steps, remarks_required=str(cfg.get("remarks_required", "negative")))
+        if decision_field_labels:           # the institution's wording for the decision record
+            wf.decision_field_labels = {**DECISION_FIELD_LABELS, **decision_field_labels}
         wf._validate()
         return wf
 

@@ -69,7 +69,8 @@ class FinalCamService:
         with self._lock:
             case = self.cases.get_run(entity_id, run_id)
             final = self._ensure(case)
-        return render_final_cam_markdown(final), case.get("company_name", entity_id)
+        branding = (case.get("fact_pack") or {}).get("institution_branding") or None
+        return render_final_cam_markdown(final, branding), case.get("company_name", entity_id)
 
     def interpret(self, entity_id: str, section_ids: list[str] | None = None) -> dict:
         """AI interpretation for the given sections (all when none given). Facts and recommendation are unchanged."""

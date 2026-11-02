@@ -1,0 +1,67 @@
+<!-- Guided demo scenarios for the single active lending journey -->
+<section x-show="page === 'guided'">
+  <div class="los-page-head"><div><h1>Guided Demo</h1>
+    <p class="text-muted">Scripted walkthroughs for the unified <strong x-text="branding.app_name || 'Corporate Lending LOS'"></strong> journey —
+      each scenario names the product, the fictional borrower, the starting role and stage, the action, the expected
+      behaviour and the next stop. Scenarios use the normal application APIs and workflow transitions;
+      <em>Start</em> reseeds the scenario's demo application (administrator action), <em>Reset</em> does the same for a clean replay.</p></div></div>
+  <template x-for="s in guided" :key="s.id">
+    <div class="card" style="margin-bottom:16px">
+      <div class="los-admin-role" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <strong style="font-size:1.05rem" x-text="s.title"></strong>
+        <span class="badge sm" :class="s.outcome === 'success' ? 'badge-green' : 'badge-amber'" x-text="s.outcome === 'success' ? 'success path' : 'exception / risk'"></span>
+      </div>
+      <p class="text-muted" style="margin:8px 0" x-text="s.story"></p>
+      <div class="los-admin-grid" style="margin-bottom:8px">
+        <div class="los-admin-role"><strong>Lending configuration</strong>
+          <span class="text-muted" x-text="branding.institution_name || 'Corporate Lending'"></span></div>
+        <div class="los-admin-role"><strong>Product</strong>
+          <span class="text-muted" x-text="s.product ? titleCase(s.product) : '—'"></span></div>
+        <div class="los-admin-role"><strong>Fictional borrower</strong>
+          <span class="text-muted" x-text="s.borrower_name || '—'"></span></div>
+        <div class="los-admin-role"><strong>Application</strong>
+          <span class="text-muted"><button type="button" class="link-btn" x-show="s.application_id"
+                @click="go('app/' + s.application_id)" x-text="s.application_id + ' (open)'"></button>
+            <template x-if="!s.application_id"><span>not seeded — use Start Scenario</span></template></span></div>
+        <div class="los-admin-role"><strong>Starting role</strong>
+          <span class="text-muted" x-text="roleName(s.start_role)"></span></div>
+        <div class="los-admin-role"><strong>Starting stage</strong>
+          <span class="text-muted" x-text="s.live_step_name || titleCase(s.start_step || '')"></span></div>
+        <div class="los-admin-role" style="flex-basis:100%"><strong>Current action</strong>
+          <span class="text-muted" x-text="s.current_action || (s.steps && s.steps[0] ? s.steps[0].action : '')"></span></div>
+        <div class="los-admin-role" style="flex-basis:100%"><strong>Expected result</strong>
+          <span class="text-muted" x-text="s.expected || (s.steps && s.steps[0] ? s.steps[0].expected : '')"></span></div>
+        <div class="los-admin-role"><strong>Next role</strong>
+          <span class="text-muted" x-text="s.next_role || '—'"></span></div>
+        <div class="los-admin-role"><strong>Next action</strong>
+          <span class="text-muted" x-text="s.next_step_name ? 'Continue at ' + s.next_step_name : '—'"></span></div>
+        <div class="los-admin-role" style="flex-basis:100%"><strong>Banking feature demonstrated</strong>
+          <span class="text-muted" x-text="s.feature || ''"></span></div>
+      </div>
+      <div class="los-action-row">
+        <button class="btn btn-sm btn-primary" :disabled="busy" @click="startScenario(s)" x-text="s.application_id ? 'Restart Scenario' : 'Start Scenario'"></button>
+        <button class="btn btn-sm btn-outline" :disabled="busy || !s.application_id" @click="openScenarioApp(s)">Open Application</button>
+        <button class="btn btn-sm btn-outline" :disabled="busy" @click="signInAsScenarioRole(s)" x-text="'Sign in as ' + roleName(s.start_role)"></button>
+        <button class="btn btn-sm btn-ghost" :disabled="busy" @click="resetScenario(s)">Reset Scenario</button>
+      </div>
+      <div class="table-scroll" style="margin-top:10px">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Role</th><th>Stage</th><th>Action</th><th>Expected behaviour</th><th>Next step</th></tr></thead>
+          <tbody>
+            <template x-for="(st, i) in s.steps" :key="i">
+              <tr>
+                <td x-text="i + 1"></td>
+                <td x-text="roleName(st.role)"></td>
+                <td x-text="st.stage"></td>
+                <td x-text="st.action"></td>
+                <td class="text-muted" x-text="st.expected"></td>
+                <td x-text="st.next"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </template>
+  <p class="los-empty-note" x-show="!guided.length">No guided scenarios for this profile.</p>
+</section>

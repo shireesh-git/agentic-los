@@ -1,0 +1,93 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Product template — PROJECT FINANCE
+# Long-tenor project / infrastructure finance: cost & timeline appraisal,
+# technology evaluation, ES screening, consortium arrangements and a
+# project-finance delegation route on top of the profile's matrix.
+# Applies to the DFI / infrastructure profile (and the legacy Client One).
+# ═══════════════════════════════════════════════════════════════════════
+
+product:
+  id: project_finance
+  name: "Project Finance"
+  category: "Project & infrastructure finance"
+  description: "Long-tenor project and infrastructure finance with cost, timeline and environmental appraisal."
+  profiles: [dfi, client_one]
+
+  facility_types: [project_finance]
+  facility_defaults:
+    facility_nature: fund_based
+    benchmark: MCLR
+  borrower_fields:
+    - {id: company_name, label: "SPV / company name", required: true}
+    - {id: cin, label: "CIN", required: true}
+    - {id: pan, label: "PAN", required: true}
+    - {id: date_of_incorporation, label: "Date of incorporation", required: true}
+    - {id: registered_address, label: "Registered office", required: true}
+  facility_fields:
+    - {id: amount_cr, label: "Debt quantum (₹ Cr)", required: true}
+    - {id: tenor_months, label: "Tenor (months)", required: true}
+    - {id: purpose, label: "Project / purpose", required: true}
+    - {id: benchmark, label: "Benchmark", required: true}
+    - {id: spread, label: "Spread (bps)", required: false}
+    - {id: repayment_type, label: "Repayment method", required: true}
+    - {id: moratorium_months, label: "Moratorium (months)", required: true}
+
+  amount: {min_cr: 50, max_cr: 5000, currency: "₹ Cr"}
+  tenor: {min_months: 24, max_months: 120}
+  moratorium: {max_months: 36}
+
+  pricing:
+    benchmarks: [MCLR, external_benchmark]
+    grade_spreads_bps: {A: 100, B: 150, C: 200, D: 275, E: 400}
+  repayment: [annuity, bullet, quarterly_quarters]
+
+  security:
+    required: true
+    min_fsv_cover: 0.8                # cash-flow-led: charge on project assets + receivables
+    acceptable_types: [immovable, movable, receivables, guarantees]
+  financial_analysis:
+    required_ratios: [dscr]
+    cma_required: true
+    project_inputs: [project_cost, project_timeline, dccp_dcco, cash_flow_coverage]
+
+  checks:
+    applicable: [edd, cfr, ceib, litigation]
+    mandatory: [edd]
+
+  documents:
+    by_stage:
+      PS:
+        add:
+          - {name: "Indicative project cost statement", scope: project}
+      AP:
+        add:
+          - {name: "Project appraisal report", scope: project, condition: projects}
+          - {name: "Technology evaluation report", scope: project, condition: projects}
+          - {name: "Environmental & social impact assessment", scope: project, condition: projects}
+          - {name: "Lead bank / consortium letter (where syndicated)", scope: application}
+
+  workflow:
+    stages: [PS, IP, AP, POS, DIS]
+    modules:
+      esms: true                      # the product demands the ES process even if a profile trims it
+      consortium: true
+
+  approval:                           # project-finance delegation route (₹ Cr)
+    preliminary:
+      - {max_amount: 250, authority: "Project Sanction Committee (preliminary)"}
+      - {max_amount: 1000, authority: "Project Sanction Committee (preliminary) with EVP note"}
+      - {max_amount: null, authority: "Project Sanction Committee (preliminary) with board intimation"}
+    final:
+      - {max_amount: 250, authority: "Project Finance Committee"}
+      - {max_amount: 1000, authority: "Project Finance Committee with executive note"}
+      - {max_amount: null, authority: "Project Finance Committee with board intimation"}
+
+  outputs:
+    ip_note: {title_prefix: "In-Principle Note — Project Finance"}
+    cam: {title: "Project Finance Appraisal Memo"}
+    sanction_letter:
+      kind_titles: {term_sheet: "Indicative term sheet (project)", sanction_letter: "Sanction letter (project finance)"}
+
+  validations:
+    - {id: pf_purpose, rule: purpose_not_blank,
+       message: "the project / purpose of the finance is required"}

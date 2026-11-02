@@ -87,8 +87,19 @@ DEPENDENCIES = [
 
 
 def evaluate(app: dict) -> list[dict]:
-    """Every rule with its live status: passed / failed / not_applicable, with the gate message."""
+    """Every rule with its live status: passed / failed / not_applicable, with the gate message.
+    A rule whose module the institution profile has switched off is reported not_applicable."""
     from src.los import verification, disops, proposal as proposal_mod, pricing as pricing_mod, snapshot, esms, post_sanction
+    from src.los import profiles
+    disabled = set()
+    try:
+        p = profiles.get_profile(app=app)
+        if not profiles.module_enabled(p, "esms"):
+            disabled.add("RUL-06")
+        if not profiles.module_enabled(p, "consortium"):
+            disabled.add("RUL-08")
+    except profiles.ProfileError:
+        pass
     stage = (app.get("stage_id") or "PS").upper()
     checks = (app.get("due_diligence") or {}).get("checks") or []
     blocking = verification.blocking(checks)
@@ -134,6 +145,8 @@ def evaluate(app: dict) -> list[dict]:
     out = []
     for rule in RULES:
         status, detail = statuses.get(rule["id"], ("not_applicable", None))
+        if rule["id"] in disabled:
+            status, detail = "not_applicable", "module disabled by the institution profile"
         out.append({**rule, "status": status, "detail": detail})
     return out
 

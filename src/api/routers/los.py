@@ -101,6 +101,8 @@ class NewApplication(BaseModel):
     sourcing_decision: SourcingDecision = Field(default_factory=SourcingDecision)
     customer_id_selection: Optional[str] = None
     cam: Optional[CamStart] = None               # start from a CAM (S8)
+    profile: Optional[str] = None                # institution profile for this application (default: active)
+    product: Optional[str] = None                # product template (else inferred from the facility types)
 
 
 class ProspectIdentity(BaseModel):
@@ -127,6 +129,7 @@ class NewProspect(BaseModel):
     sourcing_decision: SourcingDecision = Field(default_factory=SourcingDecision)
     confirm_not_duplicate: bool = False
     cam: Optional[CamStart] = None
+    product: Optional[str] = None                       # product template (else inferred from the facility types)
 
 
 class Action(BaseModel):
@@ -179,10 +182,102 @@ def _session(svc: ServiceContainer, token: Optional[str]) -> dict:
     return svc.los.session(token)
 
 
+def _admin_session(svc: ServiceContainer, token: Optional[str]) -> dict:
+    sess = _session(svc, token)
+    if not sess:
+        raise ForbiddenError("A signed-in administrator session is required")
+    return sess
+
+
 @router.get("/directory")
 async def directory(svc: ServiceContainer = Depends(get_container)):
-    """Groups, roles and demo users (for the sign-in screen and allocation pickers)."""
+    """Groups, roles and demo users (for the sign-in screen and allocation pickers),
+    with the active institution profile's branding."""
     return svc.los.directory()
+
+
+@router.get("/profiles")
+async def profiles(svc: ServiceContainer = Depends(get_container)):
+    """The available institution profiles (active / default)."""
+    return svc.los.profiles_view()
+
+
+@router.get("/profiles/{profile_id}")
+async def profile_detail(profile_id: str, full: bool = False, svc: ServiceContainer = Depends(get_container)):
+    """One institution profile resolved: branding, labels, modules, checks, documents, authority, outputs."""
+    return svc.los.profile_detail(profile_id, full=full)
+
+
+@router.post("/profiles/active")
+async def set_active_profile(body: dict, x_los_session: Optional[str] = Header(None),
+                             svc: ServiceContainer = Depends(get_container)):
+    """Administrator-only: switch the institution profile for new work (the journey, modules,
+    checks, documents, authority and outputs it carries). Existing applications keep their own
+    profile. Body: {profile_id, reseed?} — reseed recreates the profile's demo applications."""
+    profile_id = str((body or {}).get("profile_id") or "").strip()
+    if not profile_id:
+        raise ForbiddenError("Send {profile_id: <id>}")
+    return svc.los.admin_switch_profile(_admin_session(svc, x_los_session), profile_id,
+                                        reseed=bool((body or {}).get("reseed")))
+
+
+@router.get("/admin/overview")
+async def admin_overview(x_los_session: Optional[str] = Header(None),
+                         svc: ServiceContainer = Depends(get_container)):
+    """Administrator: read-only configuration summary — institution profiles, product templates,
+    seeded demo applications and the available reset scopes."""
+    return svc.los.admin_overview(_admin_session(svc, x_los_session))
+
+
+@router.post("/admin/demo-reset")
+async def admin_demo_reset(body: dict, x_los_session: Optional[str] = Header(None),
+                           svc: ServiceContainer = Depends(get_container)):
+    """Administrator: controlled demo-data reset (scope: 'active_profile' or 'all_demo').
+    Removes the seeded demo applications and recreates them deterministically; user-created
+    applications are never touched. Audit-logged."""
+    scope = str((body or {}).get("scope") or "active_profile")
+    return svc.los.admin_reset_demo(_admin_session(svc, x_los_session), scope)
+
+
+@router.get("/admin/audit")
+async def admin_audit(limit: int = 100, x_los_session: Optional[str] = Header(None),
+                      svc: ServiceContainer = Depends(get_container)):
+    """Administrator: the recent audit trail (workflow actions and system/admin events)."""
+    _admin_session(svc, x_los_session)
+    return {"events": svc.los.audit(limit=min(max(limit, 1), 500))}
+
+
+@router.get("/demo-scenarios")
+async def demo_scenarios(profile_id: Optional[str] = None, svc: ServiceContainer = Depends(get_container)):
+    """The guided demo scenarios for the institution profile (or 'all')."""
+    return svc.los.demo_scenarios(profile_id)
+
+
+@router.get("/demo-packages")
+async def demo_packages(profile_id: Optional[str] = None, svc: ServiceContainer = Depends(get_container)):
+    """R22: the bank-focused demo packages (executive / functional walkthroughs of the 22
+    enhancements), enriched with their live demo applications (or 'all' profiles)."""
+    return svc.los.demo_packages(profile_id)
+
+
+@router.get("/branding")
+async def branding(svc: ServiceContainer = Depends(get_container)):
+    """The active institution profile's branding and labels (for the portal shell and papers)."""
+    return svc.los.branding_view()
+
+
+@router.get("/products")
+async def products(svc: ServiceContainer = Depends(get_container)):
+    """The reusable product templates and which ones the active institution profile runs."""
+    return {"products": svc.los.products_view()}
+
+
+@router.get("/products/{product_id}")
+async def product_detail(product_id: str, profile_id: Optional[str] = None, profile: Optional[str] = None,
+                         svc: ServiceContainer = Depends(get_container)):
+    """One product template resolved against an institution profile (its fields, limits, checks,
+    documents, workflow/modules, approval matrix and output templates)."""
+    return svc.los.product_detail(product_id, profile_id or profile)
 
 
 @router.post("/session")
@@ -222,6 +317,7 @@ async def list_applications(status: str = "", stage: str = "", mine: bool = Fals
 
 @router.post("/applications")
 async def create_application(body: NewApplication, x_los_session: Optional[str] = Header(None),
+                             idempotency_key: Optional[str] = Header(None),
                              svc: ServiceContainer = Depends(get_container)):
     session = _session(svc, x_los_session)
     app = await asyncio.to_thread(               # starting from a CAM populates the fields: off the event loop
@@ -236,6 +332,9 @@ async def create_application(body: NewApplication, x_los_session: Optional[str] 
         sourcing_decision=body.sourcing_decision.model_dump(),
         customer_id_selection=body.customer_id_selection,
         cam=body.cam.model_dump() if body.cam else None,
+        profile=body.profile,
+        product=body.product,
+        idempotency_key=idempotency_key,
     )
     return svc.los.get(app["application_id"], session)
 
@@ -248,11 +347,13 @@ async def get_application(application_id: str, x_los_session: Optional[str] = He
 
 @router.post("/applications/{application_id}/actions")
 async def act(application_id: str, body: Action, x_los_session: Optional[str] = Header(None),
+              idempotency_key: Optional[str] = Header(None),
               svc: ServiceContainer = Depends(get_container)):
     return svc.los.act(application_id, _session(svc, x_los_session), body.action, comment=body.comment,
                        allocate_to=body.allocate_to, sanctioned_amount_cr=body.sanctioned_amount_cr,
                        significant_changes=body.significant_changes, rework_to=body.rework_to,
-                       decision_data=body.decision_data, deferred_until=body.deferred_until)
+                       decision_data=body.decision_data, deferred_until=body.deferred_until,
+                       idempotency_key=idempotency_key)
 
 
 @router.get("/applications/{application_id}/assessment")
@@ -347,7 +448,8 @@ async def create_prospect(body: NewProspect, x_los_session: Optional[str] = Head
             prospect_discussion=body.prospect_discussion.model_dump(),
             sourcing_decision=body.sourcing_decision.model_dump(),
             confirm_not_duplicate=body.confirm_not_duplicate,
-            cam=body.cam.model_dump() if body.cam else None))
+            cam=body.cam.model_dump() if body.cam else None,
+            product=body.product))
 
 
 @router.post("/applications/{application_id}/prefill/apply")
@@ -571,6 +673,31 @@ async def record_covenant(application_id: str, body: CovenantAction, x_los_sessi
 async def update_checklist(application_id: str, body: Checklist, x_los_session: Optional[str] = Header(None),
                            svc: ServiceContainer = Depends(get_container)):
     return svc.los.update_checklist(application_id, _session(svc, x_los_session), [i.model_dump() for i in body.items])
+
+
+# ── R7: governed modifications of sanctioned terms ─────────────────────────
+@router.post("/applications/{application_id}/modifications")
+async def propose_modification(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                               svc: ServiceContainer = Depends(get_container)):
+    """Propose a modification of sanctioned terms (payload: amount_cr / tenor_months /
+    interest_rate / facility_type / reason). Materiality is assessed against the profile's
+    thresholds; the sanctioned terms stay in force until it is decided."""
+    return svc.los.propose_modification_request(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.post("/applications/{application_id}/modifications/recommend")
+async def recommend_modification(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                                 svc: ServiceContainer = Depends(get_container)):
+    """The checker's recommendation on the open modification (payload: decision, remarks)."""
+    return svc.los.recommend_modification_request(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.post("/applications/{application_id}/modifications/decide")
+async def decide_modification(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                              svc: ServiceContainer = Depends(get_container)):
+    """The committee's decision on a recommended modification (payload: outcome, minutes).
+    A material approval re-enters credit reassessment with the recalculated route."""
+    return svc.los.decide_modification_request(application_id, _session(svc, x_los_session), body.payload)
 
 
 @router.post("/applications/{application_id}/disbursement/tranche")
@@ -835,12 +962,238 @@ async def update_esms(application_id: str, body: WorkspacePayload, x_los_session
     return svc.los.update_esms(application_id, _session(svc, x_los_session), body.payload)
 
 
+@router.post("/applications/{application_id}/esms/exception-request")
+async def request_esms_exception(application_id: str, body: CheckId, x_los_session: Optional[str] = Header(None),
+                                 svc: ServiceContainer = Depends(get_container)):
+    """R5: the step holder asks the institution's configured E&S authority for an exception
+    to the excluded-activity screen."""
+    return svc.los.request_esms_exception(application_id, _session(svc, x_los_session), body.remarks)
+
+
+@router.post("/applications/{application_id}/esms/exception-decision")
+async def decide_esms_exception(application_id: str, body: EsmsExceptionDecision,
+                                x_los_session: Optional[str] = Header(None),
+                                svc: ServiceContainer = Depends(get_container)):
+    """R5: the configured E&S authority approves (with a TTL) or declines the E&S exception."""
+    return svc.los.decide_esms_exception(application_id, _session(svc, x_los_session),
+                                         body.outcome, body.reason)
+
+
+class EsmsExceptionDecision(BaseModel):
+    outcome: str
+    reason: str
+
+
 @router.get("/applications/{application_id}/decision")
 async def get_decision(application_id: str, x_los_session: Optional[str] = Header(None),
                        svc: ServiceContainer = Depends(get_container)):
     """The decision tab: the computed committee, deviations (automatic and manual), the decision records
     and the remarks history."""
     return svc.los.decision_view(application_id, _session(svc, x_los_session))
+
+
+@router.post("/applications/{application_id}/letters/{kind}/signed-copy")
+async def post_signed_copy(application_id: str, kind: str, filename: str,
+                           content: bytes = b"",
+                           x_los_session: Optional[str] = Header(None),
+                           svc: ServiceContainer = Depends(get_container)):
+    """R8: upload the customer's signed copy of the letter (against the letter's current version)."""
+    return svc.los.upload_signed_letter(application_id, _session(svc, x_los_session), kind,
+                                        filename or "signed.pdf", content or b"")
+
+
+@router.post("/applications/{application_id}/letters/{kind}/signed-copy/review")
+async def post_signed_copy_review(application_id: str, kind: str, body: dict,
+                                  x_los_session: Optional[str] = Header(None),
+                                  svc: ServiceContainer = Depends(get_container)):
+    """R8: the reviewer's verification of the signed copy (verified / rejected)."""
+    return svc.los.review_signed_letter(application_id, _session(svc, x_los_session), kind,
+                                        (body or {}).get("outcome", ""), (body or {}).get("note", ""))
+
+
+@router.get("/applications/{application_id}/conditions/indicators")
+async def get_condition_indicators(application_id: str, x_los_session: Optional[str] = Header(None),
+                                   svc: ServiceContainer = Depends(get_container)):
+    """R10: the condition / covenant indicators (open, overdue, breached, waived, pending)."""
+    return svc.los.condition_indicators(application_id)
+
+
+@router.get("/applications/{application_id}/group-exposure")
+async def get_group_exposure(application_id: str, x_los_session: Optional[str] = Header(None),
+                             svc: ServiceContainer = Depends(get_container)):
+    """R12: the group / connected-party exposure with norm, headroom and breach."""
+    return svc.los.group_exposure(application_id, _session(svc, x_los_session))
+
+
+@router.get("/applications/{application_id}/facilities/hierarchy")
+async def get_facility_hierarchy(application_id: str, x_los_session: Optional[str] = Header(None),
+                                 svc: ServiceContainer = Depends(get_container)):
+    """R6: the facility hierarchy (parent/sublimits, currencies, utilisation) with validation."""
+    return svc.los.facility_hierarchy(application_id, _session(svc, x_los_session))
+
+
+@router.get("/applications/{application_id}/field-permissions")
+async def get_field_permissions(application_id: str, x_los_session: Optional[str] = Header(None),
+                                svc: ServiceContainer = Depends(get_container)):
+    """R17: the effective field-level edit policy for this application — the same policy
+    the API enforces, so the UI disables exactly the fields a role may not edit."""
+    return svc.los.field_permissions(application_id, _session(svc, x_los_session))
+
+
+# ── R9 committee governance: the meeting record for a committee step ─────────────────
+@router.get("/applications/{application_id}/committees/{step_id}")
+async def get_committee_meeting(application_id: str, step_id: str,
+                                x_los_session: Optional[str] = Header(None),
+                                svc: ServiceContainer = Depends(get_container)):
+    """R9: the committee's meeting record — roster, attendance (with conflicts of interest),
+    the vote, the structured minutes, the quorum position and the version history."""
+    return svc.los.committee_meeting(application_id, _session(svc, x_los_session), step_id)
+
+
+@router.post("/applications/{application_id}/committees/{step_id}/attendance")
+async def post_committee_attendance(application_id: str, step_id: str, body: dict,
+                                    x_los_session: Optional[str] = Header(None),
+                                    svc: ServiceContainer = Depends(get_container)):
+    """R9: record the committee's attendance (present / absent / excused) with conflict-of-
+    interest declarations."""
+    return svc.los.record_committee_attendance(application_id, _session(svc, x_los_session),
+                                               step_id, (body or {}).get("members"))
+
+
+@router.post("/applications/{application_id}/committees/{step_id}/votes")
+async def post_committee_votes(application_id: str, step_id: str, body: dict,
+                               x_los_session: Optional[str] = Header(None),
+                               svc: ServiceContainer = Depends(get_container)):
+    """R9: record the committee's vote (approve / abstain / dissent, per member)."""
+    return svc.los.record_committee_votes(application_id, _session(svc, x_los_session),
+                                          step_id, (body or {}).get("votes"))
+
+
+@router.post("/applications/{application_id}/committees/{step_id}/minutes")
+async def post_committee_minutes(application_id: str, step_id: str, body: dict,
+                                 x_los_session: Optional[str] = Header(None),
+                                 svc: ServiceContainer = Depends(get_container)):
+    """R9: record the structured minutes (agenda, discussion, resolution)."""
+    b = body or {}
+    return svc.los.record_committee_minutes(application_id, _session(svc, x_los_session), step_id,
+                                            agenda=b.get("agenda"), discussion=b.get("discussion"),
+                                            resolution=b.get("resolution"))
+
+
+@router.put("/applications/{application_id}/prospect")
+async def put_prospect(application_id: str, body: dict,
+                       x_los_session: Optional[str] = Header(None),
+                       svc: ServiceContainer = Depends(get_container)):
+    """R4: the RM's prospect fields (currency, infra qualification, lead source, status,
+    next follow-up)."""
+    return svc.los.update_prospect(_session(svc, x_los_session), application_id, body or {})
+
+
+@router.post("/applications/{application_id}/prospect/discussions")
+async def post_prospect_discussion(application_id: str, body: dict,
+                                   x_los_session: Optional[str] = Header(None),
+                                   svc: ServiceContainer = Depends(get_container)):
+    """R4: record a dated prospect discussion (participants, status, notes)."""
+    return svc.los.add_prospect_discussion(_session(svc, x_los_session), application_id, body or {})
+
+
+@router.get("/applications/{application_id}/notifications")
+async def get_notifications(application_id: str, x_los_session: Optional[str] = Header(None),
+                            svc: ServiceContainer = Depends(get_container)):
+    """R19: the case's current notifications (assignment, rework, deferral due, SLA,
+    condition due, covenant breach, pending approval, document rejection)."""
+    return {"application_id": application_id,
+            "notifications": svc.los.notifications_for(application_id)}
+
+
+@router.post("/applications/{application_id}/notifications/{notification_id}/acknowledge")
+async def acknowledge_notification(application_id: str, notification_id: str,
+                                   body: dict, x_los_session: Optional[str] = Header(None),
+                                   svc: ServiceContainer = Depends(get_container)):
+    """R19: acknowledge a notification (seen; the case state is unchanged)."""
+    return svc.los.acknowledge_notification(application_id, _session(svc, x_los_session),
+                                            notification_id, (body or {}).get("note", ""))
+
+
+@router.get("/applications/{application_id}/audit")
+async def get_audit(application_id: str, x_los_session: Optional[str] = Header(None),
+                    svc: ServiceContainer = Depends(get_container)):
+    """R18: the application's audit trail with the hash-chain verification result."""
+    from src.los.audit import verify_audit
+    events = svc.los.store.events(application_id, limit=100000, asc=True)
+    return {"application_id": application_id, "events": events,
+            "verification": verify_audit(events)}
+
+
+@router.get("/applications/{application_id}/reports")
+async def get_reports_catalog(application_id: str, x_los_session: Optional[str] = Header(None),
+                              svc: ServiceContainer = Depends(get_container)):
+    """R14: the report types available for this case."""
+    from src.los import reports
+    return {"reports": [{"id": k, "name": v["name"], "description": v["description"]}
+                         for k, v in reports.CATALOG.items()]}
+
+
+@router.get("/applications/{application_id}/reports/{report}")
+async def get_report(application_id: str, report: str, fmt: str = "csv",
+                     x_los_session: Optional[str] = Header(None),
+                     svc: ServiceContainer = Depends(get_container)):
+    """R14: a downloadable case report (csv or html), derived from the stored record."""
+    from src.los import reports
+    from src.application.errors import InvalidRequestError
+    if fmt not in ("csv", "html"):
+        raise InvalidRequestError("fmt must be csv or html")
+    if report not in reports.CATALOG:
+        raise InvalidRequestError(f"Unknown report '{report}' — available: "
+                                  + ", ".join(reports.CATALOG))
+    built = reports.build_report(svc.los, application_id, report, fmt=fmt)
+    media = "text/csv" if fmt == "csv" else "text/html"
+    from fastapi.responses import Response
+    filename = f"{application_id}_{report}.{fmt}"
+    return Response(content=built[fmt], media_type=media,
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.post("/applications/{application_id}/re_recommendation")
+async def post_re_recommendation(application_id: str, x_los_session: Optional[str] = Header(None),
+                                 svc: ServiceContainer = Depends(get_container)):
+    """R9: the Risk Maker re-submits the revised recommendation after the committee sent the case
+    back for re-consideration."""
+    return svc.los.re_recommend(application_id, _session(svc, x_los_session))
+
+
+@router.get("/applications/{application_id}/summary")
+async def get_summary(application_id: str, x_los_session: Optional[str] = Header(None),
+                      svc: ServiceContainer = Depends(get_container)):
+    """R13: the case summary - the position at each stage, the open risks and the recent decisions,
+    so an approver can see where the case stands without opening the documents."""
+    return svc.los.summary(application_id=application_id)
+
+
+@router.get("/applications/{application_id}/routing")
+async def get_routing(application_id: str, x_los_session: Optional[str] = Header(None),
+                      svc: ServiceContainer = Depends(get_container)):
+    """R1: the calculated route — the authority, the included / excluded conditional steps with the
+    basis for each, the required concurrences and their state, and the reapproval flag."""
+    app = svc.los.get(application_id, _session(svc, x_los_session))
+    v = svc.los.concurrences_view(application_id, _session(svc, x_los_session))
+    return {**v, "route_full": app.get("routing") or {}}
+
+
+@router.post("/applications/{application_id}/concurrences")
+async def record_concurrence(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                             svc: ServiceContainer = Depends(get_container)):
+    """Record a concurrence required by the calculated authority (payload {concurrence_id, remarks, evidence?}).
+    Only the role the profile assigns to that concurrence may record it."""
+    return svc.los.record_concurrence(application_id, _session(svc, x_los_session), body.payload)
+
+
+@router.post("/applications/{application_id}/routing/reapprove")
+async def reapprove_route(application_id: str, body: WorkspacePayload, x_los_session: Optional[str] = Header(None),
+                          svc: ServiceContainer = Depends(get_container)):
+    """The sanction committee's reapproval after a material route change (payload {remarks})."""
+    return svc.los.acknowledge_route(application_id, _session(svc, x_los_session),
+                                     str(body.payload.get("remarks") or ""))
 
 
 @router.post("/applications/{application_id}/deviations")

@@ -61,13 +61,77 @@ _PENDING = "pending"
 _AVAILABLE = ("clear", "matched", "failed", "unavailable")
 
 
-def initial_checks() -> list[dict]:
-    """Every check starts pending: nothing is triggered, nothing is known."""
+def initial_checks(catalog: Optional[list[dict]] = None) -> list[dict]:
+    """Every check starts pending: nothing is triggered, nothing is known.
+
+    ``catalog`` is the institution profile's resolved check list (a selection of the
+    base catalogue with the profile's mandatory flags); the base catalogue is the default.
+    """
+    base = catalog if catalog else CHECKS
     return [{"id": c["id"], "name": c["name"], "mode": c["mode"], "mandatory": c["mandatory"],
              "status": _PENDING, "result": None, "source": None, "detail": None,
              "error": None, "last_triggered": None, "triggered_by": None,
              "grid": None, "evidence": [], "history": [], "comments": [], "exception": None}
-            for c in CHECKS]
+            for c in base]
+
+
+# ─── R5: per-check applicability conditions and result validity ─────────────
+# An institution profile may configure, per check id, the conditions under which the check
+# applies to an application: sector, product, proposal_type, facility_nature (fund-based vs
+# non-fund-based), amount bounds (₹ Cr), risk grade and the borrower's entity type /
+# constitution. A check whose conditions do not match is waived for that application (it
+# never blocks). ``validity_days`` is how long a recorded result stays valid; a result past
+# its validity is stale and the check must be re-run.
+
+def _cond_value(app: dict, key: str):
+    fac = app.get("facility") or (app.get("facilities") or [{}])[0] or {}
+    if key == "sector":
+        return app.get("sector")
+    if key == "product":
+        return app.get("product") or fac.get("facility_type")
+    if key == "proposal_type":
+        return fac.get("proposal_type")
+    if key == "facility_nature":
+        return fac.get("facility_nature")
+    if key == "amount_min_cr":
+        return app.get("amount_cr") or fac.get("amount_cr")
+    if key == "grade":
+        return (app.get("credit_assessment") or {}).get("risk_grade") or             (app.get("ratings") or {}).get("borrower_grade")
+    if key in ("entity_type", "constitution"):
+        return app.get("constitution") or app.get("entity_type")
+    return None
+
+
+def check_applies(conditions: Optional[dict], app: dict) -> tuple[bool, str]:
+    """Evaluate one check's applicability conditions against the application.
+    Returns ``(applies, reason)`` — an empty condition set applies to every application."""
+    conditions = conditions or {}
+    for key, want in conditions.items():
+        got = _cond_value(app, key)
+        if key == "amount_min_cr":
+            if got is None or float(got) < float(want):
+                return False, f"applies from ₹{want} Cr (this request is {got if got is not None else '—'} Cr)"
+            continue
+        if key == "amount_max_cr":
+            if got is not None and float(got) > float(want):
+                return False, f"applies up to ₹{want} Cr (this request is {got} Cr)"
+            continue
+        allowed = want if isinstance(want, (list, tuple, set)) else [want]
+        if got not in allowed:
+            label = {"sector": "sector", "product": "product", "proposal_type": "proposal type",
+                     "facility_nature": "facility nature", "grade": "risk grade",
+                     "entity_type": "entity type", "constitution": "constitution"}.get(key, key)
+            return False, f"applies only for {label} {', '.join(str(x) for x in allowed)} (this is {got or '—'})"
+    return True, "Applies to this application"
+
+
+def valid_expiry(check: dict, now: datetime, validity_days: int) -> Optional[str]:
+    """The ISO date a recorded result lapses on (``last_triggered`` + the profile's validity
+    window), or None when the check has no result yet."""
+    last = _parse(check.get("last_triggered"))
+    if not last:
+        return None
+    return (last + timedelta(days=validity_days)).date().isoformat()
 
 
 # ─── Deterministic demo execution of the API-mode checks ────────────────────
@@ -187,18 +251,18 @@ def _parse(ts: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def exception_expiry(at: str) -> str:
-    """A Compliance VP exception lapses 90 days after it was granted."""
-    return (_parse(at) + timedelta(days=EXCEPTION_TTL_DAYS)).isoformat(timespec="seconds")
+def exception_expiry(at: str, ttl_days: int = EXCEPTION_TTL_DAYS) -> str:
+    """An exception lapses after the profile's exception TTL (base: 90 days)."""
+    return (_parse(at) + timedelta(days=ttl_days)).isoformat(timespec="seconds")
 
 
-def exception_expired(exc: Optional[dict], now: datetime) -> bool:
+def exception_expired(exc: Optional[dict], now: datetime, ttl_days: int = EXCEPTION_TTL_DAYS) -> bool:
     """Time-based exception expiry (UAT-P0-2): an expired exception no longer releases the block."""
     if not exc:
         return False
     exp = _parse(exc.get("expires_at"))
     if exp is None and exc.get("at"):
-        exp = _parse(exc["at"]) + timedelta(days=EXCEPTION_TTL_DAYS)
+        exp = _parse(exc["at"]) + timedelta(days=ttl_days)
     return exp is not None and now >= exp
 
 
@@ -210,30 +274,35 @@ def effective_exception(c: dict, now: Optional[datetime]) -> Optional[dict]:
     return exc
 
 
-def rescreen_state(check: dict, now: datetime) -> Optional[dict]:
-    """The 90-day re-screening state of one check: None when not screenable, else
+def rescreen_state(check: dict, now: datetime, rescreen_days: int = RESCREEN_DAYS,
+                   warning_days: int = EXPIRY_WARNING_DAYS) -> Optional[dict]:
+    """The re-screening state of one check on the profile's clock: None when not screenable, else
     ``{due_at, days_left, state}`` with state in current / due_soon / overdue."""
     if check.get("id") not in RESCREEN_CHECKS:
         return None
     last = _parse(check.get("last_triggered"))
     if not last or check["status"] != "clear":
         return None
-    due = last + timedelta(days=RESCREEN_DAYS)
+    due = last + timedelta(days=rescreen_days)
     days_left = (due - now).days
-    state = "overdue" if days_left < 0 else ("due_soon" if days_left <= EXPIRY_WARNING_DAYS else "current")
+    state = "overdue" if days_left < 0 else ("due_soon" if days_left <= warning_days else "current")
     return {"id": check["id"], "name": check["name"], "last_run": last.date().isoformat(),
             "due_at": due.date().isoformat(), "days_left": days_left, "state": state}
 
 
-def screening_review(checks: list[dict], now: datetime) -> dict:
-    """Reminders and escalations: re-screening due/overdue and exceptions expiring or expired."""
-    rescreens = [r for r in (rescreen_state(c, now) for c in checks) if r]
+def screening_review(checks: list[dict], now: datetime, policy: Optional[dict] = None) -> dict:
+    """Reminders and escalations: re-screening due/overdue and exceptions expiring or expired.
+    ``policy`` is the institution profile's check policy (rescreen_days / exception_ttl_days)."""
+    pol = policy or {}
+    rescreen_days = int(pol.get("rescreen_days", RESCREEN_DAYS))
+    ttl_days = int(pol.get("exception_ttl_days", EXCEPTION_TTL_DAYS))
+    rescreens = [r for r in (rescreen_state(c, now, rescreen_days) for c in checks) if r]
     exceptions = []
     for c in checks:
         exc = c.get("exception")
         if not exc:
             continue
-        exp = _parse(exc.get("expires_at")) or (_parse(exc["at"]) + timedelta(days=EXCEPTION_TTL_DAYS) if exc.get("at") else None)
+        exp = _parse(exc.get("expires_at")) or (_parse(exc["at"]) + timedelta(days=ttl_days) if exc.get("at") else None)
         if exp is None:
             continue
         days_left = (exp - now).days
@@ -242,18 +311,23 @@ def screening_review(checks: list[dict], now: datetime) -> dict:
                            "days_left": days_left,
                            "state": "expired" if days_left < 0 else ("expiring" if days_left <= EXPIRY_WARNING_DAYS else "current")})
     overdue = [r for r in rescreens if r["state"] == "overdue"]
-    return {"rescreen_days": RESCREEN_DAYS, "exception_ttl_days": EXCEPTION_TTL_DAYS,
+    return {"rescreen_days": rescreen_days, "exception_ttl_days": ttl_days,
             "rescreens": rescreens, "exceptions": exceptions, "overdue": overdue,
             "needs_attention": bool(overdue) or any(e["state"] in ("expiring", "expired") for e in exceptions)}
 
 
 def blocking(checks: list[dict], unavailable_policy: str = UNAVAILABLE_MANDATORY_POLICY,
-             now: Optional[datetime] = None) -> list[dict]:
+             now: Optional[datetime] = None, policy: Optional[dict] = None,
+             validity_days: Optional[dict] = None) -> list[dict]:
     """Mandatory checks that block progression: pending; matched/failed without a still-valid
     approved exception; a mandatory ``unavailable`` without an explicit Compliance VP approval
-    (under the ``vp_approval`` policy); and — when a clock is supplied — a 90-day re-screening
-    that is overdue, or an exception that has lapsed. ``unavailable`` is never presented as a
-    clear/positive result."""
+    (under the ``vp_approval`` policy); a result past the profile's per-check validity (R5,
+    ``validity_days``: a stale result must be re-run); and — when a clock is supplied — a
+    re-screening on the profile's clock that is overdue, or an exception that has lapsed.
+    ``unavailable`` is never presented as a clear/positive result.``"""
+    pol = policy or {}
+    rescreen_days = int(pol.get("rescreen_days", RESCREEN_DAYS))
+    validity = validity_days or {}
     out = []
     for c in checks:
         if not c.get("mandatory"):
@@ -265,9 +339,13 @@ def blocking(checks: list[dict], unavailable_policy: str = UNAVAILABLE_MANDATORY
             out.append(c)
         elif c["status"] == "unavailable" and unavailable_policy in ("vp_approval", "block") and not exc:
             out.append(c)
-        elif now is not None and c["status"] == "clear" and rescreen_state(c, now) and \
-                rescreen_state(c, now)["state"] == "overdue":
+        elif now is not None and validity.get(c["id"]) and                 valid_expiry(c, now, int(validity[c["id"]])) and                 now >= datetime.fromisoformat(valid_expiry(c, now, int(validity[c["id"]]))) and not exc:
+            # R5: a result past its validity is stale — re-run the check
             out.append(c)
+        elif now is not None and c["status"] == "clear":
+            st = rescreen_state(c, now, rescreen_days)
+            if st and st["state"] == "overdue":
+                out.append(c)
     return out
 
 

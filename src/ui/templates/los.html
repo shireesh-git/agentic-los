@@ -11,14 +11,15 @@
   <link rel="stylesheet" href="/static/css/los.css">
 </head>
 <body class="los-body">
+<a class="los-skip" href="#los-main">Skip to the main content</a>
 <div x-data="losApp()" x-cloak>
 
   <!-- ═══ Sign-in: choose a group, then a demo user and role ═══ -->
   <section class="los-signin" x-show="!session">
     <div class="los-signin-head">
       <div class="los-logo">LOS</div>
-      <h1>Corporate Loan Origination System</h1>
-      <p x-text="signinGroup ? 'Sign in to ' + signinGroup.name : 'Select your group to continue'"></p>
+      <h1 x-text="branding.app_name || 'Corporate Loan Origination System'">Corporate Loan Origination System</h1>
+      <p x-text="branding.institution_name ? (signinGroup ? 'Sign in to ' + signinGroup.name : branding.institution_name) : 'Select your group to continue'"></p>
     </div>
 
     <div class="los-group-grid" x-show="!signinGroup">
@@ -56,7 +57,7 @@
   <!-- ═══ Signed-in shell ═══ -->
   <div class="los-shell" x-show="session">
     <aside class="los-sidebar">
-      <div class="los-brand"><div class="los-logo sm">LOS</div><div><strong>Corporate LOS</strong><span>Enterprise portal</span></div></div>
+      <div class="los-brand"><div class="los-logo sm">LOS</div><div><strong x-text="branding.app_name || 'Corporate LOS'">Corporate LOS</strong><span x-text="branding.short_name || 'Enterprise portal'">Enterprise portal</span></div></div>
       <div class="los-side-label">Active group</div>
       <div class="los-side-group" x-text="session?.group?.name"></div>
       <div class="los-side-label">Active role</div>
@@ -68,6 +69,8 @@
         <button :class="{'on': page === 'dashboard'}" @click="go('dashboard')">Pipeline Dashboard</button>
         <button :class="{'on': page === 'queue'}" @click="go('queue')">My Queue <span class="tab-count" x-show="dash.kpis?.my_queue" x-text="dash.kpis?.my_queue"></span></button>
         <button :class="{'on': page === 'mis'}" @click="go('mis')">Management MIS</button>
+        <div class="los-side-label">Demo</div>
+        <button :class="{'on': page === 'guided'}" @click="go('guided')">Guided Demo</button>
         <div class="los-side-label">Origination</div>
         <button :class="{'on': page === 'new'}" @click="go('new')" x-show="session?.role === 'ps_maker'">New Application</button>
         <button :class="{'on': page === 'app'}" @click="current && go('app/' + current.application_id)" :disabled="!current">Application Detail</button>
@@ -80,35 +83,38 @@
         <div><strong x-text="session?.user?.name"></strong><span x-text="session?.user?.branch + ' · ' + session?.role_name"></span></div></div>
     </aside>
 
-    <main class="los-main">
+    <main class="los-main" id="los-main" tabindex="-1">
       <header class="los-topbar">
-        <div class="search-bar los-search"><input type="search" placeholder="Search by Loan ID or borrower…" x-model="query" @keydown.enter="go('dashboard'); loadApps()"></div>
+        <div class="search-bar los-search"><input type="search" placeholder="Search by Loan ID or borrower…" aria-label="Search applications by loan ID or borrower" x-model="query" @keydown.enter="go('dashboard'); loadApps()"></div>
         <span class="los-sla-pill" x-show="dash.kpis?.sla_breached" x-text="dash.kpis?.sla_breached + ' SLA breach' + (dash.kpis?.sla_breached === 1 ? '' : 'es')"></span>
         <div class="los-top-user"><strong x-text="session?.user?.name"></strong><span x-text="session?.role_name"></span></div>
         <button class="btn btn-sm btn-outline" @click="signOut()">Sign out</button>
       </header>
 
-      <div class="los-page">
+      <div class="los-page" aria-busy="busy">
         <!-- include: los/dashboard.html -->
         <!-- include: los/application.html -->
         <!-- include: los/new.html -->
+        <!-- include: los/guided.html -->
         <!-- include: los/admin.html -->
         <!-- include: los/mis.html -->
       </div>
     </main>
   </div>
 
-  <div class="toast" :class="toastType" x-show="toast" x-text="toast" x-transition></div>
+      <div id="toast-region" role="region" aria-label="Notifications" aria-live="polite">
+        <div class="toast" :class="toastType" x-show="toast" x-text="toast" x-transition></div>
+      </div>
   <!-- In-page dialog: asks for a reason or a confirmation (never the browser's own prompt) -->
   <div class="los-modal-back" x-show="dlg.open" x-transition.opacity @keydown.escape.window="dlg.open && closeDlg(null)">
-    <div class="los-modal" role="dialog" aria-modal="true" @click.outside="closeDlg(null)">
+    <div class="los-modal" role="dialog" aria-modal="true" :aria-label="dlg.title" @click.outside="closeDlg(null)" @keydown.tab.prevent="dlgFocusTrap($event)">
       <h3 x-text="dlg.title"></h3>
       <p class="text-muted" x-show="dlg.text" x-text="dlg.text"></p>
       <label class="los-field" x-show="(dlg.choices || []).length"><span x-text="dlg.choiceLabel || 'Choose'"></span>
-        <select class="input" x-model="dlg.choice">
+        <select class="input" x-model="dlg.choice" :aria-label="dlg.choiceLabel || 'Choice'">
           <template x-for="o in dlg.choices || []" :key="o.value"><option :value="o.value" x-text="o.label"></option></template>
         </select></label>
-      <textarea class="input" rows="3" x-show="dlg.input" x-ref="dlgInput" x-model="dlg.value" :placeholder="dlg.placeholder"
+      <textarea class="input" rows="3" x-show="dlg.input" x-ref="dlgInput" x-model="dlg.value" :placeholder="dlg.placeholder" :aria-label="dlg.title"
                 @keydown.enter.prevent="!dlg.required || dlg.value.trim() ? closeDlg(dlg.value.trim()) : null"></textarea>
       <div class="los-action-row" style="justify-content:flex-end;margin-top:12px">
         <button class="btn btn-ghost" @click="closeDlg(null)">Cancel</button>
