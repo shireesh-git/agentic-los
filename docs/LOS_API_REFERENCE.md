@@ -8,6 +8,39 @@
 not signed in, wrong role or not the assignee · `404` not found · `409` conflict (wrong
 step, not yet available, already exists) · `500` operation failed.
 
+## Institution profiles
+
+| Endpoint | What it returns / does |
+|---|---|
+| `GET /api/los/profiles` | the available institution profiles (active / default, with kind & short name) |
+| `GET /api/los/profiles/{id}` | one profile resolved: branding, labels, modules, checks, documents, approval matrix, output templates (`?full=true` adds the merged workflow and the full check catalogue) |
+| `POST /api/los/profiles/active` `{"profile_id": "dfi", "reseed": true}` | **administrator-only**: switches the institution profile for new work (validates first; the base skeleton profile is rejected; `reseed` recreates the profile's seeded demo applications; audit-logged `active_profile_changed`) |
+| `GET /api/los/branding` | the active profile's branding and labels (portal shell, sign-in screen, generated papers) |
+
+`POST /applications` accepts an optional `profile` (a profile id) and an optional `product`
+(a product-template id); the application records both and runs its checks, document checklist,
+approval routing, letters and output templates under them for its whole life. `GET /directory`
+(the sign-in data) carries `branding` and `profile`.
+
+## Product templates
+
+| Endpoint | What it returns / does |
+|---|---|
+| `GET /api/los/products` | the four reusable product templates, with `available` = run by the active profile |
+| `GET /api/los/products/{id}` | one product resolved against a profile (`?profile_id=`): facility types, amount/tenor gates, fields, checks, per-stage documents, workflow modules, preliminary & final approval bands (open band as `"unlimited"`), output-template overrides. 400 when the product is not available under the profile |
+
+## Administration (role `los_admin`)
+
+| Endpoint | What it returns / does |
+|---|---|
+| `GET /api/los/admin/overview` | read-only configuration summary: profiles (selectable flag, products, journey length, modules, checks, demo applications), product templates, applications by profile, reset scopes |
+| `POST /api/los/admin/demo-reset` `{"scope": "active_profile" \| "all_demo"}` | controlled demo-data reset: removes the seeded demo applications of the scope and recreates them deterministically; user-created applications are never touched; audit-logged `demo_reset` |
+| `GET /api/los/admin/audit?limit=` | the recent audit trail including system/admin events |
+
+`GET /api/los/demo-scenarios` (any signed-in role) returns the guided demo scenarios for the
+active profile (or `?profile_id=all` for every one), each with role / stage / action /
+expected behaviour / next step.
+
 ## Session and directory
 
 | Method | Path | Body | Returns |

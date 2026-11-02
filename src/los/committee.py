@@ -76,8 +76,14 @@ def build_committee_pack(case: Optional[dict], final_cam: Optional[dict], app: d
                 for e in events if e.get("comment") and e["action"] in _COMMENT_ACTIONS]
 
     recommended = fr.get("recommended_cr")
+    from src.los import profiles as _profiles
+    _prof = _profiles.get_profile(app=app)
+    _tpl = _profiles.output_template("committee_pack", _prof)
     return {
         "available": True, "version": PACK_VERSION, "run_id": case.get("run_id"), "run_at": case.get("run_at"),
+        "title": _tpl.get("title", "Committee Pack"), "branding": _profiles.branding(_prof),
+        "institution_branding": _profiles.institution_branding(_prof),
+        "sections": _profiles.section_plan("committee_pack", _tpl, _prof),
         "headline": {
             "decision": rea.get("decision"), "decision_label": rea.get("decision_label"),
             "decision_sentence": headline.get("decision_sentence"),

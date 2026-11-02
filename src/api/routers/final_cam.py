@@ -32,7 +32,9 @@ async def get_final_cam_html(entity_id: str, run_id: str | None = None, svc: Ser
 @router.get("/final-cam-pdf")
 async def get_final_cam_pdf(entity_id: str, run_id: str | None = None, svc: ServiceContainer = Depends(get_container)):
     md, company = svc.final_cam.markdown(entity_id, run_id)
-    return Response(content=generate_cam_pdf(md, company), media_type="application/pdf",
+    from src.los import profiles
+    return Response(content=generate_cam_pdf(md, company, branding=profiles.institution_branding()),
+                    media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{entity_id}_CAM_final.pdf"'})
 
 

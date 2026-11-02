@@ -21,8 +21,62 @@
 </section>
 
 <section x-show="page === 'admin'">
-  <div class="los-page-head"><div><h1>Administration</h1><p class="text-muted">Groups, roles and demo users (from config/los_workflow.yaml).</p></div>
-    <button class="btn btn-outline" :disabled="busy" @click="resetDemo()">Reset demo pipeline</button></div>
+  <div class="los-page-head"><div><h1>Administration</h1><p class="text-muted">The active lending configuration, products, governed controls and demo users.</p></div>
+    <div class="los-action-row" x-show="admin">
+      <button class="btn btn-outline" :disabled="busy" @click="resetDemoScope('active_profile')">Reset demo applications</button>
+    </div>
+  </div>
+
+  <!-- One active institution configuration. Other reusable profiles remain deployment configuration. -->
+  <h3 class="los-section-title">Active lending configuration</h3>
+  <div class="los-admin-grid">
+    <template x-for="p in (admin?.profiles || []).filter(x => x.id === admin?.active_profile)" :key="p.id">
+      <div class="card" style="border:2px solid var(--los-accent, #c9a227)">
+        <h3 style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span x-text="p.name"></span></h3>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0">
+          <span class="badge sm badge-grey" x-text="titleCase(p.kind || p.id)"></span>
+          <span class="badge sm badge-green">active configuration</span>
+        </div>
+        <p class="text-muted los-small" x-text="p.description || ''"></p>
+        <div class="los-admin-role"><strong>Products</strong>
+          <span class="text-muted" x-text="p.products.length ? p.products.map(x => titleCase(x)).join(', ') : 'any (legacy)'"></span></div>
+        <div class="los-admin-role"><strong>Journey</strong>
+          <span class="text-muted" x-text="p.journey_steps + ' steps · ' + p.roles + ' roles in ' + p.groups + ' groups · ' + p.demo_applications + ' seeded demo application(s) · ' + (admin?.applications_by_profile?.[p.id]?.applications ?? 0) + ' in store'"></span></div>
+        <div class="los-admin-role"><strong>Due diligence</strong>
+          <span class="text-muted" x-text="p.checks + ' checks · documents per stage: ' + Object.entries(p.documents || {}).map(([s, n]) => s + ' ' + n).join(' · ')"></span></div>
+        <div class="los-admin-role"><strong>Approval matrix</strong>
+          <span class="text-muted" x-text="'preliminary ' + (p.approval?.preliminary_top || '—') + ' (' + (p.approval?.preliminary_bands ?? 0) + ' bands) · final ' + (p.approval?.final_top || '—') + ' (' + (p.approval?.final_bands ?? 0) + ' bands)'"></span></div>
+        <div class="los-admin-role"><strong>Output templates</strong>
+          <span class="text-muted" x-text="Object.entries(p.outputs || {}).map(([k, t]) => k + ': ' + (t || '—')).join(' · ') || '—'"></span></div>
+        <div class="los-admin-role"><strong>Modules</strong>
+          <span class="text-muted" x-text="Object.entries(p.modules || {}).map(([m, on]) => titleCase(m) + (on ? ' on' : ' off')).join(', ') || 'defaults'"></span></div>
+        <div class="los-action-row" x-show="p.id === admin?.active_profile && p.demo_applications">
+          <button class="btn btn-sm btn-outline" :disabled="busy" @click="resetDemoScope('active_profile')">Reseed demo applications</button>
+        </div>
+      </div>
+    </template>
+  </div>
+  <p class="text-muted los-small" x-text="admin?.note || ''"></p>
+
+  <!-- Product templates -->
+  <h3 class="los-section-title">Product templates</h3>
+  <div class="card">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead><tr><th>Product</th><th>Category</th><th>Facility types</th><th>Run by this profile</th></tr></thead>
+        <tbody>
+          <template x-for="p in (admin?.products || []).filter(x => x.available)" :key="p.id">
+            <tr><td><strong x-text="p.name"></strong></td><td x-text="p.category"></td>
+                <td class="text-muted" x-text="p.facility_types.map(x => titleCase(x)).join(', ')"></td>
+                <td><span class="badge sm" :class="p.available ? 'badge-green' : 'badge-grey'" x-text="p.available ? 'yes' : 'no'"></span></td></tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Demo users -->
+  <h3 class="los-section-title">Groups, roles and demo users</h3>
   <div class="los-admin-grid">
     <template x-for="g in directory.groups || []" :key="g.id">
       <div class="card">
@@ -33,5 +87,8 @@
         </template>
       </div>
     </template>
+  </div>
+  <div class="los-action-row" style="margin-top:8px">
+    <button class="btn btn-sm btn-ghost" @click="go('audit')">Open the audit trail →</button>
   </div>
 </section>

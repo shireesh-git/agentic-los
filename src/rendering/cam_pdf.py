@@ -7,8 +7,11 @@ import html as _html_mod
 import re as _re
 
 
-def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str] | None = None) -> bytes:
-    """Generate a professional CAM PDF with cover page, headers, footers, and page breaks."""
+def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str] | None = None,
+                     branding: dict | None = None) -> bytes:
+    """Generate a professional CAM PDF with cover page, headers, footers, and page breaks.
+    ``branding``: the institution profile's letterhead (institution_name, app_name,
+    cam_title, colors.primary/accent); the neutral defaults apply when omitted."""
     from io import BytesIO
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -21,10 +24,13 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
     # ── Fix ₹ (U+20B9) which Helvetica cannot render (shows as ■) ──
     md = md.replace("\u20b9", "Rs.").replace("\u20a8", "Rs.")
 
-    BANK_NAME = "INDIAN BANK"
-    BANK_BLUE = colors.HexColor("#1e3a5f")
-    HEADER_BLUE = colors.HexColor("#3b5998")
-    ACCENT_GOLD = colors.HexColor("#c8a951")
+    ib = branding or {}
+    ibc = ib.get("colors") or {}
+    BANK_NAME = ib.get("institution_name") or "INDIAN BANK"
+    BANK_TITLE = (ib.get("cam_title") or "Credit Appraisal Memorandum").upper()
+    BANK_BLUE = colors.HexColor(ibc.get("primary") or "#1e3a5f")
+    HEADER_BLUE = colors.HexColor(ibc.get("primary") or "#3b5998")
+    ACCENT_GOLD = colors.HexColor(ibc.get("accent") or "#c8a951")
     LIGHT_BG = colors.HexColor("#f0f4f8")
     SECTION_BG = colors.HexColor("#eaf0f7")
     SOURCE_GREY = colors.HexColor("#8899aa")
@@ -43,7 +49,7 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
         canvas.setFillColor(colors.white)
         canvas.drawString(15*mm, h - 9.5*mm, BANK_NAME)
         canvas.setFont("Helvetica", 7)
-        canvas.drawRightString(w - 15*mm, h - 9.5*mm, "CREDIT APPRAISAL MEMORANDUM")
+        canvas.drawRightString(w - 15*mm, h - 9.5*mm, BANK_TITLE)
         # Gold accent line below header
         canvas.setStrokeColor(ACCENT_GOLD)
         canvas.setLineWidth(1.5)
@@ -210,7 +216,7 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
     story.append(Spacer(1, 6*mm))
     story.append(Paragraph(BANK_NAME, styles["CoverBank"]))
     story.append(Spacer(1, 2*mm))
-    story.append(Paragraph("Corporate Banking Division", styles["CoverDivision"]))
+    story.append(Paragraph(ib.get("app_name") or "Corporate Banking Division", styles["CoverDivision"]))
     story.append(Spacer(1, 4*mm))
     # Blue line under division
     cover_blue_line = Table([[""]], colWidths=[100*mm])
@@ -219,7 +225,7 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
     ]))
     story.append(cover_blue_line)
     story.append(Spacer(1, 14*mm))
-    story.append(Paragraph("CREDIT APPRAISAL MEMORANDUM", styles["CoverTitle"]))
+    story.append(Paragraph(BANK_TITLE, styles["CoverTitle"]))
     story.append(Paragraph("(CAM)", styles["CoverDivision"]))
     story.append(Spacer(1, 12*mm))
     # Borrower name in a highlighted box

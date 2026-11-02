@@ -1,0 +1,235 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Bank-focused demo packages (R22) — the presentation-ready walkthroughs for
+# the 22 enhancements. Each package is a small, self-contained script a
+# presenter can run against a demo server: it names the profile and sign-in,
+# the prepared case, the exact steps (with what to click and what to expect),
+# the reset procedure and the artifacts to point at (reports, audit trail,
+# notifications). The packages are configuration: no application code path
+# reads an id from this file, the guided-demo UI renders the same structure
+# as config/demo_scenarios.yaml, and the verification script below checks
+# every package against the live workflow (real roles/steps) and the seeded
+# demo applications.
+# ═══════════════════════════════════════════════════════════════════════
+
+reset:
+  instructions: >
+    1. Sign in as los_admin (Administration group). 2. Open Administration →
+    "Reset all demo applications" (or POST /api/los/admin/demo/reset). 3. The
+    seed recreates every profile's demo applications deterministically — no
+    data from the previous run survives.
+  endpoint: POST /api/los/admin/demo/reset
+
+packages:
+  - id: exec_credit_journey
+    audience: executive
+    title: "The credit decision, end to end (executive view)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "10 min"
+    points:
+      - "One application, one authority: the route is computed from the amount, grade, sector and product — visible on the case summary"
+      - "The approval (sanction) record, the audit trail and the case summary download as branded reports"
+      - "Every decision is auditable: who decided, on what authority, with which material-information date"
+    steps:
+      - {role: rm, stage: "Dashboard", action: "Open the dashboard; open the seeded Mahadev Fasteners case (In-Progress)",
+         expected: "The stage rail shows PS → IP → AP → POS; the case summary panel carries the authority note and open risks", next: "Decision page"}
+      - {role: rm, stage: "Decision", action: "Open the decision page",
+         expected: "Decision records with authority basis, material-information date and deviation references; the timeline is append-only", next: "Reports"}
+      - {role: rm, stage: "Reports", action: "Download the Case Summary and the Audit Trail reports (Reports)",
+         expected: "Branded HTML / injection-safe CSV with the generation time and filters applied; no secrets or file paths in the content", next: "Complete"}
+    artifacts: [case_summary report, audit_trail report, decision page]
+
+  - id: exec_authority_escalation
+    audience: executive
+    title: "Authority-driven routing (executive view)"
+    profile: dfi
+    borrower: "Kaveri Greenways Energy LLP"
+    application_entity: KAVG001
+    sign_in: {user: u_ra1, role: risk_analyst}
+    duration: "8 min"
+    points:
+      - "The product's authority matrix picks the committee: ₹650 Cr project finance needs the Project Sanction Committee with an EVP note"
+      - "Concurrences are enforced by the profile — the sanction cannot be recorded without the CRP/DMD notes"
+      - "Route changes are audited: a material change re-enters the route at the right stage"
+    steps:
+      - {role: risk_analyst, stage: "Credit Assessment (AP)", action: "Open the seeded Kaveri Greenways project-finance case at the AP Risk Maker",
+         expected: "The route panel lists the computed route with the exclusions and their reasons", next: "Authority note"}
+      - {role: risk_analyst, stage: "Decision", action: "Open the authority note (decision page)",
+         expected: "'Project Sanction Committee (preliminary) with EVP note' from the product's ₹650 Cr band", next: "Sanction Record"}
+      - {role: risk_analyst, stage: "Reports", action: "Download the Sanction Record report after the committee step",
+         expected: "Committee, authority, minutes, conditions and deviations in one artifact", next: "Complete"}
+    artifacts: [route panel, authority note, sanction_record report]
+
+  - id: func_dd_exceptions
+    audience: functional
+    title: "Conditional due-diligence checks and E&S exceptions (functional)"
+    profile: dfi
+    borrower: "Kaveri Greenways Energy LLP"
+    application_entity: KAVG001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "12 min"
+    points:
+      - "The profile decides which checks apply: the GSTIN run only on fund-based tickets, EDD only for energy/infrastructure, CFP and bureau pulls only from ₹200 Cr"
+      - "A waived check never blocks; a result past its validity (MCA 180 d, screening 90 d, CRILC 365 d) re-blocks until re-run"
+      - "An excluded-activity 'Yes' blocks — unless the DMD approves an E&S exception, which lapses after 180 days"
+    steps:
+      - {role: ps_maker, stage: "Due Diligence (PS)", action: "Open the Due Diligence workspace of a new DFI ticket (₹100 Cr term loan)",
+         expected: "The applicability list: GSTIN applies (fund-based), EDD applies (energy), CFP/bureau do not (under ₹200 Cr)", next: "Run & submit"}
+      - {role: ps_maker, stage: "Due Diligence (PS)", action: "Run the checks; record the manual ones; submit",
+         expected: "The waived checks are left pending and do not block the PS submit", next: "E&S screen"}
+      - {role: ps_maker, stage: "Projects & ESMS (AP)", action: "On the project case: answer 'Yes' to the hazardous-activity screen and request the E&S exception",
+         expected: "The ES maker is blocked; the request sits with the DMD (configured authority)", next: "DMD decision"}
+      - {role: dmd, stage: "E&S exception", action: "Sign in as DMD and approve (180-day TTL)",
+         expected: "The gate releases; the audit carries esms_exception_requested / esms_exception_approved; a decline or lapse re-blocks", next: "Complete"}
+    artifacts: [due-diligence applicability list, ESMS exception record, audit events]
+
+  - id: func_modification
+    audience: functional
+    title: "A material modification after sanction (functional)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "10 min"
+    points:
+      - "Post-sanction, facilities cannot be edited directly — a modification request is the only path"
+      - "Materiality (10% / ₹5 Cr / any tenor or rate change) routes the case back to the AP Risk Maker"
+      - "Disbursement is blocked while a modification is open"
+    steps:
+      - {role: pos_maker, stage: "Post-Sanction (POS)", action: "At Post-Sanction: propose a +30% amount modification",
+         expected: "Material — target step AP Risk Maker; the case moves to the Post-Sanction Checker for recommendation", next: "Recommendation"}
+      - {role: pos_checker, stage: "Post-Sanction (POS)", action: "The checker recommends; the deciding authority approves",
+         expected: "The modification is decided; the new sanctioned amount is recorded; a non-material change would have stayed local", next: "Disbursement block"}
+      - {role: dis_maker, stage: "Disbursement (DIS)", action: "Try to request a tranche while a second modification is open",
+         expected: "Blocked: an open modification stops disbursement", next: "Complete"}
+    artifacts: [modification record, routing change audit, disbursement block]
+
+  - id: func_sanction_acceptance
+    audience: functional
+    title: "Sanction letter acceptance (functional)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "8 min"
+    points:
+      - "The letter is versioned; the customer's signed copy must match the current version"
+      - "The consent date must fall inside the letter's validity (30 days from issue)"
+      - "The Post-Sanction Checker verifies the signed copy; a rejection forces a re-upload"
+    steps:
+      - {role: pos_maker, stage: "Post-Sanction (POS)", action: "At Post-Sanction: generate and issue the Sanction Letter, upload the customer's signed copy",
+         expected: "The signed copy is bound to the letter's version; the acceptance window is shown", next: "Acceptance"}
+      - {role: pos_maker, stage: "Post-Sanction (POS)", action: "Record the acceptance with today's date and per-facility execution",
+         expected: "Consent on file; the POS gate opens only when every facility is executed/partial", next: "Expiry check"}
+      - {role: pos_maker, stage: "Post-Sanction (POS)", action: "Try a consent date beyond the validity",
+         expected: "Rejected: issue a fresh letter or re-accept within its validity", next: "Complete"}
+    artifacts: [letter version record, acceptance record, signed copy with hash]
+
+  - id: func_group_exposure
+    audience: functional
+    title: "Group exposure norm (functional)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "6 min"
+    points:
+      - "Group exposure (this application + siblings) is measured against the group's net worth"
+      - "The norm (100% of net worth in the base profile) produces a deviation when crossed"
+    steps:
+      - {role: ps_maker, stage: "Case summary", action: "Open the Group Exposure panel of the seeded case",
+         expected: "Siblings listed, group total vs the norm, headroom; a crossed norm is flagged as a deviation", next: "Complete"}
+    artifacts: [group-exposure panel, deviation record]
+
+  - id: func_covenants
+    audience: functional
+    title: "Conditions, covenants and waivers (functional)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "8 min"
+    points:
+      - "Every condition carries a status: open / satisfied / deferred / waived"
+      - "A waiver is granted by the configured authority (Post Sanction Checker, 180-day max) and expires"
+      - "The indicators (overdue / breached / waived / pending) drive the post-sanction monitoring"
+    steps:
+      - {role: pos_checker, stage: "Conditions", action: "Open the Conditions workspace; waive a condition with the authority's sign-off",
+         expected: "The waiver record carries the authority and expiry; the indicator panel updates", next: "Complete"}
+    artifacts: [conditions indicators, waiver record]
+
+  - id: func_field_permissions
+    audience: functional
+    title: "Field-level edit permissions (functional)"
+    profile: dfi
+    borrower: "Kaveri Greenways Energy LLP"
+    application_entity: KAVG001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "8 min"
+    points:
+      - "The profile names the material fields (amount, tenor, rate, purpose, type) — a change to them is audited with before/after"
+      - "Domain edit roles: the PS maker and the Risk Analyst edit the facility domain; everyone else is read-only"
+      - "The UI disables exactly what the API would refuse (GET field-permissions drives both)"
+    steps:
+      - {role: ps_maker, stage: "Facilities & limits", action: "At PS Maker: change the facility amount (₹100 Cr → ₹120 Cr)",
+         expected: "Saved; the audit event carries the before/after and the 'material edit' flag; the decision page lists it", next: "Reviewer attempt"}
+      - {role: lpf_vp, stage: "Facilities & limits", action: "Sign in as LPF VP (a reviewer at the PS stage) and try the same edit",
+         expected: "403 — 'available to the current step's role'; the Edit button is not shown in the UI", next: "Complete"}
+    artifacts: [field-permissions endpoint, material-edit audit events, decision record flag]
+
+  - id: func_committee
+    audience: functional
+    title: "Committee governance and returns (functional)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "8 min"
+    points:
+      - "The committee can return a file without a decision: the case stays with the maker, the return is recorded"
+      - "The re-recommendation walks the new position back to the committee; the sanctioned amount stands after sanction"
+    steps:
+      - {role: dmd, stage: "Committee (AP)", action: "At the recommendation step: return the file to the maker",
+         expected: "The committee_returned flag is set; the audit carries the return with remarks", next: "Re-recommendation"}
+      - {role: ps_maker, stage: "Committee (AP)", action: "The maker re-recommends with the corrected position",
+         expected: "The case re-enters the committee; the decision record shows both positions", next: "Complete"}
+    artifacts: [committee return audit, re-recommendation record]
+
+  - id: func_reports_notifications
+    audience: functional
+    title: "Reports, notifications and audit integrity (functional)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "8 min"
+    points:
+      - "Six report types: case summary, sanction record, audit trail, document checklist, conditions, disbursement — HTML and injection-safe CSV"
+      - "Notifications are derived from the case (SLA, committee, documents, conditions) and acknowledged per item"
+      - "The audit trail is hash-chained; the API exposes the chain and its verification"
+    steps:
+      - {role: ps_maker, stage: "Reports", action: "Open Reports; download each type in both formats",
+         expected: "Branded output, generation time and filters on every artifact; CSV cells are formula-injection safe", next: "Notifications"}
+      - {role: ps_maker, stage: "Notifications", action: "Open Notifications; acknowledge one item",
+         expected: "The item is acknowledged (audit event); the rest remain for the owner", next: "Audit trail"}
+      - {role: ps_maker, stage: "Audit", action: "Open the Audit trail API",
+         expected: "Sequential events with prev_hash/hash; verification passes on the chain", next: "Complete"}
+    artifacts: [6 reports × 2 formats, notification records, hash-chained audit]
+
+  - id: func_sessions
+    audience: functional
+    title: "Secure sessions (functional)"
+    profile: client_one
+    borrower: "Mahadev Fasteners & Forgings Ltd"
+    application_entity: MFL001
+    sign_in: {user: u_rm1, role: ps_maker}
+    duration: "5 min"
+    points:
+      - "Sessions expire on the profile's clock: 8 hours absolute, 30 minutes idle"
+      - "A dead session is dropped on use — the client is asked to sign in again"
+    steps:
+      - {role: ps_maker, stage: "Session", action: "Sign in; wait out the idle window (demo: configure a short idle for the session)",
+         expected: "The next call is refused with a sign-in prompt; no partial state is written", next: "Complete"}
+    artifacts: [session policy in the profile, 401 → re-sign-in flow]

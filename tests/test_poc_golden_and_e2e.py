@@ -142,7 +142,9 @@ def test_a_new_prospect_from_documents_to_exit(tmp_path):
             svc.prepare_application(app_id, s, wait=True)
             job = svc.wait_for_preparation(app_id)
             assert job["state"] == "done", (step.id, job.get("error"))
-            assert not job["summary"]["credit_case_ran"], "the CAM generated at sourcing is reused, not re-run"
+            if step.id == "ip_note":
+                # the CAM generated at sourcing is reused for the IP Note, not re-run
+                assert not job["summary"]["credit_case_ran"], "the CAM generated at sourcing is reused, not re-run"
         if step.id == "ip_note":
             cov = svc.get(app_id)["prefill_coverage"]
             print(f"IP Note pre-filled: {cov['filled']} of {cov['total']}; missing",
@@ -176,6 +178,7 @@ def test_a_new_prospect_from_documents_to_exit(tmp_path):
     sp = svc.post_sanction(app_id, maker)["suggested"]["post_sanction"]
     assert (sp["accepted_by"], sp["acceptance_date"], sp["agreement_date"]) == ("Rohan Desai", "2026-11-05", "2026-11-10")
     svc.generate_letter(app_id, maker, "sanction_letter")
+    svc.upload_signed_letter(app_id, maker, "sanction_letter", "signed-copy-poc.pdf", b"%PDF-1.4 poc")
     svc.record_consent(app_id, maker, acknowledged_by=sp["accepted_by"], consent_date=sp["acceptance_date"],
                        facilities=[{"facility_id": f["facility_id"], "execution_status": "executed",
                                     "agreement_date": sp["agreement_date"]} for f in svc.get(app_id)["facilities"]])

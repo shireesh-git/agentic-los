@@ -58,6 +58,8 @@ def blank_facility(index: int) -> dict:
         "linked_project_ids": [], "linked_security_ids": [], "linked_condition_ids": [],
         # the bank's IP facility fields (F-6); "secured" is derived from the securities record
         "parent_facility": None, "first_disbursement_date": None, "takeover": None,
+        "currency": "INR", "reimbursement_facility": False, "interchangeable": False,
+        "parent_limit_id": None,
         "change_history": [],
     }
 
@@ -149,6 +151,10 @@ def normalise_facility(raw: dict, index: int, defaults: Optional[dict] = None) -
         "parent_facility": _flag(merged.get("parent_facility")),
         "first_disbursement_date": _date(merged.get("first_disbursement_date"), "expected first disbursement date", index),
         "takeover": _flag(merged.get("takeover")),
+        "currency": (str(merged.get("currency")).strip().upper() or "INR") if merged.get("currency") else "INR",
+        "reimbursement_facility": _flag(merged.get("reimbursement_facility")) or False,
+        "interchangeable": _flag(merged.get("interchangeable")) or False,
+        "parent_limit_id": merged.get("parent_limit_id") or None,
     })
     # preserve any server-managed lifecycle/history values on edits
     for key in ("sanctioned_cr", "committed_cr", "executed_cr", "disbursed_cr", "outstanding_cr", "balance_cr",
@@ -157,6 +163,51 @@ def normalise_facility(raw: dict, index: int, defaults: Optional[dict] = None) -
         if key in merged:
             rec[key] = merged[key]
     return rec
+
+
+def validate_hierarchy(app: dict) -> list[str]:
+    """R6: the facility hierarchy rules — a sublimit cannot exceed its parent's amount,
+    sublimits must sit on a consistent currency, a reimbursement facility needs a parent,
+    and the parent/child graph must be acyclic. Returns the list of violations (empty = ok)."""
+    facs = app.get("facilities") or []
+    by_id = {f.get("facility_id"): f for f in facs}
+    errors = []
+    for f in facs:
+        pid = f.get("parent_limit_id")
+        if not pid:
+            continue
+        parent = by_id.get(pid)
+        if parent is None:
+            errors.append(f"{f.get('facility_id')}: parent facility {pid} not found")
+            continue
+        sub = f.get("proposed_cr") or f.get("amount_cr") or 0
+        par = parent.get("proposed_cr") or parent.get("amount_cr") or 0
+        if sub > par + 1e-6:
+            errors.append(f"{f.get('facility_id')}: sublimit ₹{sub:,.2f} Cr exceeds its parent "
+                          f"{pid} (₹{par:,.2f} Cr)")
+        if (f.get("currency") or "INR") != (parent.get("currency") or "INR"):
+            errors.append(f"{f.get('facility_id')}: currency {f.get('currency')} differs from its "
+                          f"parent {pid} ({parent.get('currency')})")
+    for f in facs:
+        if f.get("reimbursement_facility") and not f.get("parent_limit_id"):
+            errors.append(f"{f.get('facility_id')}: a reimbursement facility must sit under a parent limit")
+    # cycle detection on the parent/child graph
+    state: dict = {}
+    def walk(fid, path):
+        st = state.get(fid, 0)
+        if st == 1:
+            errors.append(f"facility hierarchy cycle: {' → '.join(path + [fid])}")
+            return
+        if st == 2:
+            return
+        state[fid] = 1
+        f = by_id.get(fid)
+        if f and f.get("parent_limit_id") in by_id:
+            walk(f["parent_limit_id"], path + [fid])
+        state[fid] = 2
+    for f in facs:
+        walk(f.get("facility_id"), [])
+    return errors
 
 
 def _flag(value) -> Optional[bool]:

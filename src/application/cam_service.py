@@ -88,8 +88,11 @@ class CamService:
 
     def pdf(self, entity_id: str, run_id: str | None = None) -> bytes:
         case = self.cases.get_run(entity_id, run_id)
+        from src.los import profiles
+        branding = (case.get("fact_pack") or {}).get("institution_branding") or profiles.institution_branding()
         return generate_cam_pdf(self._edited_markdown(entity_id, case), case.get("company_name", entity_id),
-                                section_comments=self.persistence.load_case_comments(case.get("run_id")))
+                                section_comments=self.persistence.load_case_comments(case.get("run_id")),
+                                branding=branding)
 
     def one_pager(self, entity_id: str, run_id: str | None = None) -> str:
         from src.engines.cam_one_pager import generate_one_pager_html

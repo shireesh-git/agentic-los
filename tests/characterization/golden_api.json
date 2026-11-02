@@ -52,7 +52,8 @@
   "06 GET /api/cases/MFL001": {
     "status": 404,
     "keys": [
-      "detail"
+      "detail",
+      "error"
     ]
   },
   "07 GET /api/config": {
@@ -60,6 +61,8 @@
     "keys": [
       "approval",
       "benchmarks",
+      "demo_packages",
+      "demo_scenarios",
       "external_apis",
       "llm_providers",
       "los_fields",
@@ -205,7 +208,8 @@
   "21 GET /api/companies/NOPE999/hierarchy": {
     "status": 404,
     "keys": [
-      "detail"
+      "detail",
+      "error"
     ]
   },
   "22 POST /api/cases/MFL001/run": {

@@ -93,8 +93,10 @@ def _consent_all(svc, app_id, maker):
 
 
 def _issue_letter(svc, app_id, maker):
-    """The Post-Sanction Maker issues the Sanction Letter (RUL-10 hard gate)."""
-    return svc.generate_letter(app_id, maker, "sanction_letter")
+    """The Post-Sanction Maker issues the Sanction Letter (RUL-10 hard gate) and the
+    customer's signed copy is on file (R8)."""
+    svc.generate_letter(app_id, maker, "sanction_letter")
+    return svc.upload_signed_letter(app_id, maker, "sanction_letter", "signed-copy-test.pdf", b"%PDF-1.4 test")
 
 
 def test_final_sanction_creates_the_tracker_and_a_pos_maker_must_clear_cps(svc):

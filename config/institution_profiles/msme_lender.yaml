@@ -1,0 +1,121 @@
+# ═══════════════════════════════════════════════════════════════════════
+# DEMO INSTITUTION PROFILE — NBFC / MSME LENDER
+# A scorecard-driven MSME lender: small tickets, GST + bank-statement
+# based assessment, no CMA / no ES process, simplified documentation and
+# a two-tier MSME credit committee.
+# Fictional presentation profile — no real institution data.
+# ═══════════════════════════════════════════════════════════════════════
+
+profile:
+  id: msme_lender
+  name: "Meridian MSME Finance (NBFC, demo)"
+  short_name: "MMF"
+  kind: "NBFC — MSME lender"
+  description: "Demo profile: scorecard-driven MSME lending — short tenors, GST-based analysis, simplified approvals."
+
+branding:
+  institution_name: "Meridian MSME Finance (NBFC, demo)"
+  short_name: "MMF"
+  app_name: "MSME Lending LOS"
+  logo: null                            # neutral placeholder: the portal shows the short-name monogram
+  colors:
+    primary: "#3b2314"
+    accent: "#c2571b"
+  paper:
+    header: "Meridian MSME Finance (NBFC, demo) — MSME Credit"
+    footer: "MMF demo data — not a real institution"
+
+labels:
+  terms:
+    applicant: "business"
+    bank_account: "account with the NBFC"
+    facility: "loan"
+  roles:
+    relationship_officer: "Field Credit Officer"
+    credit_manager: "Credit Manager"
+    credit_officer: "Credit Analyst"
+    compliance_manager: "Compliance Officer"
+    compliance_vp: "Chief Risk & Compliance Officer"
+    credit_vp: "Chief Credit Officer"
+    credit_committee: "MSME Credit Committee"
+    board: "Board of Directors"
+    los_admin: "System Administrator"
+    infrastructure_developer: "Field Credit Officer"
+  stages:
+    PS: "Sourcing & Onboarding"
+    IP: "In-Principle Decision"
+    AP: "Assessment & Sanction"
+    POS: "Post Sanction"
+    DIS: "Disbursal"
+  decision_fields:
+    approval: "Decision"
+    decision: "Committee decision"
+    action: "Action"
+
+products: [msme_loan]
+
+modules:
+  cma: {enabled: false}                # scorecard instead of a full CMA
+  esms: {enabled: false}
+  consortium: {enabled: false}
+  committee_recommendations: {enabled: false}   # single MSME credit committee
+  dmd: {enabled: true}
+
+checks:
+  applicable: [mca, cibil, gstin, ews, kyc, name_screening, crilc]
+  mandatory: [gstin, cibil, name_screening]
+  names:
+    cibil: "Credit bureau pull"
+
+documents:
+  by_stage:
+    PS:
+      add:
+        - {name: "Bank statements (last 6 months)", scope: application}
+    AP:
+      remove:
+        - "CMA (prepared in the CMA workspace)"
+        - "Valuation report for the proposed security"
+      add:
+        - {name: "GST summary (last 12 months)", scope: application}
+
+approval:
+  preliminary:
+    - {max_amount: 10, authority: "MSME Approval Panel"}
+    - {max_amount: null, authority: "MSME Approval Panel with MD note"}
+  final:
+    - {max_amount: 10, authority: "MSME Credit Committee"}
+    - {max_amount: 50, authority: "MSME Credit Committee with MD note"}
+    - {max_amount: null, authority: "MSME Credit Committee with board intimation"}
+  board_intimation_above_cr: 50
+  sub_investment_grade_concurrence: false
+  deviation_escalation_levels: 1
+
+outputs:
+  cam: {title: "MSME Credit Assessment Note", institution_name: "Meridian MSME Finance (NBFC, demo)"}
+  ip_note: {title_prefix: "In-Principle Assessment — MSME"}
+  committee_pack: {title: "MSME Credit Committee Pack"}
+  sanction_letter:
+    institution_name: "Meridian MSME Finance (NBFC, demo)"
+    acceptance_days: 14
+    kind_titles:
+      term_sheet: "Indicative offer"
+      sanction_letter: "Sanction letter (MSME)"
+
+demo_applications:
+  - entity_id: KARI001
+    target: "ap_risk_maker"
+    days_ago: 10
+    priority: "Normal"
+    note: "Demo success: ₹12 Cr MSME term loan for capacity expansion — clean scorecard path to assessment."
+    facilities:
+      - {facility_type: "term_loan", amount_cr: 12, tenor_months: 36,
+         purpose: "MSME term loan for capacity expansion (two additional sewing lines)."}
+  - entity_id: NIRM001
+    target: "ip_note"
+    days_ago: 3
+    priority: "Normal"
+    note: "Demo exception: ₹38 Cr working-capital limit — GST filings for two months pending, collection risk flagged."
+    facilities:
+      - {facility_type: "cash_credit", amount_cr: 38, tenor_months: 12,
+         purpose: "MSME working-capital limit for a large order book (corporate gifting season)."}

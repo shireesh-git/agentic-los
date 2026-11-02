@@ -16,7 +16,7 @@ Yes / Not Available answers).
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from src.application.errors import InvalidRequestError
@@ -73,14 +73,38 @@ def normalise_checklist(items: list[dict], current: list[dict]) -> list[dict]:
     return list(by_id.values())
 
 
-def esms_gate(esms: dict) -> Optional[str]:
-    """GAP-P2-01: ESMS Yes/Not Available remarks are mandatory; an excluded answer blocks."""
+def esms_exception_active(exc: Optional[dict], now: Optional[datetime] = None) -> bool:
+    """R5: an approved, not-yet-expired E&S exception releases the excluded-activity block."""
+    if not exc or exc.get("status") != "approved":
+        return False
+    exp = exc.get("expires_at")
+    if exp and now is not None:
+        try:
+            if now >= datetime.fromisoformat(str(exp)[:19]):
+                return False
+        except ValueError:
+            pass
+    return True
+
+
+def esms_gate(esms: dict, exception: Optional[dict] = None, now: Optional[datetime] = None) -> Optional[str]:
+    """GAP-P2-01: ESMS Yes/Not Available remarks are mandatory; an excluded answer blocks —
+    unless the institution allows E&S exceptions and a valid one is on file (R5)."""
     if not esms:
         return "ESMS screening has not been started"
     if not esms.get("screening_date"):
         return "The ESMS screening date is required"
     excluded = [i["label"] for i in esms.get("checklist", []) if i.get("answer") == "Yes"]
     if excluded:
+        if esms_exception_active(exception, now):
+            return None
+        st = (exception or {}).get("status")
+        if st == "declined":
+            return ("The E&S exception for the excluded activity was declined — the proposal cannot proceed: "
+                    + "; ".join(x[:90] for x in excluded[:2]))
+        if (exception or {}).get("status") == "approved":
+            return ("The E&S exception for the excluded activity has lapsed — re-decide it or close the case: "
+                    + "; ".join(x[:90] for x in excluded[:2]))
         return ("The proposal involves an excluded activity under NaBFID's list (Annex 5-2) and cannot proceed: "
                 + "; ".join(x[:90] for x in excluded[:2]))
     open_items = [i["label"] for i in esms.get("checklist", []) if not i.get("answer")]

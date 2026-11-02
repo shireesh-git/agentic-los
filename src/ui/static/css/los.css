@@ -1,6 +1,19 @@
 /* Corporate LOS — layout on top of dashboard.css (same colour tokens, fonts, cards, badges, buttons). */
 
-.los-body{background:var(--bg-body);margin:0;}
+/* Institution profile theme — the active profile's branding.colors drive these
+   (losApp().applyBranding() sets --los-primary / --los-accent from the profile); the
+   fallbacks match the neutral base profile so a missing/invalid branding degrades to
+   the base look instead of breaking. */
+:root{
+  --los-primary: #003366;
+  --los-accent:  #c9a227;
+}
+.los-body{background:var(--bg-body);margin:0;
+  --accent:var(--los-primary);      /* the profile's primary colour themes the shell */
+  --gold:var(--los-accent);         /* the profile's accent colour themes highlights  */
+  --accent-hover:var(--los-primary);
+  --bg-sidebar:var(--los-primary);
+}
 .toast.toast-ok{background:var(--green);}
 .toast.toast-err{background:var(--red);}
 
@@ -416,6 +429,28 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
   color:var(--text);font-size:13px;font-family:var(--font);font-weight:400;box-sizing:border-box;
   transition:border-color .15s,box-shadow .15s}
 .los-field input:not([type]):focus,.los-field input[type="date"]:focus,.los-check-form input:not([type]):focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,51,102,.10)}
+
+/* ── R21: accessibility & UI polish ────────────────────────────────
+   Visible keyboard focus for every interactive element, reduced-motion
+   support, an always-available skip link, readable toasts, hover/pressed
+   cues on nav rows and a minimum touch target. */
+:where(a, button, select, input, textarea, [tabindex]):focus-visible{
+  outline:3px solid rgba(0,51,102,.55);outline-offset:2px;border-radius:6px;}
+.los-sidebar :focus-visible,.los-nav a:focus-visible,.los-nav button:focus-visible{
+  outline:3px solid rgba(255,255,255,.75);}
+.los-skip{position:absolute;left:-9999px;top:0;background:#fff;color:var(--accent);
+  padding:10px 16px;font-weight:700;z-index:100;border-radius:0 0 8px 0;}
+.los-skip:focus{left:0;}
+.los-error-banner{scroll-margin-top:12px;}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;}
+}
+.los-nav button:hover:not(:disabled),.los-nav-ext:hover:not(.on){transform:translateX(1px);}
+@media (max-width: 900px){
+  .los-shell{grid-template-columns:1fr;}
+  .los-sidebar{position:static;height:auto;}
+}
 .los-modal textarea{background:#fff}
 .los-cond-table{table-layout:fixed;width:100%}
 .los-cond-table td{overflow-wrap:break-word}
@@ -459,3 +494,6 @@ button:disabled[title]:not([title=""]){cursor:not-allowed}
 .los-cop-close{position:absolute;top:-4px;right:-6px;width:34px;height:34px;border-radius:50%;border:1px solid var(--border);
   background:#fff;color:var(--text);font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .los-cop-close:hover{background:var(--bg-card-alt,#f3f4f6)}
+
+/* administration section titles */
+.los-section-title { margin: 18px 0 8px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em; color: #475569; }

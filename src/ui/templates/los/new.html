@@ -178,6 +178,24 @@
       <label class="los-field">Conditional fields — remarks <span class="badge sm badge-red" x-show="newApp.decision?.decision === 'Defer'">required when deferring</span><textarea class="input" rows="2" maxlength="1000" x-model="newApp.decision.conditional_remarks" placeholder="Remarks for each conditional item (required when the decision is Defer)"></textarea></label>
     </div>
 
+    <div class="los-form-section" x-show="borrowerChosen() && products.length">
+      <div class="los-section-head">
+        <div><h3>Credit product</h3>
+          <p class="text-muted">The product template fixes the amount / tenor gates, due-diligence checks, document checklist,
+            approval route and output templates for this application. Unselected: the profile infers it from the facility types
+            (profiles without a fixed product set apply no product gates).</p></div>
+      </div>
+      <label class="los-field">Product template
+        <select class="input" x-model="newApp.product">
+          <option value="">Infer from the facility types / profile default</option>
+          <template x-for="p in products" :key="p.id">
+            <option :value="p.id" :disabled="!p.available" x-text="p.name + ' — ' + p.category + (p.available ? '' : ' (not run by this profile)')"></option>
+          </template>
+        </select>
+        <span class="text-muted los-small" x-show="selectedProduct()" x-text="selectedProduct()"></span>
+      </label>
+    </div>
+
     <div class="los-form-section">
       <div class="los-section-head">
         <div><h3>Proposed facilities</h3><p class="text-muted">Each facility retains its own nature, amount, tenor and purpose.</p></div>

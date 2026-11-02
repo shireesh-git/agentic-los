@@ -14,10 +14,14 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import dataclasses
+import hashlib
 import secrets
 import shutil
 import re
 import threading
+import yaml as _yaml
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable, Optional
@@ -37,6 +41,10 @@ from src.los import (authority, cma as cma_mod, copilot as cp, disops as do, doc
                      projects as prj, proposal as prop_mod, ratings as rat, securities as sec, snapshot as snap)
 from src.los import rules as rules_mod
 from src.los import letters as lt
+from src.los import config_version as cfgver
+from src.los import routing as rt_routing
+from src.los import profiles
+from src.los import products as prodmod
 from src.los import verification as dd
 from src.los.mis import build_mis
 from src.los.ip_note import build_ip_note, render_html, summarise
@@ -119,12 +127,53 @@ DEMO_SEED = [
 ]
 DEMO_EXIT_ENTITY = "PNCR002"
 
+_demo_packages_cache: tuple[float, dict] = (0.0, {})
+
+
+def _demo_packages() -> dict:
+    """The bank-focused demo packages (config/demo_packages.yaml, R22), cached with hot reload."""
+    global _demo_packages_cache
+    base = os.getenv("CAM_CONFIG_DIR", "").strip() or str(Path(__file__).resolve().parents[2] / "config")
+    path = Path(base) / "demo_packages.yaml"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {}
+    if _demo_packages_cache[0] >= mtime:
+        return _demo_packages_cache[1]
+    with open(path, "r", encoding="utf-8") as fh:
+        data = _yaml.safe_load(fh) or {}
+    _demo_packages_cache = (mtime, data)
+    return data
+
+
+_demo_scenarios_cache: tuple[float, dict] = (0.0, {})
+
+
+def _demo_scenarios() -> dict:
+    """The guided demo scenarios (config/demo_scenarios.yaml), cached with hot reload."""
+    global _demo_scenarios_cache
+    base = os.getenv("CAM_CONFIG_DIR", "").strip() or str(Path(__file__).resolve().parents[2] / "config")
+    path = Path(base) / "demo_scenarios.yaml"
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {}
+    if _demo_scenarios_cache[0] >= mtime:
+        return _demo_scenarios_cache[1]
+    with open(path, "r", encoding="utf-8") as fh:
+        data = _yaml.safe_load(fh) or {}
+    _demo_scenarios_cache = (mtime, data)
+    return data
+
 
 class LosService:
     def __init__(self, store, workflow_loader: Callable[[], Workflow], companies: dict,
                  clock: Callable[[], datetime] = datetime.now, cases=None, final_cam=None,
                  documents_root: Optional[Path] = None, doc_store=None, llm_factory: Optional[Callable] = None,
-                 company_registrar: Optional[Callable] = None):
+                 company_registrar: Optional[Callable] = None,
+                 session_max_age: Optional[timedelta] = None,
+                 session_idle_timeout: Optional[timedelta] = None):
         self.store = store
         self._workflow_loader = workflow_loader
         self._workflow: Optional[Workflow] = None
@@ -133,12 +182,16 @@ class LosService:
         self.cases = cases                  # CaseService: runs the credit-intelligence pipeline
         self.final_cam = final_cam          # FinalCamService: re-syncs M1–M7 for a case
         self._sessions: dict[str, dict] = {}
+        # R18: session security — absolute expiry and idle timeout (None = the profile default)
+        self.session_max_age = session_max_age
+        self.session_idle_timeout = session_idle_timeout
         self._jobs: dict[str, dict] = {}    # application_id → running / last credit-assessment job
         self._jobs_lock = threading.Lock()
         self.documents_root = Path(documents_root) if documents_root else None   # storage/documents/{entity}/...
         self.doc_store = doc_store          # DocumentStore: writes uploads into the borrower's folders
         self.llm_factory = llm_factory      # optional AI fallback / IP Note summary
         self._field_registry: Optional[FieldRegistry] = None
+        self._wf_cache: dict[str, Workflow] = {}
         self._app_locks: dict[str, threading.Lock] = {}
         self._app_locks_guard = threading.Lock()
         self._prep_jobs: dict[str, dict] = {}   # application_id → stage-preparation job (agent lanes)
@@ -146,19 +199,332 @@ class LosService:
 
     @property
     def wf(self) -> Workflow:
+        """The workflow of the active institution profile (sign-in, directory, new work).
+        Application-scoped code uses ``_wf(app)`` instead, so an application always runs
+        on the workflow of the profile it was created in."""
         if self._workflow is None:
             self._workflow = self._workflow_loader()
         return self._workflow
 
+    def wf_for_profile(self, profile_id: Optional[str] = None) -> Workflow:
+        """The journey of one institution profile (cached per profile id)."""
+        pid = profile_id or profiles.active_profile_id()
+        if pid not in self._wf_cache:
+            self._wf_cache[pid] = load_workflow(pid)
+        return self._wf_cache[pid]
+
+    def _wf(self, app: Optional[dict]) -> Workflow:
+        """The workflow an application runs under: the profile stored against it."""
+        return self.wf_for_profile((app or {}).get("profile"))
+
+    def invalidate_workflow_cache(self, profile_id: Optional[str] = None) -> None:
+        """Drop cached journeys after the on-disk workflow / profile configuration changes."""
+        if profile_id:
+            self._wf_cache.pop(profile_id, None)
+        else:
+            self._wf_cache.clear()
+
     def now(self) -> datetime:
         return self.clock().replace(microsecond=0)
 
+    # ── institution profile (resolved per application) ─────────────────────
+    def _profile(self, app: Optional[dict] = None) -> dict:
+        """The application's institution profile (the active one for new work)."""
+        return profiles.get_profile(app=app)
+
+    def _check_catalog(self, app: Optional[dict] = None) -> list[dict]:
+        return prodmod.checks(self._profile(app), (app or {}).get("product"))
+
+    def _doc_checklist(self, app: Optional[dict] = None) -> dict:
+        return prodmod.documents(self._profile(app), (app or {}).get("product"),
+                                 [profiles.primary_product(app)] or [None])
+
+    def _exc_authority(self, app: Optional[dict] = None) -> dict:
+        return profiles.exception_authority(self._profile(app))
+
+    def profiles_view(self) -> dict:
+        return profiles.profiles_view()
+
+    def profile_detail(self, profile_id: str, full: bool = False) -> dict:
+        try:
+            return profiles.profile_summary(profile_id, full=full)
+        except profiles.ProfileError as e:
+            raise NotFoundError(str(e))
+
+    def set_active_profile(self, session: dict, profile_id: str) -> dict:
+        """Switch the institution for new work (journey, modules, checks, documents, authority, outputs).
+        Administrator-only (the base skeleton profile is not selectable). Existing applications keep
+        the profile recorded against them."""
+        self._require_admin(session)
+        try:
+            profiles.set_active_profile(profile_id)
+        except profiles.ProfileError as e:
+            raise InvalidRequestError(str(e))
+        self._workflow = None                      # the new journey applies to new work
+        self._wf_cache.clear()
+        self._admin_event(session, "active_profile_changed", f"Institution profile set to '{profile_id}'",
+                          {"profile_id": profile_id})
+        return profiles.profiles_view()
+
+    # ── administration (administrator only) ──────────────────────────────────
+
+    def _require_admin(self, session: Optional[dict]) -> dict:
+        if not session or session.get("role") != "los_admin":
+            raise ForbiddenError("Only the System Administrator (los_admin) may manage institution "
+                                 "profiles and demo data")
+        return session
+
+    def _admin_event(self, session: dict, action: str, comment: str, detail: Optional[dict] = None) -> None:
+        self.store.record_event({"application_id": "SYSTEM", "at": self.now().isoformat(timespec="seconds"),
+                                 "actor_id": session.get("user", {}).get("id"), "actor_role": session.get("role"),
+                                 "action": action, "from_step": None, "to_step": None, "status": None,
+                                 "comment": comment, "detail": detail or {}})
+
+    def admin_overview(self, session: dict) -> dict:
+        """Read-only administration summary: institution profiles, products, seeded demo
+        applications and the guided demo scenarios."""
+        self._require_admin(session)
+        by_profile: dict[str, dict] = {}
+        for a in self.store.list():
+            pid = a.get("profile") or "client_one"
+            d = by_profile.setdefault(pid, {"applications": 0, "demo_applications": 0, "application_ids": []})
+            d["applications"] += 1
+            d["demo_applications"] += int(bool(a.get("is_demo")))
+            d["application_ids"].append(a["application_id"])
+        profs = []
+        for p in profiles.profiles_view().get("profiles", []):
+            full = profiles.get_profile(p["id"])
+            wf = self.wf_for_profile(p["id"])
+            appr = profiles.approval(full)
+            active_roles = {s.role for s in wf.steps}
+            active_roles.update({"los_admin", profiles.exception_authority(full).get("role")})
+            active_roles.discard(None)
+            profs.append({**p,
+                          "selectable": p["id"] != "base",
+                          "products": prodmod.profile_products(full),
+                          "journey_steps": len(wf.steps),
+                          "groups": len(wf.groups),
+                          "roles": len(active_roles),
+                          "modules": {m: bool(cfg.get("enabled", True)) for m, cfg in profiles.modules(full).items()},
+                          "checks": len(profiles.check_catalog(full)),
+                          "check_applicability": list(((full.get("checks") or {}).get("applicability") or {}).keys()),
+                          "check_validity_days": (full.get("checks") or {}).get("validity_days") or {},
+                          "esms_exceptions": profiles.esms_policy(full),
+                          "documents": {st: len(items) for st, items in profiles.document_checklist(full).items()},
+                          "approval": {"preliminary_bands": len(appr.get("preliminary") or []),
+                                        "final_bands": len(appr.get("final") or []),
+                                        "preliminary_top": (appr.get("preliminary") or [{}])[-1].get("authority", ""),
+                                        "final_top": (appr.get("final") or [{}])[-1].get("authority", "")},
+                          "outputs": {k: (profiles.output_template(k, full).get("title")
+                                          or profiles.output_template(k, full).get("title_prefix") or "")
+                                      for k in ("cam", "ip_note", "committee_pack", "sanction_letter", "term_sheet")},
+                          "demo_applications": by_profile.get(p["id"], {}).get("demo_applications", 0)})
+        return {"active_profile": profiles.active_profile_id(),
+                "default_profile": profiles.default_profile_id(),
+                "profiles": profs,
+                "products": prodmod.list_products(),
+                "applications_by_profile": by_profile,
+                "demo_reset_scopes": ["active_profile"],
+                "note": "This deployment presents one governed lending configuration. "
+                        "Demo-data changes are audit-logged."}
+
+    def admin_switch_profile(self, session: dict, profile_id: str, reseed: bool = False) -> dict:
+        """Administrator: make an institution profile the active one, optionally reseeding its demo
+        applications. Audited (``active_profile_changed``)."""
+        self._require_admin(session)
+        profile_id = str(profile_id or "").strip()
+        if not profile_id:
+            raise InvalidRequestError("Send a profile_id")
+        if profile_id == "base":
+            raise InvalidRequestError("The base profile is a configuration skeleton and cannot be activated")
+        with self._admin_lock:
+            try:
+                profiles.set_active_profile(profile_id)
+            except profiles.ProfileError as e:
+                raise InvalidRequestError(str(e))
+            self._workflow = None
+            self._wf_cache.clear()
+            created = 0
+            if reseed:
+                created = self.seed_profile_apps(profile_id, force=True)
+            self._admin_event(session, "active_profile_changed",
+                              f"Institution profile set to '{profile_id}'" + ("; demo applications reseeded" if reseed else ""),
+                              {"profile_id": profile_id, "reseed": bool(reseed), "demo_applications_created": created})
+            return {"active_profile": profiles.active_profile_id(), "reseeded": bool(reseed),
+                    "demo_applications_created": created}
+
+    def admin_reset_demo(self, session: dict, scope: str = "active_profile") -> dict:
+        """Administrator: controlled demo-data reset — removes the seeded demo applications
+        (of the active profile, or of every profile) and reseeds them deterministically.
+        User-created applications are never touched. Audited (``demo_reset``)."""
+        self._require_admin(session)
+        if scope not in ("active_profile", "all_demo"):
+            raise InvalidRequestError("scope must be 'active_profile' or 'all_demo'")
+        active = profiles.active_profile_id()
+        with self._admin_lock:
+            removed = 0
+            removed_by = {}
+            for a in list(self.store.list()):
+                if a.get("is_demo") and (scope == "all_demo" or (a.get("profile") or "client_one") == active):
+                    self.store.delete(a["application_id"])
+                    removed += 1
+                    removed_by[a.get("profile") or "client_one"] = removed_by.get(a.get("profile") or "client_one", 0) + 1
+            recreated_by = {}
+
+            def _legacy():
+                """The legacy Client One walkthrough set (idempotent per entity)."""
+                n = self._seed_legacy_once()
+                recreated_by["client_one"] = recreated_by.get("client_one", 0) + n
+
+            def _profile(pid):
+                """One presentation profile's seeded demos (force: replace, deterministic)."""
+                n = self.seed_profile_apps(pid, force=True)
+                recreated_by[pid] = recreated_by.get(pid, 0) + n
+
+            if scope == "all_demo":
+                # the complete expected demo dataset for EVERY selectable profile,
+                # independent of the active profile
+                _legacy()
+                for p in profiles.profiles_view().get("profiles", []):
+                    if p["id"] not in ("base", "client_one"):
+                        _profile(p["id"])
+            else:
+                if active == "client_one":
+                    _legacy()
+                _profile(active)
+            created = sum(recreated_by.values())
+            self._admin_event(session, "demo_reset",
+                              f"Demo data reset ({scope}): {removed} seeded application(s) removed, {created} recreated",
+                              {"scope": scope, "removed": removed, "recreated": created,
+                               "active_profile": active,
+                               "removed_by_profile": removed_by, "recreated_by_profile": recreated_by})
+            return {"scope": scope, "removed": removed, "recreated": created, "active_profile": active,
+                    "removed_by_profile": removed_by, "recreated_by_profile": recreated_by}
+
+    def demo_scenarios(self, profile_id: Optional[str] = None) -> dict:
+        """The guided demo scenarios (any role; filtered to the institution profile, or every one
+        when ``profile_id='all'``). Each scenario is enriched with its live demo application
+        (id, borrower, current step and role) and the real next step from the profile's
+        workflow — the walkthrough itself uses the normal application APIs only."""
+        pid = profile_id or profiles.active_profile_id()
+        out = []
+        for s in _demo_scenarios().get("scenarios") or []:
+            if pid == "all" or s.get("profile") in (None, pid):
+                sc = dict(s)
+                if (s.get("steps") or [{}])[0].get("action"):
+                    sc["current_action"] = s["steps"][0]["action"]
+                    sc["expected"] = s["steps"][0].get("expected", "")
+                spid = s.get("profile") or (profiles.active_profile_id() if pid == "all" else pid)
+                wf = self.wf_for_profile(spid)
+
+                def _next(step_id):
+                    idx = [i for i, x in enumerate(wf.steps) if x.id == step_id]
+                    if not idx or idx[0] + 1 >= len(wf.steps):
+                        return {}
+                    nxt = wf.steps[idx[0] + 1]
+                    return {"next_step": nxt.id, "next_step_name": nxt.name,
+                            "next_role_id": nxt.role, "next_role": wf.roles.get(nxt.role, nxt.role)}
+
+                app = None
+                if s.get("application_entity"):
+                    app = next((a for a in self.store.list()
+                                if a.get("is_demo") and a["entity_id"] == s["application_entity"]
+                                and (a.get("profile") or "client_one") == spid), None)
+                if app:
+                    step = wf.step(app["step_id"])
+                    sc.update({"application_id": app["application_id"],
+                               "application_borrower": app.get("borrower_name"),
+                               "application_profile": app.get("profile") or spid,
+                               "live_step": step.id, "live_step_name": step.name,
+                               "live_role_id": step.role, "live_role": wf.roles.get(step.role, step.role),
+                               "start_role": step.role, "start_step": step.id, **_next(step.id)})
+                elif s.get("start_step"):
+                    step = wf.step(s["start_step"])
+                    sc.update({"start_role": step.role,
+                               "live_step": step.id, "live_step_name": step.name,
+                               "live_role": wf.roles.get(step.role, step.role), **_next(step.id)})
+                out.append(sc)
+        return {"active_profile": pid, "scenarios": out}
+
+    _admin_lock = threading.Lock()
+
+    def branding_view(self) -> dict:
+        prof = profiles.get_profile()
+        return {"branding": profiles.branding(prof), "labels": profiles.labels(prof),
+                "profile": {"id": prof["profile"]["id"], "name": prof["profile"]["name"]}}
+
+    def demo_packages(self, profile_id: Optional[str] = None) -> dict:
+        """R22: the bank-focused demo packages (executive / functional walkthroughs of the
+        22 enhancements). Each package is enriched with its live demo application (id,
+        borrower, current step and role) from the profile's workflow — the walkthrough itself
+        uses the normal application APIs only. Filtered to the institution profile, or every
+        one when ``profile_id='all'``."""
+        pid = profile_id or profiles.active_profile_id()
+        data = _demo_packages()
+        out = []
+        for pk in data.get("packages") or []:
+            if pid == "all" or pk.get("profile") in (None, pid):
+                p2 = dict(pk)
+                spid = pk.get("profile") or pid
+                wf = self.wf_for_profile(spid)
+                app = None
+                if pk.get("application_entity"):
+                    app = next((a for a in self.store.list()
+                                if a.get("is_demo") and a["entity_id"] == pk["application_entity"]
+                                and (a.get("profile") or "client_one") == spid), None)
+                if app and app.get("step_id"):
+                    step = wf.step(app["step_id"])
+                    p2.update({"application_id": app["application_id"],
+                               "application_borrower": app.get("borrower_name"),
+                               "live_step": step.id, "live_step_name": step.name,
+                               "live_role": wf.roles.get(step.role, step.role)})
+                    if p2.get("sign_in", {}).get("role") == step.role:
+                        p2["sign_in"] = {**p2["sign_in"], "user": app.get("assignee_id")
+                                         or p2["sign_in"].get("user")}
+                elif app:
+                    p2.update({"application_id": app["application_id"],
+                               "application_borrower": app.get("borrower_name"), "completed": True})
+                else:
+                    # the seeded case sits at an earlier stage than the package opens on: the
+                    # walkthrough plays it forward through its normal steps first
+                    at = wf.step(app["step_id"]).name if (app and app.get("step_id")) else "an earlier stage"
+                    p2["seed_note"] = (f"This case is live at “{at}” — play the package's steps in order "
+                                       "from the live stage, or seed fresh demo applications "
+                                       "(Administration → reset demo).")
+                out.append(p2)
+        return {"reset": data.get("reset") or {}, "packages": out}
+
+    def products_view(self) -> list[dict]:
+        return prodmod.list_products()
+
+    def product_detail(self, product_id: str, profile_id: Optional[str] = None) -> dict:
+        try:
+            return prodmod.resolve_product(product_id, profiles.profile_for_new(profile_id))
+        except prodmod.ProductError as e:
+            raise NotFoundError(str(e))
+
     # ── demo sign-in ─────────────────────────────────────────────────────────
     def directory(self) -> dict:
-        """Groups, roles and demo users for the sign-in screen and allocation pickers."""
-        return {"groups": self.wf.groups, "roles": self.wf.roles,
-                "users": [{k: u[k] for k in ("id", "name", "email", "branch", "roles")} for u in self.wf.users],
-                "note": DEMO_NOTE}
+        """Groups, roles and demo users for the sign-in screen and allocation pickers,
+        with the institution profile's branding."""
+        prof = profiles.get_profile()
+        visible_roles = {s.role for s in self.wf.steps}
+        visible_roles.update({"los_admin", profiles.exception_authority(prof).get("role")})
+        visible_roles.discard(None)
+        groups = []
+        for group in self.wf.groups:
+            roles = [r for r in group.get("roles", []) if r in visible_roles]
+            if roles:
+                groups.append({**group, "roles": roles})
+        users = []
+        for user in self.wf.users:
+            roles = [r for r in user.get("roles", []) if r in visible_roles]
+            if roles:
+                users.append({**{k: user[k] for k in ("id", "name", "email", "branch")}, "roles": roles})
+        return {"groups": groups, "roles": {r: n for r, n in self.wf.roles.items() if r in visible_roles},
+                "users": users,
+                "note": DEMO_NOTE, "branding": profiles.branding(prof),
+                "profile": {"id": prof["profile"]["id"], "name": prof["profile"]["name"]}}
 
     def sign_in(self, user_id: str, role: str) -> dict:
         try:
@@ -167,27 +533,94 @@ class LosService:
             raise NotFoundError(str(e))
         if role not in user.get("roles", []):
             raise ForbiddenError(f"{user['name']} does not hold the role {role}")
+        visible_roles = {s.role for s in self.wf.steps}
+        visible_roles.update({"los_admin", profiles.exception_authority().get("role")})
         token = secrets.token_urlsafe(24)
-        session = {"token": token, "user": {k: user[k] for k in ("id", "name", "email", "branch", "roles")},
-                   "role": role, "role_name": self.wf.roles[role], "group": self.wf.group_of_role(role)}
+        now = self.now()
+        session_user = {k: user[k] for k in ("id", "name", "email", "branch")}
+        session_user["roles"] = [r for r in user.get("roles", []) if r in visible_roles]
+        session = {"token": token, "user": session_user,
+                   "role": role, "role_name": self.wf.roles[role], "group": self.wf.group_of_role(role),
+                   "created_at": now, "last_used_at": now}
         self._sessions[token] = session
         return session
+
+    def _session_policy(self) -> tuple:
+        """The active session policy: the explicit service values, else the profile defaults."""
+        prof = self._default_profile_cfg() if hasattr(self, "_default_profile_cfg") else {}
+        sec = (prof.get("session") or {})
+        max_age = self.session_max_age
+        idle = self.session_idle_timeout
+        if max_age is None:
+            try:
+                max_age = timedelta(hours=float(sec.get("max_hours") or 8))
+            except (TypeError, ValueError):
+                max_age = timedelta(hours=8)
+        if idle is None:
+            try:
+                idle = timedelta(minutes=float(sec.get("idle_minutes") or 30))
+            except (TypeError, ValueError):
+                idle = timedelta(minutes=30)
+        return max_age, idle
+
+    def _session_expired(self, s: dict) -> bool:
+        max_age, idle = self._session_policy()
+        now = self.now()
+        if now - s.get("created_at", now) > max_age:
+            return True
+        if now - s.get("last_used_at", now) > idle:
+            return True
+        return False
 
     def session(self, token: Optional[str]) -> dict:
         s = self._sessions.get(token or "")
         if not s:
             raise ForbiddenError("Not signed in (demo session expired — sign in again)")
+        if self._session_expired(s):
+            # the session is dead: drop it so the token cannot be replayed
+            self._sessions.pop(token or "", None)
+            raise ForbiddenError("Session expired (idle or maximum age) — sign in again")
+        s["last_used_at"] = self.now()
         return s
 
     def switch_role(self, token: str, role: str) -> dict:
+        """R18: a session can only move between roles the person genuinely holds — the stored
+        session is the source of truth, never a client-supplied role."""
         s = self.session(token)
         if role not in s["user"]["roles"]:
             raise ForbiddenError(f"{s['user']['name']} does not hold the role {role}")
-        s.update(role=role, role_name=self.wf.roles[role], group=self.wf.group_of_role(role))
+        s.update(role=role, role_name=self.wf.roles[role], group=self.wf.group_of_role(role),
+                 last_used_at=self.now())
         return s
 
     def sign_out(self, token: str) -> None:
         self._sessions.pop(token or "", None)
+
+    # ── idempotency (R15) ──────────────────────────────────────────────────
+    def idempotent(self, key: Optional[str], scope: str, application_id: Optional[str], fn):
+        """Run ``fn`` under an idempotency key: a repeated successful request returns the original
+        result without re-executing; a failed request is not cached, so it may be retried."""
+        if not key:
+            return fn()
+        try:
+            at = self.now().isoformat(timespec="seconds")
+        except AttributeError:            # a bare LosService built for tests without a clock
+            at = datetime.now().isoformat(timespec="seconds")
+        state = self.store.idempotency_begin(key, scope, application_id, at)
+        if state == "hit":
+            r = self.store.idempotency_result(key)
+            if r and r.get("status") == "completed":
+                return dict(r["result"])
+        if state != "new":
+            raise ConflictError("A request with this idempotency key is already in flight; "
+                                "wait for it to complete or use a new key")
+        try:
+            result = fn()
+        except Exception:
+            self.store.idempotency_fail(key, "", at)
+            raise
+        self.store.idempotency_complete(key, result, at)
+        return result
 
     # ── reads ────────────────────────────────────────────────────────────────
     def _require(self, application_id: str) -> dict:
@@ -229,9 +662,9 @@ class LosService:
         created = datetime.fromisoformat(app["created_at"])
         view["tat_days"] = round((now - created).total_seconds() / 86400, 1)
         if app.get("step_id"):
-            step = self.wf.step(app["step_id"])
+            step = self._wf(app).step(app["step_id"])
             view["step"] = {"id": step.id, "name": step.name, "kind": step.kind, "role": step.role,
-                            "role_name": self.wf.roles[step.role], "stage_id": step.stage_id,
+                            "role_name": self._wf(app).roles[step.role], "stage_id": step.stage_id,
                             "stage_name": step.stage_name, "sla_days": step.sla_days,
                             "allocates_to": step.allocates_to}
             active = app["status"] not in TERMINAL
@@ -240,24 +673,35 @@ class LosService:
             view["sla"] = (sla_state(datetime.fromisoformat(app["step_entered_at"]), step, now)
                            if active and not deferred else None)
             holder = app.get("assignee_id") in (None, (session or {}).get("user", {}).get("id"))
-            in_role = bool(session and active and can_act(self.wf, session["user"]["id"], session["role"], step))
+            in_role = bool(session and active and can_act(self._wf(app), session["user"]["id"], session["role"], step))
             # the step's actions are offered to the person it is assigned to; others in the role see who holds it
-            view["actions"] = list(wfmod.available_actions(self.wf, step, app["status"])) if in_role and holder else []
+            view["actions"] = list(wfmod.available_actions(self._wf(app), step, app["status"])) if in_role and holder else []
             view["assigned_to_other"] = in_role and not holder
             view["action_labels"] = {a: wfmod.action_label(step, a) for a in view["actions"]
                                      if wfmod.action_label(step, a)}
             view["decision_fields"] = [dict(f, type=wfmod.DECISION_FIELD_TYPES[f["id"]],
-                                            label=wfmod.DECISION_FIELD_LABELS.get(f["id"], f["id"].replace("_", " ").capitalize()))
+                                            label=self._wf(app).decision_field_labels.get(f["id"], f["id"].replace("_", " ").capitalize()))
                                        for f in step.decision_fields]
             view["decision_defaults"] = self._decision_defaults(app, step) if step.decision_fields else {}
-            view["remarks_required"] = self.wf.remarks_required
+            view["remarks_required"] = self._wf(app).remarks_required
             view["deferral"] = (app.get("deferrals") or [None])[-1] if deferred else None
-            view["rework_destinations"] = (wfmod.rework_destinations(self.wf, step)
+            # R2: a deferral reminder — days until the case must be taken up (negative: overdue)
+            if deferred and view["deferral"].get("until"):
+                due = datetime.fromisoformat(view["deferral"]["until"]).date()
+                view["deferral_days"] = (due - now.date()).days
+            view["rework_destinations"] = (wfmod.rework_destinations(self._wf(app), step)
                                            if step.kind in ("checker", "committee", "vp_review") else [])
             view["can_reassign"] = bool(session and active and self._may_reassign(session, step))
         else:
             view["step"], view["sla"], view["actions"], view["can_reassign"] = None, None, [], False
         view["rail"] = self._rail(app)
+        # R1: the calculated route (authority → steps & concurrences) and R16: its configuration versions
+        view["routing"] = rt_routing.public_route(app.get("routing"))
+        view["routing_history"] = [rt_routing.public_route(r) for r in (app.get("routing_history") or [])]
+        view["concurrences"] = app.get("concurrences") or []
+        view["routing_ack"] = app.get("routing_ack") or None
+        view["config_snapshot"] = app.get("config_snapshot") or None
+        view["config_migrations"] = app.get("config_migrations") or []
         # Governed workspaces (GAP-P0-01/04/07/08/09, P1-01/02/03/04/05) — summaries for list/get.
         _facs, split = facmod.facilities_view(app)
         view["exposure_split"] = split
@@ -273,6 +717,7 @@ class LosService:
         view["related_parties"] = app.get("related_parties") or []
         view["party_evidence_coverage"] = {p["party_id"]: pev.coverage(p) for p in view["related_parties"]}
         view["open_invalidations"] = [i for i in app.get("invalidations", []) if i["status"] == "open"]
+        view["decisions"] = app.get("decisions") or []
         view["proposal"] = app.get("proposal")
         view["pricing"] = app.get("pricing")
         view["terms_summary"] = terms_mod.summary(app.get("terms"), app.get("fields"))
@@ -282,6 +727,7 @@ class LosService:
         view["unit_visits"] = app.get("unit_visits") or []
         view["unit_visit_observations"] = list(prop_mod.UNIT_VISIT_OBSERVATIONS)
         view["sourcing_details"] = app.get("sourcing_details")
+        view["prospect"] = self._prospect_record(app)
         view["sourcing_sources"] = list(prop_mod.SOURCES)
         view["security_notes"] = app.get("security_notes") or {}
         view["security_note_labels"] = prefill.SECURITY_NOTES
@@ -309,41 +755,47 @@ class LosService:
         return view
 
     def _rail(self, app: dict) -> list[dict]:
-        current = self.wf.step(app["step_id"]).index if app.get("step_id") else len(self.wf.steps)
+        current = self._wf(app).step(app["step_id"]).index if app.get("step_id") else len(self._wf(app).steps)
         done_all = app["status"] == STATUS_APPROVED
         returned = app["status"] == "RETURNED"
         rail = []
-        for stage in self.wf.stages:
+        for stage in self._wf(app).stages:
             steps = []
-            for s in (x for x in self.wf.steps if x.stage_id == stage["id"]):
+            for s in (x for x in self._wf(app).steps if x.stage_id == stage["id"]):
                 state = ("done" if done_all or s.index < current
                          else "current" if s.index == current else "pending")
                 if state == "current" and returned:
                     state = "returned"
                 if state == "current" and app["status"] == STATUS_REJECTED:
                     state = "rejected"
-                steps.append({"id": s.id, "name": s.name, "state": state, "role_name": self.wf.roles[s.role]})
+                steps.append({"id": s.id, "name": s.name, "state": state, "role_name": self._wf(app).roles[s.role]})
             states = {x["state"] for x in steps}
             stage_state = ("done" if states == {"done"} else
                            "current" if states & {"current", "returned", "rejected"} else "pending")
             rail.append({"id": stage["id"], "name": stage["name"], "state": stage_state, "steps": steps})
         return rail
 
+    def _active_profile_apps(self) -> list[dict]:
+        """Applications belonging to the one institution configuration shown in the demo."""
+        active = profiles.active_profile_id()
+        return [a for a in self.store.list()
+                if (a.get("profile") or "client_one") == active]
+
     def list(self, session: Optional[dict] = None, *, status: str = "", stage: str = "", mine: bool = False,
              query: str = "") -> list[dict]:
         now = self.now()
         out = []
-        for app in self.store.list():
+        for app in self._active_profile_apps():
             if status and app["status"] != status:
                 continue
             if stage and app.get("stage_id") != stage:
                 continue
-            if mine and session and session["role"] == "compliance_vp":
+            if mine and session and session["role"] == profiles.exception_authority()["role"]:
                 if app["status"] in TERMINAL or not [r for r in self._pending_exception_requests(app)
                                                        if r.get("to_id") in (None, session["user"]["id"])]:
                     continue
             elif mine and session:
-                step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+                step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
                 if not step or app["status"] in TERMINAL or step.role != session["role"]:
                     continue
                 if app.get("assignee_id") not in (None, session["user"]["id"]):
@@ -368,7 +820,121 @@ class LosService:
         view["blockers"] = self.blockers(app)            # what stops the step's forward action now
         # Live customer identity & deduplication (the snapshot taken at creation stays in the record).
         view["customer_identity"] = self.borrower_identity(app["entity_id"], exclude_app=application_id)
+        view["summary"] = self.summary(app)              # R13 - the document-free case view
         return view
+
+    def summary(self, app=None, application_id=None) -> dict:
+        """R13 - a compact, document-free case summary for approvals: the headline terms, the
+        position at each stage, the open risks (policy deviations, conditions, covenant breaches,
+        open E&S exceptions), the recent decisions, and the pending work on every desk."""
+        if app is None:
+            app = self._require(application_id)
+        wf = self._wf(app)
+        facs = app.get("facilities") or [app.get("facility") or {}]
+        total = round(sum(float(f.get("amount_cr") or 0) for f in facs), 2)
+        try:
+            if self._reached_stage(app, "disbursement"):
+                stage = "Disbursement"
+            elif self._reached_stage(app, "post_sanction"):
+                stage = "Post-sanction"
+            elif self._reached_stage(app, "sanction"):
+                stage = "Sanction"
+            elif self._reached_stage(app, "risk_assessment"):
+                stage = "Credit assessment"
+            elif self._reached_stage(app, "information_gathering"):
+                stage = "Information gathering"
+            else:
+                stage = "Intake"
+        except Exception:
+            stage = None
+        open_risks = []
+        for d in app.get("policy_deviation_items") or []:
+            if d.get("status") in ("open", "in_progress"):
+                open_risks.append({"kind": "policy_deviation", "id": d.get("deviation_id"),
+                                   "detail": ((d.get("deviation_type") or "deviation") + " - " + (d.get("summary") or ""))[:140],
+                                   "status": d.get("status")})
+        for c in app.get("conditions") or []:
+            if c.get("status") in ("open", "partially_met", "in_progress"):
+                open_risks.append({"kind": "condition_" + str(c.get("type")), "id": c.get("condition_id"),
+                                   "detail": (c.get("condition_text") or "")[:140], "status": c.get("status")})
+        for c in app.get("covenants") or []:
+            latest = (c.get("monitoring") or [{}])[-1]
+            if latest.get("status") == "breached" or c.get("status") == "breached":
+                open_risks.append({"kind": "covenant_breach", "id": c.get("covenant_id"),
+                                   "detail": (c.get("description") or "")[:140], "status": "breached"})
+        for e in app.get("exceptions") or []:
+            if e.get("status") in ("open", "under_review"):
+                open_risks.append({"kind": "es_exception", "id": e.get("exception_id"),
+                                   "detail": (e.get("exception_type") or "exception")[:140], "status": e.get("status")})
+        for m in app.get("modifications") or []:
+            if m.get("status") == "open":
+                open_risks.append({"kind": "modification", "id": m.get("modification_id"),
+                                   "detail": (m.get("reason") or "")[:140], "status": "open"})
+        pending = []
+        if app.get("status") not in TERMINAL:
+            step = wf.step(app["step_id"])
+            if step:
+                pending.append({"where": step.name, "role": wf.roles.get(step.role, step.role),
+                                "waiting": "decision" if step.kind in ("checker", "committee", "vp_review", "allocation")
+                                           else "documentation / action"})
+        return {
+            "application_id": app.get("application_id"),
+            "name": app.get("borrower_name"),
+            "status": app.get("status"),
+            "stage": stage,
+            "profile": app.get("profile") or self.default_profile,
+            "product": app.get("product"),
+            "total_amount_cr": total,
+            "facilities": [{"facility_id": f.get("facility_id"), "facility_type": f.get("facility_type"),
+                            "amount_cr": f.get("amount_cr")} for f in facs],
+            "current_step": (lambda st: {"id": st.id, "name": st.name,
+                                         "role": wf.roles.get(st.role, st.role)} if st else None)(
+                wf.step(app["step_id"]) if app.get("step_id") else None),
+            "positions": self._decision_positions(app),
+            "latest_risk_grade": (app.get("credit_assessment") or {}).get("risk_grade"),
+            "deviation_count": len(app.get("policy_deviation_items") or []),
+            "open_risks": open_risks,
+            "recent_decisions": (app.get("decisions") or [])[-5:],
+            "pending": pending,
+            "blockers": self.blockers(app) if app.get("status") not in TERMINAL else [],
+            "as_of": self.now().isoformat(timespec="seconds"),
+        }
+
+    def _decision_positions(self, app: dict) -> dict:
+        """The standing position at each governance point: the calculated route's authority,
+        the committee decisions of record, the sanction outcome, and the latest credit
+        assessment."""
+        positions: dict = {}
+        route = app.get("routing") or {}
+        prelim = (route.get("authority_of_record") or {}).get("preliminary_authority") or route.get("preliminary_authority") or {}
+        final = (route.get("authority_of_record") or {}).get("final_authority") or route.get("final_authority") or {}
+        if isinstance(prelim, dict) and prelim.get("required"):
+            positions["ip_authority"] = {"recommended": prelim.get("required"),
+                                         "basis": prelim.get("basis"), "at": prelim.get("at") or route.get("calculated_at")}
+        if isinstance(final, dict) and final.get("required"):
+            positions["final_authority"] = {"recommended": final.get("required"),
+                                            "basis": final.get("basis"), "at": final.get("at") or route.get("calculated_at")}
+        for d in app.get("decisions") or []:
+            step_id = d.get("at_step")
+            if step_id == "ip_sanction" or d.get("stage") == "IP":
+                positions["ip_committee"] = {"decision": d.get("decision") or d.get("action"),
+                                             "by": d.get("by"), "at": d.get("at")}
+            elif step_id == "ap_sanction" or d.get("stage") == "final":
+                positions["sanction_committee"] = {"decision": d.get("decision") or d.get("action"),
+                                                   "by": d.get("by"), "at": d.get("at")}
+        ca = app.get("credit_assessment") or {}
+        if ca:
+            positions["latest_risk_assessment"] = {"risk_grade": ca.get("risk_grade"),
+                                                   "recommended_cr": ca.get("recommended_cr"),
+                                                   "at": ca.get("run_at")}
+        for stage_id, sanc in (app.get("sanctions") or {}).items():
+            key = "sanction" if stage_id == "AP" else "ip_sanction"
+            positions[key] = {"decision": "sanctioned",
+                              "amount_cr": (sanc or {}).get("sanctioned_cr"),
+                              "authority": (sanc or {}).get("authority"),
+                              "minutes": (sanc or {}).get("minutes"),
+                              "at": (sanc or {}).get("at")}
+        return positions
 
     def borrower_identity(self, entity_id: str, exclude_app: Optional[str] = None) -> dict:
         """Customer identity & deduplication for a borrower: the borrower master, the reference
@@ -453,8 +1019,8 @@ class LosService:
                 matched_on.append("same CIN")
             if not matched_on:
                 continue
-            step = self.wf.step(app["step_id"]) if app.get("step_id") else None
-            stage = next((s for s in self.wf.stages if s["id"] == app.get("stage_id")), None)
+            step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
+            stage = next((s for s in self._wf(app).stages if s["id"] == app.get("stage_id")), None)
             out.append({"application_id": app["application_id"], "borrower_name": app["borrower_name"],
                         "entity_id": app["entity_id"], "stage": stage["name"] if stage else "—",
                         "step": step.name if step else "Complete", "status": app["status"],
@@ -475,15 +1041,31 @@ class LosService:
         return e
 
     def audit(self, limit: int = 200) -> list[dict]:
-        return [self._event_view(e) for e in self.store.events(limit=limit)]
+        active = profiles.active_profile_id()
+        application_ids = {a["application_id"] for a in self._active_profile_apps()}
+        events = []
+        for event in self.store.events(limit=max(limit * 5, limit)):
+            if event.get("application_id") in application_ids:
+                events.append(event)
+            elif event.get("application_id") == "SYSTEM":
+                detail = event.get("detail") or {}
+                event_profile = detail.get("profile_id") or detail.get("active_profile")
+                if event_profile in (None, active):
+                    events.append(event)
+            if len(events) >= limit:
+                break
+        return [self._event_view(e) for e in events]
 
     def dashboard(self, session: Optional[dict] = None) -> dict:
         now = self.now()
-        apps = [self._view(a, session, now) for a in self.store.list()]
+        profile_apps = self._active_profile_apps()
+        apps = [self._view(a, session, now) for a in profile_apps]
         active = [a for a in apps if a["status"] not in TERMINAL]
         month_start = now.replace(day=1, hour=0, minute=0, second=0)
+        application_ids = {a["application_id"] for a in profile_apps}
         sanctioned_mtd = {e["application_id"] for e in self.store.events(limit=5000)
                           if e["action"] == "sanction" and datetime.fromisoformat(e["at"]) >= month_start}
+        sanctioned_mtd &= application_ids
         stage_counts = {s["id"]: 0 for s in self.wf.stages}
         for a in active:
             stage_counts[a["stage_id"]] = stage_counts.get(a["stage_id"], 0) + 1
@@ -499,7 +1081,11 @@ class LosService:
                 "avg_tat_days": round(sum(a["tat_days"] for a in active) / len(active), 1) if active else 0,
                 "pending_committee": sum(1 for a in active if (a.get("step") or {}).get("kind") == "committee"),
                 "dd_blocking": sum(1 for a in active
-                                   if a.get("due_diligence") and dd.blocking(a["due_diligence"]["checks"], now=now)),
+                                   if a.get("due_diligence") and dd.blocking(
+                                       [c for c in a["due_diligence"]["checks"]
+                                        if dd.check_applies(((profiles.get_profile(app=a).get("checks") or {}).get("applicability") or {}).get(c["id"]) or {}, a)[0]],
+                                       now=now,
+                                       validity_days={k: int(v) for k, v in ((profiles.get_profile(app=a).get("checks") or {}).get("validity_days") or {}).items()})),
                 "dd_rescreen_overdue": sum(1 for a in active if a.get("due_diligence")
                                            and dd.summary(a["due_diligence"]["checks"], now).get("rescreen_overdue")),
                 "disbursed": sum(1 for a in apps if a["status"] == STATUS_APPROVED),
@@ -518,12 +1104,14 @@ class LosService:
         for a in apps:
             if a["status"] in TERMINAL or not a.get("due_diligence"):
                 continue
-            rev = dd.screening_review(a["due_diligence"]["checks"], now)
+            pol = profiles.check_policy(profiles.get_profile(app=a))
+            exc_name = profiles.exception_authority(profiles.get_profile(app=a))["name"]
+            rev = dd.screening_review(a["due_diligence"]["checks"], now, pol)
             if not rev["needs_attention"]:
                 continue
-            items = [f"{r['name']}: 90-day re-screening due {r['due_at']} ({r['days_left']} days left)"
+            items = [f"{r['name']}: {pol['rescreen_days']}-day re-screening due {r['due_at']} ({r['days_left']} days left)"
                      for r in rev["rescreens"] if r["state"] != "current"]
-            items += [f"{e['name']}: Compliance VP exception {e['state']} on {e['expires_at']}"
+            items += [f"{e['name']}: {exc_name} exception {e['state']} on {e['expires_at']}"
                       for e in rev["exceptions"] if e["state"] != "current"]
             alerts.append({"application_id": a["application_id"], "borrower_name": a.get("borrower_name"),
                            "entity_id": a.get("entity_id"), "overdue": bool(rev["overdue"]), "items": items})
@@ -538,9 +1126,9 @@ class LosService:
                 "from_step": from_step, "to_step": to_step, "status": app["status"], "comment": comment or None,
                 "detail": detail or {}}
 
-    def _default_assignee(self, role: str) -> Optional[str]:
+    def _default_assignee(self, role: str, wf: Optional[Workflow] = None) -> Optional[str]:
         """The holder of ``role`` with the fewest active applications (simple load balancing)."""
-        users = self.wf.users_with_role(role)
+        users = (wf or self.wf).users_with_role(role)
         if not users:
             return None
         load = {u["id"]: 0 for u in users}
@@ -553,15 +1141,37 @@ class LosService:
                facilities: Optional[list[dict]] = None, related_parties: Optional[list[dict]] = None,
                priority: str = "Normal", prospect_discussion: Optional[dict] = None,
                sourcing_decision: Optional[dict] = None, customer_id_selection: Optional[str] = None,
-               at: Optional[datetime] = None, seeded: bool = False, cam: Optional[dict] = None) -> dict:
+               at: Optional[datetime] = None, seeded: bool = False, cam: Optional[dict] = None,
+               profile: Optional[str] = None, product: Optional[str] = None,
+               idempotency_key: Optional[str] = None) -> dict:
+        def _create() -> dict:
+            return self._create_impl(session, entity_id=entity_id, facility=facility, facilities=facilities,
+                                     related_parties=related_parties, priority=priority,
+                                     prospect_discussion=prospect_discussion,
+                                     sourcing_decision=sourcing_decision,
+                                     customer_id_selection=customer_id_selection, at=at, seeded=seeded,
+                                     cam=cam, profile=profile, product=product)
+        return self.idempotent(idempotency_key, "create", None, _create)
+
+    def _create_impl(self, session: dict, *, entity_id: str, facility: Optional[dict] = None,
+               facilities: Optional[list[dict]] = None, related_parties: Optional[list[dict]] = None,
+               priority: str = "Normal", prospect_discussion: Optional[dict] = None,
+               sourcing_decision: Optional[dict] = None, customer_id_selection: Optional[str] = None,
+               at: Optional[datetime] = None, seeded: bool = False, cam: Optional[dict] = None,
+               profile: Optional[str] = None, product: Optional[str] = None) -> dict:
         """A new draft at Prospect Sourcing. ``cam`` starts it from a CAM (see ``_attach_cam``):
         {"mode": "workspace", "run_id"?} · {"mode": "document", "staging_id"} · {"mode": "generate"};
-        the preparation agent then starts at once."""
+        the preparation agent then starts at once. ``profile`` fixes the institution profile the
+        application runs under; ``product`` the credit product (explicit, else inferred from the
+        facility types when the profile runs a fixed product set). Both persist with the
+        application and follow it through its life — switching the active profile never alters it."""
+        prof = profiles.profile_for_new(profile)   # validates the id first; 404 unknown / 400 base, before any record exists
         if cam and cam.get("mode") not in CAM_MODES:
             raise InvalidRequestError(f"Unknown CAM option: {cam.get('mode')} (one of {', '.join(CAM_MODES)})")
-        first = self.wf.first_step
+        prof_wf = self.wf_for_profile(prof["profile"]["id"])   # the new application's journey
+        first = prof_wf.first_step
         if not seeded and session["role"] != first.role:
-            raise ForbiddenError(f"Only the {self.wf.roles[first.role]} role can create applications")
+            raise ForbiddenError(f"Only the {prof_wf.roles[first.role]} role can create applications")
         company = self.companies.get(entity_id)
         if not company:
             raise NotFoundError(f"Borrower {entity_id} not found")
@@ -579,6 +1189,33 @@ class LosService:
         for f in facilities:
             if base_facility.get("case_type") and not f.get("case_type"):
                 f["case_type"] = base_facility["case_type"]
+        # the product: explicit, else inferred when the institution profile runs a fixed product set
+        prod_obj = None
+        if product:
+            try:
+                prod_obj = prodmod.get_product(product)
+            except prodmod.ProductError as e:
+                raise NotFoundError(str(e))
+            if not prodmod.is_compatible(prod_obj, prof):
+                raise InvalidRequestError(f"Product '{prod_obj['product']['name']}' is not available under the "
+                                          f"institution profile '{prof['profile']['name']}'")
+        elif prof.get("products"):
+            ftypes = [f["facility_type"] for f in facilities]
+            for pid in prodmod.profile_products(prof):
+                cand = prodmod.get_product(pid)
+                if prodmod.is_compatible(cand, prof) and \
+                        any(ft in (cand["product"].get("facility_types") or []) for ft in ftypes):
+                    prod_obj = cand
+                    break
+            if prod_obj is None:
+                ok = sorted({t for pid in prodmod.profile_products(prof)
+                             for t in prodmod.get_product(pid)["product"].get("facility_types") or []})
+                raise InvalidRequestError("None of the proposed facility types belongs to a product this "
+                                          "institution profile runs — select a supported facility type "
+                                          f"({', '.join(ok)}) or a matching product")
+        product_id = prod_obj["product"]["id"] if prod_obj else None
+        if prod_obj is not None:
+            prodmod.validate_creation(prod_obj, facilities)
         related_parties = _normalise_related_parties(related_parties or [])
         prospect = _normalise_prospect_discussion(prospect_discussion)
         # Customer identity & deduplication snapshot, stored with the application (GAP: prospect sourcing parity).
@@ -618,24 +1255,34 @@ class LosService:
             "pricing": pricing_mod.initial_pricing(),
             "terms": terms_mod.initial_terms(),
             "sourcing_details": prop_mod.initial_sourcing_details(session["user"], at.isoformat(timespec="seconds")),
-            "documents": dreg.initial_registry(),
+            "documents": dreg.initial_registry(prodmod.documents(prof, product_id,
+                                                                 [profiles.primary_product({"facilities": facilities})])),
             "disops": {"sop": do.initial_sop()},
             "snapshots": [], "material_change_reviews": [],
             "due_diligence": {"version": dd.CHECK_VERSION, "initiated_at": at.isoformat(timespec="seconds"),
-                              "checks": dd.initial_checks()},
+                              "checks": dd.initial_checks(prodmod.checks(prof, product_id))},
             "amount_cr": total_amount,
+            "profile": prof["profile"]["id"],
+            "product": product_id,
+            "is_demo": seeded,
             "stage_id": first.stage_id, "step_id": first.id, "status": STATUS_DRAFT,
             "assignee_id": session["user"]["id"], "priority": priority, "escalated": False,
             "created_by": session["user"]["id"], "created_at": at.isoformat(timespec="seconds"),
             "updated_at": at.isoformat(timespec="seconds"), "step_entered_at": at.isoformat(timespec="seconds"),
             "seeded_demo": seeded,
         }
+        # R16: the exact configuration versions this application runs against (newer configuration
+        # applies to new applications only; a running app migrates only via an authorised migration)
+        app["config_snapshot"] = cfgver.snapshot_for_app(app, at.isoformat(timespec="seconds"))
+        rt_routing.record(app, rt_routing.calculate(app, prof, prof_wf), at.isoformat(timespec="seconds"),
+                          note="route calculated at creation")
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "create", actor=actor, to_step=first.id, at=at,
                                          detail={"facilities": facilities, "related_parties": related_parties,
                                                  "total_amount_cr": total_amount,
                                                  "customer_identity": identity, "prospect_discussion": prospect,
-                                                 "sourcing_decision": decision}))
+                                                 "sourcing_decision": decision,
+                                                 "route": rt_routing.public_route(app.get("routing"))}))
         if cam:
             reading = None
             if cam["mode"] == "document":
@@ -677,18 +1324,31 @@ class LosService:
                    for fs in (company.get("financials") or {}).values())
 
     def _case_stale(self, case: dict, app: dict) -> Optional[str]:
-        """Why the pinned CAM no longer fits this application, or None."""
+        """Why the pinned CAM no longer fits this application, or None.
+
+        The credit case is generated for the *borrower* (the company's facility record and
+        its financials), so the fields the LOS adds while the journey plays out (the
+        application's own facility, a re-priced request) do not stale it. A re-run is
+        earned by a changed *request* (amount/facility type vs what the case assessed) or
+        by financials accepted at Prospect Sourcing differing from the case's — a figure
+        the case did not carry for that period (e.g. total debt, when the case was
+        generated from an earlier statement) never stales it, but a recorded, differing
+        value does."""
         other = self._cam_for_other_request(case, app)
-        if other or self._has_master_financials(self.companies.get(app.get("entity_id")) or {}):
+        if other:
             return other
         stmt = self._accepted_statement(app)
         if not stmt:
             return None
-        used = (((case.get("fact_pack") or {}).get("financial_summary") or {}).get("periods") or {}).get(stmt["period"]) or {}
+        periods = (((case.get("fact_pack") or {}).get("financial_summary") or {}).get("periods") or {})
+        used = periods.get(stmt["period"]) or {}
+        if not used:                                       # the case never carried this period
+            return None
         keys = {"revenue_operating": "revenue_cr", "ebitda": "ebitda_cr", "pat": "pat_cr",
                 "total_equity": "net_worth_cr", "total_debt": "total_debt_cr"}
         differ = [k for k, v in stmt["items"].items()
-                  if abs(float(used.get(keys[k]) or 0) - float(v)) > 0.01 * max(abs(float(v)), 1.0)]
+                  if used.get(keys[k]) is not None
+                  and abs(float(used.get(keys[k]) or 0) - float(v)) > 0.01 * max(abs(float(v)), 1.0)]
         return (f"the financials accepted at Prospect Sourcing ({', '.join(keys[k].replace('_cr', '').replace('_', ' ') for k in differ)}) "
                 f"differ from those the CAM was generated with") if differ else None
 
@@ -734,7 +1394,7 @@ class LosService:
         with self._app_lock(application_id):
             app = self._require(application_id)
             at = self.now().isoformat(timespec="seconds")
-            registry = app.setdefault("documents", dreg.initial_registry())
+            registry = app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app)))
             for doc in moved:
                 dreg.register_upload(registry, name=Path(doc).name, category=doc.split("/")[0], scope="application",
                                      file_name=doc, by_name=session["user"]["name"], at=at)
@@ -803,17 +1463,38 @@ class LosService:
             sanctioned_amount_cr: Optional[float] = None,
             significant_changes: Optional[str] = None,
             rework_to: Optional[str] = None, decision_data: Optional[dict] = None,
-            deferred_until: Optional[str] = None) -> dict:
+            deferred_until: Optional[str] = None,
+            idempotency_key: Optional[str] = None) -> dict:
+        if idempotency_key:
+            return self.idempotent(
+                idempotency_key, "act", application_id,
+                lambda: self._act_impl(application_id, session, action, comment=comment,
+                                       allocate_to=allocate_to, at=at,
+                                       sanctioned_amount_cr=sanctioned_amount_cr,
+                                       significant_changes=significant_changes,
+                                       rework_to=rework_to, decision_data=decision_data,
+                                       deferred_until=deferred_until))
+        return self._act_impl(application_id, session, action, comment=comment, allocate_to=allocate_to,
+                              at=at, sanctioned_amount_cr=sanctioned_amount_cr,
+                              significant_changes=significant_changes, rework_to=rework_to,
+                              decision_data=decision_data, deferred_until=deferred_until)
+
+    def _act_impl(self, application_id: str, session: dict, action: str, *, comment: str = "",
+                  allocate_to: Optional[str] = None, at: Optional[datetime] = None,
+                  sanctioned_amount_cr: Optional[float] = None,
+                  significant_changes: Optional[str] = None,
+                  rework_to: Optional[str] = None, decision_data: Optional[dict] = None,
+                  deferred_until: Optional[str] = None) -> dict:
         app = self._require(application_id)
         if not app.get("step_id"):
             raise ConflictError("This application is complete")
-        step = self.wf.step(app["step_id"])
-        if not can_act(self.wf, session["user"]["id"], session["role"], step):
-            raise ForbiddenError(f"This step ({step.name}) belongs to the {self.wf.roles[step.role]} role")
+        step = self._wf(app).step(app["step_id"])
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step):
+            raise ForbiddenError(f"This step ({step.name}) belongs to the {self._wf(app).roles[step.role]} role")
         if app.get("assignee_id") and app["assignee_id"] != session["user"]["id"]:
             raise ForbiddenError(f"Assigned to {self._user_name(app['assignee_id'])}; reassign it first")
         try:
-            out = transition(self.wf, step, action, comment=comment, allocate_to=allocate_to,
+            out = transition(self._wf(app), step, action, comment=comment, allocate_to=allocate_to,
                              current_status=app["status"], rework_to=rework_to)
         except WorkflowError as e:
             raise InvalidRequestError(str(e))
@@ -824,13 +1505,21 @@ class LosService:
                 raise InvalidRequestError("Deferring needs the date to take the application up again (YYYY-MM-DD)")
             if until <= self.now().date():
                 raise InvalidRequestError("The deferred-until date must be in the future")
+            if not (comment or "").strip():
+                raise InvalidRequestError("Deferring the application needs a reason (what is being awaited)")
+            # the institution's maximum deferral period (profile: deferral.max_days)
+            max_days = int(((self._profile(app).get("deferral") or {}).get("max_days") or 0))
+            if max_days and (until - self.now().date()).days > max_days:
+                raise InvalidRequestError(
+                    f"The deferral exceeds the institution's maximum period of {max_days} days "
+                    f"(until {str(deferred_until)[:10]}) — take the case up earlier or reject it")
         if step.id == "pos_checker" and not (comment or "").strip():
             raise InvalidRequestError("Post-Sanction Checker remarks are mandatory for every decision at this step")
         stuck = self._gates(app, step, action)
         if stuck:
             raise InvalidRequestError(stuck[0][0])
         # The decision record the step asks for (G-04 / G-W6): e.g. the material-information date.
-        decision = self._decision_fields(step, action, decision_data, significant_changes)
+        decision = self._decision_fields(app, step, action, decision_data, significant_changes)
         at = (at or self.now()).replace(microsecond=0)
         # Disbursement VP Review: the read-only gate records its endorsement / rework decision,
         # including any significant changes observed (GAP-P0-16).
@@ -852,7 +1541,7 @@ class LosService:
             app.setdefault("deviations", []).append({
                 "type": "modification_request", "at": at.isoformat(timespec="seconds"),
                 "by_name": session["user"]["name"], "detail": f"{step.name}: {mods[-1]['reason'][:300]}",
-                "authority": self.wf.roles.get(step.role, step.role)})
+                "authority": self._wf(app).roles.get(step.role, step.role)})
         elif action == "defer":
             app.setdefault("deferrals", []).append({
                 "at": at.isoformat(timespec="seconds"), "by": session["user"]["id"], "by_name": session["user"]["name"],
@@ -860,8 +1549,12 @@ class LosService:
                 "reactivated_at": None, "reactivated_by": None})
         elif action == "reactivate":
             last = (app.get("deferrals") or [{}])[-1]
+            if not (comment or "").strip():
+                raise InvalidRequestError("Reactivating needs a reason (what has changed since the deferral)")
+            overdue_days = max(0, (self.now().date() - datetime.fromisoformat(str(last.get("until") or at.date().isoformat())).date()).days)                 if last.get("until") else 0
             last.update(reactivated_at=at.isoformat(timespec="seconds"), reactivated_by=session["user"]["name"],
-                        reactivation_remarks=(comment or "").strip())
+                        reactivation_remarks=(comment or "").strip(),
+                        reactivated_overdue_days=overdue_days or None)
             app["step_entered_at"] = at.isoformat(timespec="seconds")      # the SLA restarts on reactivation
         elif action in ("withdraw", "drop"):
             app["terminated"] = {"type": "withdrawn" if action == "withdraw" else "dropped",
@@ -870,9 +1563,24 @@ class LosService:
             app.setdefault("deviations", []).append({
                 "type": "withdrawal" if action == "withdraw" else "drop",
                 "at": at.isoformat(timespec="seconds"), "by_name": session["user"]["name"],
-                "detail": (comment or "")[:300], "authority": self.wf.roles.get(step.role, step.role)})
+                "detail": (comment or "")[:300], "authority": self._wf(app).roles.get(step.role, step.role)})
+        # A committee that sent the case back for re-consideration: the Risk Maker holds the case
+        # until it re-recommends (re_recommend), so the return is recorded, not an auto-advance.
+        if action == "return" and step.kind == "committee" and rework_to is None:
+            app["committee_returned"] = {"at": at.isoformat(timespec="seconds"),
+                                         "by": session["user"]["id"], "by_name": session["user"]["name"],
+                                         "by_role": self._wf(app).roles.get(step.role, step.role),
+                                         "reason": (comment or "").strip()[:300]}
+            self.store.save(app, self._event(app, "committee_return",
+                                             actor={"id": session["user"]["id"], "role": session["role"]},
+                                             from_step=step.id, to_step=step.id, comment=(comment or "")[:300]))
+            return self.get(application_id, session)
         if out.step_id and out.step_id != step.id:
-            nxt = self.wf.step(out.step_id)
+            target_step = self._route_skip(app, out.step_id)
+            if target_step != out.step_id:
+                out = dataclasses.replace(out, step_id=target_step,
+                                          message=out.message + f" · route: skipped {out.step_id}")
+            nxt = self._wf(app).step(target_step)
             assignee = (out.assign_user
                         or (self._last_worker(application_id, nxt.id) if action == "return" else None)
                         # the next step in the same role stays with the person who did this one (the RM who sourced
@@ -882,7 +1590,7 @@ class LosService:
                         # a later step in a role already worked on this application (the RM's AP Note after
                         # their IP Note) goes back to the same person
                         or self._last_in_role(application_id, nxt.role)
-                        or self._default_assignee(nxt.role))
+                        or self._default_assignee(nxt.role, self._wf(app)))
             app.update(step_id=nxt.id, stage_id=nxt.stage_id, step_entered_at=at.isoformat(timespec="seconds"),
                        assignee_id=assignee)
             app.pop("demo_note", None)          # the seed note describes the step it was seeded at
@@ -902,11 +1610,12 @@ class LosService:
                                  at.isoformat(timespec="seconds"), session["user"]["name"])
         app["updated_at"] = at.isoformat(timespec="seconds")
         actor = {"id": session["user"]["id"], "role": session["role"]}
-        if decision:
-            app.setdefault("decisions", []).append({"step": step.id, "step_name": step.name, "action": action,
-                                                    "by": session["user"]["id"], "by_name": session["user"]["name"],
-                                                    "at": at.isoformat(timespec="seconds"),
-                                                    "remarks": (comment or "").strip() or None, **decision})
+        route = app.get("routing") or {}
+        # R3: the append-only decision record — every governed decision is recorded with what
+        # it was decided under (authority + route version) and what it stands on
+        dec = self._decision_record(app, step, session, action, at, comment, decision, route)
+        if dec:
+            app.setdefault("decisions", []).append(dec)
         self.store.save(app, self._event(app, action, actor=actor, from_step=step.id, to_step=app.get("step_id"),
                                          comment=comment, at=at,
                                          detail={"message": out.message, "allocated_to": allocate_to,
@@ -917,7 +1626,7 @@ class LosService:
 
     _FORWARD = ("submit", "approve", "sanction")
 
-    def _decision_fields(self, step, action: str, data: Optional[dict], significant_changes: Optional[str]) -> dict:
+    def _decision_fields(self, app: dict, step, action: str, data: Optional[dict], significant_changes: Optional[str]) -> dict:
         """The step's decision fields for this decision (G-04), validated; required ones only on a
         forward decision (a return or drop is explained by its remarks)."""
         data = dict(data or {})
@@ -926,7 +1635,7 @@ class LosService:
         out = {}
         for f in step.decision_fields:
             raw = str(data.get(f["id"]) or "").strip()
-            label = wfmod.DECISION_FIELD_LABELS.get(f["id"], f["id"].replace("_", " ").capitalize())
+            label = self._wf(app).decision_field_labels.get(f["id"], f["id"].replace("_", " ").capitalize())
             if not raw:
                 if f.get("required") and action in self._FORWARD:
                     word = wfmod.action_label(step, action) or action
@@ -963,7 +1672,8 @@ class LosService:
         auth = authority.required_authority(amount, ca.get("risk_grade"),
                                             deviations=len(committee_deviations((self._app_case(app) or (None,))[0]) or [])
                                             + len(manual_deviations(app)),
-                                            final=step.id == "ap_sanction")
+                                            final=step.id == "ap_sanction",
+                                            app=app, product=profiles.primary_product(app))
         # The decision binds the exact versions reviewed — the approval snapshot (GAP-P0-11).
         snap.record_snapshot(app, "IP" if step.id == "ip_sanction" else "sanction", at.isoformat(timespec="seconds"),
                              session["user"]["name"])
@@ -975,7 +1685,8 @@ class LosService:
                 "reassessed_decision": ca.get("decision_label"), "deviates_from_recommendation": bool(
                     differs or ca.get("decision") == "NOT_SUPPORTED"),
                 "minutes": comment or None, "by": session["user"]["id"], "by_name": session["user"]["name"],
-                "at": at.isoformat(timespec="seconds")}
+                "at": at.isoformat(timespec="seconds"),
+                **({"governance": gov} if (gov := self._cg_summary(app, step.id)) else {})}
 
     def _gates(self, app: dict, step, action: str) -> list[tuple[str, str]]:
         """What stops ``action`` at ``step`` now, in the order the bank's gates apply: (message, where to fix
@@ -984,9 +1695,15 @@ class LosService:
         out: list[tuple[str, str]] = []
         add = lambda msg, where: msg and out.append((msg, where))
         checks = (app.get("due_diligence") or {}).get("checks") or []
+        # R5: the profile's applicability conditions and validity clock — the effective
+        # check set for every gate (a waived check never blocks; a stale result re-blocks)
+        _prof = self._profile(app)
+        _app5 = (_prof.get("checks") or {}).get("applicability") or {}
+        _val5 = {k: int(v) for k, v in ((_prof.get("checks") or {}).get("validity_days") or {}).items()}
+        eff = [c for c in checks if dd.check_applies(_app5.get(c["id"]) or {}, app)[0]]
         if action == "submit" and step.id == IP_NOTE_STEP and app.get("ip_note"):
             # G-10: the IP proposal goes for review only with blocking checks resolved and its documents in place
-            stuck = dd.blocking(checks, now=self.now())
+            stuck = dd.blocking(eff, now=self.now(), validity_days=_val5)
             if stuck:
                 add("Resolve the blocking due-diligence check(s) before submitting the IP Note: "
                     + "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4]), "checks")
@@ -995,15 +1712,17 @@ class LosService:
         waiting = {r["check_id"]: r for r in self._pending_exception_requests(app)}
         if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence") and waiting:
             who = {r.get("to_name") for r in waiting.values()} - {None}
-            add(f"Waiting for {', '.join(sorted(who)) if who else 'a Compliance VP'} (Compliance VP) to decide the exception on: "
+            exc_name = self._exc_authority(app)["name"]
+            add(f"Waiting for {', '.join(sorted(who)) if who else 'a ' + exc_name} ({exc_name}) to decide the exception on: "
                 + "; ".join(f"{r['name']} (requested {r['at'][:10]})" for r in waiting.values()), "checks")
         if action == "submit" and step.id in DD_GATE_STEPS and app.get("due_diligence"):
-            stuck = [c for c in dd.blocking(app["due_diligence"]["checks"], now=self.now()) if c["id"] not in waiting]
+            stuck = [c for c in dd.blocking(eff, now=self.now(), validity_days=_val5) if c["id"] not in waiting]
             if stuck:
                 names = "; ".join(f"{c['name']} ({c['status']})" for c in stuck[:4])
                 add("Resolve the outstanding mandatory due-diligence check(s) before "
                     f"submitting: {names}" + (f" (+{len(stuck) - 4} more)" if len(stuck) > 4 else ""), "checks")
         # the stage's mandatory documents, present and reviewed, at the step that answers for them
+        cma_on = prodmod.module_enabled(self._profile(app), app.get("product"), "cma")
         if action == "submit" and step.id == "ps_maker":
             gate = dreg.stage_gate(app)
             if gate:                       # documents on file the agent has not linked yet: say how
@@ -1014,8 +1733,8 @@ class LosService:
                                         "linked — click “Prepare with agents”, then review each in Documents):", 1)
             add(gate, "documents")
         if action == "submit" and step.id == "ap_note":
-            add(dreg.stage_gate(app, skip={dreg.CMA_DOC}), "documents")       # the CMA is the Risk Maker's
-        if action == "submit" and step.id == "ap_risk_maker":
+            add(dreg.stage_gate(app, skip={dreg.CMA_DOC} if cma_on else set()), "documents")       # the CMA is the Risk Maker's
+        if action == "submit" and step.id == "ap_risk_maker" and cma_on:
             dreg.link_workspace(app, self.now().isoformat(timespec="seconds"))     # the CMA, once recorded
             add(dreg.stage_gate(app, only={dreg.CMA_DOC}), "documents")
         if action == "submit" and step.id == "ip_note" and not app.get("ip_note"):
@@ -1045,20 +1764,21 @@ class LosService:
                     "assessment")
         if action == "submit" and step.id in ("ap_risk_maker",):
             # the CMA in the governed workspace; benchmark and spread for fund-based facilities (RUL-07);
-            # an ESMS screen in progress (or any project) complete (RUL-06)
-            if not any(s.get("rows") for s in (app.get("cma") or {}).get("subjects") or []):
+            # an ESMS screen in progress (or any project) complete (RUL-06) — per the profile's modules
+            if cma_on and not any(s.get("rows") for s in (app.get("cma") or {}).get("subjects") or []):
                 add("Record the CMA (financial analysis) in the CMA workspace before submitting", "cma")
             add(pricing_mod.pricing_gate(app.get("pricing") or {}, app.get("facilities") or []), "pricing")
             esms = app.get("esms") or {}
-            if any(i.get("answer") for i in esms.get("checklist", [])) or bool(app.get("projects")):
-                add(es.esms_gate(esms), "projects")
+            if prodmod.module_enabled(self._profile(app), app.get("product"), "esms") and \
+                    (any(i.get("answer") for i in esms.get("checklist", [])) or bool(app.get("projects"))):
+                add(es.esms_gate(esms, self._esms_exception(app, esms), self.now()), "projects")
         if action == "submit" and step.id == ES_MAKER_STEP:
             # G-W2: the CRP ES Maker records the E&S risk categorisation the ES preparation works from
             if (app.get("esms") or {}).get("category") not in es.ES_CATEGORIES:
                 add("Record the E&S risk category (A, B or C) in Projects & ESMS — the agent's proposed "
                     "category is there to confirm", "projects")
         if action == "submit" and step.id == ES_PREP_STEP:
-            add(es.esms_gate(app.get("esms") or {}), "projects")
+            add(es.esms_gate(app.get("esms") or {}, self._esms_exception(app, app.get("esms") or {}), self.now()), "projects")
             if not any(v.get("kind") in ("esms_approval_note", "esms_note")
                        for d in app.get("documents") or [] for v in d.get("versions") or []):
                 add("Generate the ESMS Approval Note (Documents → generated outputs) before submitting for ES review",
@@ -1086,11 +1806,438 @@ class LosService:
                 if missing:
                     add("Disbursement checklist incomplete: " + "; ".join(missing[:3])
                         + (f" (+{len(missing) - 3} more)" if len(missing) > 3 else ""), "task")
+        # R1: the calculated authority gates the committee decisions (concurrences + reapproval)
+        # — enforced by the institution profile (routing.enforce_concurrences); profiles that
+        # leave it off (e.g. the legacy demo) keep their original sanction flow
+        if action in ("sanction",) and step.id in SANCTION_STEPS                 and bool(((profiles.get_profile(app=app).get("routing")) or {}).get("enforce_concurrences")):
+            add(rt_routing.gate_message(app, step.id, action), "decision")
+        # R9: committee governance — attendance, quorum, minutes and the vote (profile-enabled)
+        for msg in self._cg_blockers(app, step, action):
+            add(msg, "decision")
         return out
+
+
+    # ── R19 notifications ──────────────────────────────────────────────────
+    def notifications_for(self, application_id: str) -> list[dict]:
+        """The current notifications for the case (derived + recorded), with acks."""
+        from src.los import notifications as ntf
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            ntf.merge(self, app)
+            self.store.save(app)
+            return list(app.get("notifications") or [])
+
+    def acknowledge_notification(self, application_id: str, session: dict, notification_id: str,
+                                 note: str = "") -> dict:
+        """Acknowledge a notification (the user has seen it; the case state is unchanged)."""
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            nts = app.get("notifications") or []
+            n = next((x for x in nts if x.get("id") == notification_id), None)
+            if not n:
+                from src.application.errors import NotFoundError
+                raise NotFoundError(f"Notification {notification_id} not found on this case")
+            n.update(acknowledged_by=session["user"]["name"], acknowledged_at=self.now().isoformat(timespec="seconds"),
+                     acknowledgement_note=(note or "").strip() or None)
+            self.store.save(app, self._event(app, "notification_acknowledged",
+                                             actor={"id": session["user"]["id"], "role": session["role"]},
+                                             from_step=app.get("step_id"), to_step=app.get("step_id"),
+                                             detail={"notification": n.get("id"), "kind": n.get("kind")}))
+            return {"application_id": application_id,
+                    "notifications": list(app.get("notifications") or [])}
+
+    # ── R9 committee governance ────────────────────────────────────────────
+    def re_recommend(self, application_id: str, session: dict) -> dict:
+        """R9: the Risk Maker re-submits a revised recommendation to a committee that sent the case
+        back for re-consideration — the route is recalculated on the current facts and the revised
+        recommendation is recorded as a fresh audit entry (the committee then decides on it)."""
+        app = self._require(application_id)
+        wf = self._wf(app)
+        step = wf.step(app["step_id"]) if app.get("step_id") else None
+        if not step or step.id not in RISK_MAKER_STEPS or app["status"] in TERMINAL:
+            raise ConflictError("A revised recommendation is submitted at the Risk Maker step")
+        if not can_act(wf, session["user"]["id"], session["role"], step):
+            raise ForbiddenError(f"Only the {wf.roles[step.role]} role can re-recommend")
+        if not app.get("committee_returned"):
+            raise ConflictError("The committee has not sent this case back for re-consideration")
+        if self._jobs.get(application_id, {}).get("state") not in (None, "done", "failed"):
+            raise ConflictError("Wait for the running assessment to finish before re-recommending")
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            self._recompute_routing(app, {"id": session["user"]["id"], "role": session["role"],
+                                          "agent": "risk_maker"},
+                                    "route recalculated for the revised recommendation")
+            app["committee_returned"] = None
+            ca = app.get("credit_assessment") or {}
+            self.store.save(app, self._event(app, "re_recommendation",
+                                             actor={"id": session["user"]["id"], "role": session["role"]},
+                                             from_step=app.get("step_id"), to_step=app.get("step_id"),
+                                             detail={"recommended_cr": ca.get("recommended_cr"),
+                                                     "risk_grade": ca.get("risk_grade")},
+                                             comment="Revised recommendation re-submitted to the committee"))
+        return self.get(application_id, session)
+
+    # ── R9 committee governance: attendance, quorum, votes, dissent, minutes ─────────────
+    @staticmethod
+    def _cg_policy(app: Optional[dict]) -> dict:
+        """The institution's committee-governance policy (profile ``committee_governance``)."""
+        return dict(profiles.get_profile(app=app).get("committee_governance") or {})
+
+    def _cg_step(self, app: dict, step_id: str):
+        """The committee step the meeting is about (must exist and be a committee step)."""
+        wf = self._wf(app)
+        try:
+            step = wf.step(step_id)
+        except Exception:
+            raise NotFoundError(f"Unknown step {step_id}")
+        if step.kind != "committee":
+            raise InvalidRequestError(f"{step.name} is not a committee step")
+        return step
+
+    def _cg_may(self, app: dict, step, session: dict) -> None:
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step):
+            raise ForbiddenError(
+                f"Committee records are kept by the {self._wf(app).roles[step.role]} (the {step.name} step)")
+
+    def _cg_record(self, app: dict, step_id: str) -> dict:
+        recs = app.setdefault("committee_meetings", {})
+        return recs.setdefault(step_id, {"version": 0, "members": [], "votes": [], "minutes": None,
+                                         "versions": []})
+
+    @staticmethod
+    def _cg_present_quorum(policy: dict, members: list) -> tuple:
+        """(present, required, met, excluded_conflicts) — a conflict of interest excuses the member."""
+        present = [m for m in members if m.get("status") == "present"]
+        excluded = len([m for m in present if m.get("conflict_of_interest")
+                        and policy.get("conflicts_exclude_from_quorum", True)])
+        counted = len(present) - excluded
+        required = int(policy.get("quorum") or 0)
+        return counted, required, (counted >= required) if required else bool(counted), excluded
+
+    def committee_meeting(self, application_id: str, session: dict, step_id: str) -> dict:
+        """R9: the committee's meeting record for this step — roster, attendance (with conflicts
+        of interest), the vote (approve / abstain / dissent), the structured minutes, the quorum
+        position and the version history."""
+        app = self._require(application_id)
+        step = self._cg_step(app, step_id)
+        self._cg_may(app, step, session)
+        policy = self._cg_policy(app)
+        rec = self._cg_record(app, step_id)
+        roster = policy.get("members") or []
+        members = {}
+        for r in roster:
+            key = str(r.get("user_id") or r.get("name"))
+            members[key] = {"user_id": r.get("user_id"), "name": r.get("name"), "status": "absent",
+                            "conflict_of_interest": False}
+        for m in rec.get("members") or []:
+            key = str(m.get("user_id") or m.get("name"))
+            merged = dict(members.get(key) or {"name": m.get("name")})
+            merged.update({k: v for k, v in m.items() if v is not None})
+            members[key] = merged
+        votes = rec.get("votes") or []
+        tally = {"approve": sum(1 for v in votes if v.get("vote") == "approve"),
+                 "abstain": sum(1 for v in votes if v.get("vote") == "abstain"),
+                 "dissent": sum(1 for v in votes if v.get("vote") == "dissent")}
+        present, required, met, excluded = self._cg_present_quorum(policy, list(members.values()))
+        voting = tally["approve"] + tally["dissent"]
+        need = policy.get("majority") or "simple"
+        if voting:
+            vote_met = (tally["approve"] * 3 >= voting * 2) if need == "two_thirds" else (tally["approve"] > tally["dissent"])
+        else:
+            vote_met = None          # no vote recorded yet
+        return {"step_id": step_id, "step_name": step.name, "enabled": bool(policy.get("enabled")),
+                "roster": list(members.values()), "roster_size": len(roster),
+                "quorum": {"required": required, "present": present, "met": met,
+                           "excluded_conflicts": excluded},
+                "votes": votes, "vote_tally": tally, "vote_approves": vote_met, "majority": need,
+                "minutes": rec.get("minutes"), "version": rec.get("version"),
+                "versions": rec.get("versions") or []}
+
+    def _cg_bump(self, app: dict, rec: dict, session: dict, what: str, detail: dict) -> None:
+        rec["version"] = int(rec.get("version") or 0) + 1
+        rec.setdefault("versions", []).append(
+            {"version": rec["version"], "change": what, "by": session["user"]["id"],
+             "by_name": session["user"]["name"], "at": self.now().isoformat(timespec="seconds"),
+             "detail": detail})
+
+    def record_committee_attendance(self, application_id: str, session: dict, step_id: str,
+                                    members: list) -> dict:
+        """R9: mark the roster's attendance (present / absent / excused) with conflict-of-interest
+        declarations. A conflict excuses the member from the vote and (by policy) the quorum."""
+        app = self._require(application_id)
+        step = self._cg_step(app, step_id)
+        self._cg_may(app, step, session)
+        if not isinstance(members, list) or not members:
+            raise InvalidRequestError("Attendance is a list of member records")
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            rec = self._cg_record(app, step_id)
+            roster = {str(r.get("user_id") or r.get("name"))
+                      for r in (self._cg_policy(app).get("members") or [])}
+            at = self.now().isoformat(timespec="seconds")
+            out = []
+            for m in members:
+                name = str(m.get("name") or m.get("user_id") or "").strip()
+                if not name:
+                    raise InvalidRequestError("Each attendance record needs a name (or user_id)")
+                key = str(m.get("user_id") or name)
+                status = m.get("status") or "present"
+                if status not in ("present", "absent", "excused"):
+                    raise InvalidRequestError("Attendance status is present, absent or excused")
+                coi = bool(m.get("conflict_of_interest"))
+                if coi and not str(m.get("conflict_note") or "").strip():
+                    raise InvalidRequestError("A conflict of interest needs a note (what the connection is)")
+                row = {"user_id": m.get("user_id"), "name": name, "status": status,
+                       "conflict_of_interest": coi,
+                       "conflict_note": (str(m.get("conflict_note") or "").strip() or None) if coi else None,
+                       "declared_at": at, "by": session["user"]["id"]}
+                if roster and key not in roster and not m.get("user_id"):
+                    row["ad_hoc"] = True      # a member outside the standing roster (e.g. a delegate)
+                rec["members"] = [r for r in rec.get("members") or []
+                                  if str(r.get("user_id") or r.get("name")) != key]
+                rec["members"].append(row)
+                out.append(row)
+            self._cg_bump(app, rec, session, "attendance",
+                          {"present": sum(1 for r in out if r["status"] == "present")})
+            self.store.save(app, self._event(app, "committee_attendance",
+                                             actor={"id": session["user"]["id"], "role": session["role"]},
+                                             from_step=step.id, to_step=step.id,
+                                             detail={"step_id": step_id, "members": out},
+                                             comment="Committee attendance recorded"))
+        return self.committee_meeting(application_id, session, step_id)
+
+    def record_committee_votes(self, application_id: str, session: dict, step_id: str,
+                               votes: list) -> dict:
+        """R9: the vote — approve / abstain / dissent, per member. Only present members who are
+        not in a conflict of interest may vote; a dissent needs remarks (by policy). A member may
+        change a vote (one vote per member, kept with its history in the version log)."""
+        app = self._require(application_id)
+        step = self._cg_step(app, step_id)
+        self._cg_may(app, step, session)
+        policy = self._cg_policy(app)
+        if not isinstance(votes, list) or not votes:
+            raise InvalidRequestError("The vote is a list of member votes")
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            rec = self._cg_record(app, step_id)
+            present = {str(m.get("user_id") or m.get("name")): m for m in rec.get("members") or []
+                       if m.get("status") == "present"}
+            if not present:
+                raise ConflictError("Record the committee's attendance before taking the vote")
+            out = []
+            for v in votes:
+                name = str(v.get("name") or v.get("user_id") or "").strip()
+                key = str(v.get("user_id") or name)
+                if key not in present:
+                    raise InvalidRequestError(f"{name or key} is not present — only present members vote")
+                if present[key].get("conflict_of_interest"):
+                    raise ForbiddenError(f"{name} has declared a conflict of interest and is excused from the vote")
+                vote = v.get("vote")
+                if vote not in ("approve", "abstain", "dissent"):
+                    raise InvalidRequestError("A vote is approve, abstain or dissent")
+                remarks = str(v.get("remarks") or "").strip()
+                if vote == "dissent" and policy.get("dissent_requires_remarks", True) and not remarks:
+                    raise InvalidRequestError(f"Dissent needs remarks ({name}: the position and why)")
+                if vote == "abstain" and not remarks:
+                    raise InvalidRequestError(f"Abstention needs a note ({name}: what is being held back)")
+                rec["votes"] = [x for x in rec.get("votes") or []
+                                if str(x.get("user_id") or x.get("name")) != key]
+                row = {"user_id": v.get("user_id"), "name": name, "vote": vote,
+                       "remarks": remarks or None, "at": self.now().isoformat(timespec="seconds"),
+                       "by": session["user"]["id"]}
+                rec["votes"].append(row)
+                out.append(row)
+            tally = {k: sum(1 for r in out if r["vote"] == k) for k in ("approve", "abstain", "dissent")}
+            self._cg_bump(app, rec, session, "vote", tally)
+            self.store.save(app, self._event(app, "committee_vote",
+                                             actor={"id": session["user"]["id"], "role": session["role"]},
+                                             from_step=step.id, to_step=step.id,
+                                             detail={"step_id": step_id, "tally": tally},
+                                             comment=f"Committee vote: {tally['approve']} approve, "
+                                                     f"{tally['abstain']} abstain, {tally['dissent']} dissent"))
+        return self.committee_meeting(application_id, session, step_id)
+
+    def record_committee_minutes(self, application_id: str, session: dict, step_id: str, *,
+                                 agenda: list, discussion: str, resolution: str) -> dict:
+        """R9: the structured minutes — the agenda, the discussion and the resolution. Re-saving
+        produces a new minutes version (the history is kept)."""
+        app = self._require(application_id)
+        step = self._cg_step(app, step_id)
+        self._cg_may(app, step, session)
+        agenda = [str(a).strip() for a in (agenda or []) if str(a).strip()]
+        discussion = str(discussion or "").strip()
+        resolution = str(resolution or "").strip()
+        if not agenda:
+            raise InvalidRequestError("The minutes need the agenda")
+        if not discussion:
+            raise InvalidRequestError("The minutes need the discussion")
+        if not resolution:
+            raise InvalidRequestError("The minutes need the resolution")
+        with self._app_lock(application_id):
+            app = self._require(application_id)
+            rec = self._cg_record(app, step_id)
+            prev = rec.get("minutes") or {}
+            rec["minutes"] = {"version": int(prev.get("version") or 0) + 1, "agenda": agenda,
+                              "discussion": discussion, "resolution": resolution,
+                              "recorded_by": session["user"]["id"],
+                              "recorded_by_name": session["user"]["name"],
+                              "at": self.now().isoformat(timespec="seconds")}
+            self._cg_bump(app, rec, session, "minutes", {"minutes_version": rec["minutes"]["version"]})
+            self.store.save(app, self._event(app, "committee_minutes",
+                                             actor={"id": session["user"]["id"], "role": session["role"]},
+                                             from_step=step.id, to_step=step.id,
+                                             detail={"step_id": step_id,
+                                                     "minutes_version": rec["minutes"]["version"],
+                                                     "resolution": resolution[:400]},
+                                             comment="Committee minutes recorded"))
+        return self.committee_meeting(application_id, session, step_id)
+
+    def _cg_blockers(self, app: dict, step, action: str) -> list:
+        """R9: what (if anything) stops a forward committee decision under the governance policy."""
+        policy = self._cg_policy(app)
+        if not policy.get("enabled") or step.kind != "committee" or action not in ("sanction", "approve"):
+            return []
+        rec = (app.get("committee_meetings") or {}).get(step.id) or {}
+        if not rec.get("members"):
+            return ["Committee governance: record the committee's attendance before deciding"]
+        present, required, met, excluded = self._cg_present_quorum(policy, rec.get("members") or [])
+        if not met:
+            extra = f" ({excluded} excused on conflict of interest)" if excluded else ""
+            return [f"Committee governance: quorum is not met — {present} of the required {required} "
+                    f"present members{extra}"]
+        if not rec.get("minutes"):
+            return ["Committee governance: the structured minutes (agenda, discussion, resolution) "
+                    "must be on file before the decision"]
+        tally = {"approve": 0, "abstain": 0, "dissent": 0}
+        for v in rec.get("votes") or []:
+            tally[v.get("vote")] = tally.get(v.get("vote"), 0) + 1
+        voting = tally["approve"] + tally["dissent"]
+        if not voting:
+            return ["Committee governance: the committee's vote is not recorded"]
+        need = policy.get("majority") or "simple"
+        ok = (tally["approve"] * 3 >= voting * 2) if need == "two_thirds" else (tally["approve"] > tally["dissent"])
+        if not ok:
+            return [f"Committee governance: the vote does not approve the decision "
+                    f"({tally['approve']} approve / {tally['dissent']} dissent / {tally['abstain']} abstain)"]
+        return []
+
+    def _cg_summary(self, app: dict, step_id: str) -> Optional[dict]:
+        """The governance position attached to a committee decision (for the sanction record)."""
+        policy = self._cg_policy(app)
+        if not policy.get("enabled"):
+            return None
+        rec = (app.get("committee_meetings") or {}).get(step_id) or {}
+        if not rec:
+            return None
+        present, required, met, excluded = self._cg_present_quorum(policy, rec.get("members") or [])
+        tally = {"approve": 0, "abstain": 0, "dissent": 0}
+        for v in rec.get("votes") or []:
+            tally[v.get("vote")] = tally.get(v.get("vote"), 0) + 1
+        return {"quorum": {"required": required, "present": present, "met": met,
+                           "excluded_conflicts": excluded},
+                "votes": tally,
+                "minutes_version": (rec.get("minutes") or {}).get("version"),
+                "dissenters": [v.get("name") for v in rec.get("votes") or [] if v.get("vote") == "dissent"],
+                "meeting_version": rec.get("version")}
+
+    def _seed_committee_meeting(self, application_id: str, session: dict, step_id: str, at: datetime) -> None:
+        """R9: the governed meeting behind a seeded committee decision — every roster member
+        present, the minutes on file, a fully approving vote (the seeded history is a replay;
+        live decisions are always gated). Idempotent per step."""
+        app = self._require(application_id)
+        if (app.get("committee_meetings") or {}).get(step_id):
+            return
+        policy = self._profile(app)
+        roster = (policy.get("committee_governance") or {}).get("members") or []
+        members = [{"name": r.get("name"), "user_id": r.get("user_id"), "status": "present"} for r in roster]
+        self.record_committee_attendance(application_id, session, step_id, members)
+        self.record_committee_minutes(application_id, session, step_id,
+                                      agenda=["Credit proposal — seeded demo history", "Risk and security",
+                                              "Resolution"],
+                                      discussion="The committee examined the recommendation, the risk grade and "
+                                                "the security package (seeded demo history).",
+                                      resolution="Sanctioned as recommended (seeded demo history).")
+        votes = [{"name": r.get("name"), "user_id": r.get("user_id"), "vote": "approve", "remarks": ""}
+                 for r in roster]
+        self.record_committee_votes(application_id, session, step_id, votes)
+
+    # ── R1 authority-driven routing: the route controls the actual journey ─────────────────────
+    def _route_skip(self, app: dict, step_id: str) -> str:
+        """When the calculated route excludes a step (e.g. the ES process for a DFI term loan),
+        follow the route: advance past the excluded step. Committee steps are never skipped —
+        a decision always happens at its authority."""
+        route = app.get("routing") or {}
+        excluded = {e["step"]: e.get("basis") for e in route.get("excluded") or []}
+        if not excluded or step_id not in excluded:
+            return step_id
+        wf = self._wf(app)
+        cur = wf.step(step_id)
+        hops = 0
+        while cur.id in excluded and cur.kind != "committee" and hops < 8:
+            nxt = wf.next_step(cur)
+            if not nxt:
+                break
+            self.store.save(app, self._event(app, "step_skipped", actor={"id": None, "role": "route"},
+                                             from_step=cur.id, to_step=nxt.id, at=self.now(),
+                                             comment=f"Step not applicable per the calculated route: {cur.name}",
+                                             detail={"basis": excluded[cur.id]}))
+            cur = nxt
+            hops += 1
+        return cur.id
+
+    def _recompute_routing(self, app: dict, actor: dict, note: str) -> None:
+        """Recalculate the route after a material input (amount, risk grade, deviations, E&S
+        category). A non-material change keeps the route and the completed approvals; a change
+        that moves the required authority flags the route for reapproval at the next sanction.
+
+        The authority follows the *recorded* assessment, not the request: once the credit
+        reassessment has recorded a recommended amount / risk grade, the route is computed
+        from them (a later route change stays flagged for reapproval at the next sanction)."""
+        try:
+            p = profiles.get_profile(app=app)
+            probe = app
+            old = app.get("routing") or {}
+            if old.get("note") == "route calculated at creation":
+                ca = app.get("credit_assessment") or {}
+                rec_amount = ca.get("recommended_cr")
+                rec_grade = (ca.get("risk_grade") or (app.get("ratings") or {}).get("risk_grade"))
+                if rec_amount or rec_grade:
+                    probe = dict(app)
+                    if rec_amount:
+                        probe["amount_cr"] = float(rec_amount)
+                    if rec_grade:
+                        probe["credit_assessment"] = {**ca, "risk_grade": rec_grade}
+            # R11: fold the automatic policy deviations (from the profile rules) into the
+            # count the route's authority is computed from — the route sees them.
+            new = rt_routing.calculate(probe, p, self._wf(app))
+            new["history"] = list(app.get("events") or [])        # approvals of record for this case
+            material = bool(old) and rt_routing.authority_moved(old, new)
+            rt_routing.record(app, new, self.now().isoformat(timespec="seconds"), note=note)
+            if old and (material or sorted(x["step"] for x in new.get("excluded", []))
+                        != sorted(x["step"] for x in old.get("excluded", []))):
+                self.store.save(app, self._event(app, "route_changed", actor=actor,
+                                                 from_step=app.get("step_id"), to_step=app.get("step_id"),
+                                                 at=self.now(),
+                                                 detail={"material": material,
+                                                         "note": note,
+                                                         "route": rt_routing.public_route(app.get("routing"))}))
+        except Exception:
+            logging.getLogger("los.routing").exception("route recalculation failed for %s",
+                                                       app.get("application_id"))
+
+    # R1: the concurrences the calculated authority requires at a sanction step
+    @staticmethod
+    def _concurrences_needed(app: dict, step_id: str) -> list:
+        route = app.get("routing") or {}
+        if step_id == "ip_sanction":
+            return route.get("preliminary_concurrences") or []
+        if step_id == "ap_sanction":
+            return route.get("final_concurrences") or []
+        return []
 
     def blockers(self, app: dict, step=None) -> list[dict]:
         """The blockers of the step's forward action (submit / approve), for the view."""
-        step = step or (self.wf.step(app["step_id"]) if app.get("step_id") else None)
+        step = step or (self._wf(app).step(app["step_id"]) if app.get("step_id") else None)
         if not step or app.get("status") in TERMINAL:
             return []
         action = {"maker": "submit", "checker": "approve", "vp_review": "submit"}.get(step.kind)
@@ -1157,16 +2304,17 @@ class LosService:
 
     def _last_in_role(self, application_id: str, role: str) -> Optional[str]:
         """Who last completed a step of ``role`` on this application, if they still hold the role."""
+        app = self.store.get(application_id)
         for e in self.store.events(application_id):
             st = e.get("from_step")
             if not st or e["action"] not in ("submit", "allocate") or not e.get("actor_id"):
                 continue
             try:
-                if self.wf.step(st).role != role:
+                if self._wf(app).step(st).role != role:
                     continue
             except Exception:
                 continue
-            user = next((u for u in self.wf.users_with_role(role) if u["id"] == e["actor_id"]), None)
+            user = next((u for u in self._wf(app).users_with_role(role) if u["id"] == e["actor_id"]), None)
             if user:
                 return user["id"]
         return None
@@ -1180,15 +2328,15 @@ class LosService:
         app = self._require(application_id)
         if not app.get("step_id") or app["status"] in TERMINAL:
             raise ConflictError("Only an active application can be reassigned")
-        step = self.wf.step(app["step_id"])
+        step = self._wf(app).step(app["step_id"])
         if not self._may_reassign(session, step):
             raise ForbiddenError("Your role cannot reassign this step")
         try:
-            user = self.wf.user(user_id)
+            user = self._wf(app).user(user_id)
         except WorkflowError as e:
             raise InvalidRequestError(str(e))
         if step.role not in user.get("roles", []):
-            raise InvalidRequestError(f"{user['name']} does not hold the {self.wf.roles[step.role]} role")
+            raise InvalidRequestError(f"{user['name']} does not hold the {self._wf(app).roles[step.role]} role")
         before = app.get("assignee_id")
         app.update(assignee_id=user_id, updated_at=self.now().isoformat(timespec="seconds"))
         actor = {"id": session["user"]["id"], "role": session["role"]}
@@ -1269,7 +2417,8 @@ class LosService:
                 "authority": authority.required_authority(
                     app.get("amount_cr"), (app.get("credit_assessment") or {}).get("risk_grade") or case.get("risk_grade"),
                     deviations=len(committee_deviations(case)) + len(manual_deviations(app)),
-                    final=app.get("stage_id") not in ("PS", "IP"))}
+                    final=app.get("stage_id") not in ("PS", "IP"),
+                    app=app, product=profiles.primary_product(app))}
         resolvers = {**({cam_intake.RESOLVER: lambda ctx: cam_intake.resolver(app.get("cam"), rctx)}
                         if app.get("cam") else {}),
                      "risk_maker": lambda ctx: risk_maker_proposals(view, registry, run_id),
@@ -1357,19 +2506,19 @@ class LosService:
                 "meta": app.get("fields_meta"), "pretick_confidence": registry.pretick_confidence}
 
     def _may_verify(self, app: dict, session: Optional[dict]) -> bool:
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         return bool(session and step and app["status"] not in TERMINAL
                     and self.field_registry.domains_verified_at(step.id)
-                    and can_act(self.wf, session["user"]["id"], session["role"], step)
+                    and can_act(self._wf(app), session["user"]["id"], session["role"], step)
                     and app.get("assignee_id") in (None, session["user"]["id"]))
 
     def assessment(self, application_id: str, session: Optional[dict] = None) -> dict:
         """The Risk Maker workspace: job status, the tabs built from the application's pinned
         credit case, and the verify queue for the current step."""
         app = self._require(application_id)
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         can_run = bool(session and step and step.id in RISK_MAKER_STEPS and app["status"] not in TERMINAL
-                       and can_act(self.wf, session["user"]["id"], session["role"], step)
+                       and can_act(self._wf(app), session["user"]["id"], session["role"], step)
                        and app.get("assignee_id") in (None, session["user"]["id"]))
         with self._jobs_lock:
             job = dict(self._jobs[application_id]) if application_id in self._jobs else None
@@ -1444,7 +2593,7 @@ class LosService:
         registry = self.field_registry
         with self._app_lock(application_id):
             app = self._require(application_id)
-            step = self.wf.step(app["step_id"])
+            step = self._wf(app).step(app["step_id"])
             case, final = self._app_case(app)
             at = self.now().isoformat(timespec="seconds")
             populated = self._populate(app, case, final, at)
@@ -1483,12 +2632,12 @@ class LosService:
             return app, done
 
     def _require_verifier(self, app: dict, session: dict) -> None:
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         if not step or app["status"] in TERMINAL or not self.field_registry.domains_verified_at(step.id):
             raise ConflictError("No fields are verified at this step")
-        if not can_act(self.wf, session["user"]["id"], session["role"], step) or \
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step) or \
                 app.get("assignee_id") not in (None, session["user"]["id"]):
-            raise ForbiddenError(f"Fields are verified by the assigned {self.wf.roles[step.role]}")
+            raise ForbiddenError(f"Fields are verified by the assigned {self._wf(app).roles[step.role]}")
         if not self._app_case(app)[0]:
             raise ConflictError("Run the credit assessment before verifying its fields")
 
@@ -1523,7 +2672,7 @@ class LosService:
         self.populate_fields(application_id)
         app = self._require(application_id)
         registry, fields = self.field_registry, app.get("fields") or {}
-        step = self.wf.step(app["step_id"])
+        step = self._wf(app).step(app["step_id"])
         if field_ids is None:
             ids = [i["field_id"] for i in fieldmodel.queue(fields, registry, step.id) if i["preticked"]]
         else:
@@ -1545,10 +2694,10 @@ class LosService:
         (The earlier review API, now served by the field store: confirmed → confirm,
         overridden → override, clear → reopen.)"""
         app = self._require(application_id)
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         if not step or step.id not in RISK_MAKER_STEPS or app["status"] in TERMINAL:
             raise ConflictError("Fields are reviewed at the Risk Maker step")
-        if not can_act(self.wf, session["user"]["id"], session["role"], step) or \
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step) or \
                 app.get("assignee_id") not in (None, session["user"]["id"]):
             raise ForbiddenError("Only the assigned Risk Maker can review the assessment")
         if not reviews:
@@ -1575,11 +2724,11 @@ class LosService:
         if not self.cases:
             raise OperationFailedError("The credit-intelligence engine is not connected")
         app = self._require(application_id)
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         if not step or step.id not in RISK_MAKER_STEPS or app["status"] in TERMINAL:
             raise ConflictError("The credit assessment is run at the Risk Maker step")
-        if not can_act(self.wf, session["user"]["id"], session["role"], step):
-            raise ForbiddenError(f"Only the {self.wf.roles[step.role]} role can run the credit assessment")
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step):
+            raise ForbiddenError(f"Only the {self._wf(app).roles[step.role]} role can run the credit assessment")
         if app.get("assignee_id") and app["assignee_id"] != session["user"]["id"]:
             raise ForbiddenError(f"Assigned to {self._user_name(app['assignee_id'])}")
         if not self._launch_assessment(application_id, {"id": session["user"]["id"], "role": session["role"]}):
@@ -1705,13 +2854,16 @@ class LosService:
             case, _ = self._run_case(entity_id, self._require(application_id),
                                      on_progress=lambda e: self._on_progress(job, e))
             job["message"] = "Composing the credit memorandum…"
-            summary = self._record_assessment(application_id, case, actor)
+            summary = self._record_assessment(application_id, case, actor, defer_routing=True)
             # Populate the application's fields from the new run, ready to verify.
             job["message"] = "Populating the fields from the credit case…"
             try:
                 job["populated"] = self.populate_fields(application_id, actor)
             except Exception:                                        # the assessment itself succeeded
                 log.exception("Field population failed for %s", application_id)
+            if self._routing_defer.pop(application_id, False):
+                self._recompute_routing(self._require(application_id), actor,
+                                        "route recalculated after the credit reassessment")
             job.update(state="done", progress=100, run_id=case.get("run_id"),
                        message=f"Credit assessment complete: {summary['decision_label'] or 'no reassessment'}",
                        finished_at=self.now().isoformat(timespec="seconds"))
@@ -1726,8 +2878,16 @@ class LosService:
             except Exception:
                 log.exception("Could not record the failed assessment for %s", application_id)
 
-    def _record_assessment(self, application_id: str, case: dict, actor: dict) -> dict:
-        """Pin a finished credit-case run to the application, with its audit event."""
+    _routing_defer = {}
+
+    def _record_assessment(self, application_id: str, case: dict, actor: dict, defer_routing: bool = False) -> dict:
+        """Pin a finished credit-case run to the application, with its audit event.
+
+        With ``defer_routing`` the route recalculation is recorded as pending (and performed
+        by the caller after the field population) so the audit trail reads assessment →
+        fields populated → route recalculated."""
+        if defer_routing:
+            self._routing_defer[application_id] = True
         final = self.final_cam.get(case["entity_id"])["final_cam"] if self.final_cam else {}
         rea = case.get("reassessment") or {}
         fr = rea.get("facility_recommendation") or {}
@@ -1743,6 +2903,16 @@ class LosService:
             app["updated_at"] = self.now().isoformat(timespec="seconds")
             self.store.save(app, self._event(app, "assessment", actor=actor, from_step=app.get("step_id"),
                                              to_step=app.get("step_id"), detail=summary))
+            # R9: a post-sanction reassessment is a reassessment record on the standing sanction —
+            # the sanctioned amount and route are unaffected; the committee can act on the new grade.
+            if app.get("status") not in TERMINAL and (app.get("sanctions") or {}):
+                app.setdefault("reassessments", []).append(
+                    {"run_id": summary.get("run_id"), "risk_grade": summary.get("risk_grade"),
+                     "recommended_cr": summary.get("recommended_cr"),
+                     "decision": summary.get("decision"), "at": summary.get("run_at") or self.now().isoformat(timespec="seconds"),
+                     "by": (actor or {}).get("id")})
+            if not defer_routing:
+                self._recompute_routing(app, actor, "route recalculated after the credit reassessment")
         return summary
 
     def wait_for_assessment(self, application_id: str, timeout: float = 600) -> dict:
@@ -1754,11 +2924,11 @@ class LosService:
 
     # ── prospect sourcing: documents and AI prefill ─────────────────────────
     def _maker_at(self, app: dict, session: dict, steps: tuple, what: str) -> None:
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         if not step or step.id not in steps or app["status"] in TERMINAL:
-            raise ConflictError(f"{what} is done at the {' / '.join(self.wf.step(s).name for s in steps)} step")
-        if not can_act(self.wf, session["user"]["id"], session["role"], step):
-            raise ForbiddenError(f"This step belongs to the {self.wf.roles[step.role]} role")
+            raise ConflictError(f"{what} is done at the {' / '.join(self._wf(app).step(s).name for s in steps)} step")
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step):
+            raise ForbiddenError(f"This step belongs to the {self._wf(app).roles[step.role]} role")
         if app.get("assignee_id") not in (None, session["user"]["id"]):
             raise ForbiddenError(f"Assigned to {self._user_name(app['assignee_id'])}; reassign it first")
 
@@ -1778,7 +2948,7 @@ class LosService:
         if not d or not d.exists():
             return []
         files = [p.relative_to(d).as_posix() for p in d.rglob("*.pdf")]
-        linked = dreg.link_on_file(app.setdefault("documents", dreg.initial_registry()), files, at)
+        linked = dreg.link_on_file(app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app))), files, at)
         return linked + dreg.link_workspace(app, at)
 
     def _documents_on_file(self, entity_id: str) -> list[dict]:
@@ -1833,7 +3003,7 @@ class LosService:
         self.doc_store.store_document(app["entity_id"], category, final_name, content, source="los_upload",
                                       document_role=None)
         # Register in the logical document registry (a checklist document when linked).
-        registry = app.setdefault("documents", dreg.initial_registry())
+        registry = app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app)))
         linked = next((d for d in registry if d["doc_id"] == link_to), None) if link_to else None
         dreg.register_upload(registry, name=(linked["name"] if linked else final_name), category=category,
                              scope="application", file_name=f"{category}/{final_name}",
@@ -2088,7 +3258,7 @@ class LosService:
                         related_parties: Optional[list[dict]] = None, prospect_discussion: Optional[dict] = None,
                         sourcing_decision: Optional[dict] = None, priority: str = "Normal",
                         confirm_not_duplicate: bool = False, prepare: bool = True,
-                        cam: Optional[dict] = None) -> dict:
+                        cam: Optional[dict] = None, product: Optional[str] = None) -> dict:
         """Register a new prospect from its staged documents and create its application."""
         self._require_sourcing_maker(session)
         d = self._staging_dir(staging_id)
@@ -2135,11 +3305,11 @@ class LosService:
         moved = self._move_staged(d, entity_id)
         app = self.create(session, entity_id=entity_id, facilities=facilities, related_parties=related_parties,
                           priority=priority, prospect_discussion=prospect_discussion,
-                          sourcing_decision=sourcing_decision, customer_id_selection="new")
+                          sourcing_decision=sourcing_decision, customer_id_selection="new", product=product)
         with self._app_lock(app["application_id"]):
             app = self._require(app["application_id"])
             at = self.now().isoformat(timespec="seconds")
-            registry = app.setdefault("documents", dreg.initial_registry())
+            registry = app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app)))
             for doc in moved:
                 dreg.register_upload(registry, name=Path(doc).name, category=doc.split("/")[0], scope="application",
                                      file_name=doc, by_name=session["user"]["name"], at=at)
@@ -2173,22 +3343,53 @@ class LosService:
 
     def prepare_application(self, application_id: str, session: dict, wait: bool = False) -> dict:
         """The preparation agent for Prospect Sourcing: identity & dedupe, document intake and every
-        API due-diligence check run in parallel lanes; one writer applies the results."""
+        API due-diligence check run in parallel lanes; one writer applies the results.
+        ``wait=True`` runs the lanes inline (the router's sync call path) so callers observe
+        the applied result immediately instead of a still-running job."""
         app = self._require(application_id)
         self._maker_at(app, session, PREP_STEPS, "Preparing the application")
         with self._jobs_lock:
             running = self._prep_jobs.get(application_id)
+            if running and running["state"] == "running":
+                # a worker that died with the process (server restart) strands the job 'running';
+                # a dead thread can never finish it, so the slot is released for a fresh run
+                if not running.get("thread") or not running["thread"].is_alive():
+                    running["state"], running["finished_at"] = "failed", self.now().isoformat(timespec="seconds")
+                    running["error"] = "preparation was interrupted (server restart) — run it again"
+                    running = None
             if running and running["state"] == "running":
                 raise ConflictError("The application is already being prepared")
             job = {"state": "running", "started_at": self.now().isoformat(timespec="seconds"), "finished_at": None,
                    "lanes": [], "running": [], "summary": None, "error": None}
             self._prep_jobs[application_id] = job
         actor = {"id": session["user"]["id"], "role": session["role"]}
-        job["thread"] = threading.Thread(target=self._prepare, args=(application_id, session, actor), daemon=True,
-                                         name=f"los-prepare-{application_id}")
-        job["thread"].start()
         if wait:
-            job["thread"].join(timeout=600)
+            try:
+                self._prepare(application_id, session, actor)
+            except OperationFailedError:
+                raise
+            except Exception as e:                    # controlled: the job view carries the error
+                with self._jobs_lock:
+                    job["state"], job["finished_at"] = "failed", self.now().isoformat(timespec="seconds")
+                    job["error"] = str(e) or e.__class__.__name__
+                raise OperationFailedError(f"Preparation failed: {e}")
+        else:
+            # the lanes must never outlive the process: a worker that dies mid-prepare would
+            # strand the job in 'running' and refuse every retry (ConflictError forever)
+            def _guarded(*a_, **kw_):
+                try:
+                    self._prepare(*a_, **kw_)
+                except Exception as e:
+                    with self._jobs_lock:
+                        j = self._prep_jobs.get(application_id)
+                        if j and j.get("state") == "running":
+                            j["state"], j["finished_at"] = "failed", self.now().isoformat(timespec="seconds")
+                            j["error"] = str(e) or e.__class__.__name__
+            job["thread"] = threading.Thread(target=_guarded, args=(application_id, session, actor), daemon=True,
+                                              name=f"los-prepare-{application_id}")
+            job["thread"].start()
+            if wait:
+                job["thread"].join(timeout=600)
         return self.sourcing(application_id, session)
 
     def wait_for_preparation(self, application_id: str, timeout: float = 600) -> dict:
@@ -2357,7 +3558,7 @@ class LosService:
             app = self._require(application_id)
             entity_id, step_id = app["entity_id"], app["step_id"]
             company = self.companies.get(entity_id) or {}
-            pinned = self._app_case(app)[0] if (app.get("credit_assessment") or {}).get("run_id") else None
+            pinned = (self._app_case(app)[0] if (app.get("credit_assessment") or {}).get("run_id") else None)
             if pinned and self._case_stale(pinned, app):
                 pinned = None           # the request changed since the CAM: assess this one (with the app's facility)
             check_ids = self._checks_to_refresh(app) if step_id in DD_STEPS else []
@@ -2513,31 +3714,47 @@ class LosService:
 
     # ── governed due-diligence workspace (Client One GAP-P0-05/06) ──────────
     def _dd_may(self, app: dict, session: dict, what: str) -> None:
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         if not step or step.id not in DD_STEPS or app["status"] in TERMINAL:
             raise ConflictError(f"{what} is done at the prospect-sourcing and risk-maker steps")
-        if not can_act(self.wf, session["user"]["id"], session["role"], step):
-            raise ForbiddenError(f"This step belongs to the {self.wf.roles[step.role]} role")
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step):
+            raise ForbiddenError(f"This step belongs to the {self._wf(app).roles[step.role]} role")
         if app.get("assignee_id") not in (None, session["user"]["id"]):
             raise ForbiddenError(f"Assigned to {self._user_name(app['assignee_id'])}; reassign it first")
 
     def due_diligence(self, application_id: str, session: Optional[dict] = None) -> dict:
         """The fifteen-check workspace: statuses, retrigger history, comments and exceptions."""
         app = self._require(application_id)
-        rec = app.get("due_diligence") or {"version": dd.CHECK_VERSION, "checks": dd.initial_checks()}
+        prof = self._profile(app)
+        rec = app.get("due_diligence") or {"version": dd.CHECK_VERSION, "checks": dd.initial_checks(self._check_catalog(app))}
         checks = rec["checks"]
+        validity = (prof.get("checks") or {}).get("validity_days") or {}
+        # R5: per-check applicability (profile/product conditions) and validity — a check that
+        # does not apply is waived; a result past its validity must be re-run
+        applicability = []
+        for c in checks:
+            conds = (prof.get("checks") or {}).get("applicability", {}).get(c["id"]) or {}
+            applies, reason = dd.check_applies(conds, app)
+            expires = dd.valid_expiry(c, self.now(), int(validity[c["id"]])) if (applies and validity.get(c["id"])) else None
+            applicability.append({"id": c["id"], "name": c["name"], "applies": applies, "reason": reason,
+                                  "validity_days": validity.get(c["id"]), "expires_at": expires,
+                                  "expired": bool(expires and self.now().date().isoformat() >= expires)})
+        effective = [c for c, a in zip(checks, applicability) if a["applies"]]
         return {"application_id": application_id, "version": rec.get("version"),
                 "initiated_at": rec.get("initiated_at"), "seeded": bool(rec.get("seeded")),
                 "can_edit": self._can(app, session, DD_STEPS),
-                "checks": checks, "summary": dd.summary(checks, self.now()),
-                "blocking": [c["name"] for c in dd.blocking(checks, now=self.now())],
-                "screening": dd.screening_review(checks, self.now()),
+                "checks": checks, "summary": dd.summary(effective, self.now()),
+                "applicability": applicability,
+                "blocking": [c["name"] for c in dd.blocking(effective, now=self.now(),
+                                                            validity_days={k: int(v) for k, v in validity.items()})],
+                "screening": dd.screening_review(checks, self.now(), profiles.check_policy(prof)),
                 "note": "API checks run against the in-app record and demo services (results are labelled); "
                         "manual checks are recorded by the analyst. An 'unavailable' result means the provider "
-                        "returned nothing — it is never a clear result."}
+                        "returned nothing — it is never a clear result. Checks the profile's applicability "
+                        "conditions waive do not block."}
 
     def _dd_check(self, app: dict, check_id: str) -> dict:
-        checks = app.setdefault("due_diligence", {"version": dd.CHECK_VERSION, "checks": dd.initial_checks()})["checks"]
+        checks = app.setdefault("due_diligence", {"version": dd.CHECK_VERSION, "checks": dd.initial_checks(self._check_catalog(app))})["checks"]
         c = next((x for x in checks if x["id"] == check_id), None)
         if not c:
             raise InvalidRequestError(f"Unknown due-diligence check: {check_id}")
@@ -2712,9 +3929,11 @@ class LosService:
                                          detail={"check_id": check_id}))
         return self.due_diligence(application_id, session)
 
-    def _approvers(self, role: str = "compliance_vp") -> list[dict]:
+    def _approvers(self, role: Optional[str] = None, wf: Optional[Workflow] = None) -> list[dict]:
+        wf = wf or self.wf
+        role = role or profiles.exception_authority()["role"]
         return [{"id": u["id"], "name": u["name"], "email": u.get("email"), "branch": u.get("branch")}
-                for u in self.wf.users_with_role(role)]
+                for u in wf.users_with_role(role)]
 
     @staticmethod
     def _who(people: list[dict]) -> str:
@@ -2735,7 +3954,7 @@ class LosService:
         if dd.effective_exception(c, self.now()):
             raise ConflictError(f"{c['name']} already has a Compliance VP exception")
         at = self.now().isoformat(timespec="seconds")
-        approvers = self._approvers()
+        approvers = self._approvers(self._exc_authority(app)["role"], self._wf(app))
         target = next((p for p in approvers if p["id"] == to), None) if to else (approvers[0] if len(approvers) == 1 else None)
         if to and not target:
             raise InvalidRequestError("Choose a Compliance VP from the list")
@@ -2750,11 +3969,12 @@ class LosService:
         return self.due_diligence(application_id, session)
 
     def decline_exception(self, application_id: str, session: dict, check_id: str, reason: str) -> dict:
-        if session["role"] != "compliance_vp":
-            raise ForbiddenError("Only the Compliance VP decides on a due-diligence exception")
+        app = self._require(application_id)
+        exc = self._exc_authority(app)
+        if session["role"] != exc["role"]:
+            raise ForbiddenError(f"Only the {exc['name']} decides on a due-diligence exception")
         if not (reason or "").strip():
             raise InvalidRequestError("Give the reason for declining — the step holder sees it")
-        app = self._require(application_id)
         c = self._dd_check(app, check_id)
         req = c.get("exception_request") or {}
         if req.get("status") != "pending":
@@ -2771,9 +3991,10 @@ class LosService:
         """The only thing that releases a mandatory match/failure block: a recorded Compliance VP exception.
         Under the ``vp_approval`` unavailable policy the same authority also releases a mandatory check
         whose provider returned nothing ('unavailable') — never a silent skip."""
-        if session["role"] != "compliance_vp":
-            raise ForbiddenError("Only the Compliance VP can approve a due-diligence exception")
         app = self._require(application_id)
+        exc = self._exc_authority(app)
+        if session["role"] != exc["role"]:
+            raise ForbiddenError(f"Only the {exc['name']} can approve a due-diligence exception")
         if not (reason or "").strip():
             raise InvalidRequestError("A reason is required for an exception")
         c = self._dd_check(app, check_id)
@@ -2781,7 +4002,8 @@ class LosService:
             raise ConflictError(f"An exception applies to a matched, failed or unavailable check, not one that is {c['status']}")
         c["exception"] = {"by": session["user"]["id"], "by_name": session["user"]["name"],
                           "at": self.now().isoformat(timespec="seconds"), "reason": reason.strip(),
-                          "expires_at": dd.exception_expiry(self.now().isoformat(timespec="seconds"))}
+                          "expires_at": dd.exception_expiry(self.now().isoformat(timespec="seconds"),
+                                                            ttl_days=profiles.check_policy(self._profile(app))["exception_ttl_days"])}
         if (c.get("exception_request") or {}).get("status") == "pending":
             c["exception_request"].update(status="approved", decided_by=session["user"]["name"],
                                           decided_at=self.now().isoformat(timespec="seconds"), decision_note=reason.strip())
@@ -2856,7 +4078,7 @@ class LosService:
     def _seed_due_diligence(self, application_id: str, at: datetime) -> None:
         """Seeded history: the checks were run and recorded before the replay point."""
         app = self.store.get(application_id)
-        rec = app.setdefault("due_diligence", {"version": dd.CHECK_VERSION, "checks": dd.initial_checks()})
+        rec = app.setdefault("due_diligence", {"version": dd.CHECK_VERSION, "checks": dd.initial_checks(self._check_catalog(app))})
         company = self.companies.get(app["entity_id"]) or {}
         for c in rec["checks"]:
             if c["mode"] == "api":
@@ -2867,7 +4089,8 @@ class LosService:
             c.update(status=result["status"], detail=result["detail"], source=result["source"], error=None,
                      last_triggered=at.isoformat(timespec="seconds"), triggered_by="Demo seed",
                      exception={"by_name": "Compliance VP (demo seed)", "at": at.isoformat(timespec="seconds"),
-                                "reason": "Seeded demo history"} if result["status"] in ("matched", "failed") else None)
+                                "reason": "Seeded demo history"}
+                               if result["status"] in ("matched", "failed", "unavailable") else None)
         rec["seeded"] = True
         self.store.save(app)
 
@@ -3029,6 +4252,28 @@ class LosService:
                                  "at": at})
             c.update(status=status, note=note, evidence=evidence, due=due, updated_by=session["user"]["name"],
                      updated_at=at, approval=None)
+            # R10: owner, due date, testing frequency and the waiver authority / expiry
+            if "owner" in u and u["owner"] is not None:
+                c["owner"] = str(u["owner"]).strip() or None
+            if "frequency" in u and u["frequency"] is not None:
+                c["frequency"] = str(u["frequency"]).strip() or None
+            if status == "waived":
+                wa = u.get("waiver") or {}
+                prof = self._profile(app).get("waiver") or {}
+                authority = str(wa.get("authority") or prof.get("default_authority") or "Post Sanction Checker").strip()
+                max_days = int(prof.get("max_days") or 0)
+                expiry = None
+                if max_days:
+                    try:
+                        base = datetime.fromisoformat(str(wa.get("until") or "")).date() if wa.get("until") else self.now().date()
+                    except ValueError:
+                        base = self.now().date()
+                    expiry = (base + timedelta(days=max_days)).isoformat()
+                c["waiver"] = {"authority": authority, "reason": note,
+                               "by_name": session["user"]["name"], "at": at,
+                               "expires_at": expiry, "status": "granted"}
+            elif status != "waived" and c.get("waiver"):
+                c["waiver"] = {**c["waiver"], "status": "superseded"}
             changes.append(f"{c['id']} → {status}" + (f" ({note})" if note else ""))
         if not changes:
             raise InvalidRequestError("Nothing to update")
@@ -3085,9 +4330,18 @@ class LosService:
                                          to_step=app["step_id"], comment="; ".join(changes)))
         return self.post_sanction(application_id, session)
 
+    def _open_modification_blocker(self, app: dict):
+        mod = next((m for m in app.get("modifications") or [] if m["status"] == "open"), None)
+        if mod:
+            return (f"Modification {mod['modification_id']} is open — the sanctioned terms stay in force "
+                    "until it is recommended and decided")
+        return None
+
     def request_tranche(self, application_id: str, session: dict, amount_cr: float, value_date: str,
                         purpose: str = "", facility_id: Optional[str] = None) -> dict:
         app = self._require(application_id)
+        if b := self._open_modification_blocker(app):
+            raise ConflictError(b)
         self._maker_at(app, session, ("dis_maker",), "Recording a tranche")
         dis = self._disbursement(app)
         if dis["available_cr"] is None:
@@ -3121,6 +4375,8 @@ class LosService:
     # multiple drawdowns. A governed, audited re-open at the Disbursement Maker.
     def request_subsequent_tranche(self, application_id: str, session: dict, reason: str) -> dict:
         app = self._require(application_id)
+        if b := self._open_modification_blocker(app):
+            raise ConflictError(b)
         if app["status"] != STATUS_APPROVED:
             raise ConflictError("A subsequent tranche can only be requested after the application has reached Exit (approved)")
         if not (reason or "").strip():
@@ -3134,9 +4390,9 @@ class LosService:
             {"round": app["tranche_rounds"], "reason": reason.strip()[:500],
              "by_name": session["user"]["name"], "at": at.isoformat(timespec="seconds")})
         # Re-open at the Disbursement Maker; the usual DIS gates apply to the new tranche.
-        step = self.wf.step("dis_maker")
+        step = self._wf(app).step("dis_maker")
         app.update(status=STATUS_IN_PROGRESS, step_id=step.id, stage_id=step.stage_id,
-                   step_entered_at=at.isoformat(timespec="seconds"), assignee_id=self._default_assignee(step.role))
+                   step_entered_at=at.isoformat(timespec="seconds"), assignee_id=self._default_assignee(step.role, self._wf(app)))
         actor = {"id": session["user"]["id"], "role": session["role"]}
         self.store.save(app, self._event(app, "subsequent_tranche", actor=actor, from_step=None,
                                          to_step=step.id, comment=f"Subsequent tranche round {app['tranche_rounds']}: {reason.strip()[:120]}",
@@ -3145,7 +4401,8 @@ class LosService:
 
     # ── post-sanction consent & facility execution (Client One GAP-P0-13) ────
     def record_consent(self, application_id: str, session: dict, *, acknowledged_by: str, consent_date: str,
-                       remarks: str = "", facilities: Optional[list[dict]] = None) -> dict:
+                       remarks: str = "", facilities: Optional[list[dict]] = None,
+                       raw_meta: Optional[dict] = None) -> dict:
         """Customer's sanction consent/acceptance and per-facility execution, recorded at Post-Sanction Maker."""
         app = self._require(application_id)
         self._maker_at(app, session, ("pos_maker",), "Recording sanction consent")
@@ -3175,9 +4432,41 @@ class LosService:
             rows.append({"facility_id": fid, "execution_status": status, "agreement_date": adate})
         if {r["facility_id"] for r in rows} != fac_ids:
             raise InvalidRequestError("Record an execution status for every facility")
+        # R8: the signed copy of the sanction letter is uploaded first, the acceptance is
+        # recorded against a specific letter version, and the consent date must fall inside
+        # that version's validity — a missing / rejected / outdated version blocks the POS gate.
+        letters = app.get("letters") or {}
+        sanc_versions = letters.get("sanction_letter") or []
+        if not sanc_versions:
+            raise ConflictError("Generate and issue the Sanction Letter before recording the customer's acceptance")
+        sanc = sanc_versions[-1]                      # the current version of record
+        sc = app.get("letters", {}).get("sanction_letter_signed") or {}
+        if not sc:
+            raise ConflictError("Upload the customer's signed copy of the Sanction Letter before recording the acceptance")
+        if sc.get("status") == "rejected":
+            raise ConflictError("The signed copy was rejected — re-upload a legible copy matching the letter version")
+        version = sanc.get("version")
+        acceptance = {"date": consent_date, "by": acknowledged_by.strip(),
+                      "method": (str((raw_meta or {}).get("method") or "signed copy").strip() or "signed copy"),
+                      "letter_version": version,
+                      "letter_reference": sanc.get("reference"),
+                      "letter_valid_until": sanc.get("valid_until")}
+        if sanc.get("valid_until") and sc.get("letter_version") in (None, version):
+            v = datetime.fromisoformat(str(sanc["valid_until"])[:10]).date()
+            c = datetime.fromisoformat(str(consent_date)[:10]).date()
+            if c > v:
+                raise InvalidRequestError(
+                    f"The consent date ({consent_date}) is after the letter's validity ({sanc['valid_until']}) — "
+                    "issue a fresh letter or re-accept within its validity")
+        # the signed copy must match the current letter version
+        if sc.get("letter_version") not in (None, version):
+            raise InvalidRequestError(
+                f"The signed copy is of letter version {sc.get('letter_version')} but the letter on record "
+                f"is version {version} — re-upload the current version")
         at = self.now().replace(microsecond=0)
         app["consent"] = {"acknowledged_by": acknowledged_by.strip(), "consent_date": consent_date,
                           "remarks": (remarks or "").strip() or None, "facilities": rows,
+                          "acceptance": acceptance,
                           "by": session["user"]["id"], "by_name": session["user"]["name"],
                           "at": at.isoformat(timespec="seconds")}
         # Per-facility execution flows into the facility amount lifecycle (GAP-P0-13).
@@ -3196,27 +4485,112 @@ class LosService:
                                          detail={"facilities": rows}))
         return self.post_sanction(application_id, session)
 
+    # ── R8: sanction-letter acceptance ────────────────────────────────────
+    def upload_signed_letter(self, application_id: str, session: dict, kind: str,
+                             filename: str, content: bytes) -> dict:
+        """The customer's signed copy of the letter, uploaded at Post-Sanction Maker against
+        the letter's current version."""
+        if kind not in lt.KINDS:
+            raise InvalidRequestError(f"Unknown letter kind: {kind}")
+        app = self._require(application_id)
+        self._maker_at(app, session, ("pos_maker",), "Uploading the signed letter")
+        lts = app.setdefault("letters", {})
+        versions = lts.get(kind) or []
+        if not versions:
+            raise ConflictError(f"The {lt.KINDS[kind]} is not on record — generate it first")
+        version = versions[-1].get("version")
+        lts["%s_signed" % kind] = {"filename": filename, "letter_version": version,
+                                   "uploaded_by": session["user"]["name"], "at": self.now().isoformat(timespec="seconds"),
+                                   "status": "uploaded", "hash": hashlib.sha256(content or b"").hexdigest()}
+        dreg.register_generated(app.setdefault("documents", []), name=f"Signed copy — {lt.KINDS[kind]}",
+                                kind="signed_letter", by_name=session["user"]["name"],
+                                at=self.now().isoformat(timespec="seconds"), detail=filename)
+        self.store.save(app, self._event(app, "signed_letter_uploaded",
+                                         actor={"id": session["user"]["id"], "role": session["role"]},
+                                         from_step=app.get("step_id"), to_step=app.get("step_id"),
+                                         comment=f"Signed copy of the {kind} v{version} uploaded"))
+        return self.get(application_id, session)
+
+    def review_signed_letter(self, application_id: str, session: dict, kind: str, outcome: str,
+                             note: str = "") -> dict:
+        """The reviewer's verification of the signed copy: verified, or rejected (re-upload)."""
+        app = self._require(application_id)
+        self._maker_at(app, session, ("pos_maker", "pos_checker"), "Reviewing the signed letter")
+        lts = app.get("letters") or {}
+        sc = lts.get("%s_signed" % kind) or {}
+        if not sc:
+            raise ConflictError("There is no signed copy to review")
+        if outcome not in ("verified", "rejected"):
+            raise InvalidRequestError("The review outcome must be verified or rejected")
+        lts["%s_signed" % kind] = {**sc, "status": outcome,
+                                   "review_note": (note or "").strip() or None,
+                                   "reviewed_by": session["user"]["name"],
+                                   "reviewed_at": self.now().isoformat(timespec="seconds")}
+        self.store.save(app, self._event(app, "signed_letter_" + outcome,
+                                         actor={"id": session["user"]["id"], "role": session["role"]},
+                                         from_step=app.get("step_id"), to_step=app.get("step_id"),
+                                         comment=(note or "").strip()[:300]))
+        return self.get(application_id, session)
+
     # ── governance workspaces (GAP-P0-01/04/07/08/09, P1-01…05, P0-12/15) ────
-    def _workspace_may(self, app: dict, session: Optional[dict], what: str, review: bool = False) -> None:
+    # ── R17: field-level edit permissions ────────────────────────────────
+    # The institution's field policy: which fields are material (a change to them is a
+    # material edit and is audited with before/after), and which roles may edit which
+    # domain (default: the current maker step's role; reviewers decide, they do not edit).
+
+    def _field_policy(self, app: dict) -> dict:
+        prof = self._profile(app)
+        return {"material_fields": list(prof.get("field_material_fields") or []),
+                "edit_roles": prof.get("field_edit_roles") or {}}
+
+    def _material_fields(self, app: dict, raw: dict) -> list[str]:
+        mat = self._field_policy(app)["material_fields"]
+        changed = {k: v.get("after") for k, v in (raw or {}).items() if isinstance(v, dict)}
+        if not changed:
+            changed = dict(raw or {})
+        return sorted(k for k in changed if k in mat)
+
+    def _workspace_may(self, app: dict, session: Optional[dict], what: str, review: bool = False,
+                       domain: Optional[str] = None, raw: Optional[dict] = None) -> None:
         """Who may change a workspace now: the current step's role. Maker steps edit the proposal;
         checker, VP-review, committee and allocation steps are read-only on it (process §3) and may
-        only record their review (``review=True``: approving the CMA, reviewing a document, …)."""
+        only record their review (``review=True``: approving the CMA, reviewing a document, …).
+        R17: ``domain`` is the institution policy's edit scope for that domain (which roles may
+        edit it); a violation is a 403, and material fields edited outside the making stage are
+        recorded as material edits (audited with before/after in the change event)."""
         if app.get("status") in TERMINAL:
             raise ConflictError(f"{what} is not available on a completed application")
         if not app.get("step_id"):
             raise ConflictError(f"{what} is not available on a completed application")
-        step = self.wf.step(app["step_id"])
-        if not session or not can_act(self.wf, session["user"]["id"], session["role"], step):
-            raise ForbiddenError(f"{what} is available to the current step's role ({self.wf.roles[step.role]})")
+        step = self._wf(app).step(app["step_id"])
+        if not session or not can_act(self._wf(app), session["user"]["id"], session["role"], step):
+            raise ForbiddenError(f"{what} is available to the current step's role ({self._wf(app).roles[step.role]})")
+        roles = (self._field_policy(app)["edit_roles"] or {}).get(domain)
+        if domain and roles is not None and session["role"] not in roles:
+            raise ForbiddenError(f"{what} may be edited only by {', '.join(roles)} — your role "
+                                 f"({self._wf(app).roles.get(session['role'], session['role'])}) is read-only here")
         if not review and step.kind != "maker":
             raise ForbiddenError(f"{what} is read-only at {step.name}: a review step does not change the proposal "
                                  "(return it for rework instead)")
 
-    def _workspace_save(self, app: dict, session: dict, action: str, comment: str) -> dict:
+    def _workspace_save(self, app: dict, session: dict, action: str, comment: str,
+                        detail: Optional[dict] = None) -> dict:
         actor = {"id": session["user"]["id"], "role": session["role"]}
         app["updated_at"] = self.now().isoformat(timespec="seconds")
+        if detail is None:
+            detail = {}
+        # R17: a change to a material field is audited with before/after (the institution's
+        # field policy names them) and flagged in the decision record.
+        mat = self._material_fields(app, detail.get("changes") or {})
+        if mat:
+            detail = {**detail, "material_fields": mat}
+            app.setdefault("material_change_reviews", []).append(
+                {"fields": mat, "by": session["user"]["name"],
+                 "at": app["updated_at"], "stage": app.get("stage_id")})
+            comment = f"[material edit: {', '.join(mat)}] " + (comment or "")
         self.store.save(app, self._event(app, action, actor=actor, from_step=app.get("step_id"),
-                                         to_step=app.get("step_id"), comment=(comment or "")[:600]))
+                                         to_step=app.get("step_id"), comment=(comment or "")[:600],
+                                         detail=detail))
         return self.get(app["application_id"], session)
 
     # dependency invalidations (UAT-P2-10): group / ownership / rating changes that make a prior
@@ -3252,7 +4626,7 @@ class LosService:
     # parties (GAP-P0-01: party maintenance with PAN-change dependency)
     def save_party(self, application_id: str, session: dict, raw: dict) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Party maintenance")
+        self._workspace_may(app, session, "Party maintenance", domain="party")
         parties = app.setdefault("related_parties", [])
         party_id = str(raw.get("party_id") or "").strip() or None
         existing = next((p for p in parties if p["party_id"] == party_id), None) if party_id else None
@@ -3337,6 +4711,17 @@ class LosService:
     def _link_party_screening(self, app: dict, result: dict, by_name: str, at: str) -> None:
         """Application-level name screening auto-links the individuals' party evidence (demo),
         so the analyst confirms or overwrites it at party level."""
+        try:
+            self._link_party_screening_impl(app, result, by_name, at)
+        except Exception:                    # controlled: a link failure must never 500 the check run
+            app.setdefault("_link_warnings", []).append(
+                f"party screening link failed: {type(Exception).__name__} — confirm party evidence manually")
+            try:
+                self.store.save(app)
+            except Exception:
+                pass
+
+    def _link_party_screening_impl(self, app: dict, result: dict, by_name: str, at: str) -> None:
         for p in app.get("related_parties", []):
             if p.get("party_type") != "individual":
                 continue
@@ -3355,17 +4740,79 @@ class LosService:
     # facilities (GAP-P0-04)
     def update_facility(self, application_id: str, session: dict, facility_id: str, raw: dict) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Facility maintenance")
+        self._workspace_may(app, session, "Facility maintenance", domain="facility")
         if app.get("sanctions"):
             raise ConflictError("Facilities cannot be edited after sanction — raise a modification instead")
         at = self.now().replace(microsecond=0).isoformat(timespec="seconds")
+        fac = next((f for f in app.get("facilities") or [] if f.get("facility_id") == facility_id), None)
+        if not fac:
+            raise InvalidRequestError(f"Unknown facility: {facility_id}")
+        changes = {k: {"before": fac.get(k), "after": raw[k]}
+                   for k in raw if fac.get(k) != raw.get(k) and raw.get(k) is not None}
         facmod.change_facility(app, facility_id, raw, at, session["user"]["name"])
-        return self._workspace_save(app, session, "facility_updated", f"{facility_id} updated")
+        errors = facmod.validate_hierarchy(app)
+        if errors:
+            raise InvalidRequestError("Facility hierarchy: " + "; ".join(errors))
+        return self._workspace_save(app, session, "facility_updated",
+                                    f"{facility_id} updated",
+                                    detail={"facility_id": facility_id, "changes": changes})
+
+    def field_permissions(self, application_id: str, session: Optional[dict] = None) -> dict:
+        """R17: the effective field-level edit policy for this application: which roles may
+        edit which domain, which fields are material, and what the current session may do."""
+        app = self._require(application_id)
+        pol = self._field_policy(app)
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
+        current = session.get("role") if session else None
+        domains = {"facility": "Facility maintenance", "party": "Party maintenance",
+                   "security": "Security maintenance", "project": "Project maintenance",
+                   "esms": "ESMS screening", "ewp": "External work-party management"}
+
+        def _editable(roles):
+            # the same rule _workspace_may enforces: the session holds the current step's
+            # role, the step is a maker step, and (when the profile names the domain's
+            # editors) the role is among them — so the UI disables exactly what the API refuses
+            if step is None or current is None or current != step.role or step.kind != "maker":
+                return False
+            return roles is None or current in roles
+
+        editable = {d: _editable(roles) for d, roles in sorted(pol["edit_roles"].items())}
+        if not editable:                       # no per-domain policy: the step's role edits its own domains
+            editable = {d: _editable(None) for d in domains}
+        return {"application_id": application_id,
+                "material_fields": pol["material_fields"],
+                "edit_roles": pol["edit_roles"],
+                "step": step.id if step else None,
+                "editable_now": editable if step else {},
+                "note": "Maker steps edit their own domains; reviewers decide (decision fields only). "
+                        "A change to a material field is audited with before/after and flagged in "
+                        "the decision record. The UI disables exactly these fields — the API enforces the same policy."}
+
+    def facility_hierarchy(self, application_id: str, session: Optional[dict] = None) -> dict:
+        """R6: the facility hierarchy with utilisation per node and the validation result."""
+        app = self._require(application_id)
+        facs = app.get("facilities") or []
+        by_id = {f.get("facility_id"): f for f in facs}
+        nodes = []
+        for f in facs:
+            committed = f.get("committed_cr") or f.get("sanctioned_cr") or 0
+            disbursed = f.get("disbursed_cr") or 0
+            nodes.append({"facility_id": f.get("facility_id"), "facility_type": f.get("facility_type"),
+                          "currency": f.get("currency") or "INR",
+                          "proposed_cr": f.get("proposed_cr") or f.get("amount_cr"),
+                          "committed_cr": committed, "disbursed_cr": disbursed,
+                          "balance_cr": round(committed - disbursed, 2) if committed else None,
+                          "parent_limit_id": f.get("parent_limit_id"),
+                          "reimbursement_facility": bool(f.get("reimbursement_facility")),
+                          "interchangeable": bool(f.get("interchangeable")),
+                          "takeover": f.get("takeover")})
+        return {"application_id": application_id, "facilities": nodes,
+                "errors": facmod.validate_hierarchy(app)}
 
     # securities (GAP-P1-03)
     def save_security(self, application_id: str, session: dict, raw: dict) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Security maintenance")
+        self._workspace_may(app, session, "Security maintenance", domain="security")
         securities = app.setdefault("securities", [])
         security_id = str(raw.get("security_id") or "").strip() or None
         existing = next((s for s in securities if s["security_id"] == security_id), None) if security_id else None
@@ -3392,7 +4839,7 @@ class LosService:
     # projects (GAP-P1-01)
     def save_project(self, application_id: str, session: dict, raw: dict) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Project maintenance")
+        self._workspace_may(app, session, "Project maintenance", domain="project")
         projects = app.setdefault("projects", [])
         project_id = str(raw.get("project_id") or "").strip() or None
         existing = next((p for p in projects if p["project_id"] == project_id), None) if project_id else None
@@ -3409,13 +4856,15 @@ class LosService:
 
     def record_project_change(self, application_id: str, session: dict, project_id: str, raw: dict) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "Recording a project change")
+        self._workspace_may(app, session, "Recording a project change", domain="project")
         p = next((x for x in app.get("projects", []) if x["project_id"] == project_id), None)
         if not p:
             raise InvalidRequestError(f"Unknown project: {project_id}")
         change = prj.record_change(p, raw, self.now().isoformat(timespec="seconds"), session["user"]["name"])
         return self._workspace_save(app, session, "project_change",
-                                    f"{project_id}: {change['field']} → {change['current']} (flagged for reappraisal)")
+                                    f"{project_id}: {change['field']} → {change['current']} (flagged for reappraisal)",
+                                    detail={"changes": {change["field"]: {"before": change.get("previous"),
+                                                                            "after": change["current"]}}})
 
     # ESMS (GAP-P1-02)
     def update_esms(self, application_id: str, session: dict, payload: dict) -> dict:
@@ -3441,12 +4890,84 @@ class LosService:
             esms["status"] = "in_progress"
         if esms.get("esdd") or esms.get("committee_recommendation"):
             esms["status"] = "complete"
+        if "category" in payload or "checklist" in payload:
+            self._recompute_routing(app, {"id": session["user"]["id"], "role": session["role"]},
+                                    "route recalculated after the E&S category / excluded-activity screen")
         return self._workspace_save(app, session, "esms_update", f"ESMS: category {esms.get('category') or '—'}")
+
+    # ── R5: E&S exceptions for excluded activities ─────────────────────────
+
+    def _esms_exception(self, app: dict, esms: dict) -> Optional[dict]:
+        """The application's E&S exception when the institution allows them (profile:
+        ``esms.exceptions``); profiles without the block (e.g. Client One) never release
+        the excluded-activity block."""
+        pol = profiles.esms_policy(self._profile(app))
+        if not pol.get("exceptions_enabled"):
+            return None
+        return esms.get("exception")
+
+    def request_esms_exception(self, application_id: str, session: dict, note: str) -> dict:
+        """The step holder asks the institution's configured E&S authority for an exception
+        to the excluded-activity screen. The request is queued for that authority."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "Requesting an E&S exception")
+        esms = app.get("esms") or {}
+        pol = profiles.esms_policy(self._profile(app))
+        if not pol.get("exceptions_enabled"):
+            raise ConflictError("This institution does not allow exceptions to the excluded-activity screen")
+        excluded = [i for i in esms.get("checklist", []) if i.get("answer") == "Yes"]
+        if not excluded:
+            raise ConflictError("An E&S exception applies to an excluded activity answered 'Yes' on the ESMS screen")
+        if exc0 := esms.get("exception") or {}:
+            if exc0.get("status") == "pending":
+                raise ConflictError("An E&S exception request is already pending with "
+                                    + (exc0.get("to_name") or "the E&S authority"))
+            if es.esms_exception_active(exc0, self.now()):
+                raise ConflictError("A valid E&S exception is already on file")
+        if not (note or "").strip():
+            raise InvalidRequestError("Say why the excluded activity is acceptable — the E&S authority decides on it")
+        at = self.now().isoformat(timespec="seconds")
+        role = pol["exception_authority"]["role"]
+        approvers = self._approvers(role, self._wf(app))
+        if not approvers:
+            raise InvalidRequestError(f"No approver with the E&S exception role ({role}) is configured")
+        esms["exception"] = {"status": "pending", "by": session["user"]["id"], "by_name": session["user"]["name"],
+                             "at": at, "note": note.strip(), "activities": [i["id"] for i in excluded],
+                             "to_name": approvers[0]["name"], "to_email": approvers[0].get("email")}
+        self._workspace_save(app, session, "esms_exception_requested",
+                             f"E&S exception requested: {note.strip()[:200]}",
+                             detail={"activities": esms["exception"]["activities"]})
+
+    def decide_esms_exception(self, application_id: str, session: dict, outcome: str, reason: str) -> dict:
+        """The configured E&S authority decides: ``approved`` (with a TTL that lapses the
+        release) or ``declined`` (the block stands — the proposal cannot proceed)."""
+        app = self._require(application_id)
+        pol = profiles.esms_policy(self._profile(app))
+        if not pol.get("exceptions_enabled"):
+            raise ConflictError("This institution does not allow exceptions to the excluded-activity screen")
+        if session["role"] != pol["exception_authority"]["role"]:
+            raise ForbiddenError(f"Only the {pol['exception_authority']['name']} decides on an E&S exception")
+        if outcome not in ("approved", "declined"):
+            raise InvalidRequestError("Outcome must be approved or declined")
+        if not (reason or "").strip():
+            raise InvalidRequestError("A reason is required for the E&S exception decision")
+        esms = app.get("esms") or {}
+        exc = esms.get("exception") or {}
+        if exc.get("status") != "pending":
+            raise ConflictError("There is no pending E&S exception request")
+        at = self.now().isoformat(timespec="seconds")
+        exc.update(status=outcome, decided_by=session["user"]["name"], decided_at=at,
+                   decision_note=reason.strip())
+        if outcome == "approved":
+            exc["expires_at"] = (self.now() + timedelta(days=int(pol.get("exception_ttl_days") or 180))).isoformat(timespec="seconds")
+        self._workspace_save(app, session, f"esms_exception_{outcome}",
+                             f"E&S exception {outcome} by {session['user']['name']}: {reason.strip()[:200]}",
+                             detail={"by": session["user"]["name"], "expires_at": exc.get("expires_at")})
 
     # external work parties (GAP-P1-05)
     def save_ewp(self, application_id: str, session: dict, raw: dict) -> dict:
         app = self._require(application_id)
-        self._workspace_may(app, session, "External work-party management")
+        self._workspace_may(app, session, "External work-party management", domain="ewp")
         ewps = app.setdefault("ewps", [])
         ewp_id = str(raw.get("ewp_id") or "").strip() or None
         existing = next((x for x in ewps if x["ewp_id"] == ewp_id), None) if ewp_id else None
@@ -3535,6 +5056,35 @@ class LosService:
     # (ACTION_WORDS lists the decisions that appear in the remarks history.)
     DEVIATION_STEPS = ("ip_note", "ap_note", "ip_risk_maker", "ap_risk_maker")
 
+    def _decision_record(self, app: dict, step, session: dict, action: str, at: datetime,
+                         comment: str, decision: dict, route: dict) -> Optional[dict]:
+        """The standard decision record (R3): what was decided, by whom, when, the authority and
+        route version it was taken under, the material-information date it stands on, and the
+        open deviation references. Terminal decisions (drop/withdraw/reject) and governed
+        negative decisions (return/rework) are recorded too, so the timeline is complete."""
+        if action not in ("submit", "approve", "sanction", "return", "reject", "drop", "withdraw",
+                          "propose_modification", "recommend_modification", "allocate", "defer",
+                          "reactivate"):
+            return None
+        if not decision and action not in ("drop", "withdraw", "reject", "return", "defer", "reactivate"):
+            return None
+        stage_final = step.stage_id in ("AP", "POS", "DIS")
+        rec = {"decision_id": f"DEC-{len(app.get('decisions', [])) + 1:03d}",
+               "step": step.id, "step_name": step.name, "action": action,
+               "by": session["user"]["id"], "by_name": session["user"]["name"],
+               "at": at.isoformat(timespec="seconds"),
+               "remarks": (comment or "").strip() or None,
+               **dict(decision or {}),
+               "authority": ((route.get("final_authority") if stage_final else route.get("preliminary_authority")) or {}).get("required"),
+               "route_seq": (app.get("routing_history") or [{}])[-1].get("seq"),
+               "route_stage": route.get("stage"),
+               "material_information_date": (decision or {}).get("material_information_date")
+                   or (app.get("entity") or {}).get("latest_material_information_date"),
+               "deviation_refs": sorted({(d.get("id") or d.get("type")) for d in
+                                         (app.get("manual_deviations") or []) if not d.get("removed")}),
+               "supersedes": None}
+        return rec
+
     def decision_view(self, application_id: str, session: Optional[dict] = None) -> dict:
         app = self._require(application_id)
         case, _ = self._app_case(app)
@@ -3542,22 +5092,23 @@ class LosService:
         final = app.get("stage_id") not in ("PS", "IP")
         ca = app.get("credit_assessment") or {}
         committee = authority.required_authority(app.get("amount_cr"), ca.get("risk_grade"),
-                                                 deviations=len(auto) + len(manual), final=final)
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+                                                 deviations=len(auto) + len(manual), final=final,
+                                                 app=app, product=profiles.primary_product(app))
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         labels = {e: ACTION_WORDS.get(e, e.replace("_", " ").title()) for e in ACTION_WORDS}
         history = []
         for e in reversed(self.store.events(application_id, limit=2000)):           # oldest first
             if not (e.get("comment") or "").strip() or e["action"] not in ACTION_WORDS:
                 continue                      # decisions and Compliance exceptions, not workspace edits
             try:
-                fs = self.wf.step(e["from_step"]) if e.get("from_step") else None
+                fs = self._wf(app).step(e["from_step"]) if e.get("from_step") else None
             except wfmod.WorkflowError:       # a step since removed from the configuration
                 fs = None
             word = (wfmod.action_label(fs, e["action"]) if fs else None) or labels.get(e["action"]) \
                 or e["action"].replace("_", " ").capitalize()
             history.append({"at": e["at"], "step": fs.name if fs else "—", "stage": fs.stage_name if fs else "—",
                             "by": self._user_name(e.get("actor_id")) or e.get("actor_role") or "agent",
-                            "role": self.wf.roles.get(e.get("actor_role") or "", e.get("actor_role") or ""),
+                            "role": self._wf(app).roles.get(e.get("actor_role") or "", e.get("actor_role") or ""),
                             "decision": word, "remarks": e["comment"]})
         fields = app.get("fields") or {}
         notes = [{"key": k, "label": label, "text": (app.get("decision_notes") or {}).get(k),
@@ -3571,14 +5122,209 @@ class LosService:
                 "deviation_types": list(DEVIATION_TYPES),
                 "can_add_deviation": bool(step and step.id in self.DEVIATION_STEPS and session
                                           and app.get("status") not in TERMINAL
-                                          and can_act(self.wf, session["user"]["id"], session["role"], step)),
-                "decision_records": app.get("decisions") or [], "remarks_history": history}
+                                          and can_act(self._wf(app), session["user"]["id"], session["role"], step)),
+                "decision_records": app.get("decisions") or [],
+                # R17: material edits (audited with before/after in the change event)
+                "material_change_flags": [" · ".join(m["fields"]) + " — " + m["by"] + " at " + m["at"][:10]
+                                          for m in app.get("material_change_reviews") or []],
+                # R3: the decision timeline — every recorded decision with its authority,
+                # route version, material-information date and deviation references
+                "timeline": self._decision_timeline(app),
+                "remarks_history": history}
+
+    @staticmethod
+    def _decision_timeline(app: dict) -> list:
+        """The append-only decision record, oldest first, each entry carrying what it was
+        decided under (authority + route version) and what it stands on (material-information
+        date, deviation references)."""
+        out = []
+        for d in app.get("decisions") or []:
+            out.append({
+                "decision_id": d.get("decision_id"), "at": d.get("at"),
+                "step": d.get("step"), "step_name": d.get("step_name"), "action": d.get("action"),
+                "by_name": d.get("by_name"), "remarks": d.get("remarks"),
+                "authority": d.get("authority"), "route_seq": d.get("route_seq"),
+                "material_information_date": d.get("material_information_date"),
+                "deviation_refs": d.get("deviation_refs") or []})
+        return out
+
+    # ── R7: governed modifications of sanctioned terms ─────────────────────────────────────────
+    # A modification proposed after sanction is evaluated against the institution's
+    # materiality thresholds (profile: modifications:) — a material change re-enters the
+    # credit-reassessment route (new authority, fresh review), a minor change only the
+    # recommendation route. The sanctioned terms stay in force and disbursement is blocked
+    # while the modification is undecided.
+
+    def propose_modification_request(self, application_id: str, session: dict, raw: dict) -> dict:
+        """Propose a modification of sanctioned terms (amount / tenor / rate / type / other).
+        Before it is recommended (checker) and approved (committee), the sanctioned terms
+        remain in force and no new disbursement proceeds against the open modification."""
+        app = self._require(application_id)
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
+        if not step or step.id not in ("pos_maker", "dis_maker", "pos_checker", "dis_checker", "dis_vp_review", "dis_approver"):
+            raise ForbiddenError("A modification can be proposed at the post-sanction maker / checker steps")
+        if app.get("status") in TERMINAL:
+            raise ConflictError("This application is complete")
+        mods = app.setdefault("modifications", [])
+        open_mod = next((m for m in mods if m["status"] == "open"), None)
+        if open_mod:
+            raise ConflictError(f"Modification {open_mod['modification_id']} is still open — "
+                                "it must be recommended and decided before another is proposed")
+        changed, errors = [], []
+        fields = {"amount_cr": "amount_cr", "tenor_months": "tenor_months",
+                  "interest_rate": "interest_rate", "facility_type": "facility_type"}
+        before = {"amount_cr": app.get("amount_cr"), "tenor_months": None, "interest_rate": None,
+                  "facility_type": (app.get("facility") or {}).get("facility_type")}
+        fac = (app.get("facilities") or [app.get("facility") or {}])[0] or {}
+        before["tenor_months"] = fac.get("tenor_months")
+        before["interest_rate"] = fac.get("interest_rate")
+        for key, label in fields.items():
+            if key in raw and raw[key] not in (None, ""):
+                try:
+                    val = raw[key]
+                    if key in ("amount_cr", "tenor_months", "interest_rate"):
+                        val = float(raw[key])
+                except (TypeError, ValueError):
+                    errors.append(f"{label} must be a positive number")
+                    continue
+                if key in ("amount_cr", "tenor_months", "interest_rate") and val <= 0:
+                    errors.append(f"{label} must be a positive number")
+                    continue
+                if key == "facility_type":
+                    if before.get("facility_type") != str(val):
+                        changed.append({"field": "facility_type", "before": before.get("facility_type"), "after": str(val)})
+                elif str(before.get(key)) != str(val):
+                    changed.append({"field": key, "before": before.get(key), "after": val})
+        if errors:
+            raise InvalidRequestError("; ".join(errors))
+        if not changed:
+            raise InvalidRequestError("A modification needs at least one changed term "
+                                      "(amount_cr, tenor_months, interest_rate or facility_type)")
+        cfg = self._profile(app).get("modifications") or {}
+        thresholds = cfg.get("material") or {}
+        material = []
+        amt = next((c for c in changed if c["field"] == "amount_cr"), None)
+        if amt and before.get("amount_cr"):
+            pct = (amt["after"] - before["amount_cr"]) / before["amount_cr"] * 100
+            lim = float(thresholds.get("amount_increase_pct") or 0)
+            if pct > lim:
+                material.append(f"amount +{pct:.1f}% (threshold {lim:g}%)")
+        if any(c["field"] == "tenor_months" for c in changed) and float(thresholds.get("any_tenor_change", 1)):
+            material.append("tenor changed")
+        if any(c["field"] == "interest_rate" for c in changed) and float(thresholds.get("any_rate_change", 0)):
+            material.append("rate changed")
+        if any(c["field"] == "facility_type" for c in changed):
+            material.append("facility type changed")
+        is_material = bool(material)
+        target = ("ap_risk_maker" if is_material
+                  else str(cfg.get("minor_target_step") or "ap_evp"))
+        at = self.now().isoformat(timespec="seconds")
+        mod = {"modification_id": f"MOD-{len(mods) + 1:03d}",
+               "by": session["user"]["id"], "by_name": session["user"]["name"], "at": at,
+               "at_step": step.id, "reason": (str(raw.get("reason") or "").strip() or "modification of sanctioned terms")[:1000],
+               "changes": changed, "material": is_material,
+               "material_basis": material, "target_step": target, "status": "open",
+               "recommended": None, "decision": None}
+        mods.append(mod)
+        self.store.save(app, self._event(app, "modification_proposed", actor={"id": session["user"]["id"], "role": session["role"]},
+                                         from_step=step.id, to_step=step.id, at=self.now(),
+                                         comment=f"Modification {mod['modification_id']} proposed: "
+                                                 + ", ".join(c["field"] for c in changed),
+                                         detail=mod))
+        return self.get(application_id, session)
+
+    def recommend_modification_request(self, application_id: str, session: dict, raw: dict) -> dict:
+        """The checker's recommendation on the open modification (recommend / reject)."""
+        app = self._require(application_id)
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
+        if not step or step.kind not in ("checker", "vp_review") or step.id not in ("pos_checker", "dis_checker", "ap_sanction"):
+            raise ForbiddenError("The modification is recommended at the Post-Sanction Checker (or the disbursement checker)")
+        mod = next((m for m in app.get("modifications") or [] if m["status"] == "open"), None)
+        if not mod:
+            raise ConflictError("There is no open modification to recommend")
+        decision = str(raw.get("decision") or "").strip().lower()
+        if decision not in ("recommend", "reject"):
+            raise InvalidRequestError("The recommendation needs a decision (recommend or reject)")
+        remarks = str(raw.get("remarks") or "").strip()
+        if not remarks:
+            raise InvalidRequestError("The recommendation needs its remarks")
+        at = self.now().isoformat(timespec="seconds")
+        mod["recommended"] = {"by": session["user"]["id"], "by_name": session["user"]["name"],
+                              "at": at, "decision": decision, "remarks": remarks[:1000]}
+        if decision == "reject":
+            mod["status"] = "rejected"
+            mod["decision"] = {"outcome": "rejected", "at": at, "by_name": session["user"]["name"],
+                               "remarks": remarks[:1000]}
+        self.store.save(app, self._event(app, "modification_recommended", actor={"id": session["user"]["id"], "role": session["role"]},
+                                         from_step=step.id, to_step=step.id, at=self.now(),
+                                         comment=f"Modification {mod['modification_id']} {decision}d",
+                                         detail=mod))
+        return self.get(application_id, session)
+
+    def decide_modification_request(self, application_id: str, session: dict, raw: dict) -> dict:
+        """The committee's decision on a recommended modification. Approving a *material*
+        modification applies the new terms, re-enters the case at the credit reassessment and
+        records the recalculated route (the new authority applies); approving a minor one
+        applies the terms directly with the committee's decision recorded."""
+        app = self._require(application_id)
+        mod = next((m for m in app.get("modifications") or [] if m["status"] == "open"), None)
+        if not mod:
+            raise ConflictError("There is no open modification to decide")
+        if not mod.get("recommended"):
+            raise ConflictError(f"Modification {mod['modification_id']} has not been recommended by the checker yet")
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
+        if not step or step.id not in ("pos_checker", "dis_checker", "ap_sanction"):
+            raise ForbiddenError("The modification is decided at the Post-Sanction Checker (the post-sanction "
+                                 "modification authority) or, once the case has re-entered, at the sanction committee")
+        outcome = str(raw.get("outcome") or "").strip().lower()
+        if outcome not in ("approve", "reject"):
+            raise InvalidRequestError("The decision needs an outcome (approve or reject)")
+        minutes = str(raw.get("minutes") or "").strip()
+        if not minutes:
+            raise InvalidRequestError("The committee decision needs its minutes")
+        at = self.now().isoformat(timespec="seconds")
+        mod["decision"] = {"outcome": outcome, "at": at, "by": session["user"]["id"],
+                           "by_name": session["user"]["name"], "minutes": minutes[:2000],
+                           "authority": ((app.get("routing") or {}).get("final_authority") or {}).get("required")}
+        if outcome == "reject":
+            mod["status"] = "rejected"
+        else:
+            mod["status"] = "approved"
+
+            def apply_terms():
+                for c in mod["changes"]:
+                    if c["field"] == "amount_cr":
+                        app["amount_cr"] = c["after"]
+                    if c["field"] in ("tenor_months", "interest_rate", "facility_type"):
+                        for f in app.get("facilities") or []:
+                            f[c["field"]] = c["after"]
+                        fac = app.get("facility")
+                        if isinstance(fac, dict):
+                            fac[c["field"]] = c["after"]
+
+            apply_terms()
+            if mod["material"]:
+                wf = self._wf(app)
+                tgt = wf.step(mod["target_step"])
+                app["modification_reentry"] = {"modification_id": mod["modification_id"], "at": at,
+                                               "target": mod["target_step"],
+                                               "reason": "material modification approved — credit reassessment required"}
+                app.update(step_id=tgt.id, stage_id=tgt.stage_id,
+                           status=wfmod.STATUS_IN_PROGRESS,
+                           step_entered_at=at, assignee_id=self._default_assignee(tgt.role, wf))
+                self._recompute_routing(app, {"id": session["user"]["id"], "role": session["role"]},
+                                        f"route recalculated for the approved material modification {mod['modification_id']}")
+        self.store.save(app, self._event(app, "modification_decided", actor={"id": session["user"]["id"], "role": session["role"]},
+                                         from_step=step.id if step else None, to_step=app.get("step_id"), at=self.now(),
+                                         comment=f"Modification {mod['modification_id']} {outcome}d",
+                                         detail=mod))
+        return self.get(application_id, session)
 
     def save_deviation(self, application_id: str, session: dict, raw: dict) -> dict:
         """Add a manual deviation (type, description, justification) or remove one (with a reason)."""
         app = self._require(application_id)
         self._workspace_may(app, session, "Deviations")
-        step = self.wf.step(app["step_id"])
+        step = self._wf(app).step(app["step_id"])
         if step.id not in self.DEVIATION_STEPS:
             raise ForbiddenError("Deviations are added at the IP / AP Note and the Risk Maker steps")
         devs = app.setdefault("manual_deviations", [])
@@ -3591,6 +5337,8 @@ class LosService:
             if not reason:
                 raise InvalidRequestError("Give a reason for removing the deviation")
             d.update(removed=True, removed_reason=reason, removed_by=name, removed_at=at)
+            self._recompute_routing(app, {"id": session["user"]["id"], "role": session["role"]},
+                                    "route recalculated after a policy deviation was removed")
             return self._workspace_save(app, session, "deviation_removed", f"{d['id']}: {reason}")
         dev_type = str(raw.get("type") or "").strip()
         description = str(raw.get("description") or "").strip()
@@ -3603,7 +5351,99 @@ class LosService:
              "justification": justification[:1000], "raised_by": name, "raised_at": at, "raised_at_step": step.name,
              "stage": step.stage_id, "removed": False}
         devs.append(d)
+        self._recompute_routing(app, {"id": session["user"]["id"], "role": session["role"]},
+                                "route recalculated after a policy deviation was recorded")
         return self._workspace_save(app, session, "deviation_added", f"{d['id']} {dev_type}: {description[:200]}")
+
+    # R1: the concurrences the calculated authority requires, and the committee's route reapproval
+    @staticmethod
+    def _concurrences_needed(app: dict, step_id: str) -> list:
+        route = app.get("routing") or {}
+        if step_id == "ip_sanction":
+            return route.get("preliminary_concurrences") or []
+        if step_id == "ap_sanction":
+            return route.get("final_concurrences") or []
+        return []
+
+    CONCURRENCE_ROLES = {"evp_note": "evp_recommender", "crp_note": "crp_vp",
+                         "executive_note": "dmd", "board_intimation": "sanction_committee"}
+
+    def concurrences_view(self, application_id: str, session: dict) -> dict:
+        app = self._require(application_id)
+        route = app.get("routing") or {}
+        needed = rt_routing.required_concurrences(app, app.get("step_id") or "")
+        if not needed and route:
+            needed = route.get("final_concurrences") or route.get("preliminary_concurrences") or []
+        recs = app.get("concurrences") or []
+        return {"route": rt_routing.public_route(route),
+                "concurrences": [{"required": n, "recorded": next((r for r in recs if r["id"] == n["id"]), None)}
+                                  for n in needed],
+                "reapproval_required": bool(route.get("reapproval_required")),
+                "routing_ack": app.get("routing_ack") or None,
+                "can_record": {n["id"]: (session and session["role"] == self.CONCURRENCE_ROLES.get(n["id"]))
+                                for n in needed}}
+
+    def record_concurrence(self, application_id: str, session: dict, raw: dict) -> dict:
+        """A concurrence is a standalone credit decision by the role that owns it — available at any
+        in-progress stage (the note is often signed before the committee meets), not limited to the
+        step's current holder."""
+        app = self._require(application_id)
+        if app.get("status") in TERMINAL or not app.get("step_id"):
+            raise ConflictError("Concurrence records are not available on a completed application")
+        cid = str(raw.get("concurrence_id") or "").strip()
+        if cid not in self.CONCURRENCE_ROLES:
+            raise InvalidRequestError(f"Unknown concurrence '{cid}' (one of {', '.join(self.CONCURRENCE_ROLES)})")
+        if session["role"] != self.CONCURRENCE_ROLES[cid]:
+            raise ForbiddenError(f"The {cid.replace('_', ' ')} concurrence is recorded by the "
+                                 f"{self._wf(app).roles.get(self.CONCURRENCE_ROLES[cid])} role")
+        route = app.get("routing") or {}
+        required = rt_routing.required_concurrences(app, app.get("step_id") or "")
+        if not any(c["id"] == cid for c in (required or route.get("final_concurrences")
+                                            or route.get("preliminary_concurrences") or [])):
+            raise InvalidRequestError(f"The calculated route for this case does not require the {cid.replace('_', ' ')} concurrence")
+        remarks = str(raw.get("remarks") or "").strip()
+        if not remarks:
+            raise InvalidRequestError("The concurrence needs its remarks (what was concurred to)")
+        at = (str(raw.get("at") or "").strip() or self.now().isoformat(timespec="seconds"))
+        recs = app.setdefault("concurrences", [])
+        prev = next((r for r in recs if r["id"] == cid), None)
+        rec = {"id": cid, "role": session["role"], "by": session["user"]["id"],
+               "by_name": session["user"]["name"], "remarks": remarks[:1000],
+               "evidence": (str(raw.get("evidence") or "").strip() or None),
+               "approved_at": at, "supersedes": prev.get("approved_at") if prev else None}
+        recs.append(rec)
+        self.store.save(app, self._event(app, "concurrence_recorded", actor={"id": session["user"]["id"], "role": session["role"]},
+                                         from_step=app.get("step_id"), to_step=app.get("step_id"), at=self._dt(at),
+                                         detail={"concurrence_id": cid}))
+        return self.get(application_id, session)
+
+    @staticmethod
+    def _dt(iso: str) -> datetime:
+        try:
+            return datetime.fromisoformat(iso)
+        except ValueError:
+            return datetime.now()
+
+    def acknowledge_route(self, application_id: str, session: dict, remarks: str) -> dict:
+        """The sanction committee's reapproval after a material route change (R1)."""
+        app = self._require(application_id)
+        route = app.get("routing") or {}
+        if not route.get("reapproval_required"):
+            raise ConflictError("No material route change is outstanding — nothing to reapprove")
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
+        if not step or step.role != route.get("sanction_role", "sanction_committee") or session["role"] != step.role:
+            raise ForbiddenError("Only the sanction committee can acknowledge the changed route")
+        if not (remarks or "").strip():
+            raise InvalidRequestError("The reapproval needs remarks (why the new authority is appropriate)")
+        at = self.now().isoformat(timespec="seconds")
+        app["routing_ack"] = {"by": session["user"]["id"], "by_name": session["user"]["name"],
+                              "role": session["role"], "at": at, "remarks": remarks.strip()[:1000]}
+        route["reapproval_required"] = False
+        route["status"] = "reapproved"
+        self.store.save(app, self._event(app, "route_reapproved", actor={"id": session["user"]["id"], "role": session["role"]},
+                                         from_step=step.id, to_step=step.id, at=self.now(), comment=remarks,
+                                         detail={"route": rt_routing.public_route(route)}))
+        return self.get(application_id, session)
 
     UNIT_VISIT_STEPS = ("ap_note", "ap_risk_maker")
     SOURCING_DETAIL_STEPS = ("ps_maker", "ip_note")
@@ -3636,6 +5476,79 @@ class LosService:
         app["sourcing_details"] = prop_mod.normalise_sourcing_details(raw, app.get("sourcing_details") or {})
         return self._workspace_save(app, session, "sourcing_details", "Sourcing details updated")
 
+    # ── R4: the full prospect-sourcing field set ──────────────────────────
+    PROSPECT_LEAD_SOURCES = ("rm_sourced", "referral", "walk_in", "digital", "channel_partner", "existing_customer")
+    PROSPECT_STATUSES = ("new", "engaged", "proposal_stage", "sanctioned", "closed_won", "closed_lost", "dormant")
+    DISCUSSION_STATUSES = ("positive", "neutral", "hold", "negative")
+
+    def _prospect_record(self, app: dict) -> dict:
+        p = app.get("prospect") or {}
+        fac = app.get("facility") or {}
+        return {"request_currency": p.get("request_currency") or fac.get("currency") or "INR",
+                "infra_qualified": bool(p.get("infra_qualified")),
+                "lead_source": p.get("lead_source"),
+                "prospect_status": p.get("prospect_status") or "new",
+                "next_follow_up": p.get("next_follow_up"),
+                "discussions": p.get("discussions") or []}
+
+    def update_prospect(self, session: dict, application_id: str, raw: dict) -> dict:
+        """The RM's prospect fields: currency, infra qualification, lead source, status,
+        next follow-up. Only the sourcing maker edits; values are validated."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "Prospect details")
+        if app["step_id"] not in SOURCING_STEPS:
+            raise ForbiddenError("Prospect details are kept at the sourcing steps")
+        p = app.setdefault("prospect", {})
+        if raw.get("request_currency") not in (None, ""):
+            cur = str(raw["request_currency"] or "").strip().upper()
+            if not (cur and len(cur) == 3 and cur.isalpha()):
+                raise InvalidRequestError("The request currency must be a 3-letter code (e.g. INR)")
+            p["request_currency"] = cur
+        if "infra_qualified" in raw:
+            p["infra_qualified"] = bool(raw["infra_qualified"])
+        if "lead_source" in raw and raw["lead_source"] not in (None, ""):
+            src = profiles.get_profile(app=app).get("prospect", {}).get("lead_sources") or list(self.PROSPECT_LEAD_SOURCES)
+            if raw["lead_source"] not in src:
+                raise InvalidRequestError(f"Lead source must be one of {', '.join(src)}")
+            p["lead_source"] = raw["lead_source"]
+        if "prospect_status" in raw and raw["prospect_status"] not in (None, ""):
+            if raw["prospect_status"] not in self.PROSPECT_STATUSES:
+                raise InvalidRequestError(f"Prospect status must be one of {', '.join(self.PROSPECT_STATUSES)}")
+            p["prospect_status"] = raw["prospect_status"]
+        if "next_follow_up" in raw and raw["next_follow_up"] not in (None, ""):
+            try:
+                p["next_follow_up"] = datetime.fromisoformat(str(raw["next_follow_up"])[:10]).date().isoformat()
+            except ValueError:
+                raise InvalidRequestError("The next follow-up must be a date (YYYY-MM-DD)")
+        p["updated_at"] = self.now().isoformat(timespec="seconds")
+        p["updated_by"] = session["user"]["name"]
+        return self._workspace_save(app, session, "prospect_updated", "Prospect details updated")
+
+    def add_prospect_discussion(self, session: dict, application_id: str, raw: dict) -> dict:
+        """A dated prospect discussion (participants, status, notes). Records append —
+        the application keeps its discussion history."""
+        app = self._require(application_id)
+        self._workspace_may(app, session, "Prospect details")
+        if app["step_id"] not in SOURCING_STEPS:
+            raise ForbiddenError("Prospect discussions are recorded at the sourcing steps")
+        try:
+            d = datetime.fromisoformat(str(raw.get("date") or "")[:10]).date()
+        except ValueError:
+            raise InvalidRequestError("A discussion date (YYYY-MM-DD) is required")
+        if d > self.now().date():
+            raise InvalidRequestError("A discussion date cannot be in the future")
+        status = str(raw.get("status") or "").strip().lower()
+        if status not in self.DISCUSSION_STATUSES:
+            raise InvalidRequestError(f"Discussion status must be one of {', '.join(self.DISCUSSION_STATUSES)}")
+        p = app.setdefault("prospect", {})
+        ds = p.setdefault("discussions", [])
+        rec = {"id": f"PD-{len(ds) + 1:03d}", "date": d.isoformat(),
+               "participants": (str(raw.get("participants") or "").strip() or None),
+               "status": status, "notes": (str(raw.get("notes") or "").strip() or None)[:4000],
+               "by": session["user"]["name"], "at": self.now().isoformat(timespec="seconds")}
+        ds.append(rec)
+        return self._workspace_save(app, session, "prospect_discussion_added", rec["id"])
+
     def save_security_notes(self, application_id: str, session: dict, raw: dict) -> dict:
         """The AP security remarks (F-9), recorded against the agent's drafts."""
         app = self._require(application_id)
@@ -3666,7 +5579,7 @@ class LosService:
         stage = step.stage_id
         for rec in reversed(app.get("decisions") or []):
             try:
-                if self.wf.step(rec["step"]).stage_id != stage:
+                if self._wf(app).step(rec["step"]).stage_id != stage:
                     continue
             except Exception:
                 continue
@@ -3688,10 +5601,10 @@ class LosService:
                          "field_id": fid if rec else None, "field_status": rec.get("status"),
                          "proposed_text": (rec.get("proposal") or {}).get("value"),
                          "evidence": (rec.get("proposal") or {}).get("evidence")})
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         editable = bool(step and step.id in terms_mod.AUTHOR_STEPS and t.get("status") != "sanctioned"
                         and app.get("status") not in TERMINAL and session
-                        and can_act(self.wf, session["user"]["id"], session["role"], step))
+                        and can_act(self._wf(app), session["user"]["id"], session["role"], step))
         return {"rows": rows, "summary": terms_mod.summary(t, fields), "status": t.get("status", "draft"),
                 "locked_at": t.get("locked_at"), "locked_by": t.get("locked_by"), "editable": editable,
                 "categories": terms_mod.CATEGORIES, "frequencies": list(terms_mod.FREQUENCIES),
@@ -3703,7 +5616,7 @@ class LosService:
         override of its field (a reason is required); a person's own row is edited directly."""
         app = self._require(application_id)
         self._workspace_may(app, session, "The terms & conditions")
-        step = self.wf.step(app["step_id"])
+        step = self._wf(app).step(app["step_id"])
         if step.id not in terms_mod.AUTHOR_STEPS:
             raise ForbiddenError("The terms & conditions are authored at Application Note Processing (AP maker)")
         t = app.setdefault("terms", terms_mod.initial_terms())
@@ -3890,6 +5803,162 @@ class LosService:
         return self._workspace_save(app, session, "exposure_fetched", f"{kind} exposure: "
                                     + (f"₹{total:,.2f} Cr (demo)" if total is not None else "unavailable"))
 
+    # ── R10: condition / covenant indicators and the waiver authority ─────
+    def condition_indicators(self, application_id: str) -> dict:
+        """R10: the post-sanction condition indicators — open, overdue, breached, waived
+        (with the waiver's authority and expiry) and pending — plus the covenant testing state."""
+        app = self._require(application_id)
+        today = self.now().date().isoformat()
+        out = {"open": 0, "overdue": 0, "breached": 0, "waived": 0, "pending_approval": 0,
+               "satisfied": 0, "deferred": 0, "covenants": {"open": 0, "pass": 0, "fail": 0, "cured": 0}}
+        for c in app.get("conditions") or []:
+            st = c.get("status")
+            if st == "open":
+                out["open"] += 1
+                if c.get("due") and c["due"] < today:
+                    out["overdue"] += 1
+            elif st == "non_compliant":
+                out["breached"] += 1
+            elif st == "waived":
+                out["waived"] += 1
+            elif st == "satisfied":
+                out["satisfied"] += 1
+            elif st == "deferred":
+                out["deferred"] += 1
+                if c.get("due") and c["due"] < today:
+                    out["overdue"] += 1
+            if st in ("deferred", "waived") and not (c.get("approval") or {}).get("by"):
+                out["pending_approval"] += 1
+        for c in app.get("conditions") or []:
+            if c.get("type") in ("FC", "NC", "CS", "PD"):
+                mon = c.get("monitoring") or {}
+                compliance = mon.get("compliance") if isinstance(mon, dict) else None
+                if c.get("status") == "non_compliant" or compliance == "breached":
+                    out["covenants"]["fail"] += 1
+                elif compliance == "cured" or (isinstance(mon.get("cure"), dict)):
+                    out["covenants"]["cured"] += 1
+                elif compliance == "compliant":
+                    out["covenants"]["pass"] += 1
+                else:
+                    out["covenants"]["open"] += 1
+        out["as_of"] = self.now().date().isoformat()
+        return out
+
+    # ── R12: group exposure ───────────────────────────────────────────────
+    def group_exposure(self, application_id: str, session: Optional[dict] = None) -> dict:
+        """The group / connected-party exposure: the group's entities and their existing
+        funded / non-funded exposure, the product split, the security allocation, the
+        institution's group-exposure norm, the headroom and the breach flag. The proposed
+        request is included in the total. Seeded demo model (no real integrations)."""
+        app = self._require(application_id)
+        company = self.companies.get(app["entity_id"]) or {}
+        group = company.get("group") or {}
+        group_id = getattr(group, "group_id", None) or f"GRP-{app['entity_id']}"
+        group_name = getattr(group, "group_name", None) or app.get("borrower_name")
+        parent = getattr(group, "parent_entity_id", None) or app["entity_id"]
+        entities_ids = list(getattr(group, "entities", None) or [app["entity_id"]])
+        if app["entity_id"] not in entities_ids:
+            entities_ids.append(app["entity_id"])
+        # seeded related entities: the parent's reference subsidiaries (deterministic demo)
+        rel = self._group_related_entities(app["entity_id"])
+        for r in rel:
+            if r["entity_id"] not in entities_ids:
+                entities_ids.append(r["entity_id"])
+        fin = company.get("financials") or {}
+        net_worth = None
+        try:
+            # the latest available statement year (the financials are keyed FY...)
+            years = sorted(k for k in fin if isinstance(k, str) and k.startswith("FY"))
+            if years:
+                stmt = fin[years[-1]]
+                items = getattr(stmt, "line_items", None) or (stmt if isinstance(stmt, dict) else {})
+                net_worth = float(items.get("total_equity") or 0) or None
+        except Exception:
+            net_worth = None
+        prof = profiles.get_profile(app=app)
+        exp_cfg = (prof.get("exposure") or {})
+        norm_pct = float(exp_cfg.get("group_limit_pct") or 0) or None
+        norm_abs = float(exp_cfg.get("group_limit_cr") or 0) or None
+        limit = (net_worth * norm_pct / 100.0) if (net_worth and norm_pct) else norm_abs
+        entities = []
+        total_funded = 0.0
+        total_non_funded = 0.0
+        product_totals: dict = {}
+        for eid in entities_ids:
+            c = self.companies.get(eid) or (company if eid == app["entity_id"] else {})
+            borrower = c.get("borrower")
+            name = getattr(borrower, "company_name", None) or eid
+            rows = c.get("existing_exposure") or []
+            funded = round(sum(float(getattr(r, "outstanding_cr", 0) or 0) for r in rows), 2)
+            non_funded = round(sum(float(getattr(r, "sanctioned_limit_cr", 0) or 0) - float(getattr(r, "outstanding_cr", 0) or 0)
+                                   for r in rows if float(getattr(r, "sanctioned_limit_cr", 0) or 0) > float(getattr(r, "outstanding_cr", 0) or 0)), 2)
+            for r in rows:
+                ft = getattr(r, "facility_type", None) or "facility"
+                product_totals[ft] = round(product_totals.get(ft, 0.0) + float(getattr(r, "outstanding_cr", 0) or 0), 2)
+            entities.append({"entity_id": eid, "name": name,
+                             "funded_cr": funded, "non_funded_cr": max(non_funded, 0.0),
+                             "is_borrower": eid == app["entity_id"],
+                             "is_parent": eid == parent})
+            total_funded = round(total_funded + funded, 2)
+            total_non_funded = round(total_non_funded + max(non_funded, 0.0), 2)
+        proposed = float(app.get("amount_cr") or 0)
+        for ft in (f.get("facility_type") for f in (app.get("facilities") or [])):
+            if ft:
+                product_totals[ft] = round(product_totals.get(ft, 0.0) + 0.0, 2)
+        product_split = [{"facility_type": k, "cr": v} for k, v in sorted(product_totals.items())]
+        # security: the proposal's security cover (deterministic demo model)
+        sec_value = round(proposed * 1.25, 2)
+        # the seeded related entities carry their demo exposure into the group total
+        related_funded = round(sum(float(r.get("exposure_cr") or 0) for r in rel), 2)
+        total_exposure = round(total_funded + total_non_funded + related_funded + proposed, 2)
+        headroom = round(limit - total_exposure, 2) if limit else None
+        breach = bool(limit and total_exposure > limit + 1e-9)
+        connected = []
+        for d in (company.get("directors") or []):
+            nm = getattr(d, "name", None)
+            if nm:
+                connected.append({"name": nm, "relationship": "director"})
+        for r in rel:
+            if r.get("relationship"):
+                connected.append({"name": r.get("name") or r["entity_id"],
+                                  "relationship": r["relationship"],
+                                  "exposure_cr": r.get("exposure_cr")})
+        return {"application_id": application_id,
+                "group_id": group_id, "group_name": group_name,
+                "entities": entities,
+                "connected_parties": connected,
+                "total_existing_funded_cr": total_funded,
+                "total_existing_non_funded_cr": total_non_funded,
+                "proposed_cr": proposed,
+                "total_funded_cr": round(total_funded + (proposed if (app.get("facility") or {}).get("facility_nature") == "fund_based" else 0.0), 2),
+                "total_non_funded_cr": total_non_funded,
+                "total_exposure_cr": total_exposure,
+                "product_split": product_split,
+                "security": {"allocation": "first charge on the proposed facility (demo model)",
+                             "covered_cr": sec_value},
+                "norm": {"basis": ("group net worth × {:.0f}%".format(norm_pct) if (net_worth and norm_pct)
+                                    else ("absolute cap" if norm_abs else "not configured")),
+                         "limit_cr": round(limit, 2) if limit else None,
+                         "net_worth_cr": net_worth},
+                "headroom_cr": headroom, "breach": breach,
+                "as_of": self.now().date().isoformat(),
+                "source": "Seeded group model (demo data — no live core-banking connection)"}
+
+    def _group_related_entities(self, entity_id: str) -> list[dict]:
+        """The borrower's seeded related entities (deterministic demo model)."""
+        company = self.companies.get(entity_id) or {}
+        borrower = company.get("borrower")
+        name = getattr(borrower, "company_name", None) or entity_id
+        short = (name.split()[0] if name else entity_id)[:20]
+        return [
+            {"entity_id": f"{entity_id}-SUB1", "name": f"{short} Metals (demo)", "relationship": "subsidiary",
+             "exposure_cr": 25.0},
+            {"entity_id": f"{entity_id}-SUB2", "name": f"{short} Agro (demo)", "relationship": "subsidiary",
+             "exposure_cr": 12.5},
+            {"entity_id": f"{entity_id}-RP1", "name": f"{short} Holdings (demo)", "relationship": "promoter group",
+             "exposure_cr": 40.0},
+        ]
+
     # pricing / fees / tentative schedule (GAP-P1-04)
     def record_pricing(self, application_id: str, session: dict, raw: dict) -> dict:
         app = self._require(application_id)
@@ -4019,7 +6088,7 @@ class LosService:
         """The read-only review checklists of the Disbursement Checker and Final Approver (GAP-P0-16).
         ``items`` are the checklist item IDs the reviewer has verified."""
         app = self._require(application_id)
-        step = self.wf.step(app["step_id"])
+        step = self._wf(app).step(app["step_id"])
         if stage == "checker" and step.id != "dis_checker":
             raise ForbiddenError("The checker review is available at the Disbursement Checker step")
         if stage == "final" and step.id != "dis_approver":
@@ -4051,7 +6120,7 @@ class LosService:
     def review_document(self, application_id: str, session: dict, doc_id: str, status: str, remarks: str = "") -> dict:
         app = self._require(application_id)
         self._workspace_may(app, session, "Document review", review=True)
-        doc = dreg.review_document(app.setdefault("documents", dreg.initial_registry()), doc_id, status,
+        doc = dreg.review_document(app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app))), doc_id, status,
                                    session["user"]["name"], self.now().isoformat(timespec="seconds"), remarks)
         return self._workspace_save(app, session, "document_reviewed", f"{doc['name']} → {status}")
 
@@ -4337,13 +6406,14 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
     def letters(self, application_id: str, session: Optional[dict] = None) -> dict:
         app = self._require(application_id)
         kinds = []
-        for kind, title in lt.KINDS.items():
+        kind_titles = profiles.letter_branding(self._profile(app))["kind_titles"]
+        for kind, title in kind_titles.items():
             ok, reason = lt.available(app, kind)
             versions = (app.get("letters") or {}).get(kind) or []
             kinds.append({"kind": kind, "title": title, "available": ok, "reason": None if ok else reason,
                           "can_generate": bool(ok and session and session["role"] in LETTER_ROLES[kind]
                                                and app["status"] != STATUS_REJECTED),
-                          "issuer_role": " / ".join(self.wf.roles.get(r, r) for r in LETTER_ROLES[kind]),
+                          "issuer_role": " / ".join(self._wf(app).roles.get(r, r) for r in LETTER_ROLES[kind]),
                           "versions": [{k: d[k] for k in ("version", "reference", "issued_at", "issued_by",
                                                           "valid_until")} for d in reversed(versions)],
                           "latest": versions[-1] if versions else None})
@@ -4359,8 +6429,8 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         if not ok:
             raise ConflictError(reason)
         if session["role"] not in LETTER_ROLES[kind]:
-            raise ForbiddenError(f"The {lt.KINDS[kind].lower()} is issued by the "
-                                 f"{' / '.join(self.wf.roles.get(r, r) for r in LETTER_ROLES[kind])} role")
+            raise ForbiddenError(f"The {profiles.letter_branding(self._profile(app))['kind_titles'][kind].lower()} is issued by the "
+                                 f"{' / '.join(self._wf(app).roles.get(r, r) for r in LETTER_ROLES[kind])} role")
         case = None
         if self.cases and self.cases.get(app["entity_id"]):
             case, _ = self._app_case(app)
@@ -4392,8 +6462,10 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
 
     # ── management MIS ───────────────────────────────────────────────────────
     def mis(self) -> dict:
-        apps = self.store.list()
-        events = self.store.events(limit=1_000_000)
+        apps = self._active_profile_apps()
+        application_ids = {a["application_id"] for a in apps}
+        events = [e for e in self.store.events(limit=1_000_000)
+                  if e.get("application_id") in application_ids]
         by_app: dict[str, list[dict]] = {}
         for e in events:
             by_app.setdefault(e["application_id"], []).append(e)
@@ -4404,27 +6476,27 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
 
     # ── copilot ──────────────────────────────────────────────────────────────
     def _is_holder(self, app: dict, session: Optional[dict]) -> bool:
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         return bool(session and step and app["status"] not in TERMINAL
-                    and can_act(self.wf, session["user"]["id"], session["role"], step)
+                    and can_act(self._wf(app), session["user"]["id"], session["role"], step)
                     and app.get("assignee_id") in (None, session["user"]["id"]))
 
     def _copilot_state(self, app: dict, session: Optional[dict], light: bool = False) -> dict:
         """What the planner reads. ``light`` skips the credit case (used for the dashboard digest)."""
         view = self._view(app, session)
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         sla = dict(view.get("sla") or {})
         if step and sla:
             sla.update(sla_days=step.sla_days, due_soon=0 <= sla.get("days_remaining", 99) < 1)
         s = {"step_id": step.id if step else None, "step_name": step.name if step else None,
-             "step_kind": step.kind if step else None, "role_name": self.wf.roles.get(step.role) if step else None,
+             "step_kind": step.kind if step else None, "role_name": self._wf(app).roles.get(step.role) if step else None,
              "status": app["status"], "holder": view.get("assignee_name"), "is_holder": self._is_holder(app, session),
              "sla": sla, "can_submit": bool(view.get("actions")), "committee_steps": COMMITTEE_STEPS,
              "documents": len(self._documents_on_file(app["entity_id"])),
              "credit_assessment": bool(app.get("credit_assessment")),
-             "approvers": self._who(self._approvers()),
+             "approvers": self._who(self._approvers(self._exc_authority(app)["role"], self._wf(app))),
              "exception_requests": ([r["name"] for r in self._pending_exception_requests(app)]
-                                    if session and session["role"] == "compliance_vp" else [])}
+                                    if session and session["role"] == self._exc_authority(app)["role"] else [])}
         if app["status"] == "RETURNED":
             ret = next((e for e in self.store.events(application_id=app["application_id"], limit=50)
                         if e["action"] == "return"), None)
@@ -4440,7 +6512,10 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             s["ip_note"] = {"breaches": app["ip_note"]["prescreen"]["breaches"]}
         if app.get("due_diligence"):
             checks = app["due_diligence"]["checks"]
-            blocking = dd.blocking(checks, now=self.now())
+            _app5 = ((self._profile(app).get("checks") or {}).get("applicability") or {})
+            _val5 = {k: int(v) for k, v in (((self._profile(app).get("checks") or {}).get("validity_days")) or {}).items()}
+            blocking = dd.blocking([c for c in checks if dd.check_applies(_app5.get(c["id"]) or {}, app)[0]],
+                                   now=self.now(), validity_days=_val5)
             s["due_diligence"] = {"blocking": [c["name"] for c in blocking],
                                   "need_exception": [c["name"] for c in blocking if c["status"] in ("matched", "failed", "unavailable")
                                                      and (c.get("exception_request") or {}).get("status") != "pending"],
@@ -4572,7 +6647,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
     def _open_items(self, application_id: str) -> list[str]:
         """What still blocks the step holder's forward action (the same gates as Submit / Approve)."""
         app = self._require(application_id)
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         if not step:
             return []
         action = {"maker": "submit", "checker": "approve", "vp_review": "submit"}.get(step.kind)
@@ -4680,10 +6755,10 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         review_summary = self.assessment(application_id, session)["review_summary"] if case else {}
         events = self.get(application_id)["events"]
         pack = build_committee_pack(case, final, app, events, review_summary,
-                                    {s.id: s.name for s in self.wf.steps})
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+                                    {s.id: s.name for s in self._wf(app).steps})
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         pack["can_brief"] = bool(session and step and step.id in COMMITTEE_STEPS and app["status"] not in TERMINAL
-                                 and can_act(self.wf, session["user"]["id"], session["role"], step)
+                                 and can_act(self._wf(app), session["user"]["id"], session["role"], step)
                                  and pack.get("available"))
         pack["at_committee_step"] = bool(step and step.id in COMMITTEE_STEPS)
         return pack
@@ -4691,11 +6766,11 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
     def committee_brief(self, application_id: str, session: dict) -> dict:
         """AI committee brief: the number-guarded CAM interpretation of the executive summary and recommendation."""
         app = self._require(application_id)
-        step = self.wf.step(app["step_id"]) if app.get("step_id") else None
+        step = self._wf(app).step(app["step_id"]) if app.get("step_id") else None
         if not step or step.id not in COMMITTEE_STEPS or app["status"] in TERMINAL:
             raise ConflictError("The committee brief is prepared at the review and committee steps")
-        if not can_act(self.wf, session["user"]["id"], session["role"], step):
-            raise ForbiddenError(f"This step belongs to the {self.wf.roles[step.role]} role")
+        if not can_act(self._wf(app), session["user"]["id"], session["role"], step):
+            raise ForbiddenError(f"This step belongs to the {self._wf(app).roles[step.role]} role")
         if not self.final_cam:
             raise OperationFailedError("The credit-intelligence engine is not connected")
         if not self.cases.get(app["entity_id"]):
@@ -4710,9 +6785,10 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         return pack
 
     # ── demo seed ────────────────────────────────────────────────────────────
-    def _system_session(self, role: str, user_id: Optional[str] = None) -> dict:
-        uid = user_id or self.wf.users_with_role(role)[0]["id"]
-        user = self.wf.user(uid)
+    def _system_session(self, role: str, user_id: Optional[str] = None, wf: Optional[Workflow] = None) -> dict:
+        wf = wf or self.wf
+        uid = user_id or wf.users_with_role(role)[0]["id"]
+        user = wf.user(uid)
         return {"user": {k: user[k] for k in ("id", "name", "email", "branch", "roles")}, "role": role}
 
     def seed_demo(self, force: bool = False) -> int:
@@ -4721,9 +6797,20 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             self.store.clear()
         elif self.store.count():
             return 0
+        active = profiles.active_profile_id()
+        # A deployment presents one coherent institution configuration.  The legacy
+        # walkthrough is seeded only when Client One is the selected configuration;
+        # presentation profiles seed only their own applications.
+        if active == "client_one":
+            return self._seed_legacy_once()
+        return self.seed_profile_apps(active)
+
+    def _seed_legacy_once(self) -> int:
+        """The legacy Client One walkthrough applications, idempotent per entity (existing kept)."""
+        have = {a["entity_id"] for a in self.store.list()}
         created = 0
         for entity_id, target, flag, days_ago, idle_days, note in DEMO_SEED:
-            if entity_id not in self.companies:
+            if entity_id not in self.companies or entity_id in have:
                 continue
             created += 1
             t0 = self.now() - timedelta(days=days_ago)
@@ -4763,7 +6850,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
                      "key_person_role": "Whole-time Director", "party_status": "active"},
                 ]
             app = self.create(rm, entity_id=entity_id, at=t0, seeded=True, facilities=facilities,
-                              related_parties=related_parties,
+                              related_parties=related_parties, profile="client_one",
                               priority="High" if entity_id in ("ABCE001", "APOL001") else "Normal",
                               prospect_discussion={"project_type": "Corporate lending",
                                                    "funding_type": "Bank facilities",
@@ -4779,13 +6866,55 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
             if flag == "returned":
                 self._seed_return(app["application_id"], end)
             elif flag == "escalated":
-                holder = self._system_session(self.wf.step(target).role)
+                holder = self._system_session(self._wf(app).step(target).role, wf=self._wf(app))
                 self._force_assignee(app["application_id"], holder["user"]["id"])
                 self.escalate(app["application_id"], holder, "Tranche timing depends on the borrower's "
                                                              "project milestones (demo note).")
             self._annotate(app["application_id"], note)
             self._seed_presentation_evidence(app["application_id"], entity_id, end)
-        created += self._seed_exit_showcase()
+        if DEMO_EXIT_ENTITY not in have:
+            created += self._seed_exit_showcase()
+        return created
+
+    def seed_profile_apps(self, profile_id: Optional[str] = None, force: bool = False) -> int:
+        """Create (or recreate with force=True) the demo applications declared by an institution
+        profile (``demo_applications`` in its YAML): deterministic fictional borrowers replayed to
+        a fixed stage. Idempotent per (profile, entity). Returns the number created."""
+        pid = profile_id or profiles.active_profile_id()
+        prof = profiles.get_profile(pid)
+        specs = prof.get("demo_applications") or []
+        if not specs and pid == "client_one":
+            # the legacy Client One walkthrough set is seeded from code (DEMO_SEED), not YAML
+            if force:
+                for a in list(self.store.list()):
+                    if (a.get("profile") or "client_one") == "client_one" and a.get("is_demo"):
+                        self.store.delete(a["application_id"])
+            return self._seed_legacy_once()
+        if force:
+            for a in list(self.store.list()):
+                if a.get("profile") == pid and a.get("is_demo"):
+                    self.store.delete(a["application_id"])
+        existing = {(a.get("profile"), a.get("entity_id")) for a in self.store.list()}
+        prof_wf = self.wf_for_profile(pid)
+        first = prof_wf.first_step
+        created = 0
+        for spec in specs:
+            eid = spec.get("entity_id")
+            if not eid or eid not in self.companies:
+                continue
+            if not force and (pid, eid) in existing:
+                continue
+            t0 = self.now() - timedelta(days=int(spec.get("days_ago", 3)))
+            end = self.now()
+            sess = self._system_session(first.id)
+            app = self.create(sess, entity_id=eid, at=t0, seeded=True, profile=pid,
+                              facilities=spec.get("facilities") or None,
+                              priority=spec.get("priority", "Normal"))
+            target = spec.get("target") or first.id
+            if target != first.id:
+                self._replay_to(app["application_id"], target, t0, end)
+            self._annotate(app["application_id"], spec.get("note") or "")
+            created += 1
         return created
 
     def _seed_presentation_evidence(self, application_id: str, entity_id: str, at: datetime) -> None:
@@ -4939,9 +7068,10 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
                                                     industry_outlook="Stable demand with input-cost sensitivity",
                                                     strengths="Brand, distribution and operating history",
                                                     weaknesses="Commodity price exposure", key_risks="Project execution and margins")
+            _lead = ((profiles.get_profile(app=app).get("branding") or {}).get("short_name")) or "The institution"
             app["proposal"]["banking"] = prop_mod.normalise_banking(
-                {"arrangement": "consortium", "lead_bank": "Demo Bank", "number_of_banks": 3,
-                 "institution_share_pct": 42, "banks": [{"name": "Demo Bank", "share_pct": 42, "role": "Lead"},
+                {"arrangement": "consortium", "lead_bank": _lead, "number_of_banks": 3,
+                 "institution_share_pct": 42, "banks": [{"name": _lead, "share_pct": 42, "role": "Lead"},
                                                                    {"name": "Bank B", "share_pct": 33, "role": "Member"},
                                                                    {"name": "Bank C", "share_pct": 25, "role": "Member"}]})
             app["proposal"]["conduct"] = {"period": "preceding 12 months", "rows": prop_mod.normalise_conduct([
@@ -4983,7 +7113,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
                                               "agreement_date": at.date().isoformat()} for f in facs],
                               "by": "seed", "by_name": "Demo seed", "at": stamp}
             facmod.apply_execution(facs, app["consent"]["facilities"], stamp, "Demo seed")
-            registry = app.setdefault("documents", dreg.initial_registry())
+            registry = app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app)))
             dreg.register_generated(registry, name="Sanction letter - accepted", kind="sanction_letter",
                                     by_name="Demo seed", at=stamp)
             covenants = [c for c in app.get("conditions") or [] if c.get("type") in ("FC", "NC", "CS")]
@@ -5011,7 +7141,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         self.companies.setdefault(DEMO_EXIT_ENTITY, source)
         now = self.now().replace(microsecond=0)
         rm = self._system_session("ps_maker")
-        app = self.create(rm, entity_id=DEMO_EXIT_ENTITY, at=now - timedelta(days=55), seeded=True,
+        app = self.create(rm, entity_id=DEMO_EXIT_ENTITY, at=now - timedelta(days=55), seeded=True, profile="client_one",
                           priority="Normal", prospect_discussion={"project_type": "Infrastructure",
                           "funding_type": "Term facility", "brief_description": "Approved first-tranche showcase.",
                           "detailed_discussion": "First tranche completed; later drawdowns remain governed (demo).",
@@ -5041,7 +7171,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
     def _seed_stage_docs(self, application_id: str, stage: str, at: datetime) -> None:
         """Seeded history: the stage's mandatory documents were previously on file (demo)."""
         app = self.store.get(application_id)
-        registry = app.setdefault("documents", dreg.initial_registry())
+        registry = app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app)))
         v = at.isoformat(timespec="seconds")
         for d in registry:
             if d.get("mandatory_stage") != stage:
@@ -5095,7 +7225,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
                     "recommended_rate": 12.2, "proposed_rate": 12.4,
                     "recommended_spread_bps": 80, "proposed_spread_bps": 85,
                     "borrower_risk_rating": None, "comparison": None}
-        dreg.register_generated(app.setdefault("documents", dreg.initial_registry()),
+        dreg.register_generated(app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app))),
                                 name="CMA (prepared in the CMA workspace)", kind="cma_download",
                                 by_name="Demo seed", at=at_s)
         self.store.save(app)
@@ -5130,7 +7260,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
                                  "valuation_date": at.date().isoformat(), "valuation_cr": round(amount * 1.2, 2),
                                  "cersai": "filed", "roc": "filed", "cbs_security_no": "CBS-884213"}],
                  beneficiaries=[{"beneficiary_id": "BEN-01", "facility_id": fac_id, "type": "borrower",
-                                 "name": app.get("borrower_name"), "account_no": "3140101429000442", "bank": "Demo Bank",
+                                 "name": app.get("borrower_name"), "account_no": "3140101429000442", "bank": ((profiles.get_profile(app=app).get("branding") or {}).get("short_name")) or "The institution",
                                  "branch": "Corporate Centre", "ifsc": "DEMB0000442", "payment_mode": "RTGS",
                                  "amount_cr": amount}],
                  fees=[{"fee_id": "FEE-01", "facility_id": fac_id, "nature": "upfront", "type": "Arrangement fee",
@@ -5161,7 +7291,7 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         d["memo"] = {"version": 1, "generated_at": stamp, "generated_by": "Disbursement Maker (demo seed)",
                      "content_hash": do.memo_hash(d), "reviewed": False, "reviewed_by": None, "reviewed_at": None,
                      "review_remarks": None}
-        registry = app.setdefault("documents", dreg.initial_registry())
+        registry = app.setdefault("documents", dreg.initial_registry(self._doc_checklist(app)))
         for doc_name, detail in (("Drawdown request", "DD-77120-01"), ("Drawdown schedule report", "1 tranche")):
             doc = next((x for x in registry if x["name"] == doc_name), None)
             if doc and not doc["versions"]:
@@ -5178,48 +7308,112 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         snap.record_snapshot(app, "sanction", stamp, "Demo seed")
         self.store.save(app)
 
+    def _seed_pos_history(self, application_id: str, at: datetime, session: dict) -> None:
+        """Seeded history for the post-sanction stage: conditions satisfied, the Sanction
+        Letter issued (RUL-10) with its acceptance window running to the walk's clock, the
+        customer's acceptance and signed copy on file (R8), per-facility execution recorded."""
+        app = self.store.get(application_id)
+        for c in app.get("conditions") or []:
+            if c["type"] in ("PC", "CP", "CPS"):
+                c.update(status="satisfied", note="Satisfied (seeded demo history)", updated_by="Demo seed",
+                         updated_at=at.isoformat(timespec="seconds"))
+        self.store.save(app)
+        self.generate_letter(application_id, session, "sanction_letter", at=at)   # RUL-10: the letter is on file
+        app = self.store.get(application_id)
+        lts = app.setdefault("letters", {})
+        vers = lts.get("sanction_letter") or []
+        if vers and at:
+            # the acceptance window must still be open at the walk's clock (the seeded
+            # acceptance is recorded against it)
+            end0 = max(at, self.now())
+            for vv in vers:
+                vv["valid_until"] = (end0 + timedelta(days=30)).date().isoformat()
+        app["consent"] = {"acknowledged_by": "Customer authorisation (demo seed)", "consent_date": at.date().isoformat(),
+                          "remarks": "Sanction accepted (seeded demo history)",
+                          "facilities": [{"facility_id": f["facility_id"], "execution_status": "executed",
+                                           "agreement_date": at.date().isoformat()}
+                                          for f in (app.get("facilities") or [app.get("facility") or {}])],
+                          "by": "seed", "by_name": "Demo seed", "at": at.isoformat(timespec="seconds")}
+        if vers:
+            # R8: the seeded history includes the customer's signed copy of the letter (verified)
+            lts["sanction_letter_signed"] = {"filename": "signed-copy-seeded.pdf",
+                                             "letter_version": vers[-1]["version"],
+                                             "uploaded_by": "Demo seed", "at": at.isoformat(timespec="seconds"),
+                                             "status": "verified", "reviewed_by": "Demo seed",
+                                             "reviewed_at": at.isoformat(timespec="seconds"),
+                                             "hash": hashlib.sha256(b"seeded-signed-copy").hexdigest()}
+        self.store.save(app)
+        app = self.store.get(application_id)
+        facmod.apply_execution(app.get("facilities") or [], app["consent"]["facilities"],
+                               at.isoformat(timespec="seconds"), "Demo seed")
+        self.store.save(app)
+        self._seed_stage_docs(application_id, "POS", at)
+
     def _replay_to(self, application_id: str, target: str, t0: datetime, end: datetime) -> None:
         """Walk the application forward to ``target`` with the default holders, spacing the events between
-        ``t0`` and ``end`` (when it enters the target step)."""
-        target_index = self.wf.step(target).index
+        ``t0`` and ``end`` (when it enters the target step). The walk follows the application's own
+        profile workflow."""
+        app0 = self.store.get(application_id)
+        wf = self._wf(app0)
+        target_index = wf.step(target).index
         span = max(target_index, 1)
         for i in range(target_index):
             app = self.store.get(application_id)
-            step = self.wf.step(app["step_id"])
-            session = self._system_session(step.role, app.get("assignee_id"))
+            if app["step_id"] == target:                    # route skips move the case ahead faster
+                break
+            step = wf.step(app["step_id"])
+            session = self._system_session(step.role, app.get("assignee_id"), wf)
             action = {"maker": "submit", "checker": "approve", "committee": "sanction", "vp_review": "submit",
                       "allocation": "allocate"}[step.kind]
-            allocate_to = self._default_assignee(step.allocates_to) if step.kind == "allocation" else None
+            allocate_to = self._default_assignee(step.allocates_to, wf) if step.kind == "allocation" else None
             at = t0 + (end - t0) * (i + 1) / span
-            if step.id == "ps_maker":               # seeded history: due diligence was run and recorded
+            # seeded history for the stage the walk is completing (must run before the act:
+            # the PS seed feeds the gates, the POS seed records the acceptance on file)
+            if step.id == "ps_maker":
                 self._seed_due_diligence(application_id, at)
                 self._seed_stage_docs(application_id, "PS", at)
-            if step.id == "pos_maker":               # seeded history: conditions satisfied, consent recorded
-                app = self.store.get(application_id)
-                for c in app.get("conditions") or []:
-                    if c["type"] in ("PC", "CP", "CPS"):
-                        c.update(status="satisfied", note="Satisfied (seeded demo history)", updated_by="Demo seed",
-                                 updated_at=at.isoformat(timespec="seconds"))
-                app["consent"] = {"acknowledged_by": "Customer authorisation (demo seed)", "consent_date": at.date().isoformat(),
-                                  "remarks": "Sanction accepted (seeded demo history)",
-                                  "facilities": [{"facility_id": f["facility_id"], "execution_status": "executed",
-                                                   "agreement_date": at.date().isoformat()}
-                                                  for f in (app.get("facilities") or [app.get("facility") or {}])],
-                                  "by": "seed", "by_name": "Demo seed", "at": at.isoformat(timespec="seconds")}
-                self.store.save(app)
-                self.generate_letter(application_id, session, "sanction_letter", at=at)   # RUL-10: the letter is on file
-                app = self.store.get(application_id)
-                facmod.apply_execution(app.get("facilities") or [], app["consent"]["facilities"],
-                                    at.isoformat(timespec="seconds"), "Demo seed")
-                self._seed_stage_docs(application_id, "POS", at)
+            if step.id == "pos_maker":
+                self._seed_pos_history(application_id, at, session)
             if step.id == IP_NOTE_STEP:              # seeded history: the IP Note was prepared
                 app = self.store.get(application_id)
                 app["ip_note"] = build_ip_note(app, self.companies.get(app["entity_id"]), now=at) | {"seeded": True}
                 self.store.save(app)
                 self._seed_stage_docs(application_id, "IP", at)
+            # R1: the concurrences the profile's calculated route requires at this sanction,
+            # signed by their own roles before the committee meets (seeded demo history)
+            if step.id in SANCTION_STEPS:
+                app = self.store.get(application_id)
+                for c in self._concurrences_needed(app, step.id):
+                    self.record_concurrence(application_id, self._system_session(self.CONCURRENCE_ROLES[c["id"]], None, wf),
+                                             {"concurrence_id": c["id"], "remarks": f"{c['label']} (seeded demo history)",
+                                              "at": at.isoformat(timespec="seconds")})
+            # R9: when the institution governs committee meetings, the seeded history carries
+            # the meeting record (attendance, minutes, a fully approving vote) — on file before
+            # the walk performs the committee's decision (a governed institution's history
+            # includes its meetings; live decisions are always gated the same way)
+            if step.kind == "committee" and (self._profile(app).get("committee_governance") or {}).get("enabled"):
+                self._seed_committee_meeting(application_id,
+                                             self._system_session(step.role, app.get("assignee_id"), wf),
+                                             step.id, at)
+            if step.id == "ap_note":                # seeded history: the AP-stage documents were on file
+                self._seed_stage_docs(application_id, "AP", at)
             if step.id == "ap_risk_maker":           # seeded history: CMA recorded, pricing benchmark set
                 self._seed_ap_workspace(application_id, at)
                 self._seed_stage_docs(application_id, "AP", at)
+            if step.id == "dis_maker":               # later-stage showcases need a completed maker record
+                self._seed_disbursement_record(application_id, at)
+                self._seed_stage_docs(application_id, "DIS", at)
+                app = self.store.get(application_id)
+                disops = app.setdefault("disops", {})
+                for item in disops.get("sop") or []:
+                    item.update(status="in_compliance", remarks="Confirmed (seeded demo history)",
+                                by_name="Disbursement Maker (demo seed)",
+                                at=at.isoformat(timespec="seconds"))
+                if disops.get("memo"):
+                    disops["memo"].update(reviewed=True, reviewed_by="Disbursement Reviewer (demo seed)",
+                                          reviewed_at=at.isoformat(timespec="seconds"),
+                                          review_remarks="Reviewed (seeded demo history)")
+                self.store.save(app)
             if step.id == ES_MAKER_STEP:             # seeded history: the ESMS screen and categorisation
                 app = self.store.get(application_id)
                 esms = app.setdefault("esms", es.initial_esms(app))
@@ -5263,11 +7457,11 @@ th{{background:#f3f4f6}}.note{{color:#6b7280;font-size:13px}}</style></head>
         app = self.store.get(application_id)
         app["credit_assessment"] = self._seed_assessment_summary(app)
         self.store.save(app)
-        maker = self._system_session(self.wf.step(app["step_id"]).role, app.get("assignee_id"))
+        maker = self._system_session(self._wf(app).step(app["step_id"]).role, app.get("assignee_id"), self._wf(app))
         self.act(application_id, maker, "submit", at=entered + (self.now() - entered) / 3,
                  comment="Assessment complete; submitted for review (seeded demo history).")
         app = self.store.get(application_id)
-        reviewer = self._system_session(self.wf.step(app["step_id"]).role, app.get("assignee_id"))
+        reviewer = self._system_session(self._wf(app).step(app["step_id"]).role, app.get("assignee_id"), self._wf(app))
         self.act(application_id, reviewer, "return", at=entered + (self.now() - entered) * 2 / 3,
                  comment="Please address the debt-servicing shortfall and the open due-diligence items before "
                          "resubmitting (demo note).")
@@ -5482,7 +7676,9 @@ def _typed(kind: str, raw, label: str):
     return str(raw).strip()
 
 
-def load_workflow() -> Workflow:
-    from src.core.config_manager import config
-    config.reload()
-    return Workflow.from_config(config.get("los_workflow", default={}) or {})
+def load_workflow(profile_id: Optional[str] = None) -> Workflow:
+    """The institution's journey: the base workflow (config/los_workflow.yaml) resolved
+    through the institution profile's module switches and step / stage overrides."""
+    pid = profile_id or profiles.active_profile_id()
+    cfg = profiles.workflow_config(pid)
+    return Workflow.from_config(cfg, decision_field_labels=profiles.decision_field_labels(profiles.get_profile(pid)))

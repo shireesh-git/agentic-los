@@ -1,0 +1,88 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Product template — MSME LOAN
+# Scorecard-oriented MSME lending for the NBFC / MSME lender profile:
+# short tenors, GST + bank-statement based analysis, no CMA, simplified
+# documentation and a simplified approval hierarchy.
+# ═══════════════════════════════════════════════════════════════════════
+
+product:
+  id: msme_loan
+  name: "MSME Loan"
+  category: "MSME lending"
+  description: "Scorecard-oriented MSME term / working-capital loans built on GST data and bank statements."
+  profiles: [msme_lender]             # applies to the NBFC / MSME lender profile
+
+  facility_types: [term_loan, working_capital, cash_credit]
+  facility_defaults:
+    facility_nature: fund_based
+    benchmark: MCLR
+  borrower_fields:
+    - {id: company_name, label: "Business name", required: true}
+    - {id: pan, label: "PAN", required: true}
+    - {id: gstin, label: "GSTIN", required: true}
+    - {id: registered_address, label: "Business address", required: true}
+  facility_fields:
+    - {id: amount_cr, label: "Amount (₹ Cr)", required: true}
+    - {id: tenor_months, label: "Tenor (months)", required: true}
+    - {id: purpose, label: "Purpose", required: true}
+    - {id: benchmark, label: "Benchmark", required: true}
+    - {id: repayment_type, label: "Repayment method", required: true}
+
+  amount: {min_cr: 0.25, max_cr: 50, currency: "₹ Cr"}
+  tenor: {min_months: 6, max_months: 60}
+  moratorium: {max_months: 6}
+
+  pricing:
+    benchmarks: [MCLR, fixed]
+    grade_spreads_bps: {A: 150, B: 225, C: 300, D: 400, E: 500}
+  repayment: [annuity, interest_only, quarterly_quarters]
+
+  security:
+    required: false
+    min_fsv_cover: null
+    acceptable_types: [movable, guarantees]
+  financial_analysis:
+    required_ratios: []               # scorecard: GST trend + bank-statement analysis
+    cma_required: false
+    scorecard_inputs: [gstin_turnover_trend, bank_statement_conduct]   # placeholders (demo analysis)
+
+  checks:
+    applicable: [gstin, ews]
+    mandatory: [gstin]
+
+  documents:
+    by_stage:
+      PS:
+        add:
+          - {name: "Bank statements (last 6 months)", scope: application}
+      AP:
+        remove:
+          - "CMA (prepared in the CMA workspace)"
+        add:
+          - {name: "GST summary (last 12 months)", scope: application}
+
+  workflow:
+    stages: [PS, IP, AP, POS, DIS]
+    modules:
+      cma: false                      # scorecard instead of a full CMA
+      esms: false
+      consortium: false
+
+  approval:                           # simplified hierarchy (₹ Cr)
+    preliminary:
+      - {max_amount: 10, authority: "MSME Approval Panel"}
+      - {max_amount: null, authority: "MSME Approval Panel with MD note"}
+    final:
+      - {max_amount: 10, authority: "MSME Credit Committee"}
+      - {max_amount: 50, authority: "MSME Credit Committee with MD note"}
+      - {max_amount: null, authority: "MSME Credit Committee with board intimation"}
+
+  outputs:
+    ip_note: {title_prefix: "In-Principle Assessment — MSME"}
+    cam: {title: "MSME Credit Assessment Note"}
+    sanction_letter:
+      kind_titles: {term_sheet: "Indicative offer", sanction_letter: "Sanction letter (MSME)"}
+
+  validations:
+    - {id: msme_purpose, rule: purpose_not_blank,
+       message: "the purpose of the MSME loan is required"}

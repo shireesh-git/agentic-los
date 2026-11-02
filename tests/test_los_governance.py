@@ -132,11 +132,11 @@ def test_sanction_records_authority_and_snapshot_and_material_change_blocks(svc)
     with pytest.raises(ConflictError, match="after sanction"):
         svc.update_facility(app_id, maker, "FAC-001", {"amount_cr": 140})
     # complete the post-sanction prerequisites so the material-change gate is the one that blocks
+    from tests.test_los_post_sanction import _issue_letter
+    _issue_letter(svc, app_id, maker)
     svc.record_consent(app_id, maker, acknowledged_by="Director, the Borrower", consent_date="2026-10-07",
                        facilities=[{"facility_id": f["facility_id"], "execution_status": "executed",
                                     "agreement_date": "2026-10-07"} for f in svc.store.get(app_id)["facilities"]])
-    from tests.test_los_post_sanction import _issue_letter
-    _issue_letter(svc, app_id, maker)
     conds = [c["id"] for c in svc.store.get(app_id).get("conditions") or [] if c["id"].startswith("CP-")]
     svc.update_conditions(app_id, maker, [{"id": i, "status": "satisfied", "evidence": "verified"} for i in conds])
     svc.record_rating(app_id, maker, "internal", {"subject": "borrower", "grade": "A2", "date": "2026-10-08"})

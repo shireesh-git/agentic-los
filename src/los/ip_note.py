@@ -187,11 +187,27 @@ def build_ip_note(app: dict, company: dict, now: Optional[datetime] = None) -> d
         outcome = f"{len(breaches)} policy exceptions — refer for in-principle discussion before proceeding"
 
     sourcing = app.get("sourcing") or {}
+    from src.los import profiles as _profiles, products as _products
+    _prof = _profiles.get_profile(app=app)
+    _ip_tpl = _profiles.output_template("ip_note", _prof)
+    _prod_obj = None
+    if app.get("product"):
+        try:
+            _prod_obj = _products.get_product(app["product"])
+            # product settings overlay the profile's field-by-field; institution
+            # branding (letterhead, colours) always comes from the profile
+            _ip_tpl = _products.output_template("ip_note", _prof, _prod_obj)
+        except _products.ProductError:
+            pass
+    _title_prefix = _ip_tpl.get("title_prefix", "In-Principle Note")
     note = {
         "available": True, "version": NOTE_VERSION,
         "generated_at": (now or datetime.now()).isoformat(timespec="seconds"),
-        "title": f"In-Principle Note — {app.get('borrower_name')}",
+        "title": f"{_title_prefix} — {app.get('borrower_name')}",
         "application_id": app.get("application_id"),
+        "branding": _profiles.institution_branding(_prof),
+        "product": {"id": _prod_obj["product"]["id"], "name": _prod_obj["product"]["name"]} if _prod_obj else None,
+        "sections": _profiles.section_plan("ip_note", _ip_tpl, _prof),
         "borrower": borrower, "proposal": proposal,
         "existing_exposure": {"columns": ["Facility", "Sanctioned", "Outstanding", "Classification"], "rows": exposure},
         "financials": fin_table, "security": security,
@@ -243,16 +259,47 @@ def render_markdown(note: dict) -> str:
 
     ps = note["prescreen"]
     checks = "\n".join(["| Ratio | Value | Policy | Result |", "|---|---|---|---|"]
-                       + [f"| {c['label']} | {c['value']} | {c['limit']} | {c['result'].replace('_', ' ')} |"
+                       + [f"| {c['label']} | {c['value']} | {c['limit']} | {c['result'].replace('_', ' ') } |"
                           for c in ps["checks"]])
-    parts = [f"# {note['title']}", f"Application {note['application_id']} · prepared {note['generated_at']}"]
+    br = note.get("branding") or {}
+    parts = [f"# {note['title']}"]
+    if br.get("institution_name"):
+        parts.append(f"**{br['institution_name']}**" + (f" · {br['app_name']}" if br.get("app_name") else ""))
+    prod = note.get("product")
+    parts.append(f"Application {note.get('application_id', '')}" + (f" · product: {prod['name']}" if prod else "")
+                 + (f" · prepared {note['generated_at']}" if note.get("generated_at") else ""))
     if note.get("ai_summary"):
         parts += ["## Summary (AI-generated, figures verified against the note)", note["ai_summary"]["text"]]
-    parts += ["## 1. Borrower", facts(note["borrower"]), "## 2. Proposal", facts(note["proposal"]),
-              "## 3. Existing exposure with the bank", table(note["existing_exposure"]),
-              "## 4. Financial snapshot", table(note["financials"]), "## 5. Security", facts(note["security"]),
-              f"## 6. Policy pre-screen ({ps['period'] or 'n/a'})", checks, f"**Outcome:** {ps['outcome']}",
-              f"_{ps['note']}_"]
+    elif str(note.get("ai_status") or "").startswith("rejected"):
+        parts.append(f"_AI summary unavailable: {note['ai_status']}_")
+
+    def sec_body(sid):
+        if sid == "borrower":
+            return [facts(note["borrower"])]
+        if sid == "proposal":
+            return [facts(note["proposal"])]
+        if sid == "exposure":
+            return [table(note["existing_exposure"])]
+        if sid == "financials":
+            return [table(note["financials"])]
+        if sid == "security":
+            return [facts(note["security"])]
+        if sid == "prescreen":
+            return [checks, f"**Outcome:** {ps['outcome']}", f"_{ps['note']}_"]
+        return []
+
+    canonical = ("borrower", "proposal", "exposure", "financials", "security", "prescreen")
+    sections = [s for s in (note.get("sections") or []) if s["id"] in canonical]
+    if not sections:
+        sections = [{"id": k, "heading": k} for k in canonical]
+    for i, s in enumerate(sections, 1):
+        sid = s["id"]
+        heading = s.get("heading") or sid.replace("_", " ").title()
+        if sid == "prescreen":
+            heading = f"Policy pre-screen ({ps['period'] or 'n/a'})"
+        parts += [f"## {i}. {heading}"] + sec_body(sid)
+    if br.get("demo_mark"):
+        parts.append(f"_{br['demo_mark']}_")
     return "\n\n".join(parts)
 
 
@@ -260,4 +307,36 @@ def render_html(note: dict) -> str:
     from src.rendering.cam_markdown import markdown_to_html
 
     page = markdown_to_html(render_markdown(note), title=note["title"])
-    return page.replace(f"{_html.escape(note['title'])} — CAM Report", _html.escape(note["title"]))
+    page = page.replace(f"{_html.escape(note['title'])} — CAM Report", _html.escape(note["title"]))
+    br = note.get("branding") or {}
+    colors = br.get("colors") or {}
+    primary, accent = colors.get("primary", "#1f2937"), colors.get("accent", "#6b7280")
+    mono = _html.escape((br.get("short_name") or "LOS")[:3].upper())
+    inst = _html.escape(br.get("institution_name") or "Institution")
+    app_name = _html.escape(br.get("app_name") or "")
+    mark = _html.escape(br.get("demo_mark") or "")
+    prod = note.get("product") or {}
+    prod_html = f"<span style='margin-left:10px;font-size:11px;color:{accent};font-weight:700'>{_html.escape(prod['name'])}</span>" if prod.get("name") else ""
+    logo = (f"<img src='{_html.escape(br['logo'])}' alt='logo' style='width:44px;height:44px;border-radius:10px'>"
+            if br.get("logo") else
+            f"<div style='width:44px;height:44px;border-radius:10px;background:{primary};color:#fff;display:flex;"
+            f"align-items:center;justify-content:center;font-weight:800;font-size:13px'>{mono}</div>")
+    letterhead = (
+        f"<div style='border-top:4px solid {primary};padding:14px 0 10px;margin-bottom:18px;"
+        f"display:flex;align-items:center;gap:12px'>"
+        f"{logo}"
+        f"<div><div style='font-size:16px;font-weight:800;color:{primary}'>{inst}{prod_html}</div>"
+        + (f"<div style='font-size:12px;color:#555'>{app_name} · Application {_html.escape(str(note.get('application_id') or ''))} "
+           f"· {_html.escape(str(note.get('borrower_name') or ''))}</div>" if app_name else
+           f"<div style='font-size:12px;color:#555'>Application {_html.escape(str(note.get('application_id') or ''))} "
+           f"· {_html.escape(str(note.get('borrower_name') or ''))}</div>")
+        + f"</div></div>"
+        + (f"<div style='position:fixed;top:10px;right:14px;font-size:10px;color:{accent};opacity:.75'>{mark}</div>" if mark else ""))
+    style = f"<style>body{{--ip-primary:{primary};--ip-accent:{accent}}}</style>"
+    if "</head>" in page:
+        page = page.replace("</head>", style + "</head>", 1)
+    page = page.replace("<body>", f"<body>{letterhead}", 1)
+    if "<body>" not in page and "<body " in page:
+        import re as _re
+        page = _re.sub(r"(<body[^>]*>)", r"\1" + letterhead, page, count=1)
+    return page
