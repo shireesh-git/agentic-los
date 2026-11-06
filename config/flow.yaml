@@ -1,0 +1,179 @@
+# The agentic LOS (src/flow): who acts, in what order, and the data points a case carries.
+#
+# Adding an approver = adding a stage (and a user with its role). A stage's actions:
+#   approve    hand the case to the next stage (the last stage's approve completes the case)
+#   reject     close the case as declined
+#   send_back  return it to ``send_back_to`` with remarks
+# ``gates`` must all be clear before approve is allowed (see src/flow/service.py, GATES).
+# ``label`` names the stage, ``short`` fits the stage tracker, ``sla_hours`` drives queue ageing.
+
+# Deviation register: every policy breach the CAM engine finds (a ratio outside its policy limit, a failed
+# hard rule) is a deviation. Underwriting records a mitigant and justification for each before recommending
+# (gate deviations_proposed); the Sanctioning Authority approves or rejects each before Sanction
+# (gate deviations_approved). ``hard_rules_deviable: false``: a failed hard rule cannot be approved as a
+# deviation — it must be resolved (re-run the CAM with the missing evidence) or the proposal declined.
+deviation_register:
+  hard_rules_deviable: false
+
+product_name: Corporate Credit Origination
+environment: UAT · DEMO
+
+stages:
+  - id: rm
+    role: rm
+    label: Origination
+    short: Origination
+    sla_hours: 48
+    actions: [approve]
+    labels: {approve: Submit for Underwriting}
+    gates: [cam_ready, cam_current, required_answered]
+  - id: credit_risk
+    role: credit_risk
+    label: Credit Underwriting
+    short: Underwriting
+    sla_hours: 72
+    actions: [approve, reject, send_back]
+    labels: {approve: Recommend for Sanction, send_back: Return to RM, reject: Decline}
+    send_back_to: rm
+    gates: [cam_ready, cam_current, required_answered, deviations_proposed]
+  - id: sanction
+    role: sanctioning_authority
+    label: Sanctioning Authority (DoFP)
+    short: Sanction
+    sla_hours: 48
+    actions: [approve, reject, send_back]
+    labels: {approve: Sanction, send_back: Return to Underwriting, reject: Decline}
+    send_back_to: credit_risk
+    gates: [changes_accepted, deviations_approved]
+  - id: cad
+    role: cad
+    label: Credit Administration (CAD)
+    short: Credit Admin
+    sla_hours: 72
+    actions: [approve, send_back]
+    labels: {approve: Submit Disbursement Request, send_back: Return to Underwriting}
+    send_back_to: credit_risk
+    gates: [conditions_met, drawdown_ready]
+  - id: disbursement
+    role: disbursement_authoriser
+    label: Disbursement Operations
+    short: Disbursement
+    sla_hours: 24
+    actions: [approve, reject, send_back]
+    labels: {approve: Authorise Release, send_back: Return to CAD, reject: Decline}
+    send_back_to: cad
+    gates: [release_checks]
+
+roles:
+  rm: Relationship Manager
+  credit_risk: Credit Underwriter
+  sanctioning_authority: Sanctioning Authority
+  cad: CAD Officer
+  disbursement_authoriser: Disbursement Officer
+
+# Demo sign-in: pick a user, no password.
+users:
+  - {id: f_rm, name: Ananya Rao, role: rm, email: ananya.rao@demo.bank, unit: Corporate Banking · Mumbai}
+  - {id: f_cro, name: Rahul Mehta, role: credit_risk, email: rahul.mehta@demo.bank, unit: Credit Risk Management}
+  - {id: f_sa, name: Vikram Shah, role: sanctioning_authority, email: vikram.shah@demo.bank, unit: Credit Committee}
+  - {id: f_cad, name: Meera Iyer, role: cad, email: meera.iyer@demo.bank, unit: Credit Administration}
+  - {id: f_da, name: Arjun Nair, role: disbursement_authoriser, email: arjun.nair@demo.bank, unit: Disbursement Operations}
+
+# Data points, grouped by screen. ``required``: the case cannot leave the RM or Credit Risk
+# without it. ``ask``: the question the chat uses when the point is missing. ``engine``: the
+# point is an input to the CAM engine, so changing it makes the CAM out of date (re-run).
+# ``agent_only``: filled by the agents, never asked in the chat (empty means "not on record").
+# ``computed``: calculated by the engine from other figures, so it is not edited by hand.
+# ``band``: how the value is judged — ``policy`` names a limit in the engine's policy thresholds
+# (``way``: min = higher is better); ``min`` / ``max`` give fixed limits; the band (within / close
+# to / outside the limit) is shown beside the value, separate from where the value came from.
+# A data point with no extractor in src/flow/datapoints.py is simply asked for in the chat.
+groups:
+  - {id: borrower, label: Borrower}
+  - {id: facility, label: Facility}
+  - {id: financials, label: Financials}
+  - {id: metrics, label: Credit metrics}
+  - {id: risk, label: Risk & rating}
+  - {id: security, label: Security & terms}
+  - {id: decision, label: Decision}
+
+datapoints:
+  - {id: company_name, group: borrower, label: Borrower name, type: text, required: true, ask: "What is the borrower's registered name?"}
+  - {id: cin, group: borrower, label: CIN, type: text, ask: "What is the borrower's CIN?"}
+  - {id: pan, group: borrower, label: PAN, type: text, ask: "What is the borrower's PAN?"}
+  - {id: sector, group: borrower, label: Sector, type: text, ask: "Which sector is the borrower in?"}
+  - {id: subsector, group: borrower, label: Sub-sector, type: text, ask: "And the sub-sector?"}
+  - {id: constitution, group: borrower, label: Constitution, type: text, ask: "What is the constitution — e.g. public limited (listed), private limited, LLP?"}
+  - {id: banking_arrangement, group: borrower, label: Banking arrangement, type: text, ask: "Is this sole banking, multiple banking or a consortium?"}
+  - {id: business_background, group: borrower, label: Business background, type: longtext, ask: "In two or three lines, what does the borrower do?"}
+  - {id: corporate_governance, group: borrower, label: Corporate governance, type: longtext, ask: "Anything to note on management and governance?"}
+
+  - {id: product, group: facility, label: Product, type: text, required: true, engine: true, ask: "Which product — working capital, term loan or project finance?"}
+  - {id: amount_cr, group: facility, label: Amount requested (₹ Cr), type: amount, required: true, engine: true, ask: "How much is requested, in ₹ crore?"}
+  - {id: tenor_months, group: facility, label: Tenor (months), type: number, engine: true, ask: "What tenor, in months?"}
+  - {id: purpose, group: facility, label: Purpose, type: text, engine: true, ask: "What is the purpose of the facility?"}
+  - {id: recommended_cr, group: facility, label: Recommended limit (₹ Cr), type: amount, required: true, ask: "What limit do you recommend, in ₹ crore?"}
+  - {id: pricing, group: facility, label: Pricing, type: text, ask: "What pricing is proposed — e.g. MCLR + 0.80%?"}
+
+  - {id: revenue_cr, group: financials, label: Revenue (₹ Cr), type: amount, required: true, engine: true, line_item: revenue_operating, ask: "What was revenue in the latest audited year, in ₹ crore?"}
+  - {id: ebitda_cr, group: financials, label: EBITDA (₹ Cr), type: amount, required: true, engine: true, line_item: ebitda, ask: "And EBITDA, in ₹ crore?"}
+  - {id: pat_cr, group: financials, label: PAT (₹ Cr), type: amount, required: true, engine: true, line_item: pat, ask: "And PAT, in ₹ crore?"}
+  - {id: net_worth_cr, group: financials, label: Net worth (₹ Cr), type: amount, required: true, engine: true, line_item: total_equity, ask: "What is the net worth, in ₹ crore?"}
+  - {id: total_debt_cr, group: financials, label: Total debt (₹ Cr), type: amount, required: true, engine: true, line_item: total_debt, ask: "And total debt, in ₹ crore?"}
+
+  - {id: dscr, group: metrics, label: DSCR, type: ratio, agent_only: true, computed: true, band: {policy: min_dscr, way: min}}
+  - {id: interest_cover, group: metrics, label: Interest cover, type: ratio, agent_only: true, computed: true, band: {policy: min_interest_coverage, way: min}}
+  - {id: debt_to_ebitda, group: metrics, label: Debt / EBITDA, type: ratio, agent_only: true, computed: true, band: {policy: max_debt_to_ebitda, way: max}}
+  - {id: current_ratio, group: metrics, label: Current ratio, type: ratio, agent_only: true, computed: true, band: {policy: min_current_ratio, way: min}}
+  - {id: tol_tnw, group: metrics, label: TOL / TNW, type: ratio, agent_only: true, computed: true, band: {policy: max_tol_tnw, way: max}}
+  - {id: debt_to_equity, group: metrics, label: Debt / equity, type: ratio, agent_only: true, computed: true, band: {policy: max_debt_to_equity, way: max}}
+  - {id: sustainable_limit_cr, group: metrics, label: Sustainable limit (₹ Cr), type: amount, agent_only: true, computed: true, band: {vs: recommended_cr}}
+  - {id: earnings_quality, group: metrics, label: Earnings quality, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}}
+  - {id: revenue_truth, group: metrics, label: Revenue truth score, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}, unavailable: "Not verifiable — no GST or bank statement data on record"}
+  - {id: ews_flags, group: metrics, label: Early-warning flags, type: number, agent_only: true, computed: true, band: {max: 0, warn_above: 0, bad_above: 1}}
+  - {id: hard_rules_failed, group: metrics, label: Hard rules failed, type: number, agent_only: true, computed: true, band: {max: 0}}
+  - {id: bureau_score, group: metrics, label: Bureau score, type: number, agent_only: true, unavailable: "Not on record — no commercial bureau report connected"}
+  - {id: crilc_sma, group: metrics, label: CRILC SMA status, type: text, agent_only: true, unavailable: "Not on record — no CRILC report"}
+  - {id: collateral_fsv_cr, group: metrics, label: Collateral FSV (₹ Cr), type: amount, agent_only: true, unavailable: "Not on record — no collateral valuation"}
+  - {id: security_cover, group: metrics, label: Security cover (FSV), type: ratio, agent_only: true, computed: true, band: {min: 1.0, way: min}, unavailable: "Not on record — no collateral valuation"}
+
+  - {id: internal_rating, group: risk, label: Internal rating, type: text, required: true, ask: "What is the internal rating?"}
+  - {id: external_rating, group: risk, label: External rating, type: text, ask: "What is the external rating, with the agency — e.g. CRISIL AA+/Stable?"}
+  - {id: strengths, group: risk, label: Strengths, type: longtext, ask: "What are the main strengths?"}
+  - {id: risks_mitigants, group: risk, label: Risks and mitigants, type: longtext, agent_only: true}
+  - {id: industry_outlook, group: risk, label: Industry outlook, type: longtext, agent_only: true}
+  - {id: marketing_arrangements, group: risk, label: Marketing arrangements, type: longtext, agent_only: true}
+
+  - {id: security, group: security, label: Security, type: longtext, required: true, ask: "What security is offered?"}
+  - {id: key_terms, group: security, label: Key terms and conditions, type: longtext, ask: "Any key terms and conditions to record?"}
+  - {id: covenants, group: security, label: Covenants, type: longtext, ask: "Which financial covenants apply?"}
+
+  - {id: deviations, group: decision, label: Deviations, type: longtext, agent_only: true}
+  - {id: recommendation, group: decision, label: Recommendation, type: longtext, required: true, ask: "What is the recommendation, with the reason?"}
+
+# After sanction: what CAD must hold. ``when``: precedent (CP, before the first release) or subsequent
+# (CS, tracked after release, due ``within_days`` of it). ``kind``: the words the agent looks for in an
+# uploaded document (all must appear). ``min_amount_cr``: only at or above this limit. ``applies_if_security``:
+# only when the security mentions one of these words. ``auto``: met from the record, with no upload
+# (kyc_policy_check: the credit policy's KYC check passed in the CAM engine).
+conditions:
+  - {id: accepted_sanction_letter, when: precedent, label: Sanction letter accepted by the borrower, kind: [sanction letter, accept]}
+  - {id: board_resolution, when: precedent, label: Board resolution authorising the borrowing, kind: [board, resolution]}
+  - {id: facility_agreement, when: precedent, label: Facility agreement executed and stamped, kind: [agreement, stamp]}
+  - {id: security_documents, when: precedent, label: Security documents executed, kind: [security]}
+  - {id: legal_vetting, when: precedent, min_amount_cr: 100, label: Legal vetting by panel advocate, kind: [vetting, advocate]}
+  - {id: insurance, when: precedent, label: Insurance of charged assets with bank clause, kind: [insurance, bank clause],
+     applies_if_security: [property, building, land, plant, machinery, equipment, stock, inventory, vehicle, hypothecation, mortgage]}
+  - {id: kyc_refresh, when: precedent, label: KYC of borrower and signatories, kind: [kyc], auto: kyc_policy_check}
+  - {id: charge_filing, when: subsequent, within_days: 30, label: Charge registration with ROC (CHG-1) and CERSAI, kind: [chg-1, cersai]}
+
+# Bank's estimate of today's manual effort, for the time-saving report (edit to the bank's own figures).
+baseline:
+  label: Bank's estimate of the manual process (edit in config/flow.yaml)
+  hours:
+    cam_preparation: 40
+    credit_review: 16
+    sanction: 8
+    documentation: 24
+    disbursement: 4
+

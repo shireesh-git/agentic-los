@@ -1,0 +1,8 @@
+# Binary files: never convert line endings (a PDF is binary even when it holds no NUL bytes)
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.xlsx binary
+*.docx binary
+*.sqlite3 binary

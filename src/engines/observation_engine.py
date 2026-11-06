@@ -168,6 +168,13 @@ def _fmt_pct(v) -> str:
     return "n/a" if v is None else f"{v:.1f}%"
 
 
+def _moved(a, b) -> str:
+    """'rose' / 'fell' / 'was unchanged' from a to b ('moved' when either is unknown)."""
+    if a is None or b is None:
+        return "moved"
+    return "rose" if b > a else "fell" if b < a else "was unchanged at"
+
+
 def _fmt_cr(v) -> str:
     return "n/a" if v is None else f"₹{v:,.2f} Cr"
 
@@ -220,7 +227,7 @@ def detect_working_capital_deterioration(f: _Facts) -> Optional[CreditObservatio
         severity=severity,
         summary=f"Receivables grew {rec_g:.1f}% in {f.latest} against revenue growth of {rev_g:.1f}% "
                 f"— a gap of {gap:.1f} percentage points.",
-        explanation=f"Trade receivables rose from {_fmt_cr(rec0)} to {_fmt_cr(rec1)} while revenue rose from "
+        explanation=f"Trade receivables {_moved(rec0, rec1)} from {_fmt_cr(rec0)} to {_fmt_cr(rec1)} while revenue {_moved(rev0, rev1)} from "
                     f"{_fmt_cr(rev0)} to {_fmt_cr(rev1)}. When receivables outgrow sales, a larger share of "
                     f"revenue is not being collected in cash, tying up working capital and raising questions "
                     f"about collection quality, client concentration or aggressive revenue recognition.",
@@ -315,7 +322,7 @@ def detect_leverage_increase(f: _Facts) -> Optional[CreditObservation]:
         f, "LEVERAGE_INCREASE", category="Leverage", title="Increasing Leverage Risk", severity=severity,
         summary=f"{growth_text}; Debt/EBITDA moved from {_fmt_x(de0)} to {_fmt_x(de1)}"
                 + (f", above the policy maximum of {_fmt_x(max_de)}." if above_policy else "."),
-        explanation=f"Total debt rose from {_fmt_cr(d0)} to {_fmt_cr(d1)} while EBITDA moved from {_fmt_cr(e0)} to "
+        explanation=f"Total debt {_moved(d0, d1)} from {_fmt_cr(d0)} to {_fmt_cr(d1)} while EBITDA moved from {_fmt_cr(e0)} to "
                     f"{_fmt_cr(e1)}. Borrowing that grows faster than the earnings available to repay it lengthens "
                     f"the payback period and reduces headroom for any further downturn.",
         metrics=[_line_metric(f, f.prior, "total_debt_cr", "Total debt"),
@@ -678,7 +685,7 @@ def detect_liquidity_stress(f: _Facts) -> Optional[CreditObservation]:
         f, "LIQUIDITY_STRESS", category="Liquidity", title="Liquidity Stress", severity=severity,
         summary=f"Current ratio {'fell' if (drop or 0) > 0 else 'moved'} from {_fmt_x(cr0)} to {_fmt_x(cr1)}"
                 + (f", below the policy minimum of {_fmt_x(floor)}." if below else "."),
-        explanation=f"Current liabilities rose from {_fmt_cr(cl0)} to {_fmt_cr(cl1)} against current assets of "
+        explanation=f"Current liabilities {_moved(cl0, cl1)} from {_fmt_cr(cl0)} to {_fmt_cr(cl1)} against current assets of "
                     f"{_fmt_cr(ca0)} to {_fmt_cr(ca1)}. A thinner liquidity cushion means short-term "
                     f"obligations depend more on rolling over borrowings and collecting receivables on time.",
         metrics=[_ratio_metric(f, f.prior, "current_ratio"), _ratio_metric(f, f.latest, "current_ratio"),

@@ -21,7 +21,6 @@ from src.application.reassessment_service import ReassessmentService
 from src.application.repayment_service import RepaymentService
 from src.application.stress_test_service import StressTestService
 from src.application.state import AppState
-from src.los.service import LosService
 
 
 @dataclass
@@ -40,7 +39,7 @@ class ServiceContainer:
     stress: StressTestService
     reassessment: ReassessmentService
     final_cam: FinalCamService
-    los: LosService
+    flow: object = None
 
 
 def load_authority_matrix():
@@ -109,15 +108,17 @@ def build_container(pipeline_factory=default_pipeline_factory) -> ServiceContain
                                                stress_service)
     final_cam_service = FinalCamService(case_service, persistence, reassessment_service)
 
-    from src.core.runtime_paths import RUNTIME_DB_PATH
-    from src.los.service import load_workflow
-    from src.los.store import LosStore
-    los_service = LosService(LosStore(RUNTIME_DB_PATH), load_workflow, state.companies,
-                             cases=case_service, final_cam=final_cam_service,
-                             documents_root=DOCUMENTS_ROOT, doc_store=doc_store,
-                             llm_factory=final_cam_service.llm_factory,
-                             company_registrar=company_service.register_prospect)
-    los_service.seed_demo()          # first start only: seeds the demo pipeline when no applications exist
+    from src.core.runtime_paths import CACHE_ROOT, RUNTIME_DB_PATH, STORAGE_ROOT
+    from src.flow.acquire.agents import Acquisition
+    from src.flow.service import FlowService
+    from src.flow.store import FlowStore
+    acquirer = Acquisition.from_config(DOCUMENTS_ROOT, CACHE_ROOT / "acquire", final_cam_service.llm_factory)
+    flow_service = FlowService(FlowStore(RUNTIME_DB_PATH), state.companies, case_service,
+                               cam_pdf=cam_service.pdf, files_root=STORAGE_ROOT / "flow",
+                               llm_factory=final_cam_service.llm_factory,
+                               register_prospect=company_service.register_prospect,
+                               acquirer=acquirer, documents_root=DOCUMENTS_ROOT,
+                               save_company=lambda eid, c: company_service.save(eid, c, catalog_source="los_prospect"))
 
     return ServiceContainer(
         state=state,
@@ -134,5 +135,5 @@ def build_container(pipeline_factory=default_pipeline_factory) -> ServiceContain
         stress=stress_service,
         reassessment=reassessment_service,
         final_cam=final_cam_service,
-        los=los_service,
+        flow=flow_service,
     )

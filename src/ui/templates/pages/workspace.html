@@ -30,8 +30,8 @@
           </template>
         </select>
         <button class="btn btn-sm btn-outline" @click="downloadCAMPdf()">Download PDF</button>
-        <a class="btn btn-sm btn-outline" :href="'/los#new?entity=' + encodeURIComponent(detail?.entity_id || '') + '&cam=workspace'"
-           title="Open a new LOS application for this borrower, pre-filled from this CAM">Start LOS application</a>
+        <a class="btn btn-sm btn-outline" href="/los"
+           title="Open the agentic LOS (initiate a proposal for this borrower there)">Open LOS</a>
         <button class="btn btn-sm btn-primary" @click="runCaseFromList(detail.entity_id)" :disabled="pipelineRunning">Re-run</button>
       </div>
     </div>

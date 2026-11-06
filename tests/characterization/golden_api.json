@@ -60,10 +60,10 @@
     "keys": [
       "approval",
       "benchmarks",
+      "data_sources",
       "external_apis",
+      "flow",
       "llm_providers",
-      "los_fields",
-      "los_workflow",
       "rules",
       "settings"
     ]

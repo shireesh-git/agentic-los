@@ -569,6 +569,9 @@ def build_cam_fact_pack(company_data: dict, assessment: CreditAssessment | None 
         fact_pack["financial_summary"], fact_pack["facility_details"], fact_pack["facility_pricing"],
         fact_pack["sector_kpis"], min_dscr=thresholds["min_dscr"],
     )
+    # sustainable limit, earnings quality, revenue truth and early-warning indicators (quality_engine)
+    from src.engines import quality_engine
+    fact_pack.update(quality_engine.build(company_data, fact_pack))
     from src.engines.data_provenance import classify_fact_pack
     fact_pack["data_provenance"] = classify_fact_pack(fact_pack, company_data)
     return fact_pack

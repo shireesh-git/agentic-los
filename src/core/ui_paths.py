@@ -12,7 +12,7 @@ _INCLUDE = re.compile(r"^[ \t]*<!-- include: ([\w./-]+\.html) -->[ \t]*$", re.MU
 
 
 def render_spa(shell_name: str = "index.html") -> str:
-    """A shell (index.html, or los.html for the LOS) with its page includes inlined (read on every request,
+    """A shell (index.html for the CAM workspace, flow.html for the LOS) with its page includes inlined (read on every request,
     so edits show on refresh)."""
     root = TEMPLATES_ROOT.resolve()
 

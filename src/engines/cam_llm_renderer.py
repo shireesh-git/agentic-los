@@ -20,7 +20,9 @@ from dataclasses import dataclass
 from typing import Callable, Protocol
 
 # Prompt data lives in cam_sections; PROMPT_VERSION is re-exported for cam_checkpoints.
-from src.engines.cam_sections import CAM_SECTIONS, PROMPT_VERSION, SYSTEM_PROMPT  # noqa: F401
+from src.engines.cam_sections import (  # noqa: F401
+    CAM_SECTIONS, CAM_SECTIONS_STREAMLINED, PROMPT_VERSION, SYSTEM_PROMPT, active_sections,
+)
 
 log = logging.getLogger(__name__)
 
@@ -177,9 +179,11 @@ def render_cam_template_only(fact_pack: dict, on_section_progress: Callable = No
         render_annexure_c_glossary,
     )
 
+    sections = active_sections()
     _struct_map = {
         "cover_page": render_cover_page,
-        "toc": render_toc,
+        "toc": _toc_for(sections, render_toc),
+        "decision_summary": _decision_summary,
         "annexure_a": render_annexure_a_document_checklist,
         "annexure_b": render_annexure_b_quarterly_performance,
         "annexure_c": render_annexure_c_glossary,
@@ -189,11 +193,11 @@ def render_cam_template_only(fact_pack: dict, on_section_progress: Callable = No
 
     rendered_sections = []
     section_results = {}
-    content_sections = [s for s in CAM_SECTIONS if not s.get("skip_llm") and _should_render_section(s, fact_pack)]
+    content_sections = [s for s in sections if not s.get("skip_llm") and _should_render_section(s, fact_pack)]
     total = len(content_sections)
     idx = 0
 
-    for section in CAM_SECTIONS:
+    for section in sections:
         sid = section["id"]
 
         if section.get("skip_llm"):
@@ -216,7 +220,7 @@ def render_cam_template_only(fact_pack: dict, on_section_progress: Callable = No
 
         text = _get_template_fallback(sid, fact_pack)
         if text and len(text.strip()) >= 10:
-            rendered_sections.append(text.strip())
+            rendered_sections.append(_with_tables(section, text.strip(), fact_pack))
             section_results[sid] = "template"
         else:
             section_results[sid] = "skipped"
@@ -270,9 +274,11 @@ def render_cam_with_llm(
     )
 
     # Template map for structural sections only (cover, toc, annexures)
+    sections = active_sections()
     _template_map = {
         "cover_page": render_cover_page,
-        "toc": render_toc,
+        "toc": _toc_for(sections, render_toc),
+        "decision_summary": _decision_summary,
         "annexure_a": render_annexure_a_document_checklist,
         "annexure_b": render_annexure_b_quarterly_performance,
         "annexure_c": render_annexure_c_glossary,
@@ -301,7 +307,7 @@ def render_cam_with_llm(
     slots: list[str | None] = []
     section_results = {}
     jobs: list[_SectionJob] = []
-    for section in CAM_SECTIONS:
+    for section in sections:
         sid = section["id"]
         # Structural sections (cover, toc, annexures) use template — these genuinely don't need LLM
         if section.get("skip_llm"):
@@ -396,7 +402,7 @@ def render_cam_with_llm(
                 for job in group:
                     text = write_section(job)
                     if text is not None:
-                        slots[job.slot] = text
+                        slots[job.slot] = _with_tables(job.section, text, fact_pack)
                         section_results[job.section["id"]] = "llm"
             else:
                 # Sections only read the fact pack, so they are independent. On the first
@@ -409,7 +415,7 @@ def render_cam_with_llm(
                             job = futures[future]
                             text = future.result()
                             if text is not None:
-                                slots[job.slot] = text
+                                slots[job.slot] = _with_tables(job.section, text, fact_pack)
                                 section_results[job.section["id"]] = "llm"
                     except BaseException:
                         for future in futures:
@@ -549,7 +555,48 @@ def _unsupported_figures(text: str, data_json: str) -> list[str]:
     return list(dict.fromkeys(unsupported))
 
 
+def _toc_for(sections: list[dict], classic_toc: Callable) -> Callable:
+    """The classic layout keeps its detailed contents page; the streamlined one lists its own sections."""
+    if sections is CAM_SECTIONS:
+        return classic_toc
+    from src.engines.cam_quality_sections import render_toc
+    return lambda fp: render_toc(sections)
+
+
+def _decision_summary(fact_pack: dict) -> str:
+    from src.engines.cam_quality_sections import render_decision_summary
+    return render_decision_summary(fact_pack)
+
+
+def _with_tables(section: dict, text: str, fact_pack: dict) -> str:
+    """A section's text followed by its deterministic tables (exact engine figures)."""
+    if not section.get("tables"):
+        return text
+    from src.engines.cam_quality_sections import TABLES
+    extra = "".join(TABLES[t](fact_pack) for t in section["tables"] if t in TABLES)
+    return text.rstrip() + ("\n\n" + extra.strip() if extra.strip() else "")
+
+
+def _demote(md: str) -> str:
+    """A classic section inside a merged one: every heading one level down, its number dropped."""
+    def fix(m):
+        title = re.sub(r"^\d+(?:\.\d+)*\.?\s+", "", m.group(2))
+        return f"#{m.group(1)} {title}"
+    return re.sub(r"^(#{2,5})\s+(.+)$", fix, md, flags=re.M)
+
+
 def _get_template_fallback(section_id: str, fact_pack: dict) -> str:
+    """Template rendering of a section: a classic section from the V2 renderer; a merged (streamlined)
+    section from the renderers of the classic sections it replaces, under its own heading."""
+    merged = next((s for s in CAM_SECTIONS_STREAMLINED if s["id"] == section_id and s.get("merge")), None)
+    if merged:
+        parts = [_demote(_classic_fallback(old, fact_pack)) for old in merged["merge"]]
+        body = "\n\n".join(p.strip() for p in parts if p and p.strip())
+        return f"## {merged['title'].upper()}\n\n" + (body or "Information not available.")
+    return _classic_fallback(section_id, fact_pack)
+
+
+def _classic_fallback(section_id: str, fact_pack: dict) -> str:
     """Get template-rendered fallback from V2 renderer for a section."""
     from src.engines.cam_renderer_v2 import (
         render_section_1_executive_summary,
@@ -594,7 +641,7 @@ def _get_template_fallback(section_id: str, fact_pack: dict) -> str:
 def _generate_toc(section_results: dict) -> str:
     """Generate a table of contents."""
     lines = ["## Table of Contents\n"]
-    for i, section in enumerate(CAM_SECTIONS):
+    for i, section in enumerate(active_sections()):
         if section.get("skip_llm") and section["id"] in ("cover_page",):
             continue
         if section_results.get(section["id"]) == "skipped":

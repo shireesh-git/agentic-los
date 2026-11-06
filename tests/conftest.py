@@ -40,6 +40,7 @@ if (PROJECT_ROOT / "storage").exists():
 _prepare_config(_TMP / "config")
 
 os.environ["CAM_CONFIG_DIR"] = str(_TMP / "config")
+os.environ["CAM_NETWORK_OFFLINE"] = "1"          # data-acquisition agents never call live APIs in tests
 os.environ["CAM_STORAGE_ROOT"] = str(_TMP / "storage")
 os.environ["CAM_RUNTIME_DB_ROOT"] = str(_TMP / "db")
 os.environ["CAM_OUTPUT_ROOT"] = str(_TMP / "output")

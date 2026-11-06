@@ -22,8 +22,8 @@ async def serve_spa():
 
 @router.get("/los", response_class=HTMLResponse)
 async def serve_los():
-    """The Corporate LOS front end (the CAM workspace stays at /)."""
-    return render_spa("los.html")
+    """The agentic LOS: five roles, one chain, a chat on every screen (the CAM workspace stays at /)."""
+    return render_spa("flow.html")
 
 
 @router.get("/favicon.ico", include_in_schema=False)

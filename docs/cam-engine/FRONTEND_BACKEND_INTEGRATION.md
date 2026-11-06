@@ -1,12 +1,15 @@
 # Frontend ↔ Backend Integration
 
+> **Scope:** the CAM workspace at `/` (the credit engine's own screens). The LOS at `/los` is described in the
+> [developer guide](../DEVELOPER_GUIDE.md).
+
 How each screen of the CAM Intelligence Platform is wired to the backend: what the screen
 is for, which control calls which endpoint, which service does the work, and how the
 screens connect into the end-to-end credit flow.
 
 Read alongside:
 - [README](../../README.md) — setup, configuration, pipeline execution
-- [Technical Architecture](../TECHNICAL_ARCHITECTURE.html) — engines, agents, data model
+- [Developer guide](../DEVELOPER_GUIDE.md) — engines, agents, data model
 
 ---
 

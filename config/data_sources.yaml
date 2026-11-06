@@ -1,0 +1,131 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Data acquisition for new prospects: API first, documents as the fallback
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Each data source names the agent that owns it and how it is obtained:
+#
+#   mode: api        the agent calls the provider's API (live)
+#   mode: inactive   the API is not connected (no contract / key): the agent asks
+#                    the RM for the document instead and reads it
+#
+# An API source that fails (network, provider error) also falls back to the
+# document. Uploaded documents and API responses produce the same record, so
+# switching a source to `api` later changes nothing downstream.
+#
+# `requires_key`: an environment variable; when it is empty the source is
+# treated as inactive whatever `mode` says.
+
+network:
+  # Identifies the client honestly; one request at a time per host, spaced out,
+  # robots.txt respected, responses cached so a re-run does not call again.
+  user_agent: "CorporateCreditOrigination-UAT/1.0 (demo credit workflow; low-volume, cached)"
+  min_interval_seconds: 3          # between two requests to the same host
+  timeout_seconds: 25
+  respect_robots: true
+  max_retries: 1                   # only on 429 / 503, honouring Retry-After (max 60 s)
+  circuit_failures: 2              # consecutive failures before a host is paused
+  circuit_pause_minutes: 15
+  max_response_mb: 40
+  hosts:                           # per-host spacing where a provider asks for it
+    api.gdeltproject.org: 6        # GDELT asks for at most one request every 5 s
+
+agents:
+  identity:   {label: "Identity & Registry agent",  description: "LEI registry, MCA company master, directors and charges"}
+  financials: {label: "Financials agent",           description: "Audited statements: locates, reads and reconciles them"}
+  credit:     {label: "Credit & Banking agent",     description: "Commercial bureau, bank statements, GST returns"}
+  compliance: {label: "Compliance agent",           description: "Sanctions screening (company and directors), KYC"}
+  market:     {label: "Market & Reputation agent",  description: "External rating and adverse media"}
+
+sources:
+  - id: lei
+    agent: identity
+    label: "Legal Entity Identifier (LEI)"
+    provider: "GLEIF API"
+    mode: api
+    connector: gleif
+    cache_hours: 168
+
+  - id: mca
+    agent: identity
+    label: "MCA company master, directors & charges"
+    provider: "Probe42 (MCA21 data)"
+    mode: api
+    connector: probe42
+    requires_key: PROBE42_API_KEY
+    upload: {category: mca, ask: "the MCA master data (company master, directors and charges)"}
+
+  - id: financials
+    agent: financials
+    label: "Audited financial statements"
+    provider: "Exchange filings feed (licensed)"
+    mode: inactive
+    inactive_reason: "No licensed exchange-filings feed is connected"
+    upload: {category: financials, multiple: true,
+             ask: "the last two annual reports (or audited financial statements)"}
+
+  - id: bureau
+    agent: credit
+    label: "Commercial credit bureau report"
+    provider: "CIBIL / CRIF commercial"
+    mode: inactive
+    inactive_reason: "Bureau membership API is not connected"
+    upload: {category: bureau, ask: "the commercial bureau report (CIBIL CMR / CRIF)"}
+
+  - id: bank_statements
+    agent: credit
+    label: "Bank statements (6 months)"
+    provider: "Account Aggregator (Sahamati)"
+    mode: inactive
+    inactive_reason: "Account Aggregator FIU integration is not connected"
+    upload: {category: banking, ask: "six months' statements of the main operating account"}
+
+  - id: gst
+    agent: credit
+    label: "GST registration & returns"
+    provider: "GST Suvidha Provider (GSP)"
+    mode: inactive
+    inactive_reason: "GSP API is not connected"
+    upload: {category: gst, ask: "the GST returns summary (GSTR-3B / GSTR-1) for the last financial year"}
+
+  - id: kyc
+    agent: compliance
+    label: "KYC (company and authorised signatories)"
+    provider: "CKYC (CERSAI)"
+    mode: inactive
+    inactive_reason: "CKYC search is available to regulated entities only; not connected"
+    upload: {category: kyc, ask: "the KYC pack (PAN, certificate of incorporation, signatory KYC)"}
+
+  - id: sanctions
+    agent: compliance
+    label: "Sanctions screening"
+    provider: "OFAC SDN + UN Security Council consolidated list"
+    mode: api
+    connector: sanctions
+    cache_hours: 24
+
+  - id: rating
+    agent: market
+    label: "External credit rating"
+    provider: "Rating agency rationale (CRISIL / ICRA / CARE)"
+    mode: inactive
+    inactive_reason: "Rating agencies publish rationales as documents, not an API"
+    upload: {category: ratings, ask: "the latest rating rationale"}
+
+  - id: adverse_media
+    agent: market
+    label: "Adverse media"
+    provider: "GDELT news API"
+    mode: api
+    connector: gdelt
+    cache_hours: 24
+
+# What a proposal needs (the planner): always, plus by product.
+requirements:
+  always: [mca, financials, bureau, kyc, sanctions]
+  recommended: [lei, rating, adverse_media]
+  by_product:
+    working_capital: [bank_statements, gst]
+    cash_credit: [bank_statements, gst]
+    term_loan: [bank_statements]
+  # before the CAM can be generated (the rest can follow)
+  minimum_for_cam: [mca, financials, kyc, sanctions]

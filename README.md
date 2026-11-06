@@ -1,146 +1,95 @@
-# Agentic Corporate LOS + CAM Intelligence Platform
+# Agentic Corporate Lending: LOS + CAM engine
 
-> A proof-of-concept corporate-lending platform. An **agentic Loan Origination System (LOS)**
-> takes a credit proposal from prospect sourcing to disbursement. AI agents populate it from
-> the borrower's documents and the **CAM credit-intelligence engine**; people verify by
-> exception and take every decision.
+When a company asks a bank for a loan, officers collect information, write a credit report (the **CAM**)
+and pass the proposal from desk to desk until the money is released. This system does the collecting,
+the arithmetic and the first draft with **AI agents**, and makes every risk visible. **People still make
+every decision.**
 
-| | URL | What it is |
+| | Address | What it is |
 |---|---|---|
-| **Corporate LOS** | `http://localhost:8001/los` | Workflow, agents, verification, decisions, documents, MIS |
-| CAM workspace | `http://localhost:8001/` | The credit-intelligence engine: pipeline, CAM, analytics |
+| **Loan origination (LOS)** | `http://localhost:8001/los` | Five officers, one chain, a chat assistant on every screen |
+| **CAM workspace** | `http://localhost:8001/` | The credit engine on its own, for in-depth analysis |
+
+## What makes it different
+
+- **It fills in the data and shows where every figure came from.** About 40 of a proposal's 46 fields
+  fill themselves from online services, uploaded documents or calculations. Each figure shows its
+  source and how sure the system is of it (*confidence*).
+- **It tells you how much can safely be lent.** The *sustainable limit* applies every policy ratio to
+  the borrower's figures. Where a smaller amount or a longer tenor would pass, it offers that change
+  in one click.
+- **It checks whether the numbers can be trusted:**
+  - *revenue truth*: GST and bank data against the accounts;
+  - *earnings quality*: is the profit operating and cash-backed?
+  - *early-warning indicators* at origination.
+- **It argues against the proposal.** A *Credit Challenge Agent* lists what is wrong, why it matters and
+  what to do, with buttons that act. The chat answers "What should I do next?" with concrete steps.
+- **Policy is enforced, not just recorded:**
+  - every policy breach is a *deviation* that needs a mitigant and the Sanctioning Authority's approval;
+  - going against the engine's verdict needs a written justification;
+  - a failed hard rule blocks sanction.
+- **The CAM is short and decision-first.** The first page is a Decision Summary built from data, not
+  AI wording, followed by 8 sections. It takes about 30 seconds to write, and a re-run rewrites only the
+  sections a change affects.
+- **Everything is auditable.** There is a one-click audit trail. Analytics show outcomes, rework and
+  the decisions that went against the engine.
 
 ## Documentation
 
-| Reader | Start here |
+| If you are… | Read |
 |---|---|
-| Bank SME: credit, risk, operations | [**Functional Guide**](docs/FUNCTIONAL_GUIDE.html): the process flow, who does what, what agents prepare, what you verify |
-| User / trainer | [**Journey Walkthrough**](docs/JOURNEY_WALKTHROUGH.html): one loan step by step: sign in, what to click and enter, where it goes next |
-| Enterprise architect | [**Technical Architecture**](docs/TECHNICAL_ARCHITECTURE.html): multi-agent parallel execution, populate → verify → lock, LLM layer, governance, path to production |
-| Architect / developer | [**Agent Orchestration**](docs/AGENT_ORCHESTRATION.html): what triggers the agents, the master agents, who hands off to whom, how a run ends |
-| Presenter | [POC Demo Script](docs/POC_DEMO_SCRIPT.md): a new prospect from documents to Exit, step by step |
-| Developer | [Developer Guide](docs/DEVELOPER_GUIDE.md) (code, data model, extending) · [LOS API Reference](docs/LOS_API_REFERENCE.md) |
-| Programme | [POC Build Plan](docs/POC_BUILD_PLAN.md) (sprints S1–S6, all built) · [Roadmap](docs/ROADMAP.md) (what remains) |
-| Requirements | [clientspec.md](clientspec.md): the client specification baseline (GAP ids referenced in code and tests) |
+| New to lending systems or to this product | [User guide](docs/USER_GUIDE.md): what it does, who does what, step by step, glossary |
+| Presenting it | [Demo script](docs/DEMO_SCRIPT.md): three 10-minute journeys |
+| Asking "where does this number come from?" | [Data points and sources](docs/DATA_POINTS_AND_SOURCES.md): every field, API, uploaded file and formula |
+| Configuring it for a bank | [Configuration](docs/CONFIGURATION.md): stages, fields, policy limits, data sources, AI model |
+| A developer | [Developer guide](docs/DEVELOPER_GUIDE.md) · [API reference](docs/API_REFERENCE.md) |
+| Planning what is next | [Roadmap](docs/ROADMAP.md) · [Differentiation review](docs/DATA_CAM_DIFFERENTIATION_REVIEW.md) · [Testing fix list](docs/FLOW_FIX_LIST.md) |
 
-Background: [docs/planning/](docs/planning/) holds the gap analyses behind the POC, and [docs/cam-engine/](docs/cam-engine/) holds
-reference notes on the CAM engine (datapoint sources, credit observations, the agent harness and the CAM workspace screens).
-Open the `.html` guides directly in a browser; they need no server or internet connection.
-
-## What the LOS does
-
-- **Five stages, 31 steps:** Prospect Sourcing → In-Principle → Application Processing → Post
-  Sanction → Disbursement, with maker–checker controls, SLAs and an append-only audit trail.
-- **Agents populate.** A preparation agent runs at each maker step, in parallel lanes:
-  - document intake (per document, with vision for scanned pages);
-  - due-diligence checks (per check);
-  - the credit case (the CAM pipeline);
-  - reconciliation agents, one per workspace (CMA, parties, securities, exposure, rating, pricing,
-    conduct, narrative);
-  - later-stage intake (signed sanction letter, facility agreement, drawdown request).
-- **People verify by exception.** Every value carries document, page and confidence. A verify
-  queue pre-ticks high-confidence values for a bulk confirm, and flags conflicts,
-  decision-driving fields and AI drafts for individual review. Overrides re-run the credit case.
-- **People decide.** No agent can submit, approve, return, sanction or disburse. A remark is
-  required on every decision.
-- **Measured.** The Management MIS shows the share of fields auto-populated, verified and
-  accepted unchanged, and the values nobody had to type.
+Reference notes on the credit engine are in [docs/cam-engine/](docs/cam-engine/). Earlier analyses are
+archived in [docs/planning/](docs/planning/).
 
 ## Run it
 
+You need Python 3.12.
+
 ```bash
-python -m venv .venv && .venv\Scripts\activate     # Windows (source .venv/bin/activate elsewhere)
+python -m venv .venv
+.venv\Scripts\activate                 # Windows   (macOS / Linux: source .venv/bin/activate)
 pip install -r requirements.txt
-cp .env.example .env.local                          # API keys; never committed
-python run.py                                       # http://localhost:8001/los
+copy .env.example .env.local           # put API keys here; this file is never committed
+python run.py                          # then open http://localhost:8001/los
 ```
 
-- The port is `server.port` in `config/settings.yaml`. Uvicorn reload is off because it hangs on
-  Windows, so restart after code changes.
-- On first start the demo pipeline is seeded with seven applications.
-- Sign-in is a demo picker (group → user → role) with no passwords.
-- **Administration → Reset demo** (as *LOS Administrator*) re-seeds the pipeline.
+Sign in by picking a workspace; there is no password in this demo. Without an AI key, set
+`active_provider: mock` in `config/llm_providers.yaml`. Everything still works, with template text.
 
-For the POC journey, write the fictional prospect's documents and follow the
-[demo script](docs/POC_DEMO_SCRIPT.md):
+**AI model:** NVIDIA NIM by default (`NVIDIA_NIM_API_KEY` in `.env.local`). Anthropic, OpenAI, Azure
+OpenAI, Vertex AI Gemini and a local Ollama model are also supported. See
+[Configuration](docs/CONFIGURATION.md#switch-the-ai-model).
 
-```bash
-python scripts/make_demo_documents.py demo_documents
-```
-
-### LLM provider
-
-All AI calls go through `config/llm_providers.yaml` (`active_provider`).
-
-| Provider | Setup | Notes |
-|---|---|---|
-| `nvidia_nim` (default) | `NVIDIA_NIM_API_KEY` in `.env.local` | OpenAI-compatible endpoint; `vision: false` |
-| `anthropic`, `gemini`, `openai`, `azure` | Key in `.env.local` | Set `vision: true` with a vision model to read scanned pages |
-| `ollama` | `ollama pull qwen2.5:3b` | Local, CPU. One request at a time (`max_parallel_llm: 1`); a full CAM is slow |
-| `mock` | — | No AI. Every feature falls back to deterministic behaviour; used by the tests |
-
-`max_parallel_llm` caps concurrent calls per provider, and `agentic.max_workers` in
-`settings.yaml` bounds the agent thread pool.
-
-### Docker / Cloud Run
-
-```bash
-docker-compose up --build                  # storage/, output/, runtime-db/ are mounted volumes
-.\scripts\deploy_gcp_camdemo.ps1           # Google Cloud Run
-```
+**Docker:** `docker-compose up --build`. **Google Cloud Run:** `scripts/deploy_gcp_camdemo.ps1`.
 
 ## Tests
 
 ```bash
-python -m pytest tests -q                                   # all tests (~520), offline, ~7 min
-python -m pytest tests/test_poc_golden_and_e2e.py           # golden extraction set + new prospect → Exit
-python -m tests.characterization.snapshot --write           # accept intended CAM-pipeline changes
-python -m tests.characterization.api_contract --write       # accept intended API changes
+python -m pytest tests -q        # about 320 tests, offline, about 4 minutes
 ```
 
-Tests run on a temporary copy of `config/` and `storage/` with the mock LLM
-(`tests/conftest.py`). They never touch your database or call external services.
+Tests use a temporary copy of the configuration and data, and a mock AI. They never call a website or
+touch your database.
 
-## Project structure
+## Project layout
 
 ```
-src/
-├── agentic/        Agent framework: AgentGraph (parallel DAG), critic, tool registry, LLM agent runtime
-├── los/            Corporate LOS: service, workflow, intake and reconciliation agents, field store (fields/),
-│                   workspaces, builders (IP Note, committee pack, letters, MIS, copilot)
-├── agents/         The 7-agent CAM pipeline (on AgentGraph)
-├── engines/        Deterministic engines: ratios, policy, stress, fraud, reassessment, document OCR
-├── application/    Use-case services (CaseService, CompanyService, …) and the composition root
-├── api/            FastAPI app and routers (/api/los/*, /api/cases/*, …)
-├── core/           Configuration, LLM providers, runtime paths
-├── services/       Persistence (SQLite), document store, extraction, integrations
-├── rendering/      CAM markdown / HTML / PDF
-├── devtools/       Demo document set and golden values
-└── ui/             Alpine.js front ends (LOS at /los, CAM workspace at /)
-config/             los_workflow.yaml · los_fields.yaml · llm_providers.yaml · settings.yaml · rules.yaml · …
-scripts/            make_demo_documents.py · test_agent.py (CAM agent harness) · deployment · data generation
-tests/              Unit, LOS, agentic, golden and end-to-end tests; characterization snapshots
-docs/               Functional and technical guides, developer guide, API, POC plan, demo script, roadmap
+src/flow/        The LOS: proposals, fields, risk & challenges, chat, reports (acquire/ = data agents)
+src/agents/      The credit engine's agents (7-step pipeline, challenge, investigation, reassessment)
+src/engines/     Fixed calculations: ratios, policy, quality, projections, stress, the CAM sections
+src/api/         Web API (routers/flow.py = the LOS)
+src/ui/          Screens (flow.html = the LOS, index.html = the CAM workspace)
+config/          Everything a bank configures (flow.yaml, data_sources.yaml, rules.yaml, …)
+storage/         Borrowers' document packs        test-documents/  Test prospect documents
+tests/           Automated tests                  docs/            Documentation
 ```
-
-## CAM Intelligence Platform
-
-This is the credit engine underneath the LOS, and it can also be used on its own at `/`.
-
-- **Inputs:** financial statements, KYC, bureau, MCA, GST, market and exchange data.
-- **Analysis:** 14 deterministic engines (ratios, benchmarks, policy, fraud signals, PEP screening,
-  stress, reassessment), run as a 7-agent pipeline on the same `AgentGraph`.
-- **Output:** a 21-section CAM with LLM narrative (figure-checked), PDF and one-pager export.
-- **Workflow:** maker–checker approvals against a delegation matrix.
-
-The seeded catalogue has six companies with document packs: APOL001, INFY001, IHCL001, MFL001,
-MRF001 and PNCR001. ABCE001 is a synthetic borrower. New prospects can also be created in the
-LOS from their documents.
-
-Each LLM-written CAM section is checkpointed, so a re-run after a failure reuses the finished
-sections. Prompts live in `src/engines/cam_sections.py`; bump `PROMPT_VERSION` when you change
-them. To check the CAM without waiting for the LLM, set `narrative.mode: template` or
-`active_provider: mock`.
 
 ## License
 

@@ -50,7 +50,8 @@ SECTIONS = [
 
 # Heading → analytical section id (works for template and LLM headings). Order matters.
 _HEADING_IDS = [
-    (r"executive summary", "executive_summary"), (r"social media", "social_media"),
+    (r"executive summary|decision summary", "executive_summary"), (r"social media", "social_media"),
+    (r"borrower, group", "borrower_profile"), (r"financial performance", "financial_analysis"),
     (r"borrower profile", "borrower_profile"), (r"client background|business activity", "project_details"),
     (r"group compan|shareholder", "group_shareholders"), (r"directors|key management", "directors_kmp"),
     (r"operational analysis", "operational_kpis"), (r"peer comparison|benchmarking", "benchmarking"),

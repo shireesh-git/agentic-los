@@ -5,6 +5,8 @@ narrative:
   # deterministic templates and labels the case (narrative_mode: template_fallback), so the LOS journey
   # continues; 'fail' stops the credit case instead.
   on_llm_unavailable: template
+  # CAM layout: 'streamlined' (Decision Summary built from data + 8 merged sections) or 'classic' (21 sections)
+  cam_structure: streamlined
   max_tokens_per_section: 2500
   # The CAM system prompt and per-section prompts live in code:
   # SYSTEM_PROMPT / CAM_SECTIONS in src/engines/cam_llm_renderer.py (bump PROMPT_VERSION on change).
@@ -20,12 +22,8 @@ narrative:
   # when the model would otherwise run on. Each sits well above what the section's
   # instructions ask for; raise one if the log shows
   # "<provider> output hit the N-token limit". Unlisted sections keep their own limit.
-  section_max_tokens:
-    compliance: 1800
-    security_collateral: 1800
-    conduct: 1500
-    benchmarking: 1500
-    social_media: 1500
+  # e.g. {conduct_compliance: 2000}. Empty: each section's own limit (src/engines/cam_sections.py).
+  section_max_tokens: {}
 providers:
   mock:
     name: Mock (Deterministic)
@@ -41,7 +39,9 @@ providers:
   nvidia_nim:
     name: NVIDIA NIM
     type: openai                        # NIM serves an OpenAI-compatible API
-    model: nvidia/nemotron-3-super-120b-a12b
+    # Nov 2026: nemotron-3-super-120b-a12b (the earlier default) returns 404 "Function not found for
+    # account" on this key; lightning-30b writes the 21-section Infosys CAM in ~80s at 4 sections at once.
+    model: nvidia/nemotron-3.5-lightning-30b-a3b
     model_env: NVIDIA_NIM_MODEL
     base_url: https://integrate.api.nvidia.com/v1
     base_url_env: NVIDIA_NIM_BASE_URL   # overrides base_url when set
@@ -52,8 +52,9 @@ providers:
     # reasoning model on NIM's shared endpoint can take several minutes — 60s was too short.
     timeout_seconds: 60
     timeout_seconds_env: NVIDIA_NIM_TIMEOUT_SECONDS
-    # Sections written at once. NIM's free endpoint throttles bursts; 2 keeps retries rare.
-    max_parallel_sections: 2
+    # Sections written at once. Tested at 4 on the Infosys CAM (Nov 2026): no rate-limit retries;
+    # drop back to 2 if NIM's free endpoint starts throttling bursts.
+    max_parallel_sections: 4
     # Calls in flight across ALL parallel agents (CAM sections, document intake, reconciliation…).
     max_parallel_llm: 4
     vision: false                       # set true when model is a vision model

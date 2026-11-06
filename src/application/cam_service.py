@@ -86,9 +86,14 @@ class CamService:
         case = self.cases.get_run(entity_id, run_id)
         return markdown_to_html(self._edited_markdown(entity_id, case), case.get("company_name", entity_id))
 
-    def pdf(self, entity_id: str, run_id: str | None = None) -> bytes:
+    def pdf(self, entity_id: str, run_id: str | None = None, decision_summary: str | None = None) -> bytes:
+        """The CAM PDF. ``decision_summary``: markdown that replaces the CAM's Decision Summary section (the
+        workflow's live version — answers, deviations and approvals recorded after the CAM was written)."""
         case = self.cases.get_run(entity_id, run_id)
-        return generate_cam_pdf(self._edited_markdown(entity_id, case), case.get("company_name", entity_id),
+        md = self._edited_markdown(entity_id, case)
+        if decision_summary:
+            md = replace_section(md, "DECISION SUMMARY", decision_summary)
+        return generate_cam_pdf(md, case.get("company_name", entity_id),
                                 section_comments=self.persistence.load_case_comments(case.get("run_id")))
 
     def one_pager(self, entity_id: str, run_id: str | None = None) -> str:
@@ -115,3 +120,24 @@ class CamService:
             except Exception:
                 pass
         return "# CAM Report\n\nNarrative content could not be generated. Please re-run the case."
+
+
+_SEP = "\n\n---\n\n"
+
+
+def replace_section(md: str, title: str, new: str) -> str:
+    """``md`` with its level-2 section titled ``title`` replaced by ``new`` (inserted after the contents
+    page when the CAM has no such section — e.g. a classic-layout CAM)."""
+    import re
+    m = re.search(rf"^## {re.escape(title)}\s*$", md, re.M | re.I)
+    if m:
+        nxt = re.search(r"^## ", md[m.end():], re.M)
+        end = m.end() + nxt.start() if nxt else len(md)
+        body = md[:m.start()] + new.rstrip() + _SEP + md[end:]
+        return re.sub(r"(?:---\s*\n\s*){2,}", "---\n\n", body)
+    toc = re.search(r"^## TABLE OF CONTENTS\s*$", md, re.M | re.I)
+    if toc:
+        nxt = re.search(r"^## ", md[toc.end():], re.M)
+        at = toc.end() + nxt.start() if nxt else len(md)
+        return md[:at] + new.rstrip() + _SEP + md[at:]
+    return new.rstrip() + _SEP + md

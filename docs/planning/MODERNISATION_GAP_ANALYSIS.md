@@ -18,7 +18,7 @@
 ## 1. Summary
 
 The codebase is a strong functional prototype of this exact journey. It was built against an
-earlier client specification ([clientspec.md](../../clientspec.md), "Client One") that describes
+earlier client specification ([clientspec.md](clientspec.md), "Client One") that describes
 the same 19-stage process. The workflow skeleton, maker–checker controls, carry-forward of the
 case, audit trail, due-diligence workspace, facilities, securities, projects, ESMS,
 conditions, disbursement record and generated documents all exist.

@@ -7,6 +7,18 @@ import html as _html_mod
 import re as _re
 
 
+def _markup(text: str, italic: bool = False) -> str:
+    """Markdown-style text as ReportLab paragraph markup. Everything is escaped first (AI-written text can
+    hold "<", "&" or a bare <br>, which ReportLab's parser rejects), then line breaks, **bold** and,
+    for body text, *italic* are put back."""
+    s = _html_mod.escape(str(text or ""), quote=False)
+    s = _re.sub(r"&lt;br\s*/?&gt;", "<br/>", s, flags=_re.I)
+    s = _re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", s)
+    if italic:
+        s = _re.sub(r"\*(.+?)\*", r"<i>\1</i>", s)
+    return s
+
+
 def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str] | None = None) -> bytes:
     """Generate a professional CAM PDF with cover page, headers, footers, and page breaks."""
     from io import BytesIO
@@ -108,6 +120,12 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
     lines = md.split("\n")
     table_buf = []
 
+    def _p(text, style, italic=False):
+        try:
+            return Paragraph(_markup(text, italic), style)
+        except ValueError:                       # markup the parser still rejects: show the plain text
+            return Paragraph(_html_mod.escape(_re.sub(r"<[^>]+>", " ", str(text or ""))), style)
+
     def _flush_table():
         if not table_buf:
             return
@@ -128,9 +146,7 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
             # Wrap cells in Paragraphs for word-wrapping
             wrapped = []
             for ci, c in enumerate(cells):
-                c = _re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", c)
-                style = styles["CamBody"]
-                wrapped.append(Paragraph(c, style))
+                wrapped.append(_p(c, styles["CamBody"]))
             data_rows.append(wrapped)
         # Skip header-only tables (1 row = header with no data)
         if len(data_rows) <= 1:
@@ -223,7 +239,7 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
     story.append(Paragraph("(CAM)", styles["CoverDivision"]))
     story.append(Spacer(1, 12*mm))
     # Borrower name in a highlighted box
-    borrower_tbl = Table([[Paragraph(company_name.upper(), styles["CoverCompany"])]], colWidths=[150*mm])
+    borrower_tbl = Table([[_p(company_name.upper(), styles["CoverCompany"])]], colWidths=[150*mm])
     borrower_tbl.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), SECTION_BG),
         ("TOPPADDING", (0, 0), (-1, -1), 10),
@@ -314,10 +330,10 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
             # Skip "Generation Metadata" heading - render inline
             if text.strip().lower() == "generation metadata":
                 story.append(Spacer(1, 4*mm))
-                story.append(Paragraph(text, styles["CamH2"]))
+                story.append(_p(text, styles["CamH2"]))
                 continue
             # Section heading with blue left bar
-            h1_tbl = Table([[Paragraph(text, styles["CamH1"])]], colWidths=[A4[0] - 30*mm])
+            h1_tbl = Table([[_p(text, styles["CamH1"])]], colWidths=[A4[0] - 30*mm])
             h1_tbl.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, -1), SECTION_BG),
                 ("LINEBEFORE", (0, 0), (0, -1), 3, BANK_BLUE),
@@ -331,7 +347,7 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
             section_text = stripped[3:]
             # Subsection heading with subtle bottom border
             story.append(Spacer(1, 2*mm))
-            story.append(Paragraph(section_text, styles["CamH2"]))
+            story.append(_p(section_text, styles["CamH2"]))
             # Add subtle underline
             h2_line = Table([[""]], colWidths=[A4[0] - 30*mm])
             h2_line.setStyle(TableStyle([
@@ -360,22 +376,18 @@ def generate_cam_pdf(md: str, company_name: str, section_comments: dict[str, str
         elif stripped.startswith("### ") or stripped.startswith("#### "):
             text = _re.sub(r"^#{3,4}\s+", "", stripped)
             story.append(Spacer(1, 1.5*mm))
-            story.append(Paragraph(text, styles["CamH3"]))
+            story.append(_p(text, styles["CamH3"]))
         elif stripped.startswith("---"):
             # Subtle section divider
             story.append(Spacer(1, 3*mm))
         elif stripped.startswith("- ") or stripped.startswith("* "):
-            text = stripped[2:]
-            text = _re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
-            story.append(Paragraph(f"\u2022 {text}", styles["CamBullet"]))
+            story.append(_p(f"\u2022 {stripped[2:]}", styles["CamBullet"]))
         elif stripped.startswith("*Source:") and stripped.endswith("*"):
             # Source tags — render in distinctive italic grey style
             source_text = stripped[1:-1]  # Remove surrounding asterisks
-            story.append(Paragraph(source_text, styles["CamSource"]))
+            story.append(_p(source_text, styles["CamSource"]))
         else:
-            text = _re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", stripped)
-            text = _re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
-            story.append(Paragraph(text, styles["CamBody"]))
+            story.append(_p(stripped, styles["CamBody"], italic=True))
 
     _flush_table()
     doc.build(story, onFirstPage=_first_page, onLaterPages=_header_footer)

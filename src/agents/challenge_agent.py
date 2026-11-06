@@ -283,7 +283,13 @@ def _leverage(c: _Case) -> Optional[dict]:
     capex, ocf = _num(cf.get("capex_cr")), _num(cf.get("operating_cash_flow_cr"))
     severity = "HIGH" if above or (pro_forma is not None and pro_forma > max_de) else "MEDIUM"
     obs, tasks = c.links(("LEVERAGE_INCREASE",), ("LEVERAGE",))
-    text = f"Debt/EBITDA rose from {de0}x to {de1}x against a policy maximum of {max_de}x."
+    if de0 is None:
+        text = f"Debt/EBITDA is {de1}x against a policy maximum of {max_de}x."
+    elif de1 > de0:
+        text = f"Debt/EBITDA rose from {de0}x to {de1}x against a policy maximum of {max_de}x."
+    else:
+        text = (f"Debt/EBITDA fell from {de0}x to {de1}x but is still above the policy maximum of {max_de}x."
+                if above else f"Debt/EBITDA moved from {de0}x to {de1}x against a policy maximum of {max_de}x.")
     if pro_forma is not None:
         text += f" With the proposed limit drawn, debt of {_cr(pro_forma_debt)} would be {pro_forma}x EBITDA."
     if capex and ocf is not None and capex > ocf:

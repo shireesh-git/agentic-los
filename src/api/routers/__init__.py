@@ -1,7 +1,7 @@
 """HTTP routers, one per business area."""
 
 from src.api.routers import (
-    admin, analytics, approvals, cam, cases, challenges, chat, companies, diagnostics, documents, external, final_cam, investigations, los, observations, onboarding, reassessment, repayment, stress_test, system,
+    admin, analytics, approvals, cam, cases, challenges, chat, companies, diagnostics, documents, external, final_cam, flow, investigations, observations, onboarding, reassessment, repayment, stress_test, system,
 )
 
 ALL_ROUTERS = [
@@ -24,5 +24,5 @@ ALL_ROUTERS = [
     chat.router,
     admin.router,
     diagnostics.router,
-    los.router,
+    flow.router,
 ]

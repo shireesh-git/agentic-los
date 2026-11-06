@@ -26,16 +26,17 @@ from src.models.canonical_model import (
     FacilityType, Sector, RiskSeverity,
 )
 from src.data.synthetic_companies import ALL_COMPANIES
-from src.data.mock_external_apis import (
-    mock_mca_company_master, mock_bureau_commercial_report,
-    mock_gst_turnover, mock_market_news_sentiment, mock_rating_action,
-)
 from src.engines.ratio_engine import compute_all_ratios, compute_multi_period_ratios
 from src.engines.validation_engine import run_all_validations
 from src.engines.benchmark_engine import benchmark_all_periods, get_worst_benchmarks
 from src.engines.policy_engine import tier1_hard_rules, tier2_scoring, tier3_recommendation
 from src.engines.cam_fact_builder import build_cam_fact_pack
-from src.engines.cam_renderer import render_complete_cam
+from src.engines.cam_llm_renderer import render_cam_template_only as render_complete_cam
+
+
+def _not_found() -> dict:
+    """An external source with no record (bureau, GST): what the engine sees when no API is connected."""
+    return {"source_status": "not_found", "payload": {}}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -120,8 +121,8 @@ class TestValidationEngine:
     def _run_validation(self, entity_id):
         co = _co(entity_id)
         b = co["borrower"]
-        bureau = mock_bureau_commercial_report(b.pan)
-        gst = mock_gst_turnover(b.pan)
+        bureau = _not_found()
+        gst = _not_found()
         market_signals = co.get("market_signals", [])
         return run_all_validations(
             borrower=b,
@@ -194,9 +195,9 @@ class TestPolicyEngine:
     def _run_policy(self, entity_id):
         co = _co(entity_id)
         b = co["borrower"]
-        bureau = mock_bureau_commercial_report(b.pan)
+        bureau = _not_found()
         market_signals = co.get("market_signals", [])
-        gst = mock_gst_turnover(b.pan)
+        gst = _not_found()
 
         exceptions = run_all_validations(
             borrower=b,
@@ -316,7 +317,7 @@ class TestEndToEnd:
     def test_bharat_mfg_complete_pipeline(self):
         fp = build_cam_fact_pack(ALL_COMPANIES["BMFG001"])
         cam = render_complete_cam(fp)
-        assert "CREDIT APPROVAL MEMORANDUM" in cam
+        assert "CREDIT APPRAISAL MEMORANDUM" in cam
         assert "Bharat Manufacturing" in cam
         assert "RECOMMENDATION" in cam
         assert len(cam) > 5000, f"CAM too short: {len(cam)} chars"
@@ -325,7 +326,7 @@ class TestEndToEnd:
         fp = build_cam_fact_pack(ALL_COMPANIES["PINF001"])
         cam = render_complete_cam(fp)
         assert "Pinnacle Infra" in cam
-        assert "VALIDATION" in cam
+        assert "DECISION SUMMARY" in cam and "Hard rules" in cam
         assert len(cam) > 5000
 
     def test_sunrise_pharma_complete_pipeline(self):

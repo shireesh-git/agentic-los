@@ -1,5 +1,10 @@
 # CAM Datapoint Source Matrix
 
+> **Reference notes on the credit engine.** For the complete, current list of data points and their sources
+> (APIs, uploaded files, calculations), see [docs/DATA_POINTS_AND_SOURCES.md](../DATA_POINTS_AND_SOURCES.md).
+> The CAM section mapping below refers to the classic 21-section layout; the default CAM is now the streamlined
+> Decision Summary + 8 sections (`src/engines/cam_sections.py`).
+
 ## 1. Purpose
 
 This document defines, in code-level terms, where the CAM gets its data from, which datapoints are real vs synthetic/derived, which Probe42 v2 APIs are used, which uploaded/downloaded documents are parsed locally, and which CAM sections consume each source.

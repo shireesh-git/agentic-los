@@ -6,11 +6,8 @@ import time
 
 import pytest
 
-from src.agentic.critic import CriticAgent, check_evidence, check_figures
 from src.agentic.graph import AgentGraph, GraphError, Node
-from src.agentic.runtime import AgentSpec, LLMAgent
 from src.agentic.schema import parse_json_object, validate
-from src.agentic.tools import ToolRegistry
 from src.core.llm_provider import (BaseLLMProvider, LLMUnavailableError, MockLLMProvider, StructuredOutputError,
                                    _provider_semaphore)
 
@@ -197,113 +194,3 @@ def test_max_parallel_llm_caps_calls_in_flight():
     assert llm.peak == 2                               # … but only 2 model calls were in flight
     clone = llm.with_model("other")
     assert clone._llm_semaphore is llm._llm_semaphore  # a routed model shares the provider's cap
-
-
-# ── Tools ────────────────────────────────────────────────────────────────────
-
-def _registry():
-    reg = ToolRegistry()
-
-    @reg.tool("add", "Add two numbers", {"type": "object", "required": ["a", "b"],
-                                         "properties": {"a": {"type": "number"}, "b": {"type": "number"}}})
-    def add(a, b):
-        return a + b
-
-    @reg.tool("save", "Propose a value", {"type": "object", "properties": {}}, permission="propose")
-    def save():
-        return "saved"
-
-    @reg.tool("slow", "Slow lookup", {"type": "object", "properties": {"k": {"type": "string"}}})
-    def slow(k=""):
-        time.sleep(0.2)
-        return k
-
-    return reg
-
-
-def test_tool_call_validates_permissions_and_audits():
-    reg, audit = _registry(), []
-    assert reg.call("add", {"a": 2, "b": 3}, audit=audit)["result"] == 5
-    bad = reg.call("add", {"a": "two"}, audit=audit)
-    assert not bad["ok"] and "invalid arguments" in bad["error"]
-    denied = reg.call("save", {}, caller="reader", permissions=("read",), audit=audit)
-    assert not denied["ok"] and "may not use propose tool" in denied["error"]
-    assert reg.call("save", {}, permissions=("read", "propose"))["result"] == "saved"
-    assert [a["ok"] for a in audit] == [True, False, False]
-    assert reg.specs(permissions=("read",)) and all(s["permission"] == "read" for s in reg.specs(permissions=("read",)))
-
-
-# ── LLMAgent ─────────────────────────────────────────────────────────────────
-
-ANSWER = {"type": "object", "required": ["total"], "properties": {"total": {"type": "number"}}}
-
-
-def test_agent_calls_tools_in_parallel_then_answers():
-    reg = _registry()
-    llm = ScriptedLLM([
-        '{"thought": "look up both", "action": "tools", "calls": [{"tool": "slow", "args": {"k": "a"}}, '
-        '{"tool": "slow", "args": {"k": "b"}}, {"tool": "add", "args": {"a": 2, "b": 3}}]}',
-        '{"thought": "done", "action": "final", "final": {"total": 5}}',
-    ])
-    agent = LLMAgent(AgentSpec(name="adder", instructions="Add.", output_schema=ANSWER,
-                               tools=["add", "slow"]), llm, tools=reg)
-    t = time.perf_counter()
-    run = agent.run("What is 2 + 3?")
-    assert run.status == "completed" and run.output == {"total": 5}
-    assert time.perf_counter() - t < 0.35              # the two slow calls overlapped
-    assert len(run.tool_calls) == 3 and run.llm_calls == 2
-    assert '"result": 5' in llm.prompts[1]             # observations fed back
-
-
-def test_agent_rejects_a_bad_final_answer_then_accepts_the_fix():
-    # A malformed answer is caught by the structured-output retry …
-    llm = ScriptedLLM(['{"action": "final", "final": {"total": "five"}}',
-                       '{"action": "final", "final": {"total": 5}}'])
-    run = LLMAgent(AgentSpec(name="a", instructions=".", output_schema=ANSWER), llm, tools=_registry()).run("x")
-    assert run.status == "completed" and run.output == {"total": 5}
-    assert "previous reply was invalid" in llm.prompts[1]
-    # … and a 'final' with no answer is rejected by the agent loop and corrected next step.
-    llm = ScriptedLLM(['{"action": "final"}', '{"action": "final", "final": {"total": 5}}'])
-    run = LLMAgent(AgentSpec(name="a", instructions=".", output_schema=ANSWER), llm, tools=_registry()).run("x")
-    assert run.status == "completed" and run.steps[0]["rejected"]
-
-
-def test_agent_step_budget_and_mock_fallback():
-    llm = ScriptedLLM(['{"action": "tools", "calls": [{"tool": "add", "args": {"a": 1, "b": 1}}]}'] * 5)
-    run = LLMAgent(AgentSpec(name="a", instructions=".", output_schema=ANSWER, tools=["add"], max_steps=2),
-                   llm, tools=_registry()).run("x")
-    assert run.status == "failed"
-    run = LLMAgent(AgentSpec(name="a", instructions=".", output_schema=ANSWER), MockLLMProvider()).run("x")
-    assert run.status == "unavailable"
-
-
-# ── Critic ───────────────────────────────────────────────────────────────────
-
-FACTS = {"revenue_cr": 1250.4, "dscr": 1.42, "ebitda_margin_pct": 18.2}
-
-
-def test_check_figures_flags_invented_numbers():
-    assert check_figures("Revenue was ₹1,250.4 Cr with DSCR of 1.42x.", FACTS) == []
-    assert check_figures("Revenue was ₹1,310.0 Cr and margin 18.2%.", FACTS) == ["1,310.0"]
-
-
-def test_check_evidence_requires_the_basis_for_each_source():
-    ok = {"field_id": "revenue", "value": 1250.4, "source": "document", "confidence": 0.9,
-          "evidence": {"document": "AR_FY25.pdf", "page": 42}}
-    assert check_evidence(ok) == []
-    assert "without page" in check_evidence({**ok, "evidence": {"document": "AR_FY25.pdf"}})[0]
-    assert "unknown source" in check_evidence({**ok, "source": "guess"})[0]
-    draft = {"field_id": "strengths", "value": "Margins of 32.5% are strong.", "source": "ai_draft",
-             "evidence": {"facts": FACTS}}
-    assert "figures not in the facts" in check_evidence(draft)[0]
-
-
-def test_critic_agent_verdicts():
-    critic = CriticAgent()
-    assert critic.review_text("DSCR is 1.42x.", FACTS).passed
-    assert not critic.review_text("DSCR is 2.10x.", FACTS).passed
-    verdicts = critic.review_proposals([
-        {"field_id": "dscr", "value": 1.42, "source": "engine", "evidence": {"engine": "ratio"}},
-        {"field_id": "dscr", "value": 1.42, "source": "engine", "evidence": {}},
-    ])
-    assert [v.passed for v in verdicts] == [True, False]

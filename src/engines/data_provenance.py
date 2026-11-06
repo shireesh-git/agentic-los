@@ -34,6 +34,8 @@ CLASS_LABELS = {
 _STATIC = {
     "meta": "derived", "case_summary": "source", "facility_details": "source", "facility_pricing": "template",
     "ratio_analysis": "calculated", "benchmark_summary": "calculated", "drawing_power": "calculated",
+    "debt_capacity": "calculated", "earnings_quality": "calculated", "revenue_truth": "calculated",
+    "ews_indicators": "derived",
     "cash_flow_repayment": "calculated", "financial_projections": "calculated", "policy_thresholds": "template",
     "validation_exceptions": "derived", "policy_decisions": "derived", "approving_authority": "derived",
     "credit_strengths": "derived", "key_risks": "derived", "compliance_checks": "derived",

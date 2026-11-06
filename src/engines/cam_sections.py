@@ -694,4 +694,202 @@ SYSTEM_PROMPT = (
 
 # Bump whenever CAM_SECTIONS instructions or SYSTEM_PROMPT change in a way that
 # should invalidate saved section checkpoints and be traceable in the output.
-PROMPT_VERSION = "cam-2026.10-4"  # -4: no LLM calculation; data provenance; compact ratios
+PROMPT_VERSION = "cam-2026.11-5"  # -5: streamlined CAM (decision summary + 8 merged sections)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Streamlined CAM (Phase 1, C1): a Decision Summary built from data, then eight sections that merge
+# the 21 above. ``merge``: the classic sections whose template renderers make this section's fallback
+# (no LLM); ``tables``: deterministic tables appended after the text (cam_quality_sections.TABLES), so
+# the decisive figures are exactly the engine's whatever the model writes. Sub-headings named in the
+# instructions are the ones the workflow reads values from (src/flow/datapoints.py, SECTIONS).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+CAM_SECTIONS_STREAMLINED = [
+    {"id": "cover_page", "title": "Cover Page", "skip_llm": True},
+    {"id": "toc", "title": "Table of Contents", "skip_llm": True},
+    {"id": "decision_summary", "title": "Decision Summary", "skip_llm": True},
+    {
+        "id": "borrower_group",
+        "title": "1. Borrower, Group & Management",
+        "merge": ["borrower_profile", "group_shareholders", "directors_kmp"],
+        "data_keys": ["borrower_profile", "group_profile", "corporate_hierarchy", "management_profile",
+                      "pep_screening", "external_intelligence"],
+        "instruction": (
+            "Write the borrower, group and management section with these sub-headings:\n"
+            "### Corporate Identification — table | Particulars | Details | Source / Remarks | with Company Name, CIN, "
+            "PAN, Date of Incorporation, Registered State, Listed Exchange, Credit Rating, Paid-up Capital.\n"
+            "### Business Overview — two or three sentences: what the company does, scale, history.\n"
+            "### Group & Shareholding — shareholding table (Promoter, Institutional, Public) and group entities, "
+            "only from the data.\n"
+            "### Management Assessment — board and key managers (table: Name | Designation | DIN | Source / Remarks), "
+            "then a short assessment of experience, governance and any related-party concern; PEP / sanctions "
+            "screening outcome in one line.\n"
+            "250-350 words."
+        ),
+        "max_tokens": 2500,
+    },
+    {
+        "id": "business_industry",
+        "title": "2. Business, Industry & Peers",
+        "merge": ["project_details", "industry_analysis", "operational_kpis", "benchmarking"],
+        "data_keys": ["case_summary", "industry_analysis", "sector_kpis", "infra_metrics", "benchmark_summary",
+                      "market_signals", "policy_thresholds", "facility_details"],
+        "instruction": (
+            "Write the business, industry and peer section with these sub-headings:\n"
+            "### Nature of Business — revenue segments and geography (table with Source / Remarks), key capabilities, "
+            "and what the facility finances. For infrastructure borrowers with project data, add a short project "
+            "table (name, model, contract value, progress); otherwise omit it.\n"
+            "### Industry Overview — sector state, drivers and headwinds; a SWOT Analysis in four short bullets "
+            "(**Strengths**: … **Weaknesses**: … **Opportunities**: … **Threats**: …).\n"
+            "### Peer Comparison — one table from benchmark_summary: Metric | Borrower | Peer P25 | Median | P75 | "
+            "Position | Source / Remarks; then two sentences on where the borrower is weakest. Sector KPIs only "
+            "where the data has them (write 'Not available' otherwise; never apply infrastructure ranges to other "
+            "sectors).\n"
+            "400-550 words."
+        ),
+        "max_tokens": 3500,
+    },
+    {
+        "id": "financial_performance",
+        "title": "3. Financial Performance & Earnings Quality",
+        "merge": ["financial_analysis"],
+        "tables": ["earnings_quality", "revenue_truth"],
+        "data_keys": ["financial_summary", "ratio_analysis", "benchmark_summary", "cash_flow_repayment",
+                      "earnings_quality", "revenue_truth", "policy_thresholds"],
+        "instruction": (
+            "Write the financial performance section with these sub-headings:\n"
+            "### Profit & Loss — table with one column per period: Revenue, EBITDA, EBITDA Margin %, PAT, PAT Margin %, "
+            "plus YoY growth from financial_summary.growth_by_period ('n/a' if absent) and Source / Remarks.\n"
+            "### Balance Sheet — table: Net Worth, Total Debt, Total Assets, Current Assets, Current Liabilities, "
+            "Trade Receivables, Inventory; one column per period.\n"
+            "### Key Ratios — table: Ratio | one column per period | Policy (policy_thresholds) | Assessment, for DSCR, "
+            "Interest Cover, Debt/EBITDA, Current Ratio, TOL/TNW, D/E, EBITDA Margin, Debtor Days, WC Cycle.\n"
+            "### Quality of Earnings — interpret earnings_quality and revenue_truth: is profit operating and "
+            "cash-backed, and is revenue supported by independent data? Quote their figures; do not recompute. "
+            "(The exact tables follow this section automatically — do not reproduce them.)\n"
+            "450-600 words."
+        ),
+        "max_tokens": 3500,
+    },
+    {
+        "id": "repayment_projections",
+        "title": "4. Repayment Capacity, Projections & Stress",
+        "merge": ["financial_projections"],
+        "tables": ["debt_capacity"],
+        "data_keys": ["financial_projections", "cash_flow_repayment", "debt_capacity", "policy_thresholds",
+                      "facility_details", "case_summary"],
+        "instruction": (
+            "Write the repayment section using ONLY the computed figures (never calculate):\n"
+            "### Repayment Capacity — cash accruals against debt service from cash_flow_repayment; state DSCR "
+            "against policy_thresholds.min_dscr.\n"
+            "### Projections — if financial_projections.available is false, state why and stop this sub-section; "
+            "otherwise a table Year | Revenue | EBITDA | OCF | Principal | Interest | DSCR | Assessment, and the "
+            "basis of the assumptions in one sentence.\n"
+            "### Stress Tests — table Scenario | DSCR | Assessment from financial_projections.stress_tests.\n"
+            "### Sustainable Limit — explain debt_capacity in plain words: the binding limit, the sustainable limit "
+            "against the amount requested, and debt_capacity.recommendation.text. (The exact table follows "
+            "automatically — do not reproduce it.)\n"
+            "300-400 words."
+        ),
+        "max_tokens": 2800,
+    },
+    {
+        "id": "facility_structure",
+        "title": "5. Facility Assessment, Structure & Pricing",
+        "merge": ["facility_assessment"],
+        "data_keys": ["facility_details", "facility_pricing", "drawing_power", "existing_exposure", "debt_capacity",
+                      "case_summary", "infra_metrics"],
+        "instruction": (
+            "Write the facility section with these sub-headings:\n"
+            "### Facility Overview — table | Parameter | Details | Source / Remarks |: Facility Type, Amount, Purpose, "
+            "Tenor, Existing Limit, Proposed Limit.\n"
+            "### Assessment of the Limit — for working capital: drawing power (components and total) against the "
+            "limit; for term loans / projects: project cost and means of finance where the data has them. Relate "
+            "the requested amount to debt_capacity.sustainable_cr.\n"
+            "### Pricing — table | Facility | Interest Rate | Processing Fee | Penal Interest | Source / Remarks |.\n"
+            "### End-Use & Monitoring — end-use, disbursement mechanism and repayment source in three sentences.\n"
+            "250-350 words."
+        ),
+        "max_tokens": 2200,
+    },
+    {
+        "id": "conduct_compliance",
+        "title": "6. Conduct, Compliance & Due Diligence",
+        "merge": ["compliance", "conduct", "core_banking"],
+        "tables": ["ews"],
+        "data_keys": ["external_intelligence", "compliance_checks", "pep_screening", "crilc_exposure",
+                      "conduct_analysis", "covenant_history", "core_banking_analysis", "existing_exposure",
+                      "borrower_profile", "ews_indicators"],
+        "instruction": (
+            "Write the conduct and compliance section with these sub-headings:\n"
+            "### External Rating — agency, rating, outlook, date (table with Source / Remarks), only from the data.\n"
+            "### Regulatory & Bureau Checks — table | Check | Status | Details | Source / Remarks | for MCA status, "
+            "GST filing, bureau score and DPD, CRILC SMA / classification, wilful defaulter, suit filed, RBI "
+            "defaulter list. Write 'Not verified — not on record' where the data has no value: never imply a pass.\n"
+            "### Account Conduct & Banking — for existing customers, conduct and relationship from the data; for "
+            "new-to-bank, say so and name existing lenders if the data has them.\n"
+            "### Early-Warning Assessment — one paragraph on ews_indicators: flags raised, what was not checkable "
+            "and why. (The exact table follows automatically — do not reproduce it.)\n"
+            "250-350 words."
+        ),
+        "max_tokens": 2500,
+    },
+    {
+        "id": "risk_challenges",
+        "title": "7. Risk Assessment & Challenges",
+        "merge": ["risk_assessment"],
+        "data_keys": ["policy_decisions", "key_risks", "credit_strengths", "validation_exceptions",
+                      "external_intelligence"],
+        "instruction": (
+            "Write the risk section with these sub-headings:\n"
+            "### Internal Credit Rating — scorecard table | Parameter | Score | Source / Remarks | (financial, conduct, "
+            "governance, market, composite) and the grade.\n"
+            "### Hard Rules — table | Rule | Result | Details | from policy_decisions.tier1_hard_rules; 'not_verified' "
+            "is shown as 'Not verified', never as a pass.\n"
+            "### Key Risk Factors — the top risks, each as: risk — severity — mitigant (or 'no mitigant on record'). "
+            "Then the key strengths in one short list.\n"
+            "250-350 words."
+        ),
+        "max_tokens": 2200,
+    },
+    {
+        "id": "security_terms",
+        "title": "8. Security, Covenants, Terms & Recommendation",
+        "merge": ["security_collateral", "covenants", "recommendation", "terms_conditions"],
+        "data_keys": ["collateral_analysis", "charges_data", "policy_decisions", "policy_thresholds", "ratio_analysis",
+                      "approving_authority", "facility_details", "case_summary", "credit_strengths", "key_risks"],
+        "instruction": (
+            "Write the closing section with these sub-headings:\n"
+            "### Security Structure — table | Security | Description | Market Value | FSV | Source / Remarks | and the "
+            "FSV cover against the facility.\n"
+            "### Conditions Precedent — numbered list from the data.\n"
+            "### Financial Covenants — table | Covenant | Threshold | Current Actual | Compliance |: thresholds from "
+            "policy_thresholds, actuals from the latest ratio_analysis.\n"
+            "### Terms & Conditions — the key general and specific terms in at most six bullets.\n"
+            "### Recommendation — state APPROVE / CONDITIONAL APPROVE / REFER / DECLINE exactly as the policy "
+            "engine recorded it, with the decision rationale (strengths, risks, mitigants) in one paragraph; then "
+            "the approving authority from approving_authority and a signature table | Authority | Name | "
+            "Designation | Signature | Date |.\n"
+            "350-450 words."
+        ),
+        "max_tokens": 3000,
+    },
+    {"id": "annexure_a", "title": "Annexure A — Document Checklist", "skip_llm": True},
+    {"id": "annexure_b", "title": "Annexure B — Quarterly Performance Trend", "skip_llm": True},
+    {"id": "data_sources", "title": "Appendix — Data Sources & Audit Trail", "skip_llm": True},
+    {"id": "disclaimer", "title": "Disclaimer", "skip_llm": True},
+]
+
+
+def active_sections(structure: str | None = None) -> list[dict]:
+    """The CAM's sections: 'streamlined' (default) or 'classic' (the 21-section layout), from
+    config/llm_providers.yaml → narrative.cam_structure unless given."""
+    if structure is None:
+        try:
+            from src.core.config_manager import config
+            structure = ((config.get("llm_providers", "narrative", default={}) or {}).get("cam_structure")
+                         or "streamlined")
+        except Exception:
+            structure = "streamlined"
+    return CAM_SECTIONS if structure == "classic" else CAM_SECTIONS_STREAMLINED

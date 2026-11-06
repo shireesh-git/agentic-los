@@ -1,5 +1,8 @@
 # Agent Evaluation & Debug Harness (M6.1)
 
+> **Scope:** the credit engine's 7 pipeline agents (used by both the LOS and the CAM workspace). The default CAM
+> is now the streamlined Decision Summary + 8 sections, so the narrative agent writes 8 sections, not 21.
+
 Run any of the 7 pipeline agents on its own, on a cached case, and see what it
 actually did. The findings below come from reading the code and running the
 harness on MFL001, APOL001 and ABCE001 (October 2026), not from the earlier
