@@ -95,6 +95,9 @@ providers:
     max_tokens: 4000
     max_parallel_llm: 8
     vision: true
+    # Gemini 3.x thinks first and the thinking counts against max_tokens; 'low' keeps the
+    # whole budget for the CAM text (MINIMAL is refused by gemini-3.8-flash). Empty = model default.
+    thinking_level: low
   ollama:
     name: Ollama (Local)
     type: ollama

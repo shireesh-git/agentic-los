@@ -372,7 +372,16 @@ class VertexAIGeminiProvider(BaseLLMProvider):
         self._temp = cfg.get("temperature", 0.15)
         self._max = cfg.get("max_tokens", 4000)
         self._max_retries = int(cfg.get("max_retries", _DEFAULT_MAX_RETRIES))
+        # Gemini 3.x models think before answering, and thinking tokens count against
+        # max_output_tokens: at the default level CAM sections and Copilot replies come back
+        # cut short. 'low' answers without spending the budget; empty = the model's default.
+        self._thinking_level = str(cfg.get("thinking_level") or "").upper() or None
         self._cached_client = _CachedClient(self._make_client)
+
+    def _thinking(self, types):
+        if not self._thinking_level:
+            return None
+        return types.ThinkingConfig(thinking_level=self._thinking_level)
 
     def _make_client(self):
         from google import genai
@@ -391,6 +400,7 @@ class VertexAIGeminiProvider(BaseLLMProvider):
             system_instruction=system_prompt or None,
             temperature=self._temp if temperature is None else temperature,
             max_output_tokens=limit,
+            thinking_config=self._thinking(types),
         )
         contents = prompt if not images else [
             types.Part.from_bytes(data=base64.b64decode(b64), mime_type=mime)
@@ -414,7 +424,7 @@ class VertexAIGeminiProvider(BaseLLMProvider):
             client = self._client()
             from google.genai import types
             # Thinking models spend part of the budget before answering: 20 tokens can return no text.
-            config = types.GenerateContentConfig(max_output_tokens=512)
+            config = types.GenerateContentConfig(max_output_tokens=512, thinking_config=self._thinking(types))
             resp = client.models.generate_content(
                 model=self.model_name, contents="Say hello", config=config,
             )

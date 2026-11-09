@@ -520,12 +520,12 @@ def _get_gemini():
             from google import genai
             if api_key:
                 _gemini_client = genai.Client(api_key=api_key)
-                _log.info("Gemini OCR: Initialized with API key (gemini-2.0-flash)")
+                _log.info("Gemini OCR: Initialized with API key")
             else:
                 project = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
                 location = os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
                 _gemini_client = genai.Client(vertexai=True, project=project, location=location)
-                _log.info("Gemini OCR: Initialized with Vertex AI ADC (gemini-2.0-flash)")
+                _log.info("Gemini OCR: Initialized with Vertex AI ADC")
         except ImportError:
             _log.warning("Gemini OCR: google-genai package not installed")
             return None
@@ -604,12 +604,14 @@ def extract_text_gemini(filepath: Path, *, max_pages: int = 20) -> dict[str, Any
                 img_bytes = pix.tobytes("png")
                 img = PILImage.open(io.BytesIO(img_bytes))
 
+                # gemini-2.0-flash is retired for new projects; follow the CAM model setting.
                 config = types.GenerateContentConfig(
                     temperature=0.0,
                     max_output_tokens=4096,
+                    thinking_config=types.ThinkingConfig(thinking_level="LOW"),
                 )
                 response = model.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model=os.environ.get("VERTEX_GEMINI_MODEL") or "gemini-3.8-flash",
                     contents=[
                         "Extract ALL text from this document page. "
                         "Preserve the original structure including tables, headers, and formatting. "
