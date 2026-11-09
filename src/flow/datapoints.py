@@ -61,7 +61,8 @@ def display(sp: dict, value) -> str:
     if value in (None, ""):
         return "—"
     if sp.get("type") == "amount" and isinstance(value, (int, float)):
-        return f"₹{value:,.2f} Cr"
+        from src.flow.copilot import crore
+        return crore(value)
     if sp.get("type") == "ratio" and isinstance(value, (int, float)):
         return f"{value:.2f}x"
     if sp.get("type") == "score" and isinstance(value, (int, float)):

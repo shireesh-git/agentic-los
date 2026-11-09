@@ -49,6 +49,10 @@ function flowApp() {
     nc: { open: false, mode: 'borrower', entity_id: '', search: '', product: 'working_capital', amount_cr: '',
           tenor_months: 12, purpose: '', name: '', cin: '', pan: '', sector: 'manufacturing' },
     c: null,
+    tab: 'overview',
+    loading: false,
+    searchOpen: false,
+    listScroll: 0,
     timeline: [],
     showTimeline: false,
     report: null,
@@ -90,6 +94,7 @@ function flowApp() {
 
     async route() {
       if (!this.session) return;
+      this.searchOpen = false; this.bellOpen = false; this.menuOpen = false;
       const m = location.hash.match(/^#case\/(.+)$/);
       if (m) { if (!this.c || this.c.case_id !== m[1] || this.page !== 'case') await this.open(m[1]); }
       else if (location.hash === '#analytics') await this.openReport();
@@ -138,9 +143,16 @@ function flowApp() {
     // ── formatting ─────────────────────────────────────────────────────────
     cr(v) {
       if (v === null || v === undefined || v === '' || isNaN(Number(v))) return '—';
-      return '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Cr';
+      const n = Number(v);
+      const d = Math.abs(n) >= 1000 || Number.isInteger(n) ? 0 : 2;
+      return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: d }) + ' Cr';
     },
-    fmt(type, v) { if (v === null || v === undefined || v === '') return '—'; return type === 'amount' ? this.cr(v) : String(v); },
+    fmt(type, v) {
+      if (v === null || v === undefined || v === '') return '—';
+      if (type === 'amount') return this.cr(v);
+      if (type === 'ratio' && !isNaN(Number(v))) return Number(v).toFixed(2) + 'x';
+      return String(v);
+    },
     product(p) { return { working_capital: 'Working Capital', term_loan: 'Term Loan', project_finance: 'Project Finance' }[p] || String(p || '').replace('_', ' '); },
     dur(s) {
       if (s === null || s === undefined) return '—';
@@ -167,7 +179,24 @@ function flowApp() {
       this.q = await this.get('/api/flow/queue');
       if (this.role() === 'rm' && !this.borrowers.length) this.borrowers = await this.get('/api/flow/borrowers');
     },
-    goPipeline() { location.hash = ''; this.page = 'pipeline'; this.c = null; this.stopPoll(); this.loadQueue(); },
+    goPipeline() {
+      location.hash = ''; this.page = 'pipeline'; this.c = null; this.stopPoll();
+      this.loadQueue().then(() => this.$nextTick(() => window.scrollTo({ top: this.listScroll || 0 })));
+    },
+    searchHits() {
+      const t = this.search.trim().toLowerCase();
+      if (t.length < 2) return [];
+      return (this.q.all || []).filter(r => (r.borrower_name + ' ' + (r.cin || '') + ' ' + r.case_id).toLowerCase().includes(t)).slice(0, 7);
+    },
+    closedAt(r) {
+      const st = r.stage_short || r.stage_label || '';
+      return { disbursed: 'Disbursed', rejected: 'Declined at ' + st, withdrawn: 'Withdrawn at ' + st }[r.status] || st;
+    },
+    shortDate(s) {
+      if (!s) return '';
+      const d = new Date(s); if (isNaN(d)) return String(s).slice(0, 10);
+      return d.getDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+    },
     rows() {
       const src = this.queueTab === 'mine' ? this.q.mine : this.q.all;
       const t = (this.filter.text || this.search || '').toLowerCase();
@@ -239,7 +268,7 @@ function flowApp() {
       const text = (this.qa[q.id] || '').trim();
       if (!text) { this.notify('Type the answer', 'error'); return; }
       this.busy = true;
-      try { this.setCase(await this.post(this.cp('/queries/' + q.id + '/answer'), { text })); delete this.qa[q.id]; this.notify('Answer sent to ' + q.from_name, 'ok'); }
+      try { this.setCase(await this.post(this.cp('/queries/' + q.id + '/answer'), { text })); delete this.qa[q.id]; this.notify('Answer sent to ' + q.from_name, 'ok'); this.loadQueue(); }
       finally { this.busy = false; }
     },
     async withdrawQuery(q) {
@@ -249,18 +278,89 @@ function flowApp() {
 
     // ── a proposal ─────────────────────────────────────────────────────────
     async open(caseId) {
-      this.busy = true;
+      if (this.page === 'pipeline') this.listScroll = window.scrollY;
+      if (!this.c || this.c.case_id !== caseId) { this.c = null; this.page = 'case'; }
+      this.busy = true; this.loading = true;
+      window.scrollTo({ top: 0 });
       try { this.setCase(await this.get('/api/flow/cases/' + caseId)); this.page = 'case'; }
       catch (e) { this.goPipeline(); }
-      finally { this.busy = false; }
+      finally { this.busy = false; this.loading = false; }
     },
     setCase(v) {
       const first = !this.c || this.c.case_id !== v.case_id;
       this.c = v; this.page = 'case';
-      if (first) { this.showTimeline = false; this.timeline = []; this.edit = null; this.cursor = { missing: -1, skipped: -1 }; this.expandedMsg = {}; }
+      if (first) {
+        this.showTimeline = false; this.timeline = []; this.edit = null; this.cursor = { missing: -1, skipped: -1 }; this.expandedMsg = {};
+        this.tab = this.defaultTab(v); window.scrollTo({ top: 0 });
+      }
       if (v.cam && v.cam.state === 'running') this.startPoll(); else this.stopPoll();
       if (this.acquiring()) this.startSrcPoll(); else this.stopSrcPoll();
       this.$nextTick(() => this.scrollChat());
+    },
+
+    // ── proposal tabs (U1) and what needs the signed-in officer (U15) ─────────
+    tabs() {
+      const c = this.c; if (!c) return [];
+      const t = [{ id: 'overview', label: 'Overview', n: this.todo().filter(x => x.tone !== 'info').length },
+                 { id: 'data', label: 'Credit data', n: c.editable ? (c.counts.missing || 0) : 0 },
+                 { id: 'risk', label: 'Risk & decision', n: this.riskOpen() },
+                 { id: 'docs', label: 'Documents & CAM', n: c.can_sources ? ((c.acquisition && c.acquisition.counts.needed) || 0) : 0 }];
+      if (c.sanction) t.push({ id: 'post', label: 'Post-sanction', n: c.can_conditions && c.status === 'open' ? this.cpCount() - this.cpMet() : 0 });
+      t.push({ id: 'activity', label: 'Activity', n: 0 });
+      return t;
+    },
+    riskOpen() {
+      const c = this.c; if (!c || !c.is_mine) return 0;
+      return (c.sanction ? 0 : this.openChallenges().length) + this.devTodo().length + (c.stage === 'sanction' ? (c.pending_changes || 0) : 0);
+    },
+    riskAny() {
+      const c = this.c;
+      return ((c.against || []).length && c.cam.state === 'ready' && !c.sanction) || ((c.register || []).length && c.cam.state === 'ready')
+        || (c.changes || []).some(x => x.status !== 'superseded');
+    },
+    defaultTab(v) {
+      if (v.status === 'open' && v.is_mine && ['cad', 'disbursement'].includes(v.stage)) return 'post';
+      if (v.status === 'open' && v.can_cam && v.cam.state !== 'ready') return 'docs';
+      return 'overview';
+    },
+    showTab(t) {
+      this.tab = t;
+      if (t === 'activity') this.loadTimeline();
+      const head = document.querySelector('.head-card');
+      if (head) { const top = head.getBoundingClientRect().bottom + window.scrollY - 58; if (window.scrollY > top) window.scrollTo({ top }); }
+    },
+    tabOf(id) {
+      return { 'sec-checks': 'overview', 'sec-queries': 'overview', 'sec-todo': 'overview', 'sec-src': 'docs', 'sec-cam': 'docs',
+               'sec-ovr': 'risk', 'sec-dev': 'risk', 'sec-chal': 'risk', 'sec-cp': 'post' }[id] || this.tab;
+    },
+    reveal(id) { this.tab = this.tabOf(id); this.$nextTick(() => this.flash(document.getElementById(id))); },
+    todo() {
+      const c = this.c; const out = [];
+      if (!c || c.status !== 'open') return out;
+      const add = (tone, text, label, act) => out.push({ tone, text, label, act });
+      this.myQueries().forEach(q => add('warn', q.from_name + ' (' + q.stage_label + ') asks: “' + q.question + '”', 'Answer', () => this.reveal('sec-queries')));
+      if (!c.is_mine) return out;
+      if (c.ask) add('warn', 'Credit Copilot is waiting for your answer', 'Open Copilot', () => { this.chatOpen = true; this.$nextTick(() => this.scrollChat()); });
+      if (c.can_cam && c.cam.state === 'none')
+        add('warn', c.can_generate ? 'Generate the CAM, or ingest the bank’s CAM' : (c.generate_blocker || 'Complete the data sources first'), 'Go', () => this.reveal(c.can_generate ? 'sec-cam' : 'sec-src'));
+      if (c.cam.state === 'running') add('info', 'The CAM is being generated · ' + ((c.progress && c.progress.percent) || 0) + '%', 'View progress', () => this.reveal('sec-cam'));
+      if (c.cam.state === 'failed' && (c.can_cam || c.can_rerun)) add('bad', 'CAM generation stopped — resume it', 'Go', () => this.reveal('sec-cam'));
+      if (c.cam.stale && c.can_rerun) add('warn', 'The CAM is out of date: ' + (c.cam.stale_reason || 'figures changed'), 'Re-run', () => this.reveal('sec-cam'));
+      if (c.editable && c.counts.missing) add('bad', c.counts.missing + ' credit data field(s) pending', 'Go to field', () => this.goTo('missing'));
+      if (c.checks && c.checks.open && c.checks.can_note) add('warn', c.checks.open + ' mandatory check(s) open', 'Review', () => this.reveal('sec-checks'));
+      const oc = c.sanction ? [] : this.openChallenges();
+      if (oc.length && ['credit_risk', 'sanction'].includes(c.stage)) add('warn', oc.length + ' key risk challenge(s) to answer', 'Answer', () => this.reveal('sec-chal'));
+      const dv = this.devTodo().length;
+      if (dv) add('warn', dv + ' deviation(s) ' + (c.stage === 'sanction' ? 'awaiting your approval' : 'need a mitigant'), 'Review', () => this.reveal('sec-dev'));
+      if (c.stage === 'sanction' && c.pending_changes) add('warn', c.pending_changes + ' underwriting override(s) need your concurrence', 'Review', () => this.reveal('sec-ovr'));
+      if (c.stage === 'cad' && c.sanction && this.cpCount() > this.cpMet()) add('warn', (this.cpCount() - this.cpMet()) + ' condition(s) precedent outstanding', 'Go', () => this.reveal('sec-cp'));
+      this.openQueries().filter(q => q.stage === c.stage).forEach(q => add('info', 'Waiting for ' + q.to_name + ' to answer ' + q.id + ' · SLA clock paused', 'View', () => this.reveal('sec-queries')));
+      return out;
+    },
+    groupSummary(g) {
+      const n = k => g.points.filter(p => p.status === 'filled' && ((p.source || {}).kind === 'person') === k).length;
+      const a = n(false), b = n(true);
+      return [a ? a + ' by agents' : '', b ? b + ' by people' : ''].filter(Boolean).join(' · ');
     },
 
     // ── data sources (acquisition agents) ─────────────────────────────────
@@ -310,7 +410,7 @@ function flowApp() {
     },
     async refreshSources() { this.setCase(await this.post(this.cp('/sources/refresh'))); },
     async openSource(s) { this.srcView = await this.get(this.cp('/sources/' + s.id)); },
-    fmt(v) { return (v === null || v === undefined) ? '—' : Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+    fmtNum(v) { return (v === null || v === undefined) ? '—' : Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
     async refresh() { if (this.c) this.setCase(await this.get('/api/flow/cases/' + this.c.case_id)); },
     startPoll() {
       if (this.poll) return;
@@ -350,7 +450,7 @@ function flowApp() {
       if (p.flag) return { t: 'Verify', c: 'tg-amber' };
       const s = p.source || {};
       if (s.kind === 'person') return s.override ? { t: 'Overridden', c: 'tg-violet' } : { t: 'Provided', c: 'tg-blue' };
-      return { t: 'Auto-populated', c: 'tg-grey' };     // provenance is neutral: green means good
+      return null;                                       // filled by an agent: the normal case, not marked
     },
     provenance(p) {
       const s = p.source || {};
@@ -368,7 +468,8 @@ function flowApp() {
     editField(id, value, reason, challenge) {
       // open a credit data field for editing and bring it into view
       const p = (this.c.groups || []).flatMap(g => g.points).find(x => x.id === id);
-      if (!p) { document.querySelector('.fields')?.scrollIntoView({ behavior: 'smooth' }); this.notify('Choose the figure to override, then state the rationale'); return; }
+      this.tab = 'data';
+      if (!p) { this.$nextTick(() => document.querySelector('.fields')?.scrollIntoView({ behavior: 'smooth' })); this.notify('Choose the figure to override, then state the rationale'); return; }
       this.startEdit(p, value, reason, challenge);
       this.$nextTick(() => { const el = document.querySelector('.fld[data-id="' + id + '"]'); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } });
     },
@@ -381,6 +482,7 @@ function flowApp() {
     async skip(p) { this.setCase(await this.post(this.cp('/datapoints/' + p.id + '/skip'))); },
     toggle(id) { this.expanded[id] = !this.expanded[id]; },
     goTo(status) {
+      if (this.tab !== 'data') { this.tab = 'data'; return this.$nextTick(() => this.goTo(status)); }
       // jump to the next field with this status (pending / not provided), cycling
       const els = Array.from(document.querySelectorAll('.fld[data-status="' + status + '"]'));
       if (!els.length) { this.notify(status === 'missing' ? 'No pending fields' : 'No fields marked not provided'); return; }
@@ -463,7 +565,7 @@ function flowApp() {
     },
     async doAction(x, a) {
       const cid = a ? a.id : (x.challenge || '');
-      if (x.kind === 'goto') { const el = document.getElementById(x.target); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } return; }
+      if (x.kind === 'goto') return this.reveal(x.target);
       if (x.kind === 'reduce_amount' && x.tenor) {
         // a structure: limit and tenor together
         const ok = await this.confirm(x.label + '?', (x.reason || '') + ' Both figures are changed; the CAM is re-run for the new tenor.', 'Apply');
@@ -485,7 +587,7 @@ function flowApp() {
         return;
       }
       if (x.kind === 'justify') {
-        if (!a) { this.notify('Choose the challenge to answer on screen'); document.getElementById('sec-chal')?.scrollIntoView({ behavior: 'smooth' }); return; }
+        if (!a) { this.notify('Choose the challenge to answer on screen'); this.reveal('sec-chal'); return; }
         const note = await this.ask('Justification: ' + a.title, 'Explain why the proposal can proceed despite this challenge, and the mitigants (security, covenant, pricing, condition). The next approver and the audit trail see it.', 'Justification and mitigants', true, 'Record');
         if (note === null) return;
         this.busy = true;
@@ -514,7 +616,7 @@ function flowApp() {
       try {
         this.setCase(await this.post(this.cp('/demo-documents')));
         this.notify('Demo executed documents attached in Conditions Precedent', 'ok');
-        this.$nextTick(() => this.flash(document.getElementById('sec-cp')));
+        this.reveal('sec-cp');
       }
       finally { this.busy = false; }
     },
@@ -532,7 +634,7 @@ function flowApp() {
     },
     cpMet() { return this.cps().filter(k => ['verified', 'confirmed', 'auto'].includes(k.status)).length; },
     cpCount() { return this.cps().filter(k => k.status !== 'not_applicable').length; },
-    async loadTimeline() { this.showTimeline = !this.showTimeline; if (this.showTimeline) this.timeline = await this.get(this.cp('/timeline')); },
+    async loadTimeline() { this.showTimeline = true; this.timeline = await this.get(this.cp('/timeline')); },
 
     // ── E2 / E5 mandatory checks, E7 incomplete fields, E8 go-to links ─────
     async checkNote(k, kind) {
@@ -552,11 +654,14 @@ function flowApp() {
         .filter(([k]) => k).map(([k, t]) => k + ' ' + t).join(' · ');
     },
     flash(el) { if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); },
-    goToField(id) { this.flash(document.querySelector('.fld[data-id="' + id + '"]')); },
+    goToField(id) { this.tab = 'data'; this.$nextTick(() => this.flash(document.querySelector('.fld[data-id="' + id + '"]'))); },
     goToTarget(g) {
       if (!g) return;
-      const row = g.row ? document.querySelector('[data-cond="' + g.row + '"]') : null;
-      this.flash(row || document.getElementById(g.target));
+      this.tab = g.row ? 'post' : this.tabOf(g.target);
+      this.$nextTick(() => {
+        const row = g.row ? document.querySelector('[data-cond="' + g.row + '"]') : null;
+        this.flash(row || document.getElementById(g.target));
+      });
     },
     md(t) {
       // Copilot text: escaped, with **bold** for the names of buttons and sections
@@ -566,6 +671,17 @@ function flowApp() {
 
     // ── Credit Copilot ─────────────────────────────────────────────────────
     mineMsg(m) { return m.from === 'user' || m.stage === this.myStage(); },
+    chatItems() {
+      // the signed-in officer's messages in full; others' grouped by stage, one header per group (U10)
+      const out = [];
+      for (const m of (this.c && this.c.chat) || []) {
+        if (this.mineMsg(m)) { if (!(this.c.ask && this.c.ask.msg === m.id)) out.push({ key: 'm' + m.id + m.from, m }); continue; }
+        const last = out[out.length - 1];
+        if (last && last.group && last.stage === m.stage) last.msgs.push(m);
+        else out.push({ key: 'g' + m.id, group: true, stage: m.stage, msgs: [m] });
+      }
+      return out;
+    },
     stageName(id) { const s = (this.c && this.c.chain || []).find(x => x.id === id); return s ? s.short : ''; },
     officerOf(id) { const s = (this.c && this.c.chain || []).find(x => x.id === id); return s ? s.who : ''; },
     async send(text) {

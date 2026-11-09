@@ -148,7 +148,7 @@ def test_infosys_end_to_end(svc):
         svc.set_drawdown(cid, cad, amount_cr=600)
     svc.set_drawdown(cid, cad, amount_cr=450)
     v = svc.view(cid, cad)
-    assert v["ask"]["kind"] == "submit_release" and "₹450.00 Cr" in v["ask"]["text"]
+    assert v["ask"]["kind"] == "submit_release" and "₹450 Cr" in v["ask"]["text"]
     svc.chat(cid, cad, "Yes, submit")
     # E9: the request names who submitted and edited it; nothing empty reaches the Copilot
     from src.flow import copilot as cp
@@ -347,8 +347,8 @@ def test_a_returned_proposal_asks_the_rm_to_rerun_and_each_officer_sees_only_the
     assert v["ask"] is None                                         # F6: Rahul is not shown the RM's prompt
     assert "Returned to Ananya Rao" in [m for m in v["chat"] if m["stage"] == "credit_risk"][-1]["text"]
     v = svc.view(cid, rm)
-    assert v["ask"]["kind"] == "rerun" and "Rahul Mehta (Underwriting) changed Amount requested from ₹500.00 Cr to " \
-                                           "₹600.00 Cr" in v["ask"]["text"]
+    assert v["ask"]["kind"] == "rerun" and "Rahul Mehta (Underwriting) changed Amount requested from ₹500 Cr to " \
+                                           "₹600 Cr" in v["ask"]["text"]
     assert not next(a for a in v["actions"] if a["id"] == "approve")["enabled"]   # CAM out of date blocks submit
     svc.chat(cid, rm, "Yes, re-run")
     case = svc.wait_for_cam(cid, timeout=300)

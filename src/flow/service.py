@@ -92,7 +92,8 @@ def _day(v) -> str:
 
 
 def _cr(v) -> str:
-    return f"₹{float(v or 0):,.2f} Cr"
+    from src.flow.copilot import crore
+    return crore(float(v or 0))
 
 
 def _plain(label: str) -> str:
@@ -195,11 +196,13 @@ class FlowService:
             raise NotFoundError(f"Proposal {case_id} not found")
         if (case.get("risk") or {}).get("v") != rk.VERSION and (case.get("cam") or {}).get("state") == "ready":
             engine = self._engine_of(case)
+            if engine is None:                   # the run is gone: keep what this proposal had
+                return case
             case["risk"] = rk.assess(engine)
             case["checks"] = chk.from_engine(engine) or case.get("checks")
-            if engine:
-                case["against"] = rk.challenges(engine)
-                self._build_register(case, engine)
+            case["against"] = rk.challenges(engine)
+            self._build_register(case, engine)
+            self.store.save(case)                # kept, so a later CAM run for the borrower does not change it
         return case
 
     def _engine_of(self, case: dict) -> Optional[dict]:
@@ -209,6 +212,8 @@ class FlowService:
             return None
         try:
             engine = self.cases.get(case["entity_id"])
+            if engine and engine.get("run_id") != run and hasattr(self.cases, "get_run"):
+                engine = self.cases.get_run(case["entity_id"], run)     # an earlier run (a newer CAM exists)
         except Exception:
             return None
         return engine if engine and engine.get("run_id") == run else None
@@ -2580,12 +2585,18 @@ class FlowService:
         changed = {c["dp"]: c for c in case["changes"] if c["status"] != "superseded"}
         thresholds = (case.get("risk") or {}).get("thresholds") or {}
         values = {k: (v or {}).get("value") for k, v in case["dp"].items()}
+        ratio_of = {("interest_cover" if r["id"] == "interest_coverage_ratio" else r["id"]): r
+                    for r in (case.get("risk") or {}).get("ratios") or [] if isinstance(r.get("value"), (int, float))}
         for g in self.cfg().get("groups") or []:
             pts = []
             for sp in dpx.specs():
                 if sp["group"] != g["id"]:
                     continue
                 d = case["dp"].get(sp["id"]) or {"status": "missing"}
+                if d.get("value") in (None, "") and sp["id"] in ratio_of:
+                    r = ratio_of[sp["id"]]
+                    d = {**d, "value": r["value"], "status": "filled",
+                         "source": {"kind": "engine", "label": f"Calculated from the {r.get('period') or ''} statements".replace("  ", " ")}}
                 status = d.get("status") or "missing"
                 if status == "missing" and sp.get("agent_only"):
                     status = "unavailable"                        # the agents found no source; not asked
@@ -2670,7 +2681,7 @@ class FlowService:
                                                          or case["status"] == "disbursed"),
                     "release_checks": self.release_checks(case) if case.get("sanction") else [],
                     "pending_changes": sum(1 for c in case["changes"] if c["status"] == "pending"),
-                    "risk": case.get("risk"), "responses": case.get("responses") or {},
+                    "risk": self._risk_view(case), "responses": case.get("responses") or {},
                     "checks": checks_view, "verdict": rk.verdict(case.get("risk"), checks_view,
                                                                  f"{self.officer('sanction')} "
                                                                  f"({self.stage('sanction')['label']})"),
@@ -2687,6 +2698,15 @@ class FlowService:
                     "can_delete": role == stages[0]["role"] and not case.get("sanction")
                     and case["status"] != "disbursed"})
         return out
+
+    @staticmethod
+    def _risk_view(case: dict) -> Optional[dict]:
+        """The engine's assessment for the screen: rule codes in its rationale read as plain names."""
+        risk = case.get("risk")
+        if not risk or not risk.get("rationale"):
+            return risk
+        text = re.sub(r"HR_[A-Z_]+", lambda m: chk.plain(m.group(0)).lower(), risk["rationale"])
+        return {**risk, "rationale": text}
 
     # ── reports ──────────────────────────────────────────────────────────────
 

@@ -15,6 +15,7 @@ from html import escape
 from typing import Optional
 
 from src.flow import datapoints as dpx
+from src.flow.copilot import crore as _crore
 
 TOUCH = {"edit", "skip", "change_accept", "change_dispute", "approve", "reject", "send_back", "doc_upload",
          "condition_confirm", "condition_reopen", "drawdown_edit", "cam_generate", "cam_rerun", "cam_upload",
@@ -272,13 +273,20 @@ def _insights(o: dict, q: dict, bottleneck: Optional[dict], filled: dict) -> lis
     decided = o["sanctioned"] + o["declined"]
     out.append({"tone": "info", "title": "Decisions",
                 "text": (f"{decided} of {o['total']} proposal(s) decided: {o['sanctioned']} sanctioned"
-                         + (f" (₹{o['sanctioned_cr']:,.2f} Cr)" if o["sanctioned"] else "")
+                         + (f" ({_crore(o['sanctioned_cr'])})" if o["sanctioned"] else "")
                          + f", {o['declined']} declined; {o['in_progress']} in progress.")})
     if o["against_engine"]:
-        names = ", ".join(x["borrower_name"] for x in o["against_engine"][:3])
-        out.append({"tone": "bad", "title": "Moved forward against the engine",
-                    "text": f"{len(o['against_engine'])} proposal(s) went ahead although the CAM engine recommended "
-                            f"Decline or a hard rule failed ({names}); each carries a recorded justification."})
+        ae = o["against_engine"]
+        live = [x for x in ae if x["status"] != "rejected"]
+        later = [x for x in ae if x["status"] == "rejected"]
+        names = lambda xs: ", ".join(x["borrower_name"] for x in xs[:3])
+        text = (f"{len(ae)} proposal(s) moved past a stage although the CAM engine recommended Decline or a hard "
+                f"rule failed; each carries a recorded justification.")
+        if live:
+            text += f" Still going ahead: {names(live)}."
+        if later:
+            text += f" Later declined: {names(later)}."
+        out.append({"tone": "bad" if live else "warn", "title": "Moved past a stage against the engine", "text": text})
     elif o["engine_decline"]:
         out.append({"tone": "good", "title": "Engine verdicts followed",
                     "text": f"{o['engine_decline_declined']} of {o['engine_decline']} proposal(s) the engine "

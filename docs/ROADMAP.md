@@ -25,6 +25,12 @@ process.
 | C3 | **Change-only CAM** for renewals and re-runs; role views of one CAM | Reviewers read only what changed |
 | D8 | Working-capital assessment (turnover / MPBF / cash budget); term-loan IRR and break-even | Standard appraisal, automated end to end |
 | D9 | Related-party, group exposure (Large Exposures Framework) and unhedged forex checks | Compliance |
+| P1 | **Back-test on past CAMs**: run the engine on the bank's historical cases (sanctioned and later defaulted) and show where its verdict and challenges would have flagged them | How a bank decides to buy |
+| P2 | **Credit policy → rules agent**: reads the bank's credit policy and delegation of powers, drafts `rules.yaml` / `approval.yaml` for a person to approve | Onboarding a bank in days |
+| P3 | **Notes-to-accounts reader**: auditor qualifications, emphasis of matter, CARO remarks, contingent liabilities, related-party notes | Where many problems hide; rarely read |
+| P4 | **Borrower document agent**: a borrower link; the agent asks for missing documents, reads them, chases gaps, fills fields | The RM stops chasing paperwork |
+| P5 | Agent accuracy harness: fixed case set, field-extraction accuracy, figures-check rate, drift per model (hygiene) | Model-risk teams ask for it; feeds L2 |
+| P6 | Sanction terms as structured, checkable covenants (enabler for L3) | Monitoring needs rules, not text |
 
 ## Then: Phase 3, connect real data
 
@@ -34,6 +40,10 @@ process.
 | D11 | MCA charges and director checks; promoter share pledges |
 | D12 | Account Aggregator / ULI consent-based bank and GST data; customer and supplier concentration from GST invoices |
 | D13 | Core banking and CRILC feeds for existing customers' conduct (the engines exist) |
+| D14 | **Promoter and group network**: directors' other companies, their defaults and charges, shared addresses and auditors; connected borrowers and fraud rings (builds on D11) |
+| D15 | NeSL (information utility) default records; consortium data: lead bank's CAM and other lenders' terms |
+| D16 | Core banking / loan system push at disbursement: limits and terms set up without retyping (hygiene) |
+| D17 | India-hosted or on-prem model option (data residency; critical for public-sector banks) |
 
 ## Later: Phase 4, beyond origination
 
@@ -42,6 +52,9 @@ process.
 | L3 | Covenant and early-warning monitoring after disbursement, driven by the CAM |
 | L4 | Portfolio-aware origination: sector caps, concentration, effect on the book's expected loss |
 | L5 | Credit-committee pack with likely questions answered from the record |
+| L6 | **Learning loop**: decisions, overrides and challenges compared with each loan's outcome; which challenges predicted stress; thresholds retuned |
+| L7 | **Renewal autopilot**: the annual renewal prepared from monitoring data and new financials, showing only what changed (C3 + L3) |
+| L8 | Early resolution: on SMA, the agent drafts restructuring / resolution options |
 
 ## Known limits of the proof of concept
 
