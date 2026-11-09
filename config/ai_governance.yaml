@@ -1,0 +1,53 @@
+# AI governance pack (roadmap L2): what the per-proposal pack says about the AI in this system.
+# Aligned to the themes of RBI's FREE-AI framework (responsible and ethical AI in financial services):
+# governance and accountability, human oversight, explainability, data, fairness, monitoring.
+# The bank edits this file; the pack for each proposal adds the facts recorded on that proposal.
+
+model_card:
+  system: "Corporate Credit Origination — agentic LOS (UAT / demo)"
+  version: "2026.11"
+  owner: "To be named by the bank (Chief Risk Officer or delegate)"
+  review_cadence: "Quarterly, and after any model or prompt change"
+  purpose: >-
+    Shortens corporate credit appraisal: agents gather and read the borrower's data, a rule-based credit engine
+    rates the proposal, and an AI model drafts the narrative of the Credit Appraisal Memorandum (CAM) and answers
+    officers' questions from the proposal's record.
+  ai_does:
+    - "Drafts the CAM's narrative sections from the engine's fact pack (figures come from the engine, not the AI)"
+    - "Reads uploaded documents (annual reports, bank statements, KYC) into structured data"
+    - "Answers officers' questions in Credit Copilot from the proposal's record only"
+    - "Classifies news headlines as adverse or not"
+  ai_does_not:
+    - "Decide, approve, reject, price or sanction: the credit engine is rule-based and every decision is a named officer's"
+    - "Change a figure: overrides are made by officers and concurred with by the Sanctioning Authority"
+    - "Use personal or protected attributes of promoters or directors in any rating or decision"
+  controls:
+    - "Figures check: every figure in an AI-written CAM section is matched against the data the AI was given; a section quoting figures not in its data is rewritten once, and anything still unmatched is shown as 'to verify' on the CAM and the screen"
+    - "Copilot answers are checked the same way; an answer quoting a figure not in the record is rejected and the record lines are shown instead"
+    - "Decision Summary of the CAM is built from data only, with no AI-written text"
+    - "Every credit data field records its source; demo data is labelled wherever it appears"
+    - "The full decision trail is kept (Audit Trail Report)"
+  limitations:
+    - "The AI can misread a scanned document or mis-quote a figure: the figures check flags it, an officer verifies it"
+    - "Demo data (bureau, MCA, regulatory lists) stands in for sources that are not connected; it is not a real verification"
+    - "PD / LGD values for expected credit loss are demo values until the bank's validated models replace them"
+
+# Words that must not appear among the inputs of the rating or the decision (fairness check).
+protected_attributes: [gender, sex, religion, caste, community, ethnicity, race, marital, disability, nationality,
+                       pregnancy, age_of_promoter, promoter_age, date_of_birth]
+
+impact_assessment:
+  - question: "What decision does the AI influence, and who makes it?"
+    answer: from_record          # filled from the proposal: decisions by named officers
+  - question: "Could the AI's output change the credit decision without a person?"
+    answer: "No. The rating and recommendation are rule-based; AI text is advisory and every action is an officer's."
+  - question: "What data does the AI see, and where is it processed?"
+    answer: from_record          # model, provider and region from the deployment
+  - question: "How are AI errors caught?"
+    answer: from_record          # figures check results on this proposal
+  - question: "Is any protected attribute used?"
+    answer: from_record          # fairness check
+  - question: "Who reviews this assessment, and when?"
+    answer: "To be completed by the bank (owner and review date)."
+  - question: "Customer impact and redress (if the borrower disputes a decision)"
+    answer: "To be completed by the bank (grievance process, explanation given to the borrower)."

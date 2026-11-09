@@ -77,6 +77,17 @@ recommendation:
 # Internal credit-policy thresholds quoted in the CAM (KPI benchmarking,
 # projections and covenants all read these, so the memo is consistent).
 # PLACEHOLDER VALUES — align with your bank's credit policy.
+# Expected credit loss at origination (roadmap D6; RBI ECL framework). DEMO VALUES — replace with the bank's
+# validated master scale and LGD model. PD by internal grade (12 months); LGD = max(secured_floor,
+# unsecured × (1 − FSV / EAD)); EAD = limit × CCF; stage 2 / 3 from the bureau status or days past due.
+ecl:
+  label: "Bank master scale (demo values: replace with the bank's validated PD / LGD models)"
+  pd_12m: {A: 0.0025, B: 0.0075, C: 0.025, D: 0.08, E: 0.20}
+  lgd: {unsecured: 0.65, secured_floor: 0.25}
+  ccf: {working_capital: 0.75, cash_credit: 0.75, term_loan: 1.0, project_finance: 1.0, default: 1.0}
+  stage2: {statuses: [SMA-1, SMA-2], dpd_over: 30}
+  stage3: {statuses: [Substandard, Doubtful, Loss, NPA], dpd_over: 90}
+
 policy_thresholds:
   min_dscr: 1.20
   max_debt_to_equity: 2.5

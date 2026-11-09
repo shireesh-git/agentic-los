@@ -82,11 +82,25 @@ class CamJob:
             elif t == "section_complete":
                 sid = ev.get("section")
                 self.sections_total = int(ev.get("total") or self.sections_total)
-                self.sections.setdefault(sid, {"title": ev.get("title") or sid})["status"] = \
-                    "reused" if ev.get("resumed") else "done"
+                sec = self.sections.setdefault(sid, {"title": ev.get("title") or sid})
+                sec["status"] = "reused" if ev.get("resumed") else "done"
+                # figures the AI quoted that are not in the data it was given (after one corrective rewrite)
+                sec["flagged"] = list(ev.get("flagged") or [])
+                sec["rewritten"] = bool(ev.get("rewritten"))
+                sec["model"] = ev.get("model")
                 self.sections_done += 1
                 if ev.get("resumed"):
                     self.sections_reused += 1
+
+    def figure_check(self) -> dict:
+        """The figures check over the AI-written sections: which quote figures not in their data."""
+        with self._lock:
+            done = {k: v for k, v in self.sections.items() if v.get("status") in ("done", "reused")}
+            return {"sections_checked": len(done),
+                    "rewritten": [v["title"] for v in done.values() if v.get("rewritten")],
+                    "flagged": [{"section": k, "title": v["title"], "figures": v.get("flagged") or []}
+                                for k, v in done.items() if v.get("flagged")],
+                    "models": sorted({v["model"] for v in done.values() if v.get("model")})}
 
     # ── what the screen shows ────────────────────────────────────────────────
 

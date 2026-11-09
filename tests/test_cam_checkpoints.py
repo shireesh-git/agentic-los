@@ -96,3 +96,32 @@ def test_changed_model_regenerates(fact_pack):
 ])
 def test_clean_section_output(raw, expected):
     assert clean_section_output(raw) == expected
+
+
+class InventsFigures(FlakyLLM):
+    """Quotes a figure that is in no data; on the corrective prompt it complies unless ``stubborn``."""
+
+    def __init__(self, stubborn=False):
+        super().__init__()
+        self.stubborn = stubborn
+        self.corrections = 0
+
+    def generate(self, prompt, system_prompt="", temperature=None, max_tokens=None):
+        text = super().generate(prompt, system_prompt, temperature, max_tokens)
+        if "CORRECTION:" in prompt:
+            self.corrections += 1
+            if not self.stubborn:
+                return text
+        return text + "\nThe exposure stands at 98,765.43 Cr."
+
+
+@pytest.mark.parametrize("stubborn", [False, True])
+def test_figures_not_in_the_data_get_one_rewrite_then_are_reported(fact_pack, stubborn):
+    llm, events = InventsFigures(stubborn), []
+    cam = _render(fact_pack, llm, MemoryCheckpoints(), events)
+    done = [e for e in events if e["type"] == "section_complete"]
+    assert llm.corrections == len(done)                           # one corrective rewrite per section
+    if stubborn:
+        assert all(e["flagged"] == ["98,765.43"] and not e["rewritten"] for e in done)
+    else:
+        assert all(not e["flagged"] and e["rewritten"] for e in done) and "98,765.43" not in cam

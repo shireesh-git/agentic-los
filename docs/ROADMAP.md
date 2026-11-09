@@ -19,9 +19,9 @@ process.
 
 | ID | Item | Why it matters |
 |---|---|---|
-| D6 | **Expected credit loss at origination**: PD, LGD, EAD, stage, ECL | RBI's ECL directions apply from 1 April 2027 |
+| D6 | **Expected credit loss at origination**: PD, LGD, EAD, stage, ECL — **built 2026-11-09** (demo master scale in rules.yaml → ecl) | RBI's ECL directions apply from 1 April 2027 |
 | D7 | **Risk-based pricing (RAROC)**: minimum price against the hurdle rate | Pricing becomes a calculation, not free text |
-| L2 | **AI governance pack (RBI FREE-AI)**: per-CAM AI-use log, model card, bias checks | Makes the AI acceptable to a regulated bank |
+| L2 | **AI governance pack (RBI FREE-AI)**: per-CAM AI-use log, model card, bias checks — **built 2026-11-09** (proposal menu → AI Governance Pack; config/ai_governance.yaml) | Makes the AI acceptable to a regulated bank |
 | C3 | **Change-only CAM** for renewals and re-runs; role views of one CAM | Reviewers read only what changed |
 | D8 | Working-capital assessment (turnover / MPBF / cash budget); term-loan IRR and break-even | Standard appraisal, automated end to end |
 | D9 | Related-party, group exposure (Large Exposures Framework) and unhedged forex checks | Compliance |

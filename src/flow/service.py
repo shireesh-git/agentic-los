@@ -773,7 +773,16 @@ class FlowService:
                            "llm_calls": diag.get("llm_calls", 0),
                            "sections_total": job.sections_total, "sections_reused": job.sections_reused,
                            "sections_written": max(job.sections_done - job.sections_reused, 0),
-                           "duration_seconds": int(job.view()["elapsed_seconds"]), "error": None}
+                           "duration_seconds": int(job.view()["elapsed_seconds"]), "error": None,
+                           "figure_check": job.figure_check() if engine.get("narrative_mode") == "llm" else None}
+            fc = case["cam"]["figure_check"] or {}
+            if fc.get("flagged"):
+                n = sum(len(f["figures"]) for f in fc["flagged"])
+                self._say(case, f"Figures to verify: the AI quoted {n} figure(s) not found in the data it was given, "
+                                f"in {len(fc['flagged'])} section(s) — "
+                                + "; ".join(f"{f['title']}: {', '.join(f['figures'][:6])}" for f in fc["flagged"][:4])
+                                + ". Check them against the source before relying on the CAM (see **CAM** card).",
+                          kind="warn")
             for offered in (case.get("offered") or {}).values():
                 if "rerun" in offered:
                     offered.remove("rerun")
@@ -846,6 +855,13 @@ class FlowService:
         view = self.view(case_id, session)
         points = {p["id"]: p for g in view["groups"] for p in g["points"]}
         summary = reports.decision_summary(case, points, view["stage_label"])
+        fc = cam.get("figure_check") or {}
+        if fc:
+            summary += ("\n\n**AI figures check:** " + (
+                "; ".join(f"{f['title']}: {', '.join(f['figures'][:8])}" for f in fc.get("flagged") or [])
+                + " — quoted by the AI but not found in its source data; verify before relying on them."
+                if fc.get("flagged") else
+                f"every figure in the {fc.get('sections_checked', 0)} AI-written sections was found in its source data."))
         pdf = self.cam_pdf(case["entity_id"], cam["run_id"], decision_summary=summary)
         sheet = {"format": dpx.SHEET_FORMAT, "entity_id": case["entity_id"], "case_id": case_id,
                  "run_id": cam["run_id"], "generated_at": cam.get("generated_at"),
@@ -2510,6 +2526,17 @@ class FlowService:
         return reports.audit_pack(case, self.store.events(case_id), self.stages(),
                                   self.release_checks(case) if case.get("sanction") else [], self._stamp())
 
+    def governance(self, case_id: str, session: dict) -> dict:
+        """The AI governance pack (roadmap L2): AI use, figures check, human oversight, data, fairness."""
+        from src.flow import governance
+        case = self._require(case_id)
+        self._log(case, "ai_governance_pack", session)
+        return governance.build(case, self.store.events(case_id), self._stamp())
+
+    def governance_html(self, case_id: str, session: dict) -> str:
+        from src.flow import governance
+        return governance.html(self.governance(case_id, session))
+
     def audit_json(self, case_id: str) -> dict:
         case = self._require(case_id)
         return {"case": case, "events": self.store.events(case_id),
@@ -2542,4 +2569,4 @@ class FlowService:
         self._require(case_id)
         return [{"at": e["at"], "who": e.get("actor_name"), "role": e.get("role"),
                  "what": _KIND_LABEL.get(e["kind"], e["kind"]), "kind": e["kind"], "detail": e.get("detail")}
-                for e in self.store.events(case_id) if e["kind"] not in ("cam_download", "audit_pack")]
+                for e in self.store.events(case_id) if e["kind"] not in ("cam_download", "audit_pack", "ai_governance_pack")]

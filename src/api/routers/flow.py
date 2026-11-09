@@ -301,6 +301,18 @@ async def audit_pack(case_id: str, session: Optional[str] = None, x_flow_session
     return HTMLResponse(svc.flow.audit_pack(case_id, _s(svc, x_flow_session or session)))
 
 
+@router.get("/cases/{case_id}/ai-governance.html", response_class=HTMLResponse)
+async def ai_governance(case_id: str, session: Optional[str] = None, x_flow_session: Optional[str] = Header(None),
+                        svc: ServiceContainer = Depends(get_container)):
+    return HTMLResponse(svc.flow.governance_html(case_id, _s(svc, x_flow_session or session)))
+
+
+@router.get("/cases/{case_id}/ai-governance.json")
+async def ai_governance_json(case_id: str, session: Optional[str] = None, x_flow_session: Optional[str] = Header(None),
+                             svc: ServiceContainer = Depends(get_container)):
+    return svc.flow.governance(case_id, _s(svc, x_flow_session or session))
+
+
 @router.get("/cases/{case_id}/audit-pack.json")
 async def audit_json(case_id: str, session: Optional[str] = None, x_flow_session: Optional[str] = Header(None),
                      svc: ServiceContainer = Depends(get_container)):

@@ -16,7 +16,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable, Protocol
 
 # Prompt data lives in cam_sections; PROMPT_VERSION is re-exported for cam_checkpoints.
@@ -248,6 +248,7 @@ def render_cam_with_llm(
     section_max_tokens: dict[str, int] | None = None,
     section_models: dict[str, str] | None = None,
     verify_figures: bool = True,
+    rewrite_unsupported: bool = True,
 ) -> str:
     """
     Render a complete CAM using LLM for narrative sections.
@@ -354,9 +355,12 @@ def render_cam_with_llm(
         notify({"type": "section_start", "section": sid, "title": job.section["title"],
                 "step": job.step, "total": llm_total, "model": job.model})
         resumed = job.cached is not None
+        flagged: list[str] = []
+        rewritten = False
         if resumed:
             log.info("LLM section %d/%d: %s resumed from checkpoint", job.step, llm_total, sid)
             text = job.cached
+            flagged = _unsupported_figures(text, job.data_json) if verify_figures else []
         else:
             text = _generate_section(job, llm_total, provider_for(job.model), temperature)
             unsupported = _unsupported_figures(text, job.data_json) if (job.routed and verify_figures) else []
@@ -368,10 +372,20 @@ def render_cam_with_llm(
                 with progress_lock:
                     deferred.append(job)
                 return None
-            if not job.routed:
-                # Main model: report only (there is no stronger model to hand it to), so
-                # figures the reviewer should check are visible in the log.
+            if not job.routed and verify_figures:
+                # Main model: one corrective rewrite naming the figures not in its data; whatever
+                # is still unsupported is reported with the section, so the CAM and the screen can
+                # show "figures to verify" (fix list: critical #1, FREE-AI governance pack).
                 flagged = _unsupported_figures(text, job.data_json)
+                if flagged and rewrite_unsupported:
+                    retry = replace(job, prompt=job.prompt + _REWRITE_NOTE.format(figures=", ".join(flagged[:12])))
+                    try:
+                        again = _generate_section(retry, llm_total, provider_for(job.model), temperature)
+                        still = _unsupported_figures(again, job.data_json)
+                        if len(still) < len(flagged):
+                            text, flagged, rewritten = again, still, True
+                    except Exception:                       # keep the first draft, flagged
+                        log.warning("Section %s: corrective rewrite failed", sid, exc_info=True)
                 if flagged:
                     log.warning("Section %s (%s): %d figure(s) not found in its data — review: %s",
                                 sid, job.model, len(flagged), flagged[:8])
@@ -383,7 +397,7 @@ def render_cam_with_llm(
         # step = position in the CAM; completed = sections finished so far (they can finish out of order)
         notify({"type": "section_complete", "section": sid, "title": job.section["title"], "mode": "llm",
                 "resumed": resumed, "step": job.step, "total": llm_total, "completed": done,
-                "model": job.model})
+                "model": job.model, "flagged": flagged[:20], "rewritten": rewritten})
         section_models_used[sid] = job.model
         return text
 
@@ -516,6 +530,11 @@ def _generate_section(job: _SectionJob, total: int, llm_provider, temperature: f
 
 
 # ── Figures check for routed (smaller) models ────────────────────────────────
+
+# Appended to a section's prompt for the one corrective rewrite of the main model.
+_REWRITE_NOTE = ("\n\nCORRECTION: an earlier draft of this section quoted figures that do not appear in the data "
+                 "above: {figures}. Rewrite the section using only figures that appear in the data, exactly as "
+                 "they appear. Do not calculate, round or estimate any figure.")
 
 _NUMBER = re.compile(r"(?<![\w.])[-+]?\d[\d,]*(?:\.\d+)?(?![\w])")
 _DATA_NUMBER = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")

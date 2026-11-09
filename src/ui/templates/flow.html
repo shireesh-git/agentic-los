@@ -185,6 +185,7 @@
                   <button class="btn ghost sm" @click="menuOpen = !menuOpen" title="More"><span x-html="icon('more')"></span></button>
                   <div class="dropdown right" x-show="menuOpen" @click.outside="menuOpen = false" x-transition>
                     <a class="dd-item" :href="link('/audit-pack.html')" target="_blank" @click="menuOpen = false"><span x-html="icon('shield')"></span> Audit Trail Report</a>
+                    <a class="dd-item" :href="link('/ai-governance.html')" target="_blank" @click="menuOpen = false"><span x-html="icon('spark')"></span> AI Governance Pack</a>
                     <a class="dd-item" x-show="c.sanction" :href="link('/sanction-letter.html')" target="_blank" @click="menuOpen = false"><span x-html="icon('doc')"></span> Sanction Letter</a>
                     <a class="dd-item" :href="link('/audit-pack.json')" target="_blank" @click="menuOpen = false"><span x-html="icon('download')"></span> Audit data (JSON)</a>
                     <a class="dd-item danger" @click="resetBorrower(c.entity_id, c.borrower_name)"><span x-html="icon('reset')"></span> Reset borrower</a>
@@ -247,6 +248,11 @@
                   <span class="rq-ic" x-html="icon(c.risk?.headroom?.fits ? 'check' : 'alert', 12)"></span>
                   <span class="rq-n">Sustainable limit</span><b class="num" x-text="cr(c.risk?.headroom?.sustainable_cr)"></b>
                   <em x-text="'bound by ' + (c.risk?.headroom?.binding || '—')"></em>
+                </div>
+                <div class="rq" x-show="c.risk?.ecl" :class="'rq-' + ({1: 'good', 2: 'warn', 3: 'bad'}[c.risk?.ecl?.stage] || 'na')" :title="c.risk?.ecl?.basis + ' ' + (c.risk?.ecl?.scale || '')">
+                  <span class="rq-ic" x-html="icon(c.risk?.ecl?.stage === 1 ? 'check' : 'alert', 12)"></span>
+                  <span class="rq-n">Expected credit loss</span><b class="num" x-text="cr(c.risk?.ecl?.ecl_cr)"></b>
+                  <em x-text="'Stage ' + c.risk?.ecl?.stage + ' · PD ' + ((c.risk?.ecl?.pd || 0) * 100).toFixed(2) + '% · LGD ' + Math.round((c.risk?.ecl?.lgd || 0) * 100) + '%' + (c.risk?.ecl?.demo ? ' · demo scale' : '')"></em>
                 </div>
                 <div class="rq" x-show="c.risk?.quality?.earnings?.score != null" :class="'rq-' + (c.risk?.quality?.earnings?.status || 'na')" :title="c.risk?.quality?.earnings?.detail">
                   <span class="rq-ic" x-html="icon(c.risk?.quality?.earnings?.status === 'good' ? 'check' : 'alert', 12)"></span>
@@ -448,6 +454,17 @@
                 <span>Sections</span><b x-text="(c.cam.sections_written || 0) + ' written · ' + (c.cam.sections_reused || 0) + ' reused'"></b>
                 <span>Generation time</span><b x-text="dur(c.cam.duration_seconds)"></b>
                 <span>Generated</span><b x-text="date(c.cam.generated_at)"></b>
+                <span x-show="c.cam.figure_check">Figures check</span>
+                <b x-show="c.cam.figure_check" :class="(c.cam.figure_check?.flagged || []).length ? 'warn-t' : 'ok-t'"
+                   x-text="(c.cam.figure_check?.flagged || []).length
+                     ? (c.cam.figure_check.flagged.reduce((n, f) => n + f.figures.length, 0) + ' figure(s) to verify in ' + c.cam.figure_check.flagged.length + ' section(s)')
+                     : 'Every figure the AI quoted is in its source data'"></b>
+              </div>
+              <div class="fig-flags" x-show="(c.cam.figure_check?.flagged || []).length">
+                <p class="muted sm">The AI quoted these figures, but they are not in the data it was given. They may be correct (e.g. a sum or a rounding) or wrong — check them against the source before relying on the CAM.</p>
+                <template x-for="f in c.cam.figure_check?.flagged || []" :key="f.section">
+                  <div><b x-text="f.title"></b>: <span class="num" x-text="f.figures.join(', ')"></span></div>
+                </template>
               </div>
               <div class="kv" x-show="c.cam.mode === 'upload'">
                 <span>Source</span><b>Bank CAM (ingested)</b>

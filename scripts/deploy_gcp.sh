@@ -7,8 +7,12 @@
 #
 # Demo data: make a snapshot on the laptop and upload it to runtime-db-seed/ in Cloud Shell:
 #   python -c "import sqlite3; s=sqlite3.connect('runtime-db/cam_platform.sqlite3'); o=sqlite3.connect('runtime-db-seed/cam_platform.sqlite3'); s.backup(o)"
-# Without it the app starts with an empty database. Demo data resets to this snapshot whenever the
-# instance restarts (after ~15 min idle, or a redeploy).
+# Without it the app starts with an empty database.
+#
+# Testers' work is kept: the app copies its database and uploaded files to the bucket gs://<project>-los-state
+# every minute and on shutdown, and restores them at startup, so restarts and redeploys keep the cases.
+# The snapshot above is used only while the bucket is empty. Start again from the demo data:
+#   RESET_DATA=1 bash scripts/deploy_gcp.sh
 #
 # AI model: Gemini on Vertex AI, using the runtime service account (no API key).
 # The NVIDIA NIM key, if stored in Secret Manager as 'nvidia-nim-api-key', is passed to the app too,
@@ -20,6 +24,7 @@ REGION="${REGION:-asia-south1}"
 SERVICE="${SERVICE:-kpmg-agentic-los}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.8-flash}"
 RUNTIME_SA="${RUNTIME_SA:-agentic-los-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
+STATE_BUCKET="${STATE_BUCKET:-${PROJECT_ID}-los-state}"
 
 cd "$(dirname "$0")/.."
 mkdir -p runtime-db-seed
@@ -57,6 +62,16 @@ for role in roles/aiplatform.user roles/secretmanager.secretAccessor; do
     --role "$role" --condition None --quiet --format none
 done
 
+# Where the app keeps its database and uploads between restarts (a few MB: pennies a month)
+if ! gcloud storage buckets describe "gs://${STATE_BUCKET}" >/dev/null 2>&1; then
+  gcloud storage buckets create "gs://${STATE_BUCKET}" --location "$REGION" --uniform-bucket-level-access
+fi
+gcloud storage buckets add-iam-policy-binding "gs://${STATE_BUCKET}" --member "serviceAccount:$RUNTIME_SA"   --role roles/storage.objectAdmin --quiet --format none
+if [[ "${RESET_DATA:-}" == "1" ]]; then
+  echo "RESET_DATA=1: deleting the saved cases — the app starts again from the demo data."
+  gcloud storage rm -r "gs://${STATE_BUCKET}/state/" --quiet 2>/dev/null || true
+fi
+
 SECRETS=()
 if gcloud secrets describe nvidia-nim-api-key >/dev/null 2>&1; then
   SECRETS=(--set-secrets "NVIDIA_NIM_API_KEY=nvidia-nim-api-key:latest")
@@ -77,7 +92,7 @@ gcloud run deploy "$SERVICE" \
   --concurrency 40 --timeout 900 \
   --session-affinity \
   --allow-unauthenticated \
-  --set-env-vars "LLM_ACTIVE_PROVIDER=vertex_ai_gemini,VERTEX_GEMINI_MODEL=${GEMINI_MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION}" \
+  --set-env-vars "LLM_ACTIVE_PROVIDER=vertex_ai_gemini,VERTEX_GEMINI_MODEL=${GEMINI_MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION},CAM_STATE_BUCKET=${STATE_BUCKET}" \
   "${SECRETS[@]}"
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"

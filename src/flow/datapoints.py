@@ -366,6 +366,10 @@ def from_engine(case: dict) -> dict[str, dict]:
     if ews.get("available"):
         put("ews_flags", ews.get("flags"), "", f"{ews.get('flags')} flag(s) of {ews.get('checked')} indicator(s) checked; "
             f"{ews.get('not_checked')} not checkable from the data on record")
+    ecl = fp.get("ecl") or {}
+    if ecl.get("available"):
+        put("ecl_cr", ecl.get("ecl_cr"), "", ecl.get("basis", "") + (" Demo PD / LGD values." if ecl.get("demo") else ""))
+        put("ecl_stage", ecl.get("stage"), "", ecl.get("stage_reason", ""))
     rules = (fp.get("policy_decisions") or {}).get("tier1_hard_rules") or []
     if rules:
         failed = [r.get("rule") for r in rules if r.get("result") == "fail"]

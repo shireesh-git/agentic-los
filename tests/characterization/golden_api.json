@@ -58,6 +58,7 @@
   "07 GET /api/config": {
     "status": 200,
     "keys": [
+      "ai_governance",
       "approval",
       "benchmarks",
       "data_sources",
@@ -74,6 +75,7 @@
       "credit_challenges",
       "credit_observations",
       "credit_reassessment",
+      "ecl",
       "hard_rules",
       "policy_thresholds",
       "recommendation",

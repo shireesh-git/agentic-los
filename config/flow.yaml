@@ -133,6 +133,8 @@ datapoints:
   - {id: earnings_quality, group: metrics, label: Earnings quality, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}}
   - {id: revenue_truth, group: metrics, label: Revenue truth score, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}, unavailable: "Not verifiable — no GST or bank statement data on record"}
   - {id: ews_flags, group: metrics, label: Early-warning flags, type: number, agent_only: true, computed: true, band: {max: 0, warn_above: 0, bad_above: 1}}
+  - {id: ecl_cr, group: metrics, label: Expected credit loss (₹ Cr), type: amount, agent_only: true, computed: true}
+  - {id: ecl_stage, group: metrics, label: ECL stage, type: number, agent_only: true, computed: true, band: {max: 1, warn_above: 1, bad_above: 2}}
   - {id: hard_rules_failed, group: metrics, label: Hard rules failed, type: number, agent_only: true, computed: true, band: {max: 0}}
   - {id: bureau_score, group: metrics, label: Bureau score, type: number, agent_only: true, unavailable: "Not on record — no commercial bureau report connected"}
   - {id: crilc_sma, group: metrics, label: CRILC SMA status, type: text, agent_only: true, unavailable: "Not on record — no CRILC report"}

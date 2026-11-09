@@ -8,6 +8,9 @@ narrative:
   # CAM layout: 'streamlined' (Decision Summary built from data + 8 merged sections) or 'classic' (21 sections)
   cam_structure: streamlined
   max_tokens_per_section: 2500
+  # A section that quotes figures not in its data gets one corrective rewrite; any figure still
+  # unsupported is shown as 'to verify' on the CAM and the screen (never silently kept).
+  figure_rewrite: true
   # The CAM system prompt and per-section prompts live in code:
   # SYSTEM_PROMPT / CAM_SECTIONS in src/engines/cam_llm_renderer.py (bump PROMPT_VERSION on change).
   max_tokens: 16000

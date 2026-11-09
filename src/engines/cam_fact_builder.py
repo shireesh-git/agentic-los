@@ -572,6 +572,9 @@ def build_cam_fact_pack(company_data: dict, assessment: CreditAssessment | None 
     # sustainable limit, earnings quality, revenue truth and early-warning indicators (quality_engine)
     from src.engines import quality_engine
     fact_pack.update(quality_engine.build(company_data, fact_pack))
+    # expected credit loss at origination (roadmap D6): stage, PD, LGD, EAD from the grade and security
+    from src.engines import ecl_engine
+    fact_pack["ecl"] = ecl_engine.from_fact_pack(company_data, fact_pack)
     from src.engines.data_provenance import classify_fact_pack
     fact_pack["data_provenance"] = classify_fact_pack(fact_pack, company_data)
     return fact_pack

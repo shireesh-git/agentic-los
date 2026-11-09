@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Optional
 
 SEVERITY = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-VERSION = 3          # bump when assess() gains fields: stored summaries older than this are rebuilt on load
+VERSION = 4          # bump when assess() gains fields: stored summaries older than this are rebuilt on load
 
 # ratio id → label, policy threshold key, direction ("min": higher is better)
 RATIOS = [("dscr", "DSCR", "min_dscr", "min"),
@@ -84,6 +84,7 @@ def assess(engine: Optional[dict]) -> Optional[dict]:
                            "passed": sum(1 for r in rules if r.get("result") == "pass"), "total": len(rules)},
             "ratios": ratios, "breaches": sum(1 for r in ratios if r["status"] == "bad"),
             "headroom": amount_advice(engine), "run_id": engine.get("run_id"), "thresholds": limits,
+            "ecl": fp.get("ecl") if (fp.get("ecl") or {}).get("available") else None,
             "quality": _quality(fp)}
 
 

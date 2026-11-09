@@ -101,6 +101,25 @@ To switch demo data off (for production), set `demo_data: {enabled: false}` in `
 borrowers show three cases: Infosys and most others pass all six; Madras Fertilizers fails "suits filed"; Indian
 Hotels has no bureau report, so "bureau status" stays not verified.
 
+### Expected credit loss (ECL) parameters
+
+`rules.yaml` → `ecl`: the 12-month PD for each internal grade, the unsecured LGD and its floor for secured
+exposure, the credit-conversion factor for each product, and the bureau statuses and days past due that make a
+proposal stage 2 or 3. The values shipped are **demo values**. Replace them with the bank's validated models and
+change `label` so the screens stop saying "demo".
+
+### AI governance pack
+
+`ai_governance.yaml` holds the model card, the protected attributes the fairness check looks for, and the
+impact-assessment questions. Answers marked `from_record` are filled from each proposal; the bank completes the
+others (owner, review date, grievance process).
+
+### Keep the cloud demo's data (Cloud Run)
+
+Set `CAM_STATE_BUCKET` and the app copies its database and uploaded files to that bucket every minute
+(`CAM_STATE_SYNC_SECONDS`) and on shutdown, and restores them when it starts. `scripts/deploy_gcp.sh` creates
+the bucket and sets this for you.
+
 ### Change a policy limit
 
 Edit `rules.yaml` → `policy_thresholds`, e.g. `min_dscr: 1.25`. The following all follow the new limit:

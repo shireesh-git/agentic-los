@@ -536,7 +536,7 @@ def decision_summary(case: dict, points: dict, stage_label: str) -> str:
                             f"{c.get('level', '—')} ({c.get('score', '—')})" if c else "—"])
         out += "\n"
     out += "### Size and Quality\n\n" + _md_row(["Check", "Result", "Detail"]) + _md_row(["---"] * 3)
-    for k in ("sustainable_limit_cr", "earnings_quality", "revenue_truth", "ews_flags"):
+    for k in ("sustainable_limit_cr", "ecl_cr", "ecl_stage", "earnings_quality", "revenue_truth", "ews_flags"):
         pt = p(k)
         if pt:
             out += _md_row([pt["label"], pt.get("display", "—"), ((pt.get("source") or {}).get("detail") or "")[:300]])

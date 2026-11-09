@@ -121,6 +121,7 @@ class NarrativeAgent(BaseAgent):
                 section_max_tokens=settings.get("section_max_tokens") or {},
                 section_models=self._section_models(),
                 verify_figures=bool((getattr(self.llm, "model_routing", None) or {}).get("verify_figures", True)),
+                rewrite_unsupported=bool(settings.get("figure_rewrite", True)),
             )
         except RuntimeError as e:
             # The LLM cannot be reached (no key, no network): with narrative.on_llm_unavailable = template the
