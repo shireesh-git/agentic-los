@@ -363,7 +363,7 @@ class VertexAIGeminiProvider(BaseLLMProvider):
     _model_attr = "model_name"
 
     def __init__(self, cfg: dict):
-        self.model_name = cfg.get("model", "gemini-2.0-flash")
+        self.model_name = cfg.get("model", "gemini-3.8-flash")
         # The deployment's own project and region win over the YAML defaults.
         self.project = os.environ.get("GOOGLE_CLOUD_PROJECT") or cfg.get("project", "")
         self.location = os.environ.get("GOOGLE_CLOUD_LOCATION") or cfg.get("location", "asia-south1")
@@ -413,13 +413,14 @@ class VertexAIGeminiProvider(BaseLLMProvider):
         try:
             client = self._client()
             from google.genai import types
-            config = types.GenerateContentConfig(max_output_tokens=20)
+            # Thinking models spend part of the budget before answering: 20 tokens can return no text.
+            config = types.GenerateContentConfig(max_output_tokens=512)
             resp = client.models.generate_content(
                 model=self.model_name, contents="Say hello", config=config,
             )
             mode = "api_key" if self.api_key else "vertex_ai"
             return {"status": "ok", "provider": "vertex_ai_gemini",
-                    "model": self.model_name, "mode": mode, "response": resp.text[:50]}
+                    "model": self.model_name, "mode": mode, "response": (resp.text or "")[:50]}
         except Exception as e:
             raise RuntimeError(f"LLM connection failed: {e}. Provider: vertex_ai_gemini")
 

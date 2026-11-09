@@ -18,7 +18,7 @@ set -euo pipefail
 PROJECT_ID="${PROJECT_ID:-kpmg-lending-trans-sol}"
 REGION="${REGION:-asia-south1}"
 SERVICE="${SERVICE:-kpmg-agentic-los}"
-GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.8-flash}"
 RUNTIME_SA="${RUNTIME_SA:-agentic-los-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
 
 cd "$(dirname "$0")/.."

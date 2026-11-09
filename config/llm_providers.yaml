@@ -85,7 +85,7 @@ providers:
     type: vertex_ai_gemini
     # Used on GCP (Cloud Run sets LLM_ACTIVE_PROVIDER=vertex_ai_gemini). The service account's
     # own credentials are used; GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION override these.
-    model: gemini-2.5-flash
+    model: gemini-3.8-flash
     model_env: VERTEX_GEMINI_MODEL
     project: kpmg-lending-trans-sol
     location: asia-south1
