@@ -61,3 +61,7 @@ e2e_log.txt
 
 # ── Postman environments (may contain secrets) ───────────────────────────────
 postman/*environment*.json
+
+# Demo-data snapshot baked into the GCP image (made by scripts/deploy_gcp.ps1)
+runtime-db-seed/*
+!runtime-db-seed/.gitkeep

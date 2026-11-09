@@ -144,6 +144,6 @@ Keep the rules that make the system trustworthy:
 ## 7. Deployment
 
 - **Docker:** `docker-compose up --build`. The volumes are `storage/`, `output/` and `runtime-db/`.
-- **Google Cloud Run:** `scripts/deploy_gcp_camdemo.ps1`.
+- **Google Cloud Run:** `scripts/deploy_gcp.sh` (run in Cloud Shell). Sets `LLM_ACTIVE_PROVIDER=vertex_ai_gemini`; the NVIDIA key is kept in Secret Manager so switching back is one env change. Demo data resets to the baked snapshot when the instance restarts.
 - **Database:** SQLite (`runtime-db/cam_platform.sqlite3`). For production, replace it with a managed
   database. The store is a small class in `src/flow/store.py`.

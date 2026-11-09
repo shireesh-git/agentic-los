@@ -6,3 +6,6 @@
 *.xlsx binary
 *.docx binary
 *.sqlite3 binary
+
+# Shell scripts run in Cloud Shell / Linux: keep LF
+*.sh text eol=lf

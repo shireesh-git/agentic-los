@@ -364,8 +364,10 @@ class VertexAIGeminiProvider(BaseLLMProvider):
 
     def __init__(self, cfg: dict):
         self.model_name = cfg.get("model", "gemini-2.0-flash")
-        self.project = cfg.get("project") or os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-        self.location = cfg.get("location", "asia-south1")
+        # The deployment's own project and region win over the YAML defaults.
+        self.project = os.environ.get("GOOGLE_CLOUD_PROJECT") or cfg.get("project", "")
+        self.location = os.environ.get("GOOGLE_CLOUD_LOCATION") or cfg.get("location", "asia-south1")
+        self.model_name = os.environ.get(cfg.get("model_env", "")) or self.model_name
         self.api_key = os.environ.get(cfg.get("api_key_env", "GOOGLE_API_KEY"), "")
         self._temp = cfg.get("temperature", 0.15)
         self._max = cfg.get("max_tokens", 4000)

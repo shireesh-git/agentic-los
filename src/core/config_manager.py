@@ -52,6 +52,10 @@ class ConfigManager:
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 data = yaml.safe_load(fh) or {}
+            # LLM_ACTIVE_PROVIDER lets a deployment pick its model without editing the YAML
+            # (e.g. Gemini on Vertex AI in GCP, NVIDIA NIM on a laptop).
+            if path.stem == "llm_providers" and os.environ.get("LLM_ACTIVE_PROVIDER"):
+                data["active_provider"] = os.environ["LLM_ACTIVE_PROVIDER"]
             self._configs[path.stem] = data
             self._file_mtimes[path.stem] = path.stat().st_mtime
         except Exception as e:

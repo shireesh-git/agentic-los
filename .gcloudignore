@@ -1,30 +1,37 @@
+# What `gcloud run deploy --source .` uploads to Cloud Build (it ignores .dockerignore).
+# Keep in step with .dockerignore. Never upload secrets.
+.gcloudignore
 .git/
 .gitignore
+.env
+.env.*
 .venv/
-.pytest_cache/
-.playwright-cli/
+venv/
 __pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.claude/
+.continue/
+.agents/
+.vscode/
+.idea/
+.playwright-cli/
+*.log
 tests/
+docs/
 postman/
-output/
-
-runtime-db/
-storage/cache/
+reference/
+refer/
 test-documents/
-downloaded document/*
-!downloaded document/CAM/
+output/
+runtime-db/
+downloaded document/
+storage/cache/
 /documents/
 *.md
 !IDEA.MD
-*.log
 node_modules/
 dist/
 build/
-
-# Local tooling, browser artifacts and secrets
-.claude/
-.continue/
-.playwright-cli/
-.env
-.env.*
-!.env.example

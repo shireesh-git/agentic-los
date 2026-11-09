@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.12-slim-bookworm AS builder
 
 WORKDIR /build
 
@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-FROM python:3.11-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm AS runtime
 
 LABEL maintainer="CAM Platform Team"
 LABEL description="Credit appraisal platform with verified public-record onboarding and document-driven CAM generation"
@@ -29,8 +29,8 @@ COPY scripts/ ./scripts/
 COPY run.py .
 COPY requirements.txt .
 COPY storage/documents/ ./storage/documents/
-COPY synthetic-assets/ ./synthetic-assets/
-COPY ["downloaded document/CAM/", "./reference-docs/"]
+# Demo cases: a consistent snapshot of runtime-db made by scripts/deploy_gcp.sh
+COPY runtime-db-seed/ ./runtime-db/
 
 RUN mkdir -p /app/storage/cache /app/output /app/runtime-db /app/reference-docs /app/synthetic-assets \
     && chown -R camuser:camuser /app
@@ -46,9 +46,11 @@ ENV PYTHONUNBUFFERED=1 \
     CAM_REFERENCE_ROOT=/app/reference-docs \
     CAM_SYNTHETIC_ROOT=/app/synthetic-assets
 
+# Cloud Run passes the port in $PORT
+ENV PORT=8000
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:' + __import__('os').environ.get('PORT','8000') + '/api/health')" || exit 1
 
-CMD ["python", "-m", "uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec python -m uvicorn src.api.main:app --host 0.0.0.0 --port ${PORT}"]

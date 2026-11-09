@@ -83,9 +83,13 @@ providers:
   vertex_ai_gemini:
     name: Gemini (Vertex AI)
     type: vertex_ai_gemini
-    model: gemini-2.0-flash
-    project: kmark-489115
-    location: us-central1
+    # Used on GCP (Cloud Run sets LLM_ACTIVE_PROVIDER=vertex_ai_gemini). The service account's
+    # own credentials are used; GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION override these.
+    model: gemini-2.5-flash
+    model_env: VERTEX_GEMINI_MODEL
+    project: kpmg-lending-trans-sol
+    location: asia-south1
+    # Set only to use a Gemini API key instead of Vertex AI credentials.
     api_key_env: GOOGLE_API_KEY
     temperature: 0.15
     max_tokens: 4000

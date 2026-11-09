@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Deploy the agentic LOS demo to Google Cloud Run (lowest-cost settings). Run it in Cloud Shell:
+#
+#   git clone https://github.com/shireesh-git/agentic-los.git && cd agentic-los
+#   # optional demo data: upload cam_platform.sqlite3 into runtime-db-seed/ (see below)
+#   bash scripts/deploy_gcp.sh
+#
+# Demo data: make a snapshot on the laptop and upload it to runtime-db-seed/ in Cloud Shell:
+#   python -c "import sqlite3; s=sqlite3.connect('runtime-db/cam_platform.sqlite3'); o=sqlite3.connect('runtime-db-seed/cam_platform.sqlite3'); s.backup(o)"
+# Without it the app starts with an empty database. Demo data resets to this snapshot whenever the
+# instance restarts (after ~15 min idle, or a redeploy).
+#
+# AI model: Gemini on Vertex AI, using the runtime service account (no API key).
+# The NVIDIA NIM key, if stored in Secret Manager as 'nvidia-nim-api-key', is passed to the app too,
+# so switching back is one setting: LLM_ACTIVE_PROVIDER=nvidia_nim.
+set -euo pipefail
+
+PROJECT_ID="${PROJECT_ID:-kpmg-lending-trans-sol}"
+REGION="${REGION:-asia-south1}"
+SERVICE="${SERVICE:-kpmg-agentic-los}"
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+RUNTIME_SA="${RUNTIME_SA:-agentic-los-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
+
+cd "$(dirname "$0")/.."
+mkdir -p runtime-db-seed
+if [[ -f runtime-db-seed/cam_platform.sqlite3 ]]; then
+  echo "Demo data: runtime-db-seed/cam_platform.sqlite3 ($(du -k runtime-db-seed/cam_platform.sqlite3 | cut -f1) KB)"
+else
+  echo "No demo data in runtime-db-seed/: the app will start with an empty database."
+fi
+
+gcloud config set project "$PROJECT_ID"
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
+  aiplatform.googleapis.com secretmanager.googleapis.com
+
+for role in roles/aiplatform.user roles/secretmanager.secretAccessor; do
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$RUNTIME_SA" \
+    --role "$role" --condition None --quiet --format none
+done
+
+SECRETS=()
+if gcloud secrets describe nvidia-nim-api-key >/dev/null 2>&1; then
+  SECRETS=(--set-secrets "NVIDIA_NIM_API_KEY=nvidia-nim-api-key:latest")
+else
+  echo "Secret 'nvidia-nim-api-key' not found: deploying without the NVIDIA key."
+fi
+
+# max-instances 1: SQLite and the in-memory CAM jobs need a single instance.
+# no-cpu-throttling: CAM generation runs in background threads after the request returns.
+gcloud run deploy "$SERVICE" \
+  --quiet \
+  --region "$REGION" \
+  --source . \
+  --service-account "$RUNTIME_SA" \
+  --memory 2Gi --cpu 1 \
+  --min-instances 0 --max-instances 1 \
+  --no-cpu-throttling \
+  --concurrency 40 --timeout 900 \
+  --session-affinity \
+  --allow-unauthenticated \
+  --set-env-vars "LLM_ACTIVE_PROVIDER=vertex_ai_gemini,VERTEX_GEMINI_MODEL=${GEMINI_MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${REGION}" \
+  "${SECRETS[@]}"
+
+URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
+echo
+echo "Deployed: ${URL}/los"

@@ -67,7 +67,7 @@ Sign in by picking a workspace; there is no password in this demo. Without an AI
 OpenAI, Vertex AI Gemini and a local Ollama model are also supported. See
 [Configuration](docs/CONFIGURATION.md#switch-the-ai-model).
 
-**Docker:** `docker-compose up --build`. **Google Cloud Run:** `scripts/deploy_gcp_camdemo.ps1`.
+**Docker:** `docker-compose up --build`. **Google Cloud Run:** `scripts/deploy_gcp.sh`, run in Cloud Shell (Gemini on Vertex AI; see the script header).
 
 ## Tests
 
