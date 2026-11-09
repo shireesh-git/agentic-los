@@ -33,6 +33,25 @@ gcloud config set project "$PROJECT_ID"
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
   aiplatform.googleapis.com secretmanager.googleapis.com
 
+# New Gemini models reach regional Vertex endpoints later than the global one: use the region if
+# the model answers there, otherwise 'global'.
+GEMINI_LOCATION="${GEMINI_LOCATION:-}"
+if [[ -z "$GEMINI_LOCATION" ]]; then
+  TOKEN="$(gcloud auth print-access-token)"
+  BODY='{"contents":[{"role":"user","parts":[{"text":"Say hi"}]}]}'
+  for loc in "$REGION" global; do
+    host="${loc}-aiplatform.googleapis.com"; [[ "$loc" == global ]] && host="aiplatform.googleapis.com"
+    code="$(curl -s -o /tmp/gemini-check.json -w '%{http_code}' -X POST -H "Authorization: Bearer $TOKEN" \
+      -H 'Content-Type: application/json' -d "$BODY" \
+      "https://${host}/v1/projects/${PROJECT_ID}/locations/${loc}/publishers/google/models/${GEMINI_MODEL}:generateContent")"
+    echo "Vertex AI ${GEMINI_MODEL} in ${loc}: HTTP ${code}"
+    if [[ "$code" == 200 ]]; then GEMINI_LOCATION="$loc"; break; fi
+    grep -m1 '"message"' /tmp/gemini-check.json || true
+  done
+  [[ -n "$GEMINI_LOCATION" ]] || { echo "Gemini model ${GEMINI_MODEL} is not reachable on Vertex AI"; exit 1; }
+fi
+echo "Gemini location: ${GEMINI_LOCATION}"
+
 for role in roles/aiplatform.user roles/secretmanager.secretAccessor; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$RUNTIME_SA" \
     --role "$role" --condition None --quiet --format none
@@ -58,7 +77,7 @@ gcloud run deploy "$SERVICE" \
   --concurrency 40 --timeout 900 \
   --session-affinity \
   --allow-unauthenticated \
-  --set-env-vars "LLM_ACTIVE_PROVIDER=vertex_ai_gemini,VERTEX_GEMINI_MODEL=${GEMINI_MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${REGION}" \
+  --set-env-vars "LLM_ACTIVE_PROVIDER=vertex_ai_gemini,VERTEX_GEMINI_MODEL=${GEMINI_MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION}" \
   "${SECRETS[@]}"
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
