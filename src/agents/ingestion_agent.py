@@ -4,7 +4,9 @@ import logging
 
 from src.agents.base_agent import BaseAgent
 from src.agents.financial_overrides import apply_uploaded_financial_overrides
+from src.core.config_manager import config
 from src.core.runtime_paths import DOCUMENTS_ROOT, REFERENCE_ROOT
+from src.data import demo_registry
 
 log = logging.getLogger(__name__)
 
@@ -177,11 +179,25 @@ class DataIngestionAgent(BaseAgent):
 
     @staticmethod
     def _external_data(cd, emit) -> dict:
-        """Cached verified public-record bundle (Probe42). No synthetic fallback."""
-        cached = cd.get("external_data") or {}
+        """Cached verified public-record bundle (Probe42). Where the bureau or MCA record is missing and demo
+        data is switched on (config/data_sources.yaml ``demo_data``), the borrower's demo file fills it; demo
+        records carry ``provenance.via = "demo_file"`` so every screen labels them (fix list E5)."""
+        cached = dict(cd.get("external_data") or {})
         if cached:
             emit("Using cached Probe42 external data for validation and CAM context...")
         else:
             emit("No cached verified public-record bundle found. Skipping synthetic fallbacks.")
+        if config.get("data_sources", "demo_data", "enabled", default=False):
+            borrower = cd.get("borrower")
+            eid = getattr(borrower, "entity_id", None) or cd.get("entity_id")
+            demo = demo_registry.external_data(eid, getattr(borrower, "cin", None))
+            filled = [k for k, v in demo.items() if not (cached.get(k) or {}).get("payload")]
+            for k in filled:
+                cached[k] = demo[k]
+            if filled:
+                # the policy engine and the CAM fact builder read company_data["external_data"]
+                cd["external_data"] = cached
+                emit(f"Demo data used for {', '.join(k.replace('_data', '') for k in filled)} "
+                     f"(API not connected) — labelled as demo data.")
         return {key: cached.get(key, {}) for key in
                 ("mca_data", "bureau_data", "market_data", "gst_data", "rating_data")}

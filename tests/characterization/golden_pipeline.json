@@ -138,19 +138,18 @@
     "conditions": [
       "Requires Credit Committee approval",
       "All HIGH/CRITICAL exceptions must be resolved before disbursement",
-      "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure",
       "Explore additional collateral to improve coverage to 1.5x"
     ],
     "tier1": [
-      "HR_BUREAU_STATUS:not_verified",
-      "HR_COMPANY_ACTIVE:not_verified",
-      "HR_FRAUD_REGISTRY:not_verified",
+      "HR_BUREAU_STATUS:pass",
+      "HR_COMPANY_ACTIVE:pass",
+      "HR_FRAUD_REGISTRY:pass",
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
-      "HR_RBI_DEFAULTER:not_verified",
-      "HR_SUIT_FILED:not_verified",
-      "HR_WILFUL_DEFAULTER:not_verified"
+      "HR_RBI_DEFAULTER:pass",
+      "HR_SUIT_FILED:pass",
+      "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "DOC_REVENUE_CROSS_SOURCE",
@@ -260,16 +259,16 @@
     ],
     "conditions": [
       "Resolve 1 HIGH exception(s) before disbursement",
-      "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure"
+      "Evidence to be obtained and verified before sanction: Bureau status must not be SMA-2 or worse"
     ],
     "tier1": [
       "HR_BUREAU_STATUS:not_verified",
-      "HR_COMPANY_ACTIVE:not_verified",
-      "HR_FRAUD_REGISTRY:not_verified",
+      "HR_COMPANY_ACTIVE:pass",
+      "HR_FRAUD_REGISTRY:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
-      "HR_RBI_DEFAULTER:not_verified",
-      "HR_SUIT_FILED:not_verified",
-      "HR_WILFUL_DEFAULTER:not_verified"
+      "HR_RBI_DEFAULTER:pass",
+      "HR_SUIT_FILED:pass",
+      "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "DOC_REVENUE_CROSS_SOURCE",
@@ -364,7 +363,7 @@
       "policy": "completed",
       "narrative": "completed"
     },
-    "recommendation": "refer",
+    "recommendation": "approve",
     "risk_grade": "A",
     "composite_score": 88.6,
     "component_scores": [
@@ -374,19 +373,18 @@
       76.0
     ],
     "conditions": [
-      "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure",
       "MANDATORY: Additional collateral required before disbursement"
     ],
     "tier1": [
-      "HR_BUREAU_STATUS:not_verified",
-      "HR_COMPANY_ACTIVE:not_verified",
-      "HR_FRAUD_REGISTRY:not_verified",
+      "HR_BUREAU_STATUS:pass",
+      "HR_COMPANY_ACTIVE:pass",
+      "HR_FRAUD_REGISTRY:pass",
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
-      "HR_RBI_DEFAULTER:not_verified",
-      "HR_SUIT_FILED:not_verified",
-      "HR_WILFUL_DEFAULTER:not_verified"
+      "HR_RBI_DEFAULTER:pass",
+      "HR_SUIT_FILED:pass",
+      "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "TEMP_STALE_FINANCIALS"
@@ -447,7 +445,7 @@
       "valuation_report_data",
       "web_crawl_news"
     ],
-    "fact_pack_recommendation": "refer",
+    "fact_pack_recommendation": "approve",
     "fact_pack_risk_grade": "A",
     "narrative_mode": "template",
     "cam_headings": [
@@ -489,19 +487,17 @@
       82.0,
       71.0
     ],
-    "conditions": [
-      "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure"
-    ],
+    "conditions": [],
     "tier1": [
-      "HR_BUREAU_STATUS:not_verified",
-      "HR_COMPANY_ACTIVE:not_verified",
-      "HR_FRAUD_REGISTRY:not_verified",
+      "HR_BUREAU_STATUS:pass",
+      "HR_COMPANY_ACTIVE:pass",
+      "HR_FRAUD_REGISTRY:pass",
       "HR_KYC_COMPLETE:fail",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:fail",
-      "HR_RBI_DEFAULTER:not_verified",
-      "HR_SUIT_FILED:not_verified",
-      "HR_WILFUL_DEFAULTER:not_verified"
+      "HR_RBI_DEFAULTER:pass",
+      "HR_SUIT_FILED:fail",
+      "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "POL_MISSING_BOARD_RES",
@@ -513,7 +509,8 @@
       "STRUCT_EBITDA_INCONSISTENT",
       "STRUCT_EBITDA_INCONSISTENT",
       "STRUCT_EBITDA_INCONSISTENT",
-      "TEMP_STALE_FINANCIALS"
+      "TEMP_STALE_FINANCIALS",
+      "XSRC_BUREAU_DPD_ALERT"
     ],
     "fact_pack_keys": [
       "approving_authority",
@@ -613,19 +610,17 @@
       94.0,
       79.0
     ],
-    "conditions": [
-      "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure"
-    ],
+    "conditions": [],
     "tier1": [
-      "HR_BUREAU_STATUS:not_verified",
-      "HR_COMPANY_ACTIVE:not_verified",
-      "HR_FRAUD_REGISTRY:not_verified",
+      "HR_BUREAU_STATUS:pass",
+      "HR_COMPANY_ACTIVE:pass",
+      "HR_FRAUD_REGISTRY:pass",
       "HR_KYC_COMPLETE:fail",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:fail",
-      "HR_RBI_DEFAULTER:not_verified",
-      "HR_SUIT_FILED:not_verified",
-      "HR_WILFUL_DEFAULTER:not_verified"
+      "HR_RBI_DEFAULTER:pass",
+      "HR_SUIT_FILED:pass",
+      "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "POL_MISSING_BOARD_RES",
@@ -735,19 +730,18 @@
       74.0
     ],
     "conditions": [
-      "Evidence to be obtained and verified before sanction: Borrower must not be flagged as Wilful Defaulter; Company status must be Active in MCA records; Bureau status must not be SMA-2 or worse; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list; Suit-filed amount must be < 25% of total exposure",
       "MANDATORY: Additional collateral required before disbursement"
     ],
     "tier1": [
-      "HR_BUREAU_STATUS:not_verified",
-      "HR_COMPANY_ACTIVE:not_verified",
-      "HR_FRAUD_REGISTRY:not_verified",
+      "HR_BUREAU_STATUS:pass",
+      "HR_COMPANY_ACTIVE:pass",
+      "HR_FRAUD_REGISTRY:pass",
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:fail",
-      "HR_RBI_DEFAULTER:not_verified",
-      "HR_SUIT_FILED:not_verified",
-      "HR_WILFUL_DEFAULTER:not_verified"
+      "HR_RBI_DEFAULTER:pass",
+      "HR_SUIT_FILED:pass",
+      "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "DOC_REVENUE_CROSS_SOURCE",

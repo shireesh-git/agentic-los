@@ -484,10 +484,13 @@ class CompanyService:
             return False
         if company.get("data_provider") == "verified_public_records":
             return False
-        if company.get("probe_bundle") and company.get("external_data"):
+        # demo-file records (fix list E5) never count as real public-record data
+        real = {k: v for k, v in (company.get("external_data") or {}).items()
+                if v and (v.get("provenance") or {}).get("via") != "demo_file"}
+        if company.get("probe_bundle") and real:
             return False
         borrower = company.get("borrower")
-        if borrower and getattr(borrower, "cin", "") and getattr(borrower, "pan", "") and company.get("external_data"):
+        if borrower and getattr(borrower, "cin", "") and getattr(borrower, "pan", "") and real:
             return False
         return True
 

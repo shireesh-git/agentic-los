@@ -204,8 +204,11 @@ def test_dixon_prospect_api_first_then_documents_then_the_cam(svc, docs):
     assert "PROBE42_API_KEY" in src["mca"]["mode_reason"]
     assert {s for s, v in src.items() if v["status"] == "awaiting_upload"} == \
         {"mca", "financials", "bureau", "bank_statements", "gst", "kyc", "rating"}
+    # the regulatory-list checks come from the demo file while their feeds are not connected (E5)
+    assert src["registries"]["status"] == "fetched" and src["registries"]["demo"]
+    assert src["registries"]["summary"].startswith("Demo data · Not on the wilful-defaulter")
     v = svc.view(cid, rm)
-    assert v["acquisition"]["counts"]["fetched"] == 3 and not v["can_generate"]
+    assert v["acquisition"]["counts"]["fetched"] == 4 and not v["can_generate"]
     assert v["ask"]["kind"] == "source_doc" and v["ask"]["ref"] == "mca"
     with pytest.raises(InvalidRequestError, match="MCA"):
         svc.generate_cam(cid, rm)
@@ -249,6 +252,8 @@ def test_dixon_prospect_api_first_then_documents_then_the_cam(svc, docs):
     assert b.cin == CIN and b.pan == "AAACD3641D" and str(b.date_of_incorporation) == "1993-01-15"
     assert len(company["directors"]) == 8 and sorted(company["financials"]) == ["FY2025", "FY2026"]
     assert company["external_data"]["bureau_data"]["payload"]["total_exposure_cr"] == pytest.approx(2415.0)
+    assert company["external_data"]["bureau_data"]["payload"]["fraud_flag"] is False     # list checks folded in
+    assert not [i for i in svc._require(cid)["checks"]["items"] if i["status"] != "pass"]  # all six clear
     assert company["collateral"][0].market_value_cr == pytest.approx(476.34 + 555.15)
     assert sum(1 for s in company["market_signals"] if s.signal_type == "news") == 1
 

@@ -1,0 +1,32 @@
+{
+  "entity_id": "MRF001",
+  "note": "DEMO DATA: synthetic records standing in for bureau, MCA and regulatory-list APIs that are not connected. Not a real report on this company.",
+  "as_of": "2026-11-01",
+  "cin": "L25111KL1960PLC001049",
+  "company_name": "MRF Limited",
+  "bureau": {
+    "credit_score": 780,
+    "cmr_rank": "CMR-2",
+    "dpd_status": "Standard",
+    "max_dpd_last_12m": 0,
+    "worst_status_12m": "Standard",
+    "total_exposure_cr": 4300.0,
+    "total_outstanding_cr": 3600.0,
+    "total_lenders": 8
+  },
+  "mca": {
+    "company_name": "MRF Limited",
+    "cin": "L25111KL1960PLC001049",
+    "status": "Active",
+    "date_of_incorporation": "1960-11-05",
+    "company_class": "Public, listed"
+  },
+  "registries": {
+    "wilful_defaulter": false,
+    "rbi_defaulter_list": false,
+    "fraud_flag": false,
+    "suit_filed_amount_cr": 0.0,
+    "suits": [],
+    "nclt_cases": []
+  }
+}

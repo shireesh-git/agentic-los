@@ -29,6 +29,8 @@ COPY scripts/ ./scripts/
 COPY run.py .
 COPY requirements.txt .
 COPY storage/documents/ ./storage/documents/
+# Demo bureau / MCA / registry records (fix list E5): stand-ins for the APIs that are not connected
+COPY storage/demo_registry/ ./storage/demo_registry/
 # Demo cases: a consistent snapshot of runtime-db made by scripts/deploy_gcp.sh
 COPY runtime-db-seed/ ./runtime-db/
 

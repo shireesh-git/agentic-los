@@ -65,3 +65,6 @@ postman/*environment*.json
 # Demo-data snapshot baked into the GCP image (made by scripts/deploy_gcp.ps1)
 runtime-db-seed/*
 !runtime-db-seed/.gitkeep
+
+# Documents uploaded to proposals at runtime (conditions precedent)
+storage/flow/

@@ -31,6 +31,7 @@ from src.flow.acquire import connectors as api
 from src.flow.acquire import readers
 from src.flow.acquire.connectors import name_score
 from src.flow.acquire.polite import NetworkError, PoliteClient
+from src.data import demo_registry
 
 log = logging.getLogger(__name__)
 
@@ -221,6 +222,10 @@ class Acquisition:
             except Exception as e:                         # a provider answered something unexpected
                 log.warning("%s API failed", sid, exc_info=True)
                 api_error = f"{type(e).__name__}: {e}"
+        demo = self._demo(ctx, src)
+        if demo:
+            return self._state(src, plan, "fetched", summary="Demo data · " + summarise(demo),
+                               provenance=demo.get("provenance"), demo=True, api_error=api_error, _record=demo)
         docs = self._docs(ctx, src)
         if docs and src.get("upload"):
             path = docs[-1]
@@ -239,6 +244,13 @@ class Acquisition:
             return self._state(src, plan, "awaiting_upload", api_error=api_error,
                                summary=f"Upload {src['upload'].get('ask')}")
         return self._state(src, plan, "failed" if api_error else "not_found", error=api_error)
+
+    def _demo(self, ctx: dict, src: dict) -> Optional[dict]:
+        """The borrower's demo record for a source whose API is not connected (fix list E5), or None."""
+        if not src.get("demo_file") or not (self.cfg.get("demo_data") or {}).get("enabled"):
+            return None
+        data = demo_registry.load(ctx.get("entity_id"), ctx.get("cin"))
+        return demo_registry.envelope(data, src["id"]) if data else None
 
     # ── agents ───────────────────────────────────────────────────────────────
 
@@ -362,7 +374,18 @@ class Acquisition:
             return (f"PAN {p.get('pan') or '—'} · {p.get('kyc_status') or 'status not stated'} · "
                     f"{len(p.get('authorised_signatories') or [])} signatories · "
                     f"{len(p.get('beneficial_owners') or [])} beneficial owner(s)")
-        return {"sources": {"sanctions": sanc, "kyc": self._api_or_docs(ctx, "kyc", None, kyc)}}
+        def lists(e):
+            p = e["payload"]
+            hits = [label for key, label in demo_registry.REGISTRY_FIELDS.items()
+                    if key != "suit_filed_amount_cr" and p.get(key)]
+            suits = p.get("suit_filed_amount_cr") or 0
+            return ((("On: " + ", ".join(hits)) if hits else "Not on the wilful-defaulter, RBI defaulter or fraud lists")
+                    + (f" · suits filed {_cr(suits)}" if suits else " · no suits filed")
+                    + (f" · {len(p.get('nclt_cases') or [])} NCLT case(s)" if p.get("nclt_cases") else ""))
+        out = {"sanctions": sanc, "kyc": self._api_or_docs(ctx, "kyc", None, kyc)}
+        if any(s["id"] == "registries" for s in self.sources()):
+            out["registries"] = self._api_or_docs(ctx, "registries", None, lists)
+        return {"sources": out}
 
     def _market(self, g: dict) -> dict:
         ctx = g["ctx"]

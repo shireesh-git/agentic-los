@@ -73,8 +73,17 @@ def test_challenges_most_severe_first_with_actions():
     assert lev["why"] == "More exposure raises loss given default." and lev["amount_note"]
     assert "Lender-wise debt schedule" in lev["actions"][0]["prefill"]
     text, buttons = rk.plan("credit_risk", ["approve", "send_back", "reject"], rk.assess(_engine()), ch, {}, [], True)
-    assert text.startswith("Next steps:\n1. Note the engine's verdict: Decline") and "write a justification" in text
-    assert {b["kind"] for b in buttons} >= {"send_back", "approve"}
+    # E4: at most three steps, each naming a real button and where it is; Decline only as the last resort
+    assert text.startswith("Next steps:\n1. Answer the challenge") and "**Key Risk Challenges**" in text
+    assert "you will be asked for a written justification" in text and "4." not in text
+    assert text.rstrip().endswith("**Decline** in the action bar, with your reasons.")
+    assert {b["kind"] for b in buttons} >= {"send_back", "approve", "reject"}
+    labelled, buttons = rk.plan("credit_risk", ["approve", "send_back", "reject"], rk.assess(_engine()), ch, {}, [],
+                                True, labels={"approve": "Recommend for Sanction", "send_back": "Return to RM"},
+                                standing="Decline. The engine recommends Decline.")
+    assert labelled.startswith("Decline. The engine") and "**Recommend for Sanction**" in labelled
+    assert "Return with remarks" not in labelled
+    assert {b["label"] for b in buttons} >= {"Return to RM", "Recommend for Sanction"}
     done, _ = rk.plan("credit_risk", ["approve"], None, ch, {"C-POL": {}, "C-LEV": {}}, [], True)
     assert "Already answered" in done
 
@@ -124,7 +133,8 @@ def test_madras_decline_needs_justification(svc):
     # Copilot: concrete next steps with buttons, and the amount check
     svc.chat(cid, cro, "What should I do next?")
     msg = svc.view(cid, cro)["chat"][-1]
-    assert msg["text"].startswith("Next steps:") and msg.get("actions")
+    assert msg["text"].startswith("Decline.") and "\nNext steps:\n1." in msg["text"] and msg.get("actions")
+    assert "HR_" not in msg["text"] and "Return with remarks" not in msg["text"]
     svc.chat(cid, cro, "reading the risks, should I change the amount requested?")
     msg = svc.view(cid, cro)["chat"][-1]
     assert "Sustainable limit" in msg["text"] and "already outside" in msg["text"] and "DSCR" in msg["text"]
@@ -189,7 +199,8 @@ def test_quality_blocks_on_madras(svc):
     assert pts["sustainable_limit_cr"]["value"] == 0.0 and pts["sustainable_limit_cr"]["band"]["status"] == "bad"
     assert pts["ews_flags"]["value"] >= 2 and pts["earnings_quality"]["value"] < 85
     assert pts["revenue_cr"]["confidence"]["score"] <= 90 and "not cross-checked" in pts["revenue_cr"]["confidence"]["basis"]
-    assert pts["revenue_truth"]["status"] == "unavailable" and pts["bureau_score"]["display"].startswith("Not on record")
+    assert pts["revenue_truth"]["status"] == "unavailable"
+    assert pts["bureau_score"]["value"] == 612            # from the demo bureau file (E5): no live bureau connected
     assert pts["constitution"]["value"].startswith("Government company (listed)")      # CIN …GOI…
     with pytest.raises(Exception, match="calculated"):
         svc.set_datapoint(case["case_id"], rm, "dscr", 1.5)

@@ -201,6 +201,13 @@ async def skip_datapoint(case_id: str, dp_id: str, x_flow_session: Optional[str]
     return svc.flow.view(case_id, s)
 
 
+@router.post("/cases/{case_id}/checks/{code}")
+async def check_note(case_id: str, code: str, body: dict, x_flow_session: Optional[str] = Header(None),
+                     svc: ServiceContainer = Depends(get_container)):
+    """Record against an open mandatory check: ``{"kind": "verified" | "justified", "note"}``."""
+    return svc.flow.check_note(case_id, code, body, _s(svc, x_flow_session))
+
+
 @router.post("/cases/{case_id}/changes/{change_id}")
 async def decide_change(case_id: str, change_id: str, body: Decision, x_flow_session: Optional[str] = Header(None),
                         svc: ServiceContainer = Depends(get_container)):

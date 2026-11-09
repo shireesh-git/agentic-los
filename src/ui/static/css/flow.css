@@ -529,3 +529,22 @@ pre.json { max-height: 420px; overflow: auto; background: var(--hover); border: 
 .rs-quality { grid-column: 1 / -1; }
 .rs-struct { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: #fff; border: 1px dashed var(--line); font-size: 12.5px; color: var(--ink-2); }
 .rs-struct span { flex: 1; min-width: 240px; }
+
+/* ── fix list Round 5 (E1–E9) ─────────────────────────────────────────── */
+.rs-mean { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--ink); background: var(--hover); border-radius: 8px; padding: 8px 10px; }
+.credit-q { font-weight: 600; } .cq-good { color: var(--green); } .cq-warn { color: var(--amber); } .cq-bad { color: var(--red); }
+.rs-chk { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--blue); font: inherit; font-size: 12.5px; cursor: pointer; text-decoration: underline; }
+.rq.click { cursor: pointer; font: inherit; text-align: left; } .rq.click:hover { border-color: var(--navy-3); }
+.ews-box { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.ews-box ul { margin: 4px 0 0 18px; padding: 0; }
+.ews-item { padding: 6px 0; font-size: 13px; } .ews-item + .ews-item { border-top: 1px solid var(--line-2); }
+.ews-act { margin-top: 3px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.opt-pick { display: flex; flex-wrap: wrap; gap: 6px; } .opt-pick .input { flex: 1 1 100%; }
+.sugg-b { margin-left: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: var(--gold-2); color: var(--navy); border-radius: 4px; padding: 1px 5px; }
+.ask-sec { margin-top: 6px; }
+.msg-docs { margin-top: 6px; font-size: 12.5px; display: grid; gap: 3px; }
+.card.incomplete { border-left: 4px solid var(--amber); }
+#sec-checks.flash, #sec-cp.flash, #sec-chal.flash, tr.flash { animation: flash 1.8s ease; }
+#sec-checks .chk-name { min-width: 170px; }
+.chk-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

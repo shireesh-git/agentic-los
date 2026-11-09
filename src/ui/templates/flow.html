@@ -211,20 +211,24 @@
           </section>
 
           <!-- the CAM engine's verdict and the key ratios against policy (colour = policy, not provenance) -->
-          <section class="riskstrip" x-show="c.risk && c.cam.state === 'ready'" :class="'rs-' + (c.risk?.tone || 'warn')">
+          <section class="riskstrip" x-show="c.risk && c.cam.state === 'ready'" :class="'rs-' + (c.verdict?.tone || c.risk?.tone || 'warn')">
             <div class="rs-verdict">
               <span class="rs-l">CAM engine verdict</span>
-              <strong><span x-html="icon(c.risk?.tone === 'good' ? 'check' : 'alert', 16)"></span> <span x-text="c.risk?.label"></span></strong>
-              <em x-text="'Internal rating ' + (c.risk?.rating || '—') + (c.risk?.score != null ? ' · score ' + c.risk.score + '/100' : '')"></em>
+              <strong><span x-html="icon((c.verdict?.tone || c.risk?.tone) === 'good' ? 'check' : 'alert', 16)"></span> <span x-text="c.verdict?.label || c.risk?.label"></span></strong>
+              <em><span class="credit-q" :class="'cq-' + (c.verdict?.credit_tone || 'warn')" x-text="'Credit quality: rating ' + (c.risk?.rating || '—') + (c.risk?.score != null ? ' · score ' + c.risk.score + '/100' : '')"></span></em>
             </div>
             <div class="rs-rules">
-              <span class="rs-l">Hard rules</span>
-              <div class="rs-fail" x-show="(c.risk?.hard_rules?.failed || []).length">
-                <template x-for="h in c.risk?.hard_rules?.failed || []" :key="h.code"><span class="tag tg-red" :title="h.detail" x-text="'✕ ' + (h.label || h.code)"></span></template>
-              </div>
-              <span class="tag tg-green" x-show="!(c.risk?.hard_rules?.failed || []).length" x-text="'All ' + (c.risk?.hard_rules?.passed || 0) + ' verified rules pass'"></span>
-              <em x-show="(c.risk?.hard_rules?.not_verified || []).length" :title="(c.risk?.hard_rules?.not_verified || []).map(h => h.label).join(' · ')" x-text="(c.risk?.hard_rules?.not_verified || []).length + ' not verifiable from the data on record'"></em>
+              <span class="rs-l">Mandatory checks</span>
+              <template x-if="c.checks">
+                <div class="rs-chk">
+                  <span class="tag" :class="c.checks.failed.length ? 'tg-red' : c.checks.open ? 'tg-amber' : 'tg-green'"
+                        x-text="c.checks.clear + ' of ' + c.checks.total + ' clear' + (c.checks.failed.length ? ' · ' + c.checks.failed.length + ' failed' : '') + (c.checks.not_verified.length ? ' · ' + c.checks.not_verified.length + ' not verified' : '')"></span>
+                  <span class="tag tg-grey" x-show="c.checks.demo" title="The bureau, MCA and registry APIs are not connected: these results come from demo files">Demo data</span>
+                  <button class="linkbtn" x-show="c.checks.open" @click="doAction({kind: 'goto', target: 'sec-checks'})" x-text="c.checks.open + ' open — see Mandatory checks'"></button>
+                </div>
+              </template>
             </div>
+            <p class="rs-mean" x-show="c.verdict?.text" x-text="c.verdict?.text"></p>
             <div class="rs-ratios">
               <span class="rs-l" x-text="'Key ratios · ' + (c.risk?.period || '') + ' against policy'"></span>
               <div class="rq-list">
@@ -252,10 +256,26 @@
                   <span class="rq-ic" x-html="icon(c.risk?.quality?.revenue_truth?.status === 'good' ? 'check' : c.risk?.quality?.revenue_truth?.status === 'na' ? 'dot' : 'alert', 12)"></span>
                   <span class="rq-n">Revenue truth</span><b class="num" x-text="c.risk?.quality?.revenue_truth?.score != null ? c.risk.quality.revenue_truth.score + '/100' : 'Not verifiable'"></b><em>vs GST and bank data</em>
                 </div>
-                <div class="rq" x-show="c.risk?.quality?.ews" :class="'rq-' + (c.risk?.quality?.ews?.status || 'na')" :title="(c.risk?.quality?.ews?.items || []).map(i => i.label + ': ' + i.detail).join('\n')">
+                <button class="rq click" x-show="c.risk?.quality?.ews" :class="'rq-' + (c.risk?.quality?.ews?.status || 'na')" :title="c.ews_about" @click="expanded.ews = !expanded.ews">
                   <span class="rq-ic" x-html="icon(c.risk?.quality?.ews?.flags ? 'alert' : 'check', 12)"></span>
                   <span class="rq-n">Early-warning flags</span><b class="num" x-text="c.risk?.quality?.ews?.flags ?? '—'"></b>
-                  <em x-text="(c.risk?.quality?.ews?.checked || 0) + ' checked · ' + (c.risk?.quality?.ews?.not_checked || 0) + ' not checkable'"></em>
+                  <em x-text="(c.risk?.quality?.ews?.checked || 0) + ' checked · ' + (c.risk?.quality?.ews?.not_checked || 0) + ' not checkable · ' + (expanded.ews ? 'hide' : 'details')"></em>
+                </button>
+              </div>
+              <!-- E3: each flag in plain words, with what to do about it -->
+              <div class="ews-box" x-show="expanded.ews || (c.risk?.quality?.ews?.items || []).length">
+                <p class="muted sm" x-text="c.ews_about"></p>
+                <template x-for="(i, ii) in c.risk?.quality?.ews?.items || []" :key="ii">
+                  <div class="ews-item">
+                    <div><span class="tag tg-amber">Flag</span> <strong x-text="i.label"></strong> — <span x-text="i.detail"></span></div>
+                    <div class="ews-act"><span class="muted sm">Action:</span> <span x-text="i.action"></span>
+                      <button class="btn ghost sm" x-show="i.act === 'send_back' && allowed({kind: 'send_back'}) && c.is_mine" @click="doAction({kind: 'send_back', prefill: 'Early-warning flag — ' + i.label + ': ' + i.detail + '. Please provide: ' + i.action.toLowerCase() + '.'}, null)" x-text="(c.actions.find(a => a.id === 'send_back') || {}).label || 'Return'"></button>
+                    </div>
+                  </div>
+                </template>
+                <div x-show="expanded.ews && (c.risk?.quality?.ews?.unchecked || []).length">
+                  <span class="muted sm">Not checkable yet (no data on record):</span>
+                  <ul class="sm"><template x-for="(u, ui) in c.risk?.quality?.ews?.unchecked || []" :key="ui"><li><b x-text="u.label"></b> — <span x-text="u.needs"></span></li></template></ul>
                 </div>
               </div>
               <div class="rs-struct" x-show="c.risk?.headroom && !c.risk.headroom.fits">
@@ -264,6 +284,41 @@
               </div>
             </div>
             <p class="rs-why" x-show="c.risk?.rationale" x-text="c.risk?.rationale"></p>
+          </section>
+          <!-- E5: the mandatory checks, run at initiation and again by the CAM engine -->
+          <section class="card" id="sec-checks" x-show="c.checks" :class="{focus: c.is_mine && c.checks?.open}">
+            <div class="card-h">
+              <h3><span x-html="icon('shield')"></span> Mandatory checks
+                <span class="count-pill" x-text="(c.checks?.clear || 0) + ' / ' + (c.checks?.total || 0) + ' clear'"></span></h3>
+              <span class="muted sm">
+                <span x-text="c.checks?.basis === 'cam_engine' ? 'As decided by the CAM engine' : 'Run when the proposal was initiated'"></span>
+                <span class="tag tg-grey" x-show="c.checks?.demo">Demo data — bureau, MCA and registry APIs not connected</span>
+                <button class="linkbtn" x-show="!c.checks?.open" @click="expanded.checks = !expanded.checks" x-text="expanded.checks ? 'Hide' : 'Show all'"></button>
+              </span>
+            </div>
+            <div class="table-wrap" x-show="c.checks?.open || expanded.checks"><table class="tbl">
+              <thead><tr><th>Check</th><th>Result</th><th>Finding · source</th><th>Evidence that clears it</th></tr></thead>
+              <tbody>
+                <template x-for="k in (c.checks?.items || []).filter(i => expanded.checks || i.status !== 'pass')" :key="k.code">
+                  <tr>
+                    <td class="chk-name"><strong x-text="k.label"></strong><div class="muted sm" x-text="k.meaning"></div></td>
+                    <td><span class="tag" :class="k.status === 'pass' ? 'tg-green' : k.status === 'fail' ? 'tg-red' : 'tg-amber'" x-text="k.status_label"></span></td>
+                    <td class="sm"><span x-text="k.detail"></span><div class="muted" x-show="k.source" x-text="'Source: ' + k.source"></div>
+                      <div class="ch-ans" x-show="k.note"><span x-html="icon('check', 13)"></span>
+                        <span x-text="(k.note?.kind === 'verified' ? 'Verified by ' : 'Proceeding with justification — ') + k.note?.by + ' (' + k.note?.role + '): “' + k.note?.note + '”'"></span></div>
+                      <template x-if="k.open && c.checks?.can_note && c.status === 'open'">
+                        <div class="chk-acts">
+                          <button class="btn ghost sm" @click="checkNote(k, 'verified')">Record verification</button>
+                          <button class="btn ghost sm" @click="checkNote(k, 'justified')">Proceed with justification</button>
+                          <button class="btn ghost sm" x-show="c.checks?.can_return" @click="doAction({kind: 'send_back', prefill: 'Mandatory check open — ' + k.label + ': please provide ' + k.evidence + '.'}, null)" x-text="c.checks?.return_label + ' for this'"></button>
+                        </div>
+                      </template></td>
+                    <td class="sm" x-text="k.status === 'pass' ? '—' : k.evidence"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table></div>
+            <p class="muted sm" x-show="!c.checks?.open && !expanded.checks" x-text="'All open checks are clear or addressed: ' + (c.checks?.items || []).filter(i => i.status === 'pass').map(i => i.label.toLowerCase()).join(', ') + '.'"></p>
           </section>
           <div class="banner warn" x-show="(c.deviations || []).length">
             <template x-for="(d, i) in c.deviations || []" :key="i">
@@ -409,13 +464,32 @@
 
           <!-- data completeness: click Pending / Not provided to jump to the field -->
           <section class="tiles" x-show="c.cam.state === 'ready'">
-            <div class="tile"><span>Fields complete</span><strong class="num" x-text="c.counts.filled + ' / ' + c.counts.total"></strong></div>
+            <button class="tile click" :class="{warn: (c.incomplete || []).length}" @click="expanded.incomplete = !expanded.incomplete">
+              <span>Fields complete</span><strong class="num" x-text="c.counts.filled + ' / ' + c.counts.total"></strong>
+              <em x-show="(c.incomplete || []).length" x-text="incompleteSplit() + ' · ' + (expanded.incomplete ? 'hide' : 'which?')"></em>
+            </button>
             <div class="tile"><span>Auto-populated</span><strong class="num" x-text="c.counts.by_agent"></strong></div>
             <template x-for="r in c.counts.by_role" :key="r.role">
               <div class="tile"><span x-text="'Provided by ' + r.short"></span><strong class="num" x-text="r.count"></strong></div>
             </template>
             <button class="tile click" :class="{warn: c.counts.skipped}" @click="goTo('skipped')"><span>Not provided</span><strong class="num" x-text="c.counts.skipped"></strong><em x-show="c.counts.skipped">Go to field →</em></button>
             <button class="tile click" :class="{bad: c.counts.missing}" @click="goTo('missing')"><span>Pending</span><strong class="num" x-text="c.counts.missing"></strong><em x-show="c.counts.missing">Go to field →</em></button>
+          </section>
+          <!-- E7: which fields are incomplete, why, and who provides them -->
+          <section class="card incomplete" x-show="c.cam.state === 'ready' && expanded.incomplete && (c.incomplete || []).length">
+            <div class="card-h"><h3><span x-html="icon('alert')"></span> Incomplete credit data fields</h3>
+              <button class="linkbtn" @click="expanded.incomplete = false">Close</button></div>
+            <div class="table-wrap"><table class="tbl">
+              <thead><tr><th>Field</th><th>Status</th><th>Why · who</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="f in c.incomplete || []" :key="f.id">
+                  <tr><td><strong x-text="f.label"></strong></td>
+                    <td><span class="tag" :class="f.status === 'pending' ? 'tg-red' : f.status === 'not_provided' ? 'tg-amber' : 'tg-grey'" x-text="f.status_label"></span></td>
+                    <td class="sm" x-text="f.note"></td>
+                    <td class="r"><button class="btn ghost sm" @click="goToField(f.id)">Go to field</button></td></tr>
+                </template>
+              </tbody>
+            </table></div>
           </section>
 
           <!-- underwriting overrides: the Sanctioning Authority concurs -->
@@ -522,11 +596,12 @@
               <h3><span x-html="icon('check')"></span> Conditions Precedent <span class="count-pill" x-text="cpMet() + ' / ' + cpCount() + ' met'"></span></h3>
               <button class="btn ghost sm" x-show="c.is_mine && c.stage === 'cad'" @click="demoDocs()" :disabled="busy">Add demo executed documents</button>
             </div>
+            <p class="muted sm" x-show="c.is_mine && c.stage === 'cad'">Upload each executed document against its condition (Upload, right). The agent checks it names the borrower and is the right kind of document; confirm what it cannot verify, such as signatures and stamps.</p>
             <div class="table-wrap"><table class="tbl">
               <thead><tr><th>Condition</th><th>Status</th><th>Evidence · agent check</th><th></th></tr></thead>
               <tbody>
                 <template x-for="k in cps()" :key="k.id">
-                  <tr :class="{na: k.status === 'not_applicable'}">
+                  <tr :data-cond="k.id" :class="{na: k.status === 'not_applicable'}">
                     <td><strong x-text="k.label"></strong></td>
                     <td><span class="tag" :class="condTag(k).c" x-text="condTag(k).t"></span></td>
                     <td class="sm">
@@ -630,8 +705,14 @@
                     </template>
                     <template x-if="edit && edit.id === p.id">
                       <div class="fld-edit">
-                        <template x-if="p.type === 'longtext'"><textarea class="input" rows="4" x-model="edit.value"></textarea></template>
-                        <template x-if="p.type !== 'longtext'"><input class="input" :type="['amount', 'number'].includes(p.type) ? 'number' : 'text'" step="any" x-model="edit.value"></template>
+                        <template x-if="p.type === 'longtext'"><textarea class="input" rows="4" x-model="edit.value" :placeholder="p.hint || ''"></textarea></template>
+                        <template x-if="p.type !== 'longtext' && (p.options || []).length">
+                          <div class="opt-pick">
+                            <template x-for="o in p.options" :key="o"><button type="button" class="btn sm" :class="edit.value === o ? 'primary' : 'ghost'" @click="edit.value = o" x-text="o"></button></template>
+                            <input class="input" x-model="edit.value" :placeholder="p.hint || 'Or type the answer'">
+                          </div>
+                        </template>
+                        <template x-if="p.type !== 'longtext' && !(p.options || []).length"><input class="input" :type="['amount', 'number'].includes(p.type) ? 'number' : 'text'" step="any" x-model="edit.value" :placeholder="p.hint || ''"></template>
                         <input class="input" x-show="edit.needsReason" x-model="edit.reason" placeholder="Override rationale (shown to the Sanctioning Authority)">
                         <div class="muted sm" x-show="edit.challenge" x-text="'In answer to: ' + ((c.against || []).find(a => a.id === edit.challenge) || {}).title"></div>
                         <div class="r"><button class="btn ghost sm" @click="edit = null">Cancel</button> <button class="btn primary sm" @click="saveEdit()" :disabled="busy">Save</button></div>
@@ -671,7 +752,14 @@
                 <template x-if="mineMsg(m) && !(c.ask && c.ask.msg === m.id)">
                   <div class="msg" :class="[m.from, m.kind]">
                     <div class="who" x-text="m.from === 'user' ? m.name : 'Credit Copilot'"></div>
-                    <div class="bubble" x-text="m.text"></div>
+                    <div class="bubble" x-html="md(m.text)"></div>
+                    <div class="msg-docs" x-show="(m.docs || []).length">
+                      <template x-for="(d, di) in m.docs || []" :key="di">
+                        <div><a :href="link('/conditions/' + d.condition + '/document/' + d.index)" target="_blank" x-text="d.name"></a>
+                          <span class="tag tg-grey" x-show="d.demo">DEMO</span> <span class="muted" x-text="d.label"></span></div>
+                      </template>
+                    </div>
+                    <div class="msg-acts" x-show="m.goto"><button class="btn sm ghost" @click="goToTarget(m.goto)" x-text="m.goto?.label"></button></div>
                     <div class="msg-acts" x-show="(m.actions || []).length && c.is_mine && c.status === 'open'">
                       <template x-for="(x, xi) in (m.actions || []).filter(x => allowed(x))" :key="xi">
                         <button class="btn sm" :class="(x.kind === 'approve' || x.kind === 'reduce_amount') ? 'primary' : x.kind === 'reject' ? 'danger' : 'ghost'" @click="doAction(x, (c.against || []).find(a => a.id === x.challenge) || null)" x-text="x.label"></button>
@@ -692,17 +780,24 @@
           <!-- the pending question stays pinned until it is answered -->
           <div class="cp-ask" x-show="c.ask">
             <div class="ask-l">Action required</div>
-            <div class="ask-t" x-text="c.ask?.text"></div>
+            <div class="ask-t" x-html="md(c.ask?.text)"></div>
             <div class="ask-q">
-              <template x-for="(qr, qi) in c.ask?.quick || []" :key="qi"><button class="btn sm" :class="qr.startsWith('Yes') || qr === 'Concur' ? 'primary' : 'ghost'" @click="send(qr)" x-text="qr"></button></template>
-              <label class="btn sm ghost" x-show="['cond_doc', 'source_doc'].includes(c.ask?.kind)"><span x-html="icon('upload')"></span> Upload document<input type="file" accept="application/pdf" hidden :multiple="c.ask?.kind === 'source_doc'" @change="chatUpload($event)"></label>
+              <template x-for="(qr, qi) in c.ask?.quick || []" :key="qi">
+                <button class="btn sm" :class="qr.startsWith('Yes') || qr === 'Concur' || qr === c.ask?.suggested ? 'primary' : 'ghost'" @click="send(qr)">
+                  <span x-text="qr"></span><span class="sugg-b" x-show="qr === c.ask?.suggested">Suggested</span></button>
+              </template>
+              <label class="btn sm ghost" x-show="['cond_doc', 'source_doc'].includes(c.ask?.kind)"><span x-html="icon('upload')"></span> <span x-text="c.ask?.kind === 'cond_doc' ? 'Upload here' : 'Upload document'"></span><input type="file" accept="application/pdf" hidden :multiple="c.ask?.kind === 'source_doc'" @change="chatUpload($event)"></label>
+              <button class="btn sm ghost" x-show="c.ask?.goto" @click="goToTarget(c.ask?.goto)" x-text="c.ask?.goto?.label"></button>
+            </div>
+            <div class="ask-sec" x-show="(c.ask?.secondary || []).length">
+              <template x-for="(qr, qi) in c.ask?.secondary || []" :key="qi"><button class="linkbtn" @click="send(qr)" x-text="'Skip — ' + qr.toLowerCase()"></button></template>
             </div>
           </div>
           <div class="cp-sugg" x-show="(c.suggestions || []).length">
             <template x-for="(s, si) in c.suggestions" :key="si"><button class="chip" @click="send(s)" x-text="s"></button></template>
           </div>
           <form class="cp-input" @submit.prevent="send()">
-            <input class="input" x-model="chatText" :placeholder="c.ask ? 'Reply, or ask about this proposal' : 'Ask about this proposal, or e.g. “change EBITDA to 35900 because …”'">
+            <input class="input" x-model="chatText" :placeholder="c.ask?.hint || (c.ask ? 'Reply, or ask about this proposal' : 'Ask about this proposal, or e.g. “change EBITDA to 35900 because …”')">
             <button class="btn primary" :disabled="chatBusy || !chatText.trim()">Send</button>
           </form>
         </aside>

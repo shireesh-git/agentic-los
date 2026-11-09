@@ -14,6 +14,14 @@
 #
 # `requires_key`: an environment variable; when it is empty the source is
 # treated as inactive whatever `mode` says.
+#
+# `demo_file: true`: while the API is not connected, use the borrower's demo file
+# (storage/demo_registry/<entity id or CIN>.json) before asking for a document.
+# Demo records are labelled as demo data everywhere they are shown.
+
+demo_data:
+  enabled: true                    # false: never use demo files (production)
+  label: "Demo data: not a live bureau / registry pull"
 
 network:
   # Identifies the client honestly; one request at a time per host, spaced out,
@@ -52,6 +60,7 @@ sources:
     mode: api
     connector: probe42
     requires_key: PROBE42_API_KEY
+    demo_file: true
     upload: {category: mca, ask: "the MCA master data (company master, directors and charges)"}
 
   - id: financials
@@ -69,6 +78,7 @@ sources:
     provider: "CIBIL / CRIF commercial"
     mode: inactive
     inactive_reason: "Bureau membership API is not connected"
+    demo_file: true
     upload: {category: bureau, ask: "the commercial bureau report (CIBIL CMR / CRIF)"}
 
   - id: bank_statements
@@ -103,6 +113,14 @@ sources:
     connector: sanctions
     cache_hours: 24
 
+  - id: registries
+    agent: compliance
+    label: "Regulatory lists: wilful defaulter, RBI defaulter, CFMC fraud, suits & NCLT"
+    provider: "RBI / CIC lists, RBI CFMC, court and NCLT records"
+    mode: inactive
+    inactive_reason: "Regulatory-list feeds are not connected (bank access via CIC / RBI only)"
+    demo_file: true
+
   - id: rating
     agent: market
     label: "External credit rating"
@@ -121,7 +139,7 @@ sources:
 
 # What a proposal needs (the planner): always, plus by product.
 requirements:
-  always: [mca, financials, bureau, kyc, sanctions]
+  always: [mca, financials, bureau, kyc, sanctions, registries]
   recommended: [lei, rating, adverse_media]
   by_product:
     working_capital: [bank_statements, gst]

@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from src.application.errors import ConflictError, ForbiddenError, InvalidRequestError, NotFoundError
+from src.flow import checks as chk
 from src.flow import datapoints as dpx
 from src.flow import risk as rk
 from src.flow.camjob import CamJobs
@@ -49,6 +50,8 @@ _QUESTION_START = ("what", "why", "how", "who", "when", "where", "which", "is ",
 _EDIT = re.compile(r"^(?:please\s+)?(?:change|set|update|make|correct)\s+(?:the\s+)?(.+?)\s+(?:to|=|as)\s+(.+?)"
                    r"(?:\s*(?:,|;|\.)?\s+(?:because|since|reason:?|as)\s+(.+))?$", re.I | re.S)
 _PLAN = re.compile(r"what (do|should|must|can) (i|we) do|what (do|should) i do next|next steps?|what now|what to do|"
+                   r"what (i|we) (should|must|need to|have to|can) do|what should (be done|happen)|should i (proceed|"
+                   r"approve|recommend|sanction|return|decline)|how (do|should) i proceed|"
                    r"how (do|can|should|would) (i|we) (resolve|answer|address|fix|handle|proceed|deal)|"
                    r"what action|action plan|how to proceed|what is pending for me|what do i have to", re.I)
 _AMOUNT = re.compile(r"\b(amount|limit)\b.*\b(change|reduce|lower|cut|decrease|increase|revise|right|fit|fits|max|"
@@ -77,6 +80,15 @@ SUGGESTIONS = {
 
 def _now() -> datetime:
     return datetime.now()
+
+
+def _day(v) -> str:
+    """2026-11-09 → 9 Nov 2026 (left as it is when it is not an ISO date)."""
+    try:
+        d = date.fromisoformat(str(v)[:10])
+    except (TypeError, ValueError):
+        return str(v or "")
+    return f"{d.day} {d:%b %Y}"
 
 
 def _cr(v) -> str:
@@ -181,9 +193,10 @@ class FlowService:
         case = self.store.get(case_id)
         if not case:
             raise NotFoundError(f"Proposal {case_id} not found")
-        if "risk" not in case and (case.get("cam") or {}).get("state") == "ready":
+        if (case.get("risk") or {}).get("v") != rk.VERSION and (case.get("cam") or {}).get("state") == "ready":
             engine = self._engine_of(case)
             case["risk"] = rk.assess(engine)
+            case["checks"] = chk.from_engine(engine) or case.get("checks")
             if engine:
                 case["against"] = rk.challenges(engine)
                 self._build_register(case, engine)
@@ -301,10 +314,68 @@ class FlowService:
                 self._say(case, f"Proposal initiated for {b.company_name}: {self._fac_text(fac)}. Next step: generate "
                                 f"the CAM with the CAM engine, or ingest the bank's CAM. Credit data fields are "
                                 f"populated from it.")
+                self._run_checks(case, company)
             self._save(case)
         if acquire:
             self._start_acquire(case["case_id"])
         return case
+
+    # ── Mandatory checks, brought forward to initiation (fix list E5) ─────────
+
+    def _demo_enabled(self) -> bool:
+        from src.core.config_manager import config
+        return bool(config.get("data_sources", "demo_data", "enabled", default=False))
+
+    def _run_checks(self, case: dict, company: dict) -> None:
+        """Run the six data checks now and tell the RM what is clear, failed or not verifiable."""
+        try:
+            res = chk.precheck(company, demo_enabled=self._demo_enabled())
+        except Exception:                                    # never block initiation on a check
+            log.warning("Mandatory checks failed to run for %s", case["case_id"], exc_info=True)
+            return
+        if not res:
+            return
+        case["checks"] = res
+        v = chk.view(res, case.get("check_notes"))
+        demo = " (demo data: the bureau, MCA and registry APIs are not connected)" if v["demo"] else ""
+        parts = []
+        if v["failed"]:
+            parts.append("Failed: " + "; ".join(f"{i['label']}: {i['detail']}" for i in v["failed"]))
+        if v["not_verified"]:
+            parts.append("Not verified: " + ", ".join(i["label"] for i in v["not_verified"])
+                         + " — " + "; ".join(sorted({i["evidence"] for i in v["not_verified"]})) + " needed")
+        if parts:
+            self._say(case, f"Mandatory checks: {v['clear']} of {v['total']} clear{demo}. " + ". ".join(parts)
+                      + ". Resolve these before submission; Underwriting and the Sanctioning Authority see them.",
+                      kind="warn", stage=self.stages()[0]["id"])
+        else:
+            self._say(case, f"Mandatory checks: all {v['total']} clear{demo} — wilful defaulter, RBI defaulter and "
+                            f"fraud lists, bureau status, MCA status and suits filed.", stage=self.stages()[0]["id"])
+
+    def check_note(self, case_id: str, code: str, body: dict, session: dict) -> dict:
+        """Record that an open check was verified from evidence seen, or why the case proceeds without it."""
+        kind = str(body.get("kind") or "").strip()
+        note = str(body.get("note") or "").strip()
+        if kind not in ("verified", "justified"):
+            raise InvalidRequestError("kind must be 'verified' or 'justified'")
+        if len(note) < 10:
+            raise InvalidRequestError("Say what evidence you saw, or why the case proceeds without it")
+        with self._lock:
+            case = self._require(case_id)
+            st = self.stage(case["stage"])
+            if case["status"] != "open" or st["role"] != session["user"]["role"]:
+                raise ForbiddenError("Only the officer the proposal is with can record this")
+            items = {i["code"]: i for i in (case.get("checks") or {}).get("items") or []}
+            if code not in items or items[code]["status"] == "pass":
+                raise InvalidRequestError("That check is not open")
+            u = session["user"]
+            case.setdefault("check_notes", {})[code] = {"kind": kind, "note": note[:600], "by": u["name"],
+                                                        "role": self.role_label(u["role"]), "at": self._stamp()}
+            self._log(case, "check_" + kind, session, check=items[code]["label"], note=note[:300])
+            self._say(case, f"{items[code]['label']}: {'verified' if kind == 'verified' else 'proceeding with justification'}"
+                            f" — {u['name']}: “{note[:300]}”", stage=case["stage"])
+            self._save(case)
+        return self.view(case_id, session)
 
     # ── Data acquisition (new prospects): API first, documents as the fallback ──
 
@@ -362,6 +433,8 @@ class FlowService:
                           sources={k: v["status"] for k, v in result["sources"].items()})
                 self._say(case, self._acq_summary(case, first), stage=self.stages()[0]["id"],
                           kind="warn" if any(c["status"] == "fail" for c in result["verification"]) else "info")
+                if company is not None and (case.get("cam") or {}).get("state") != "ready":
+                    self._run_checks(case, company)
                 if case.get("stage") == self.stages()[0]["id"]:
                     self._ask_next(case)
                 self._save(case)
@@ -708,6 +781,7 @@ class FlowService:
             self._fill(case, found)
             case["against"] = rk.challenges(engine)
             case["risk"] = rk.assess(engine)
+            case["checks"] = chk.from_engine(engine) or case.get("checks")
             case["observations"] = [{k: o.get(k) for k in ("title", "severity", "summary")}
                                     for o in engine.get("observations") or []]
             self._build_register(case, engine)
@@ -822,6 +896,7 @@ class FlowService:
             self._fill(case, found)
             case["against"] = rk.challenges(engine) if engine else []
             case["risk"] = rk.assess(engine)
+            case["checks"] = chk.from_engine(engine) or case.get("checks")
             self._build_register(case, engine)
             self._log(case, "cam_upload", session, file=safe, read_by=how, filled=len(found))
             self._intro_after_cam(case, "ingested from the bank's CAM" + (" (embedded data sheet)" if how == "sheet" else ""))
@@ -900,6 +975,86 @@ class FlowService:
 
     def _value(self, case: dict, dp_id: str):
         return ((case.get("dp") or {}).get(dp_id) or {}).get("value") or ""
+
+    def _dp_question(self, case: dict, sp: dict) -> dict:
+        """Ask for a field: its valid answers as buttons (a suggested one first, with the reason), "Not
+        provided" last and secondary, and a typing hint for a free-text answer (fix list E1)."""
+        options = list(sp.get("options") or [])
+        suggested = self._suggest(case, sp) if options else None
+        if suggested and suggested["value"] in options:
+            options.remove(suggested["value"])
+            options.insert(0, suggested["value"])
+        text = sp.get("ask") or f"Provide {sp['label']}."
+        if suggested:
+            text += f" Suggested: {suggested['value']} — {suggested['reason']}."
+        elif options:
+            text += " Choose one below, or type the answer."
+        else:
+            text += " Type the answer below."
+        return {"kind": "dp", "ref": sp["id"], "text": text, "quick": options,
+                "secondary": [] if sp.get("required") else ["Not provided"],
+                "suggested": suggested["value"] if suggested else None,
+                "hint": sp.get("hint") or (f"Type the {sp['label'].lower()}, or choose above" if options
+                                           else f"Type the {sp['label'].lower()} here")}
+
+    def _suggest(self, case: dict, sp: dict) -> Optional[dict]:
+        """An answer the record supports, with where it comes from; None when the record says nothing."""
+        from src.data import demo_registry
+        company = self.companies.get(case["entity_id"]) or {}
+        ext = dict(company.get("external_data") or {})
+        if self._demo_enabled():
+            b = company.get("borrower")
+            for k, v in demo_registry.external_data(case["entity_id"], getattr(b, "cin", None)).items():
+                ext.setdefault(k, v)
+        bureau = (ext.get("bureau_data") or {}).get("payload") or {}
+        demo = " (demo data)" if ((ext.get("bureau_data") or {}).get("provenance") or {}).get("via") == "demo_file" else ""
+        if sp["id"] == "banking_arrangement" and bureau.get("total_lenders"):
+            n = int(bureau["total_lenders"])
+            value = "Sole banking" if n <= 1 else "Multiple banking"
+            return {"value": value, "reason": f"{n} lender(s) in the bureau report{demo}; choose Consortium if they "
+                                              f"lend under a consortium agreement"}
+        if sp["id"] == "constitution":
+            mca = (ext.get("mca_data") or {}).get("payload") or {}
+            cls = str(mca.get("company_class") or "").lower()
+            if cls:
+                value = ("Public limited (listed)" if "listed" in cls and "unlisted" not in cls else
+                         "Public limited (unlisted)" if "public" in cls else "Private limited" if "private" in cls
+                         else None)
+                if value:
+                    return {"value": value, "reason": f"MCA record: {mca['company_class']}"
+                            + (" (demo data)" if ((ext.get('mca_data') or {}).get('provenance') or {}).get('via')
+                               == "demo_file" else "")}
+        return None
+
+    def _incomplete(self, case: dict) -> list[dict]:
+        """The credit data fields that are not filled, each with why and who should provide it (fix list E7)."""
+        stages = [s["id"] for s in self.stages()]
+        here = stages.index(case["stage"]) if case.get("stage") in stages else 0
+        past_underwriting = case["status"] != "open" or here > stages.index("credit_risk")
+        rm = self.officer(stages[0])
+        out = []
+        for sp in dpx.specs():
+            d = case["dp"].get(sp["id"]) or {}
+            status = d.get("status") or "missing"
+            if status == "filled":
+                continue
+            if status == "skipped":
+                who = d.get("skipped_by") or rm
+                note = f"Not provided — marked by {who}"
+                if past_underwriting:
+                    note += f"; accepted by {self.officer('credit_risk')} (Underwriting)"
+                out.append({"id": sp["id"], "label": sp["label"], "status": "not_provided",
+                            "status_label": "Not provided", "note": note, "who": who})
+            elif sp.get("agent_only"):
+                out.append({"id": sp["id"], "label": sp["label"], "status": "not_available",
+                            "status_label": "Not available",
+                            "note": sp.get("unavailable") or "No source on record for this figure",
+                            "who": "Data agents (needs a connected source)"})
+            else:
+                out.append({"id": sp["id"], "label": sp["label"], "status": "pending", "status_label": "Pending",
+                            "note": ("Required — " if sp.get("required") else "") + f"to be provided by {rm} (RM)",
+                            "who": rm})
+        return out
 
     def _missing(self, case: dict, required_only: bool = False) -> list[dict]:
         return [sp for sp in dpx.specs()
@@ -1220,8 +1375,14 @@ class FlowService:
                 case["ask"] = None
                 return
         msg = self._say(case, want["text"], quick=want.get("quick"), kind=want.get("msg_kind", "ask"))
+        for k in ("upload", "goto", "secondary", "suggested", "hint"):
+            if want.get(k):
+                msg[k] = want[k]
         case["ask"] = {"stage": case["stage"], "kind": want["kind"], "ref": want["ref"], "text": want["text"],
-                       "quick": want.get("quick") or [], "msg": msg["id"]} if want.get("msg_kind", "ask") == "ask" else None
+                       "quick": want.get("quick") or [], "secondary": want.get("secondary") or [],
+                       "suggested": want.get("suggested"), "hint": want.get("hint"),
+                       "upload": want.get("upload"), "goto": want.get("goto"),
+                       "msg": msg["id"]} if want.get("msg_kind", "ask") == "ask" else None
 
     def _next_question(self, case: dict) -> Optional[dict]:
         if case["status"] != "open":
@@ -1243,8 +1404,7 @@ class FlowService:
         if stage == "rm" and cam.get("state") == "ready":
             for sp in sorted(self._missing(case), key=lambda s: not s.get("required")):
                 if sp["id"] not in offered:
-                    return {"kind": "dp", "ref": sp["id"], "text": sp.get("ask") or f"Provide {sp['label']}.",
-                            "quick": [] if sp.get("required") else ["Not provided"]}
+                    return self._dp_question(case, sp)
             if not self._missing(case, required_only=True) and not cam.get("stale"):
                 return {"kind": "none", "ref": "rm_ready", "msg_kind": "done",
                         "text": "All mandatory credit data fields are complete. Review the proposal and submit it "
@@ -1372,7 +1532,7 @@ class FlowService:
             checks = self.release_checks(case)
             ok = sum(1 for c in checks if c["ok"])
             self._say(case, f"Disbursement request from {who}: {_cr(case['drawdown']['amount_cr'])} to "
-                            f"{case['drawdown']['account']}, value date {case['drawdown']['value_date']}. "
+                            f"{case['drawdown']['account']}, value date {_day(case['drawdown']['value_date'])}. "
                             f"Pre-disbursement compliance: {ok} of {len(checks)} checks pass"
                             + ("." if ok == len(checks) else " — review before release."))
         self._ask_next(case)
@@ -1417,12 +1577,25 @@ class FlowService:
                       stage=self.stage_of_role(session["user"]["role"]), kind="answer")
             return
         editable = st["id"] in ("rm", "credit_risk") and (case.get("cam") or {}).get("state") == "ready"
+        checks_view = chk.view(case.get("checks"), case.get("check_notes"))
+        verdict = rk.verdict(case.get("risk"), checks_view,
+                             f"{self.officer('sanction')} ({self.stage('sanction')['label']})")
         text, buttons = rk.plan(st["id"], st.get("actions") or [], case.get("risk"), case.get("against") or [],
                                 case.get("responses") or {}, self.blockers(case, st), editable, focus,
-                                case.get("register") or [])
+                                case.get("register") or [], labels=self._labels(st), checks=checks_view,
+                                standing=(f"{verdict['label']}. {verdict['text']}" if verdict else None))
         msg = self._say(case, text, kind="answer")
         msg["actions"] = buttons
         self._log(case, "chat_question", session, question="next steps", answered_by="plan")
+
+    def _labels(self, st: dict) -> dict:
+        """The stage's action buttons as the screen labels them."""
+        labels = dict(st.get("labels") or {})
+        labels.setdefault("approve", "Approve")
+        labels.setdefault("reject", "Decline")
+        if st.get("send_back_to"):
+            labels.setdefault("send_back", f"Return to {self.stage(st['send_back_to'])['label']}")
+        return labels
 
     def _amount(self, case: dict, session: dict) -> None:
         r = case.get("risk") or {}
@@ -1631,12 +1804,17 @@ class FlowService:
         st = self.stage(case["stage"])
         rec["asked_by"] = {"role": self.role_label(session["user"]["role"]),
                            "proposal_is_with_them": case["status"] == "open" and st["role"] == session["user"]["role"],
+                           # the real buttons, by their screen labels and where they are (fix list E4)
                            "actions_available_on_screen": [
-                               {"approve": "Proceed / approve", "send_back": "Return with remarks",
-                                "reject": "Decline"}.get(a, a) for a in st.get("actions") or []]
-                           + (["Override a credit data field (with rationale)"] if st["id"] == "credit_risk" else [])
-                           + (["Record a justification against a key risk challenge"] if case.get("against") else [])}
-        out = cp.ask(question, rec, llm, system_prompt=cp.ADVISE_SYSTEM_PROMPT)
+                               f"“{self._labels(st).get(a, a)}” — action bar" for a in st.get("actions") or []]
+                           + (["“Edit” on a credit data field (with rationale) — Credit Data Fields"]
+                              if st["id"] == "credit_risk" else [])
+                           + (["“Record justification” — Key Risk Challenges card, under the challenge"]
+                              if case.get("against") else [])
+                           + (["“Record verification” / “Proceed with justification” — Mandatory checks card"]
+                              if any(i.get("open") for i in (chk.view(case.get("checks"), case.get("check_notes"))
+                                                             or {}).get("items") or []) else [])}
+        out = cp.ask(question, cp.clean(rec), llm, system_prompt=cp.ADVISE_SYSTEM_PROMPT)
         text = out["answer"]
         if out.get("mode") != "ai" and out.get("note"):
             text += f"\n\n({out['note']})"
@@ -1658,7 +1836,14 @@ class FlowService:
                                         "suggested_actions": [x["label"] for x in a.get("actions") or []],
                                         "answered": (case.get("responses") or {}).get(a["id"])}
                                        for a in case.get("against") or []],
-               "risk_assessment": {k: v for k, v in (case.get("risk") or {}).items() if k != "run_id"} or None,
+               "risk_assessment": {k: v for k, v in (case.get("risk") or {}).items()
+                                   if k not in ("run_id", "thresholds")} or None,
+               "mandatory_checks": [{"check": i["label"], "result": i["status_label"], "detail": i["detail"],
+                                     "source": i["source"] or None, "evidence_that_clears_it": i["evidence"]
+                                     if i["status"] != "pass" else None,
+                                     "recorded": (f"{i['note']['kind']} by {i['note']['by']}: {i['note']['note']}"
+                                                  if i.get("note") else None)}
+                                    for i in (chk.view(case.get("checks"), case.get("check_notes")) or {}).get("items") or []],
                "deviations": [{k: d[k] for k in ("by", "stage_label", "reasons", "text")}
                               for d in case.get("deviations") or []],
                "deviation_register": [{k: d.get(k) for k in ("label", "policy", "deviable", "mitigant", "justification",
@@ -1686,8 +1871,27 @@ class FlowService:
             rec["sanction"] = case["sanction"]
             rec["conditions"] = [{"condition": c["label"], "type": "precedent" if c["when"] == "precedent" else "subsequent",
                                   "status": c["status"], "due": c.get("due")} for c in case["conditions"]]
-            rec["disbursement_request"] = case.get("drawdown")
+            rec["disbursement_request"] = self._drawdown_record(case)
         return rec
+
+    def _drawdown_record(self, case: dict) -> Optional[dict]:
+        """The disbursement request for the Copilot: people named, nothing empty (fix list E9)."""
+        d = case.get("drawdown")
+        if not d:
+            return None
+        out = {"amount_cr": d.get("amount_cr"), "account": d.get("account"), "value_date": d.get("value_date"),
+               "purpose": d.get("purpose"),
+               "drafted": "by the agent from the sanction terms"}
+        if d.get("submitted_by"):
+            out["submitted"] = (f"by {d['submitted_by']} ({d.get('submitted_role') or 'CAD'}) on "
+                                f"{d.get('submitted_at')}")
+        else:
+            out["submitted"] = f"not yet — with {self.officer('cad')} (CAD)"
+        edits = d.get("edits") or []
+        out["edited"] = ("; ".join(f"by {e['by']} on {e['at']}: amount_cr {e['amount_cr']}, value date {e['value_date']}"
+                                   for e in edits) if edits else
+                         f"by {d['edited_by']}" if d.get("edited_by") else "no — as drafted")
+        return out
 
     def _suggestions(self, case: dict, session: dict) -> list[str]:
         """Two suggested questions for this officer; one already asked on this proposal is replaced by the next."""
@@ -1851,6 +2055,10 @@ class FlowService:
                     ch["comment_before"] = ch.pop("comment", None)
         elif st["id"] == "sanction":
             self._sanction(case, session)
+        elif st["id"] == "cad" and case.get("drawdown"):
+            case["drawdown"]["submitted_by"] = session["user"]["name"]
+            case["drawdown"]["submitted_role"] = self.role_label(session["user"]["role"])
+            case["drawdown"]["submitted_at"] = self._stamp()
         elif st["id"] == "disbursement":
             d = case["drawdown"]
             case["release"] = {"at": self._stamp(), "by": session["user"]["name"], "amount_cr": d["amount_cr"],
@@ -1939,13 +2147,16 @@ class FlowService:
         for c in cps:
             if c["status"] == "open":
                 return {"kind": "cond_doc", "ref": c["id"],
-                        "text": f"{self._cp_progress(case)} Next: {c['label']} — upload the executed document.",
-                        "quick": ["Add demo signed documents"]}
+                        "text": f"{self._cp_progress(case)} Next: {c['label']} — upload the executed document "
+                                f"here, or against its row in **Conditions Precedent**.",
+                        "quick": ["Add demo signed documents"],
+                        "upload": {"condition": c["id"], "label": c["label"]},
+                        "goto": {"target": "sec-cp", "row": c["id"], "label": "Go to condition"}}
         if cps and all(c["status"] in MET for c in cps) and "submit_release" not in offered:
             d = case["drawdown"]
             return {"kind": "submit_release", "ref": "drawdown",
                     "text": f"All {len(cps)} conditions precedent are met. Submit the disbursement request of "
-                            f"{_cr(d['amount_cr'])} (value date {d['value_date']}) for release?",
+                            f"{_cr(d['amount_cr'])} (value date {_day(d['value_date'])}) for release?",
                     "quick": ["Yes, submit", "No, edit first"]}
         return None
 
@@ -2087,9 +2298,19 @@ class FlowService:
                                      demo=True, announce=False))
             doc.close()
         ok = [c for c in done if c["status"] == "verified"]
-        self._say(case, f"Demo executed documents uploaded for {len(done)} condition(s) precedent: {len(ok)} verified "
-                        f"by the agent" + (f"; {len(done) - len(ok)} need your verification" if len(done) > len(ok) else "")
-                  + f". {self._cp_progress(case)}")
+        # each document by name, against its condition, with the agent's check and a link (fix list E8)
+        docs = [{"condition": c["id"], "label": c["label"], "name": c["documents"][-1]["name"],
+                 "index": len(c["documents"]) - 1, "note": c["documents"][-1]["check"]["note"],
+                 "status": c["status"], "demo": True} for c in done if c.get("documents")]
+        lines = "\n".join(f"• {d['label']}: {d['name']} — {d['note']}" + ("" if d["status"] == "verified"
+                                                                           else " (needs your verification)")
+                          for d in docs)
+        msg = self._say(case, f"Demo executed documents (marked DEMO) attached in **Conditions Precedent**, one per "
+                              f"open condition — {len(ok)} of {len(done)} verified by the agent"
+                              + (f", {len(done) - len(ok)} need your verification" if len(done) > len(ok) else "")
+                              + f":\n{lines}\n{self._cp_progress(case)}")
+        msg["docs"] = docs
+        msg["goto"] = {"target": "sec-cp", "label": "View in Conditions Precedent"}
         self._ask_next(case)
 
     def set_drawdown(self, case_id: str, session: dict, amount_cr=None, account: Optional[str] = None,
@@ -2111,6 +2332,8 @@ class FlowService:
             if value_date:
                 d["value_date"] = date.fromisoformat(value_date).isoformat()
             d["edited_by"] = session["user"]["name"]
+            d.setdefault("edits", []).append({"by": session["user"]["name"], "at": self._stamp(),
+                                              **{k: d[k] for k in ("amount_cr", "account", "value_date")}})
             offered = (case.get("offered") or {}).get("cad") or []
             if "submit_release" in offered:
                 offered.remove("submit_release")
@@ -2196,7 +2419,8 @@ class FlowService:
                             "skipped_by": d.get("skipped_by"), "history": d.get("history") or [],
                             "change": changed.get(sp["id"]),
                             "band": dpx.band(sp, d.get("value"), thresholds, values),
-                            "confidence": (d.get("source") or {}).get("confidence")})
+                            "confidence": (d.get("source") or {}).get("confidence"),
+                            "options": sp.get("options"), "hint": sp.get("hint")})
             groups.append({"id": g["id"], "label": g["label"], "points": pts,
                            "missing": sum(1 for p in pts if p["status"] == "missing"),
                            "skipped": sum(1 for p in pts if p["status"] == "skipped")})
@@ -2228,6 +2452,11 @@ class FlowService:
                                 "justify": self._justify(case) if a == "approve" else []})
         cam = dict(case.get("cam") or {})
         cam.pop("file", None)
+        checks_view = chk.view(case.get("checks"), case.get("check_notes"))
+        if checks_view:
+            checks_view["can_note"] = is_mine
+            checks_view["can_return"] = is_mine and bool(st.get("send_back_to")) and "send_back" in (st.get("actions") or [])
+            checks_view["return_label"] = ((st.get("labels") or {}).get("send_back") or "Return") if checks_view["can_return"] else ""
         hours, sla, sla_state = self._ageing(case)
         dp = case["dp"]
         out = {k: case[k] for k in ("case_id", "entity_id", "borrower_name", "status", "stage", "created_at",
@@ -2262,6 +2491,10 @@ class FlowService:
                     "release_checks": self.release_checks(case) if case.get("sanction") else [],
                     "pending_changes": sum(1 for c in case["changes"] if c["status"] == "pending"),
                     "risk": case.get("risk"), "responses": case.get("responses") or {},
+                    "checks": checks_view, "verdict": rk.verdict(case.get("risk"), checks_view,
+                                                                 f"{self.officer('sanction')} "
+                                                                 f"({self.stage('sanction')['label']})"),
+                    "ews_about": rk.EWS_ABOUT, "incomplete": self._incomplete(case),
                     "register": case.get("register") or [],
                     "cam_sections": self._cam_section_count(),
                     "deviations": case.get("deviations") or []})

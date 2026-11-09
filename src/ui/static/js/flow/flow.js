@@ -470,7 +470,11 @@ function flowApp() {
     async reopenCond(cond) { this.setCase(await this.post(this.cp('/conditions/' + cond.id + '/confirm'), { reopen: true })); },
     async demoDocs() {
       this.busy = true;
-      try { this.setCase(await this.post(this.cp('/demo-documents'))); this.notify('Demo executed documents uploaded and checked', 'ok'); }
+      try {
+        this.setCase(await this.post(this.cp('/demo-documents')));
+        this.notify('Demo executed documents attached in Conditions Precedent', 'ok');
+        this.$nextTick(() => this.flash(document.getElementById('sec-cp')));
+      }
       finally { this.busy = false; }
     },
     async saveDrawdown() {
@@ -488,6 +492,36 @@ function flowApp() {
     cpMet() { return this.cps().filter(k => ['verified', 'confirmed', 'auto'].includes(k.status)).length; },
     cpCount() { return this.cps().filter(k => k.status !== 'not_applicable').length; },
     async loadTimeline() { this.showTimeline = !this.showTimeline; if (this.showTimeline) this.timeline = await this.get(this.cp('/timeline')); },
+
+    // ── E2 / E5 mandatory checks, E7 incomplete fields, E8 go-to links ─────
+    async checkNote(k, kind) {
+      const verified = kind === 'verified';
+      const note = await this.ask(verified ? 'Record verification: ' + k.label : 'Proceed with justification: ' + k.label,
+        verified ? 'Say what evidence you saw that clears this check (' + k.evidence + '), e.g. the report, its date and reference.'
+                 : 'Say why the proposal can proceed without this check, and the mitigant. The Sanctioning Authority and the audit trail see it.',
+        verified ? 'Evidence seen (mandatory)' : 'Justification and mitigant (mandatory)', true, 'Record');
+      if (note === null) return;
+      this.busy = true;
+      try { this.setCase(await this.post(this.cp('/checks/' + encodeURIComponent(k.code)), { kind, note })); this.notify('Recorded', 'ok'); }
+      finally { this.busy = false; }
+    },
+    incompleteSplit() {
+      const n = s => (this.c.incomplete || []).filter(f => f.status === s).length;
+      return [[n('pending'), 'pending'], [n('not_provided'), 'not provided'], [n('not_available'), 'not available']]
+        .filter(([k]) => k).map(([k, t]) => k + ' ' + t).join(' · ');
+    },
+    flash(el) { if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); },
+    goToField(id) { this.flash(document.querySelector('.fld[data-id="' + id + '"]')); },
+    goToTarget(g) {
+      if (!g) return;
+      const row = g.row ? document.querySelector('[data-cond="' + g.row + '"]') : null;
+      this.flash(row || document.getElementById(g.target));
+    },
+    md(t) {
+      // Copilot text: escaped, with **bold** for the names of buttons and sections
+      const esc = String(t || '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+      return esc.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    },
 
     // ── Credit Copilot ─────────────────────────────────────────────────────
     mineMsg(m) { return m.from === 'user' || m.stage === this.myStage(); },

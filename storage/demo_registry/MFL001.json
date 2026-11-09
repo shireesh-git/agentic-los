@@ -1,0 +1,40 @@
+{
+  "entity_id": "MFL001",
+  "note": "DEMO DATA: synthetic records standing in for bureau, MCA and regulatory-list APIs that are not connected. Not a real report on this company.",
+  "as_of": "2026-11-01",
+  "cin": "L24100TN1966GOI005765",
+  "company_name": "Madras Fertilizers Limited",
+  "bureau": {
+    "credit_score": 612,
+    "cmr_rank": "CMR-7",
+    "dpd_status": "SMA-1",
+    "max_dpd_last_12m": 0,
+    "worst_status_12m": "SMA-1",
+    "total_exposure_cr": 345.0,
+    "total_outstanding_cr": 330.0,
+    "total_lenders": 5
+  },
+  "mca": {
+    "company_name": "Madras Fertilizers Limited",
+    "cin": "L24100TN1966GOI005765",
+    "status": "Active",
+    "date_of_incorporation": "1966-12-08",
+    "company_class": "Public, listed (Government company)"
+  },
+  "registries": {
+    "wilful_defaulter": false,
+    "rbi_defaulter_list": false,
+    "fraud_flag": false,
+    "suit_filed_amount_cr": 95.0,
+    "suits": [
+      {
+        "forum": "DRT Chennai (demo)",
+        "filed_by": "Demo Bank A (consortium member)",
+        "amount_cr": 95.0,
+        "filed_on": "2025-08-14",
+        "status": "Pending"
+      }
+    ],
+    "nclt_cases": []
+  }
+}

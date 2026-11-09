@@ -17,6 +17,7 @@ import re
 from datetime import date, datetime
 from typing import Optional
 
+from src.data import demo_registry
 from src.models.canonical_model import (
     BorrowerType, Collateral, ConductRecord, DirectorPromoter, ExistingExposure, FinancialStatement,
     MarketSignal, RiskSeverity,
@@ -99,8 +100,12 @@ def apply(company: dict, records: dict, statements: list[dict], facility: dict) 
         applied["financials"] = sorted(fins)
 
     bureau = (records.get("bureau") or {}).get("payload") or {}
+    # the list checks (wilful defaulter, RBI defaulter, fraud, suits) are read from the bureau payload
+    merged = demo_registry.merge_registries(records.get("bureau"), records.get("registries"))
+    if merged:
+        ext["bureau_data"] = _strip(merged)
+        applied["registries"] = sorted(k for k in demo_registry.REGISTRY_FIELDS if k in (merged.get("payload") or {}))
     if bureau:
-        ext["bureau_data"] = _strip(records["bureau"])
         company["existing_exposure"] = [
             ExistingExposure(facility_id=f"BUR-{eid}-{i}", entity_id=eid, facility_type=f"{x['lender']} {x['type']}",
                              sanctioned_limit_cr=x["limit_cr"], outstanding_cr=x["outstanding_cr"],

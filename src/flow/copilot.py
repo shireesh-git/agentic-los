@@ -30,6 +30,85 @@ record; if the record does not hold the answer, say so; be concise (at most 150 
 {"answer": "<text>", "fields_used": ["<record key>", ...]}"""
 
 
+# ── the record as people read it (fix list E6, E9) ─────────────────────────────
+# The model quotes what it is given: format figures, dates and rule names before it sees them, and drop
+# empty values, so no answer says "null", "None", "HR_…" or "₹153670.0 Cr".
+
+_RULE = re.compile(r"\bHR_[A-Z_]+\b")
+_ISO_DATE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?)?$")
+_MONTHS = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+_DROP_KEYS = {"code", "run_id", "v", "_field_sources"}
+
+
+def indian(n: float, decimals: int = 0) -> str:
+    """1,53,670 — Indian digit grouping."""
+    neg = n < 0
+    whole, _, frac = f"{abs(n):.{decimals}f}".partition(".")
+    if len(whole) > 3:
+        head, tail = whole[:-3], whole[-3:]
+        groups = []
+        while len(head) > 2:
+            groups.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            groups.insert(0, head)
+        whole = ",".join(groups + [tail])
+    return ("-" if neg else "") + whole + (f".{frac}" if decimals else "")
+
+
+def crore(v: float) -> str:
+    v = float(v)
+    if abs(v) >= 1000 or v == int(v):
+        return f"₹{indian(round(v))} Cr"
+    return f"₹{indian(v, 2).rstrip('0').rstrip('.')} Cr"
+
+
+def _date(v: str) -> str:
+    m = _ISO_DATE.match(v.strip())
+    if not m:
+        return v
+    y, mo, d, hh, mm = m.groups()
+    out = f"{int(d)} {_MONTHS[int(mo) - 1]} {y}"
+    return out + (f", {hh}:{mm}" if hh else "")
+
+
+def _amount_key(key: str) -> bool:
+    k = key.lower()
+    return k.endswith("_cr") or k.endswith("(₹ cr)") or k in ("amount", "limit")
+
+
+def clean(obj, key: str = ""):
+    """A copy of the record with figures formatted for people and empty values removed."""
+    from src.flow.checks import plain
+
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if k in _DROP_KEYS:
+                continue
+            c = clean(v, str(k))
+            if c not in (None, "", [], {}):
+                out[k] = c
+        return out
+    if isinstance(obj, list):
+        return [c for c in (clean(v, key) for v in obj) if c not in (None, "", [], {})]
+    if isinstance(obj, bool):
+        return "yes" if obj else "no"
+    if isinstance(obj, (int, float)):
+        if _amount_key(key):
+            return crore(obj)
+        if isinstance(obj, float):
+            return indian(obj, 2).rstrip("0").rstrip(".") if abs(obj) < 1e6 else indian(round(obj))
+        return indian(obj) if abs(obj) >= 1000 else obj
+    if isinstance(obj, str):
+        t = obj.strip()
+        if t.lower() in ("none", "null", "nan"):
+            return None
+        t = _RULE.sub(lambda m: plain(m.group(0)).lower(), t)
+        return _date(t)
+    return obj
+
+
 def flatten(obj, prefix="") -> list[tuple[str, str]]:
     out = []
     if isinstance(obj, dict):

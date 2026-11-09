@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import Optional
 
 SEVERITY = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+VERSION = 3          # bump when assess() gains fields: stored summaries older than this are rebuilt on load
 
 # ratio id → label, policy threshold key, direction ("min": higher is better)
 RATIOS = [("dscr", "DSCR", "min_dscr", "min"),
@@ -76,7 +77,7 @@ def assess(engine: Optional[dict]) -> Optional[dict]:
                        "limit": lim, "limit_display": (f"{'min' if way == 'min' else 'max'} {_x(lim)}"
                                                        if lim is not None else "no policy limit"),
                        "status": status})
-    return {"recommendation": rec or None, "label": label, "tone": "bad" if failed else tone,
+    return {"v": VERSION, "recommendation": rec or None, "label": label, "tone": "bad" if failed else tone,
             "rationale": engine.get("rationale"), "rating": engine.get("risk_grade"),
             "score": _num(engine.get("composite_score")), "period": period,
             "hard_rules": {"failed": failed, "not_verified": unverified,
@@ -84,6 +85,67 @@ def assess(engine: Optional[dict]) -> Optional[dict]:
             "ratios": ratios, "breaches": sum(1 for r in ratios if r["status"] == "bad"),
             "headroom": amount_advice(engine), "run_id": engine.get("run_id"), "thresholds": limits,
             "quality": _quality(fp)}
+
+
+GRADE_TONE = {"A": "good", "B": "good", "C": "warn", "D": "bad", "E": "bad"}
+
+
+def verdict(risk: Optional[dict], checks: Optional[dict], authority: str) -> Optional[dict]:
+    """What the engine's verdict means and what to do about it, in one or two plain sentences (fix list E2).
+
+    ``checks`` is the checks view (src/flow/checks.view); ``authority`` names who decides next, e.g.
+    "Vikram Shah (Sanctioning Authority)". Credit quality and outstanding checks are toned separately, so an
+    amber "checks outstanding" never reads as a verdict on the borrower.
+    """
+    if not risk:
+        return None
+    rec = risk.get("recommendation") or ""
+    grade, score = risk.get("rating") or "—", risk.get("score")
+    quality = f"{grade}" + (f", score {score:g}/100" if score is not None else "")
+    credit_tone = GRADE_TONE.get(str(grade)[:1], "warn")
+    checks = checks or {}
+    open_items = [i for i in checks.get("items") or [] if i.get("open")]
+    failed = [i for i in open_items if i["status"] == "fail"]
+    unverified = [i for i in open_items if i["status"] == "not_verified"]
+    resolved = [i for i in checks.get("items") or [] if i["status"] != "pass" and i.get("note")]
+    breaches = [r["label"] for r in risk.get("ratios") or [] if r.get("status") == "bad"]
+    label, tone = risk.get("label"), risk.get("tone")
+    names = lambda xs: ", ".join(i["label"].lower() for i in xs)        # noqa: E731
+    if rec in ("decline", "reject") or failed:
+        why = []
+        if failed:
+            why.append(f"{'a mandatory check failed' if len(failed) == 1 else 'mandatory checks failed'} "
+                       f"({names(failed)})")
+        if str(grade)[:1] in ("D", "E"):
+            why.append(f"credit quality is weak ({quality})")
+        if breaches:
+            why.append(f"{', '.join(breaches)} outside policy")
+        text = (f"The engine recommends Decline: {'; '.join(why) or 'see the rationale below'}. Proceeding needs a "
+                f"written justification; it is recorded as a deviation and shown to {authority}.")
+        label, tone = "Decline", "bad"
+    elif rec == "refer" and unverified and str(grade)[:1] in ("A", "B"):
+        text = (f"Credit quality is {'strong' if str(grade)[:1] == 'A' else 'acceptable'} ({quality}). The engine "
+                f"refers the case only because {len(unverified)} mandatory check(s) could not be run: "
+                f"{names(unverified)}. Verify them from evidence, or record why you are proceeding; "
+                f"{authority} sees what you record.")
+        label, tone = "Refer: checks outstanding", "warn"
+    elif rec == "refer" and not unverified and resolved and str(grade)[:1] in ("A", "B"):
+        text = (f"Credit quality is {'strong' if str(grade)[:1] == 'A' else 'acceptable'} ({quality}). The checks the "
+                f"engine could not run have been addressed by an officer ({names(resolved)}); {authority} "
+                f"decides with those notes in view.")
+        label, tone = "Refer: checks addressed", "good"
+    elif rec == "refer":
+        text = (f"Credit quality is borderline ({quality}){'; ' + ', '.join(breaches) + ' outside policy' if breaches else ''}"
+                f". The engine asks for a higher approval level: {authority} decides, and the bank's credit committee "
+                f"if the delegation requires it.")
+        label = "Refer to higher authority"
+    else:
+        cond = "with conditions" if "condition" in str(label).lower() else ""
+        text = (f"Credit quality is {'strong' if str(grade)[:1] == 'A' else 'acceptable'} ({quality}) and all "
+                f"mandatory checks are clear. The engine supports approval {cond}".rstrip() + "; review the key risk "
+                f"challenges below before you move the proposal on.")
+    return {"label": label, "tone": tone, "text": text, "credit_tone": credit_tone, "quality": quality,
+            "checks_open": len(open_items)}
 
 
 def _quality(fp: dict) -> dict:
@@ -95,8 +157,43 @@ def _quality(fp: dict) -> dict:
                               "detail": rt.get("summary") or ""},
             "ews": {"flags": ews.get("flags"), "status": ews.get("status") or "na", "checked": ews.get("checked"),
                     "not_checked": ews.get("not_checked"),
-                    "items": [{k: i[k] for k in ("label", "status", "detail")} for i in ews.get("indicators") or []
-                              if i["status"] == "flag"]}} if (eq or rt or ews) else {}
+                    "items": [{**{k: i[k] for k in ("id", "label", "status")}, "detail": _plain_flag(i),
+                               "action": EWS_ACTION.get(i["id"], ("Note it in the CAM", "none"))[0],
+                               "act": EWS_ACTION.get(i["id"], ("", "none"))[1]}
+                              for i in ews.get("indicators") or [] if i["status"] == "flag"],
+                    "unchecked": [{"label": i["label"], "needs": i["detail"]}
+                                  for i in ews.get("indicators") or [] if i["status"] == "na"]}} if (eq or rt or ews) else {}
+
+
+def _plain_flag(ind: dict) -> str:
+    """An indicator's finding in words: "588 days old (as_of_date=2025-03-31)" → "about 19 months old (31 Mar 2025)"."""
+    import re
+    detail = str(ind.get("detail") or "")
+    m = re.search(r"(FY\d{4}) is (\d+) days old \(as_of_date=(\d{4})-(\d{2})-(\d{2})\)", detail)
+    if m:
+        fy, days, y, mo, d = m.groups()
+        month = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()[int(mo) - 1]
+        return (f"The latest audited statements ({fy}, to {int(d)} {month} {y}) are about {round(int(days) / 30.4)} "
+                f"months old")
+    return re.sub(r"\s*\(?\b\w+_\w+=[^)\s]+\)?", "", detail).strip()
+
+
+EWS_ABOUT = ("Early-warning flags are signs, found at origination, that the account may need closer watching "
+             "after disbursement. A flag is not a rejection: each one says what to do about it.")
+# indicator → (what to do, the screen action that does it: send_back = return to the RM for it, none = note only)
+EWS_ACTION = {
+    "stale_financials": ("Ask the RM for the latest audited or provisional results", "send_back"),
+    "statutory_dues": ("Ask for GST filing evidence, or the reason for the delay", "send_back"),
+    "cheque_returns": ("Ask the RM for the reason for the returns and the banker's conduct note", "send_back"),
+    "bureau_stress": ("Get a no-dues or regularisation letter from the lender with the overdue", "send_back"),
+    "revenue_mismatch": ("Ask for a reconciliation of revenue with GST turnover and bank credits", "send_back"),
+    "non_operating_profit": ("No action before sanction: assess repayment on operating profit only", "none"),
+    "negative_ocf": ("Ask for a cash-flow plan; consider tighter monitoring covenants", "send_back"),
+    "receivables_decoupled": ("Ask for the receivables ageing and the top debtors", "send_back"),
+    "forensic_beneish": ("Review the accounting policies; consider a forensic review", "none"),
+    "distress": ("Weigh against the debt capacity; usually a Decline signal unless mitigated", "none"),
+    "board_independence": ("No action before sanction: note it for governance monitoring", "none"),
+}
 
 
 def needs_justification(risk: Optional[dict]) -> list[str]:
@@ -251,67 +348,96 @@ def challenges(engine: Optional[dict], limit: int = 5) -> list[dict]:
 
 def plan(stage: str, available: list[str], risk: Optional[dict], against: list[dict], responses: dict,
          blockers: list[str], editable: bool, focus: Optional[str] = None,
-         register: Optional[list] = None) -> tuple[str, list[dict]]:
-    """Numbered next steps and the buttons that go with them. ``available`` is the stage's actions."""
+         register: Optional[list] = None, *, labels: Optional[dict] = None, checks: Optional[dict] = None,
+         standing: Optional[str] = None) -> tuple[str, list[dict]]:
+    """Where the proposal stands, then at most three numbered steps in the order to do them (fix list E4).
+
+    Every step names a button that exists on this officer's screen, by its label (``labels``: the stage's
+    labels from config/flow.yaml) and where it is; Decline appears only as the last resort. ``available`` is
+    the stage's actions; ``checks`` the mandatory-checks view; ``standing`` one sentence on the verdict.
+    """
+    labels = labels or {}
+    approve_l = labels.get("approve") or "Proceed"
+    return_l = labels.get("send_back") or "Return"
+    decline_l = labels.get("reject") or "Decline"
     steps, buttons = [], []
     reg = register or []
+
+    open_checks = [i for i in (checks or {}).get("items") or [] if i.get("open")]
+    if open_checks and stage != "cad":
+        names = ", ".join(i["label"].lower() for i in open_checks)
+        how = ("record what evidence you saw (Record verification) or why you proceed without it (Proceed with "
+               "justification)")
+        if "send_back" in available:
+            how += f", or ask for the evidence with **{return_l}**"
+        steps.append(f"Clear the mandatory checks still open ({names}): in **Mandatory checks**, {how}.")
+        buttons.append({"kind": "goto", "label": "Go to Mandatory checks", "target": "sec-checks"})
+
     if stage in ("rm", "credit_risk"):
         todo = [d for d in reg if d["deviable"] and d["status"] in ("open", "rejected")]
         if todo:
-            steps.append(f"Record a mitigant and justification for {len(todo)} policy deviation(s) in the Deviation "
-                         f"Register: " + "; ".join(d["label"] for d in todo[:4]) + ".")
-            buttons.append({"kind": "goto", "label": "Open the Deviation Register", "target": "sec-dev"})
+            steps.append(f"Record a mitigant and justification for {len(todo)} policy deviation(s) in the "
+                         f"**Deviation Register**: " + "; ".join(d["label"] for d in todo[:3]) + ".")
+            buttons.append({"kind": "goto", "label": "Go to the Deviation Register", "target": "sec-dev"})
     elif stage == "sanction":
         pend = [d for d in reg if d["deviable"] and d["status"] == "proposed"]
         if pend:
-            steps.append(f"Approve or reject {len(pend)} deviation(s) with Underwriting's mitigants: "
-                         + "; ".join(d["label"] for d in pend[:4]) + ".")
-            buttons.append({"kind": "goto", "label": "Open the Deviation Register", "target": "sec-dev"})
-    if risk and risk.get("tone") == "bad":
-        why = needs_justification(risk)
-        steps.append(f"Note the engine's verdict: {risk['label']}" + (f" — {'; '.join(why)}" if why else "") + ".")
+            steps.append(f"Approve or reject {len(pend)} deviation(s) in the **Deviation Register**, with "
+                         f"Underwriting's mitigants: " + "; ".join(d["label"] for d in pend[:3]) + ".")
+            buttons.append({"kind": "goto", "label": "Go to the Deviation Register", "target": "sec-dev"})
+
     open_ = [a for a in against if a["id"] not in responses]
     if focus:
         open_ = [a for a in against if focus.lower() in (a["title"] or "").lower()] or open_
     shown = []
-    for a in open_[:3]:
-        options = [x for x in a["actions"] if _allowed(x["kind"], available, editable)]
+    for a in open_[:2]:
+        options = [x for x in a["actions"] if _allowed(x["kind"], available, editable) and x["kind"] != "reject"]
         if not options:
             continue
         shown.append(a)
-        names = " or ".join(x["label"].lower() if i else x["label"] for i, x in enumerate(options[:3]))
-        steps.append(f"{a['title']} ({str(a['severity']).lower()}): {names}."
+        names = " or ".join(f"**{x['label']}**" for x in options[:3])
+        steps.append(f"Answer the challenge “{a['title']}” ({str(a['severity']).lower()}): in **Key Risk "
+                     f"Challenges**, under that challenge, use {names}."
                      + (f" {a['amount_note']}" if a.get("amount_note") and any(
                          x["kind"] == "reduce_amount" for x in options) else ""))
-    # one button per kind of action, not one per challenge
     reduce = next((x | {"challenge": a["id"]} for a in shown for x in a["actions"]
                    if x["kind"] == "reduce_amount" and x.get("value") and editable), None)
     if reduce:
         buttons.append(reduce)
     if shown:
-        buttons.append({"kind": "goto", "label": "Answer the challenges", "target": "sec-chal"})
+        buttons.append({"kind": "goto", "label": "Go to Key Risk Challenges", "target": "sec-chal"})
     if shown and "send_back" in available:
         asks = [a["asks"][0] for a in shown if a.get("asks")]
-        buttons.append({"kind": "send_back", "label": "Return for documents",
-                        "prefill": "Please provide: " + "; ".join(asks) if asks else ""})
-    if shown and "reject" in available and risk and risk.get("tone") == "bad":
-        buttons.append({"kind": "reject", "label": "Decline",
-                        "prefill": f"Declined: the CAM engine recommends {risk['label']} — "
-                                   + "; ".join(a["title"] for a in shown) + "."})
-    done = [a for a in against if a["id"] in responses]
-    if done:
-        steps.append(f"Already answered: {', '.join(a['title'] for a in done)}.")
+        buttons.append({"kind": "send_back", "label": return_l,
+                        "prefill": ("Please provide: " + "; ".join(asks)) if asks else ""})
+
     for b in blockers:
         steps.append(f"Before you can proceed: {b}.")
-    proceed = "approve" in available and not blockers
-    if proceed:
+    if "approve" in available and not blockers:
         why = needs_justification(risk)
-        steps.append(("To proceed, write a justification (required because " + "; ".join(why) + "). "
-                      if why else "Then proceed. ") + "Otherwise return or decline with remarks.")
-        buttons.append({"kind": "approve", "label": "Proceed"})
+        steps.append(f"{'Then press' if steps else 'Press'} **{approve_l}** in the action bar"
+                     + (f"; you will be asked for a written justification, because {'; '.join(why)}" if why else "")
+                     + ".")
+        buttons.append({"kind": "approve", "label": approve_l})
+
+    more = max(len(steps) - 3, 0)
+    steps = steps[:3]
+    done = [a for a in against if a["id"] in responses]
+    tail = []
+    if more:
+        tail.append(f"({more} more step(s) after these — ask again once they are done.)")
+    if done:
+        tail.append(f"Already answered: {', '.join(a['title'] for a in done)}.")
+    if "reject" in available and risk and risk.get("tone") == "bad":
+        tail.append(f"If the proposal cannot be fixed: **{decline_l}** in the action bar, with your reasons.")
+        buttons.append({"kind": "reject", "label": decline_l,
+                        "prefill": f"Declined: the CAM engine recommends {risk['label']}"
+                                   + (" — " + "; ".join(a["title"] for a in shown) if shown else "") + "."})
     if not steps:
         steps.append("Nothing is outstanding for you on this proposal.")
-    text = "Next steps:\n" + "\n".join(f"{i}. {s}" for i, s in enumerate(steps, 1))
+    head = (standing.strip() + "\n\n") if standing else ""
+    text = (head + "Next steps:\n" + "\n".join(f"{i}. {s}" for i, s in enumerate(steps, 1))
+            + ("\n" + "\n".join(tail) if tail else ""))
     return text, buttons
 
 

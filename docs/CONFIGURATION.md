@@ -72,6 +72,8 @@ In `flow.yaml` → `datapoints`, add a line such as:
 | `engine: true` | Changing it makes the CAM out of date |
 | `band` | How it is judged, e.g. `{policy: min_dscr, way: min}` or `{max: 0}` |
 | `unavailable` | The text shown when no source has it |
+| `options` | The valid answers, offered as buttons in the chat and the field editor, e.g. `["Sole banking", "Multiple banking", "Consortium"]` |
+| `hint` | Placeholder text for a typed answer, e.g. `"Type the pricing, e.g. MCLR + 0.80%"` |
 
 A field with no extractor is simply asked in the chat. To have an agent fill it, add one line to
 `from_engine` in `src/flow/datapoints.py`.
@@ -85,6 +87,19 @@ nothing else changes.
 Connectors already exist for GLEIF, OFAC/UN sanctions, GDELT and Probe42, so switching those on is a
 configuration change. A new provider needs one connector function in `src/flow/acquire/connectors.py`
 that returns the same record shape; the rest of the system does not change.
+
+### Demo data for the checks (until the bureau and registry APIs are connected)
+
+Six mandatory checks need a bureau report, the MCA company record and the RBI / CIC lists: wilful defaulter,
+company active, bureau status, fraud registry, RBI defaulter and suits filed. They run when a proposal is
+initiated. While those APIs are not connected, each borrower can have a demo file,
+`storage/demo_registry/<entity id or CIN>.json`, with `bureau`, `mca` and `registries` sections. A source
+marked `demo_file: true` in `data_sources.yaml` uses it before asking for a document. Every result from a demo
+file is labelled "demo data" on screen, in the CAM and in Copilot answers.
+
+To switch demo data off (for production), set `demo_data: {enabled: false}` in `data_sources.yaml`. The demo
+borrowers show three cases: Infosys and most others pass all six; Madras Fertilizers fails "suits filed"; Indian
+Hotels has no bureau report, so "bureau status" stays not verified.
 
 ### Change a policy limit
 

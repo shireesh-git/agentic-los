@@ -64,6 +64,7 @@ def tier1_hard_rules(
     document_inventory: dict | None = None,
     mca_status: str | None = None,
     demo_evidence: bool = False,
+    mca_demo: bool = False,
 ) -> list[PolicyDecision]:
     """Hard rules that must pass before proceeding.
 
@@ -77,6 +78,8 @@ def tier1_hard_rules(
     case_type_value = getattr(facility.case_type, "value", str(facility.case_type or ""))
     bureau = (bureau_payload or {}).get("payload") or {}
     no_bureau = "No bureau report available from submitted information"
+    bureau_demo = ((bureau_payload or {}).get("provenance") or {}).get("via") == "demo_file"
+    field_sources = bureau.get("_field_sources") or {}
 
     def bureau_rule(code, description, field, failed, pass_details, fail_details):
         """A rule on one bureau field: not_verified when the report or the field is absent."""
@@ -85,6 +88,10 @@ def tier1_hard_rules(
         else:
             bad = failed(bureau[field])
             result, details = ("fail", fail_details(bureau[field])) if bad else ("pass", pass_details(bureau[field]))
+            # say where the answer came from, and that it is demo data when it is (fix list E5)
+            source = field_sources.get(field) or ("Demo bureau file" if bureau_demo else "")
+            if source:
+                details += f" (source: {source})"
         decisions.append(PolicyDecision(entity_id=borrower.entity_id, tier="tier1_hard_rules", rule_code=code,
                                         rule_description=description, result=result, details=details))
 
@@ -107,7 +114,8 @@ def tier1_hard_rules(
             rule_code="HR_COMPANY_ACTIVE",
             rule_description=company_active_cfg.get("description", "Company status must be Active in MCA records"),
             result=result,
-            details=(f"MCA company status: {mca_status}" + (" (synthetic demo fixture)" if demo_evidence else "")
+            details=(f"MCA company status: {mca_status}" + (" (synthetic demo fixture)" if demo_evidence else
+                                                            " (source: Demo MCA file)" if mca_demo else "")
                      if known else "MCA company status not available from submitted information"),
         ))
 

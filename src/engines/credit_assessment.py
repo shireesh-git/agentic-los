@@ -95,11 +95,13 @@ def decide(company_data: dict, exceptions: list, latest_ratios: list, latest_ben
     group = company_data.get("group")
     infra_metrics = company_data.get("infra_metrics") or None
 
-    mca = ((company_data.get("external_data") or {}).get("mca_data") or {}).get("payload") or {}
+    mca_env = (company_data.get("external_data") or {}).get("mca_data") or {}
+    mca = mca_env.get("payload") or {}
     demo = company_data.get("catalog_source") == "demo_catalog" or company_data.get("data_provider") == "synthetic_demo"
     tier1 = tier1_hard_rules(borrower, facility, exceptions, bureau_data,
                              document_inventory=company_data.get("document_inventory"),
-                             mca_status=mca.get("status"), demo_evidence=demo)
+                             mca_status=mca.get("status"), demo_evidence=demo,
+                             mca_demo=(mca_env.get("provenance") or {}).get("via") == "demo_file")
     risk_score = tier2_scoring(
         borrower=borrower,
         ratios=latest_ratios,

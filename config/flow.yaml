@@ -88,6 +88,8 @@ users:
 # (``way``: min = higher is better); ``min`` / ``max`` give fixed limits; the band (within / close
 # to / outside the limit) is shown beside the value, separate from where the value came from.
 # A data point with no extractor in src/flow/datapoints.py is simply asked for in the chat.
+# ``options``: the valid answers, offered as buttons (Not provided last); ``hint``: shown in the reply box for a
+# free-text answer (fix list E1).
 groups:
   - {id: borrower, label: Borrower}
   - {id: facility, label: Facility}
@@ -103,17 +105,17 @@ datapoints:
   - {id: pan, group: borrower, label: PAN, type: text, ask: "What is the borrower's PAN?"}
   - {id: sector, group: borrower, label: Sector, type: text, ask: "Which sector is the borrower in?"}
   - {id: subsector, group: borrower, label: Sub-sector, type: text, ask: "And the sub-sector?"}
-  - {id: constitution, group: borrower, label: Constitution, type: text, ask: "What is the constitution — e.g. public limited (listed), private limited, LLP?"}
-  - {id: banking_arrangement, group: borrower, label: Banking arrangement, type: text, ask: "Is this sole banking, multiple banking or a consortium?"}
-  - {id: business_background, group: borrower, label: Business background, type: longtext, ask: "In two or three lines, what does the borrower do?"}
-  - {id: corporate_governance, group: borrower, label: Corporate governance, type: longtext, ask: "Anything to note on management and governance?"}
+  - {id: constitution, group: borrower, label: Constitution, type: text, ask: "What is the borrower's constitution?", options: ["Public limited (listed)", "Public limited (unlisted)", "Private limited", "LLP", "Partnership"]}
+  - {id: banking_arrangement, group: borrower, label: Banking arrangement, type: text, ask: "Is this sole banking, multiple banking or a consortium?", options: ["Sole banking", "Multiple banking", "Consortium"]}
+  - {id: business_background, group: borrower, label: Business background, type: longtext, ask: "In two or three lines, what does the borrower do?", hint: "Type 2–3 lines, e.g. what it makes or sells, to whom, and where"}
+  - {id: corporate_governance, group: borrower, label: Corporate governance, type: longtext, ask: "Anything to note on management and governance?", hint: "Type a short note, e.g. board composition, promoter track record, auditor changes"}
 
-  - {id: product, group: facility, label: Product, type: text, required: true, engine: true, ask: "Which product — working capital, term loan or project finance?"}
+  - {id: product, group: facility, label: Product, type: text, required: true, engine: true, ask: "Which product is proposed?", options: ["Working capital", "Term loan", "Project finance"]}
   - {id: amount_cr, group: facility, label: Amount requested (₹ Cr), type: amount, required: true, engine: true, ask: "How much is requested, in ₹ crore?"}
   - {id: tenor_months, group: facility, label: Tenor (months), type: number, engine: true, ask: "What tenor, in months?"}
   - {id: purpose, group: facility, label: Purpose, type: text, engine: true, ask: "What is the purpose of the facility?"}
   - {id: recommended_cr, group: facility, label: Recommended limit (₹ Cr), type: amount, required: true, ask: "What limit do you recommend, in ₹ crore?"}
-  - {id: pricing, group: facility, label: Pricing, type: text, ask: "What pricing is proposed — e.g. MCLR + 0.80%?"}
+  - {id: pricing, group: facility, label: Pricing, type: text, ask: "What pricing is proposed?", hint: "Type the pricing, e.g. MCLR + 0.80%"}
 
   - {id: revenue_cr, group: financials, label: Revenue (₹ Cr), type: amount, required: true, engine: true, line_item: revenue_operating, ask: "What was revenue in the latest audited year, in ₹ crore?"}
   - {id: ebitda_cr, group: financials, label: EBITDA (₹ Cr), type: amount, required: true, engine: true, line_item: ebitda, ask: "And EBITDA, in ₹ crore?"}
