@@ -36,6 +36,13 @@ def _section_plan() -> list[tuple[str, str]]:
         return []
 
 
+def _doc_label(name: str) -> str:
+    """annual_report_fy2024.pdf → annual report FY2024"""
+    import re
+    stem = re.sub(r"\.[A-Za-z0-9]+$", "", name or "").replace("_", " ").replace("-", " ").strip()
+    return re.sub(r"\bfy\s?(\d{2,4})\b", lambda m: "FY" + m.group(1), stem, flags=re.I)
+
+
 class CamJob:
     def __init__(self, case_id: str, entity_id: str, reason: str = "generate"):
         self.case_id, self.entity_id, self.reason = case_id, entity_id, reason
@@ -73,6 +80,9 @@ class CamJob:
                 elif agent == "narrative":
                     self.writer = "done" if ok else "failed"
                     self.finishing = ok
+            elif t == "doc_progress":
+                self.docs = {"done": int(ev.get("done") or 0), "total": int(ev.get("total") or 0),
+                             "name": ev.get("name") or "", "cached": bool(ev.get("cached"))}
             elif t == "section_start":
                 sid = ev.get("section")
                 self.sections_total = int(ev.get("total") or self.sections_total)
@@ -109,8 +119,14 @@ class CamJob:
             return 100
         done = sum(1 for a in self.agents.values() if a["status"] == "done")
         pct = 5.0 * done / len(self.agents)
+        docs = getattr(self, "docs", None)
+        base = 5.0
+        if docs and docs["total"]:
+            # documents read cold can take minutes: they get their own share of the bar
+            base = 20.0
+            pct = max(pct, 18.0 * min(docs["done"], docs["total"]) / docs["total"])
         if self.sections_total:
-            pct = 5.0 + 90.0 * min(self.sections_done, self.sections_total) / self.sections_total
+            pct = base + (95.0 - base) * min(self.sections_done, self.sections_total) / self.sections_total
         if self.finishing:
             pct = 96.0
         return int(min(pct, 99))
@@ -134,6 +150,10 @@ class CamJob:
         if self.writer == "running":
             total = self.sections_total or len(self.sections)
             return f"Writing the CAM · section {min(self.sections_done + 1, total)} of {total}"
+        docs = getattr(self, "docs", None)
+        if docs and self.agents.get("data_ingestion", {}).get("status") == "running":
+            return (f"Reading documents · {docs['done']} of {docs['total']} · {_doc_label(docs['name'])}"
+                    + (" (already read)" if docs["cached"] else ""))
         running = [AGENT_LABELS[a] for a, s in self.agents.items() if s["status"] == "running"]
         return "Analysis · " + ", ".join(running) if running else "Starting the CAM engine"
 

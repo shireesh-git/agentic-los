@@ -41,7 +41,9 @@ def _bucket():
 
 def _synced_dirs() -> list[tuple[Path, str]]:
     """Folders that hold files people upload: proposal documents, and new prospects' documents (P… ids)."""
-    dirs = [(STORAGE_ROOT / "flow", PREFIX + "flow/")]
+    dirs = [(STORAGE_ROOT / "flow", PREFIX + "flow/"),
+            # what reading each document produced: a restart does not read the same documents again
+            (STORAGE_ROOT / "cache" / "extractions", PREFIX + "cache/extractions/")]
     if DOCUMENTS_ROOT.exists():
         dirs += [(d, PREFIX + f"documents/{d.name}/") for d in DOCUMENTS_ROOT.iterdir()
                  if d.is_dir() and d.name.startswith("P")]

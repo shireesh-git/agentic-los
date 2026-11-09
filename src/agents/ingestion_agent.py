@@ -27,6 +27,13 @@ class DataIngestionAgent(BaseAgent):
             log.debug("[DIA] %s", msg)
             progress(msg)
 
+        on_progress = context.get("_on_progress")
+        if on_progress:
+            # which document is being read, for the progress bar ("Reading documents · 2 of 4 · …")
+            emit.on_document = lambda done, total, name, cached: on_progress(
+                {"type": "doc_progress", "agent": self.name, "done": done, "total": total, "name": name,
+                 "cached": cached})
+
         cached_extraction = "extraction_engine" in (extraction_store.get(entity_id) or {})
         dms = self._fetch_from_dms(entity_id, cd, emit) or {}
         downloaded_reports = self._ingest_downloaded_reports(entity_id, emit)
@@ -97,7 +104,8 @@ class DataIngestionAgent(BaseAgent):
         if stale and (DOCUMENTS_ROOT / entity_id).exists():
             try:
                 emit("Extracting documents (PyMuPDF OCR engine)...")
-                extraction_store[entity_id] = extract_all_documents(entity_id, DOCUMENTS_ROOT)
+                extraction_store[entity_id] = extract_all_documents(entity_id, DOCUMENTS_ROOT,
+                                                                    on_document=getattr(emit, "on_document", None))
             except Exception as e:
                 emit(f"Skipping OCR extraction: {e}")
                 extraction_store.setdefault(entity_id, {"document_count": 0, "documents": [], "warning": str(e)})

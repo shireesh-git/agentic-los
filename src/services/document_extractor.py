@@ -57,6 +57,11 @@ _EXTRACTION_CACHE_VERSION = "3"   # 3: first matching label wins (revenue never 
 _EXTRACTION_CACHE_DIR = CACHE_ROOT / "extractions"
 
 
+# Per-document progress for the screen ("Reading documents · 2 of 4 · annual report FY2024"): set by
+# extract_all_documents for the thread that runs it.
+_progress = threading.local()
+
+
 def _file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as f:
@@ -92,10 +97,22 @@ def _cached_extract(extractor: Callable[[Path], dict], filepath: Path) -> dict[s
         return _safe_extract(extractor, filepath)
 
     engine = "pymupdf" if _USE_PYMUPDF else "pdfplumber"
-    # The path is part of the key because some results embed the file name.
+    # The path is part of the key because some results embed the file name. It is taken relative to the
+    # documents folder, so a cache built in one place (e.g. while the cloud image is built) matches wherever
+    # the app runs.
+    try:
+        where = filepath.resolve().relative_to(DOCUMENTS_ROOT.resolve()).as_posix()
+    except ValueError:
+        where = str(filepath.resolve())
     key_material = "|".join([_EXTRACTION_CACHE_VERSION, extractor.__name__, engine, _ocr_signature(),
-                             str(filepath.resolve()), content_hash])
+                             where, content_hash])
     cache_file = _EXTRACTION_CACHE_DIR / (hashlib.sha256(key_material.encode("utf-8")).hexdigest() + ".json")
+    hook = getattr(_progress, "hook", None)
+    if hook:
+        try:
+            hook(filepath, cache_file.exists())
+        except Exception:
+            pass
     if cache_file.exists():
         try:
             return json.loads(cache_file.read_text(encoding="utf-8"))
@@ -801,10 +818,17 @@ def extract_bank_statement_structured(filepath: str | Path) -> dict[str, Any]:
 
 # ─── Unified Extraction for a Company ────────────────────────────────────────
 
-def extract_all_documents(entity_id: str, storage_root: Path | None = None) -> dict[str, Any]:
+_DOC_SUFFIXES = {".pdf", ".xlsx", ".xls", ".csv"}
+
+
+def extract_all_documents(entity_id: str, storage_root: Path | None = None,
+                          on_document: Callable[[int, int, str, bool], None] | None = None) -> dict[str, Any]:
     """
     Extract ALL documents for a given entity and return structured data.
     This is the main entry point for the extraction pipeline.
+
+    ``on_document(done, total, name, cached)`` is called as each document is read (total: the documents in
+    the borrower's folder), so the screen can show which document is being read.
     """
     if storage_root is None:
         storage_root = DOCUMENTS_ROOT
@@ -812,6 +836,24 @@ def extract_all_documents(entity_id: str, storage_root: Path | None = None) -> d
     entity_dir = storage_root / entity_id
     if not entity_dir.exists():
         return {"error": f"No documents found for {entity_id}"}
+    if on_document is None:
+        return _extract_all_documents(entity_id, entity_dir)
+    total = sum(1 for f in entity_dir.rglob("*") if f.is_file() and f.suffix.lower() in _DOC_SUFFIXES)
+    seen: list[str] = []
+
+    def hook(path: Path, cached: bool) -> None:
+        if str(path) not in seen:
+            seen.append(str(path))
+        on_document(min(len(seen), max(total, len(seen))), max(total, len(seen)), path.name, cached)
+
+    _progress.hook = hook
+    try:
+        return _extract_all_documents(entity_id, entity_dir)
+    finally:
+        _progress.hook = None
+
+
+def _extract_all_documents(entity_id: str, entity_dir: Path) -> dict[str, Any]:
 
     extraction = {
         "entity_id": entity_id,

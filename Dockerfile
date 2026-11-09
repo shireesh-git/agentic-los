@@ -34,6 +34,10 @@ COPY storage/demo_registry/ ./storage/demo_registry/
 # Demo cases: a consistent snapshot of runtime-db made by scripts/deploy_gcp.sh
 COPY runtime-db-seed/ ./runtime-db/
 
+# Read the catalogue borrowers' documents now, so the first CAM in the cloud does not read hundreds of
+# pages on one CPU (the cache is keyed by the image's own paths and OCR setup).
+RUN python scripts/warm_doc_cache.py
+
 RUN mkdir -p /app/storage/cache /app/output /app/runtime-db /app/reference-docs /app/synthetic-assets \
     && chown -R camuser:camuser /app
 

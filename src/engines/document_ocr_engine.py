@@ -514,6 +514,8 @@ _gemini_client = None
 def _get_gemini():
     """Lazy-load Google GenAI client for Gemini Vision OCR."""
     global _gemini_client
+    if os.environ.get("CAM_GEMINI_OCR", "").lower() == "off":   # e.g. while the cloud image pre-reads documents
+        return None
     if _gemini_client is None:
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
         try:
