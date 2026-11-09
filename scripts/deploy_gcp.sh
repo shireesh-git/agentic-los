@@ -35,8 +35,17 @@ else
 fi
 
 gcloud config set project "$PROJECT_ID"
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-  aiplatform.googleapis.com secretmanager.googleapis.com
+APIS="run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com secretmanager.googleapis.com"
+# Enabling is a "mutate" call with a per-minute quota that is sometimes exhausted (RATE_LIMIT_EXCEEDED):
+# after the first deploy the APIs are already on, so a failure only matters if one of them is off.
+if ! gcloud services enable $APIS 2>/tmp/enable-err.txt; then
+  echo "Could not enable the APIs ($(grep -o 'RATE_LIMIT_EXCEEDED' /tmp/enable-err.txt | head -1 || echo 'see /tmp/enable-err.txt')): checking they are already on"
+  ENABLED="$(gcloud services list --enabled --format='value(config.name)')"
+  for api in $APIS; do
+    grep -qx "$api" <<<"$ENABLED" || { echo "$api is not enabled — run the deploy again in a minute"; exit 1; }
+  done
+  echo "All required APIs are already enabled"
+fi
 
 # New Gemini models reach regional Vertex endpoints later than the global one: use the region if
 # the model answers there, otherwise 'global'.
