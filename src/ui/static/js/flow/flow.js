@@ -41,7 +41,9 @@ function flowApp() {
     page: 'pipeline',            // pipeline | case | analytics
     queueTab: 'mine',
     q: { mine: [], all: [], kpis: null },
-    filter: { stage: '', sla: '', text: '' },
+    filter: { stage: '', sla: '', text: '', archived: false },
+    qf: { text: '', to: '' },
+    qa: {},
     search: '',
     borrowers: [],
     nc: { open: false, mode: 'borrower', entity_id: '', search: '', product: 'working_capital', amount_cr: '',
@@ -171,6 +173,7 @@ function flowApp() {
       const t = (this.filter.text || this.search || '').toLowerCase();
       return (src || []).filter(r => (!this.filter.stage || r.stage === this.filter.stage)
         && (!this.filter.sla || r.sla_state === this.filter.sla)
+        && (this.filter.archived || !r.archived)
         && (!t || (r.borrower_name + ' ' + (r.cin || '') + ' ' + r.case_id).toLowerCase().includes(t)));
     },
     stageMax() { return Math.max(1, ...((this.q.kpis && this.q.kpis.by_stage) || []).map(s => s.exposure_cr)); },
@@ -196,14 +199,52 @@ function flowApp() {
         this.setCase(v); location.hash = 'case/' + v.case_id;
       } finally { this.busy = false; }
     },
-    async resetBorrower(entityId, name) {
+    // ── one proposal's lifecycle (the borrower's other proposals are never touched) ──
+    async withdrawCase() {
       this.menuOpen = false;
-      const ok = await this.confirm('Reset ' + name + '?', 'All proposals for this borrower are removed so the journey can start again. CAM engine runs are retained.', 'Reset');
+      const why = await this.ask('Withdraw ' + this.c.case_id + '?', 'The proposal is closed and kept for the record; the borrower can then have a new proposal. Other proposals of ' + this.c.borrower_name + ' are not affected.', 'Reason (mandatory), e.g. borrower no longer needs the facility', true, 'Withdraw');
+      if (why === null) return;
+      this.busy = true;
+      try { this.setCase(await this.post(this.cp('/withdraw'), { text: why })); this.borrowers = []; this.notify('Proposal withdrawn', 'ok'); }
+      finally { this.busy = false; }
+    },
+    async archiveCase(flag) {
+      this.menuOpen = false;
+      this.setCase(await this.post(this.cp('/archive'), { archived: flag }));
+      this.notify(flag ? 'Archived — hidden from the pipeline (tick “Show archived” to see it)' : 'Restored to the pipeline', 'ok');
+    },
+    async deleteCase() {
+      this.menuOpen = false;
+      const ok = await this.confirm('Delete ' + this.c.case_id + '?', 'This proposal and its audit trail are removed permanently (demo housekeeping). Other proposals of ' + this.c.borrower_name + ' stay. This cannot be undone.', 'Delete');
       if (!ok) return;
-      await this.post('/api/flow/reset', { entity_id: entityId });
-      this.notify(name + ' reset', 'ok');
+      await this.req('DELETE', this.cp(''));
+      this.notify(this.c.case_id + ' deleted', 'ok');
       this.borrowers = [];
       this.goPipeline();
+    },
+
+    // ── clarifications inside the stage ───────────────────────────────────
+    openQueries() { return ((this.c && this.c.queries) || []).filter(q => q.status === 'open'); },
+    myQueries() { const r = this.role(); return this.openQueries().filter(q => q.to_role === r); },
+    async raiseQuery() {
+      if (!this.qf.text.trim()) { this.notify('Type the question', 'error'); return; }
+      this.busy = true;
+      try {
+        this.setCase(await this.post(this.cp('/queries'), { question: this.qf.text, to_stage: this.qf.to || null }));
+        this.qf = { text: '', to: '' };
+        this.notify('Clarification sent — the proposal stays with you and its SLA clock pauses', 'ok');
+      } finally { this.busy = false; }
+    },
+    async answerQuery(q) {
+      const text = (this.qa[q.id] || '').trim();
+      if (!text) { this.notify('Type the answer', 'error'); return; }
+      this.busy = true;
+      try { this.setCase(await this.post(this.cp('/queries/' + q.id + '/answer'), { text })); delete this.qa[q.id]; this.notify('Answer sent to ' + q.from_name, 'ok'); }
+      finally { this.busy = false; }
+    },
+    async withdrawQuery(q) {
+      this.setCase(await this.post(this.cp('/queries/' + q.id + '/withdraw'), {}));
+      this.notify('Clarification withdrawn', 'ok');
     },
 
     // ── a proposal ─────────────────────────────────────────────────────────

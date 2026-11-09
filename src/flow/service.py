@@ -251,8 +251,12 @@ class FlowService:
         """Move the proposal to a stage, keeping the time spent at each (TAT, SLA ageing)."""
         at = self._stamp()
         hist = case.setdefault("stage_history", [])
+        self._resume_clock(case, force=True)
         if hist and not hist[-1].get("left"):
             hist[-1]["left"] = at
+            if case.get("paused_s"):
+                hist[-1]["clarification_seconds"] = int(case["paused_s"])
+        case["paused_s"] = 0
         case["stage"] = stage_id
         case["stage_since"] = at
         hist.append({"stage": stage_id, "entered": at, "left": None})
@@ -606,12 +610,167 @@ class FlowService:
         log.info("Flow reset for %s by %s: %s", entity_id, session["user"]["id"], removed)
         return {"entity_id": entity_id, "removed": removed}
 
+    # ── one proposal's lifecycle: withdraw, archive, delete (never the borrower's other proposals) ──
+
+    def _close_stage(self, case: dict) -> None:
+        self._resume_clock(case, force=True)
+        hist = case.get("stage_history") or []
+        if hist and not hist[-1].get("left"):
+            hist[-1]["left"] = self._stamp()
+            if case.get("paused_s"):
+                hist[-1]["clarification_seconds"] = int(case["paused_s"])
+
+    def withdraw(self, case_id: str, session: dict, reason: str) -> dict:
+        """The RM withdraws an open proposal (the borrower dropped it, or it was raised in error). It is kept,
+        closed, for the record; the borrower can then have a new proposal."""
+        with self._lock:
+            case = self._require(case_id)
+            self._require_role(session, self.stages()[0]["role"])
+            if case["status"] != "open":
+                raise ConflictError(f"The proposal is already {case['status']}")
+            if self.jobs.running(case_id):
+                raise ConflictError("Wait for the CAM run to finish")
+            reason = (reason or "").strip()
+            if not reason:
+                raise InvalidRequestError("State why the proposal is withdrawn — it is recorded in the audit trail")
+            for q in self._open_queries(case):
+                q.update(status="closed", closed_note="Proposal withdrawn")
+            self._close_stage(case)
+            case["status"] = "withdrawn"
+            case["withdrawn"] = {"by": session["user"]["name"], "at": self._stamp(), "reason": reason,
+                                 "stage": case["stage"]}
+            case["ask"] = None
+            case["decisions"].append({"stage": case["stage"], "stage_label": self.stage(case["stage"])["label"],
+                                      "action": "withdraw", "by": session["user"]["name"],
+                                      "role": session["user"]["role"], "at": self._stamp(), "comment": reason})
+            self._log(case, "withdraw", session, comment=reason, status="withdrawn")
+            self._say(case, f"Withdrawn by {session['user']['name']}: “{reason}”. The proposal is closed and kept "
+                            f"for the record.", kind="warn")
+            self._save(case)
+            return case
+
+    def archive(self, case_id: str, session: dict, archived: bool = True) -> dict:
+        """Take a closed proposal off the pipeline list (it stays in reports and can be brought back)."""
+        with self._lock:
+            case = self._require(case_id)
+            if archived and case["status"] == "open":
+                raise ConflictError("Only a closed proposal can be archived — withdraw it first")
+            if archived:
+                case["archived"] = {"by": session["user"]["name"], "at": self._stamp()}
+            else:
+                case.pop("archived", None)
+            self._log(case, "archive" if archived else "unarchive", session)
+            self._save(case)
+            return case
+
+    def delete_case(self, case_id: str, session: dict) -> dict:
+        """Remove one proposal and its trail (demo housekeeping). A disbursed proposal is never removed."""
+        with self._lock:
+            case = self._require(case_id)
+            self._require_role(session, self.stages()[0]["role"])
+            if case["status"] == "disbursed" or case.get("sanction"):
+                raise ConflictError("A sanctioned proposal is kept for the record — archive it instead")
+            if self.jobs.running(case_id):
+                raise ConflictError("Wait for the CAM run to finish")
+            self.store.delete_case(case_id)
+        log.info("Proposal %s (%s) deleted by %s", case_id, case["entity_id"], session["user"]["id"])
+        return {"case_id": case_id, "deleted": True}
+
+    # ── clarifications inside the stage: the proposal stays where it is, and its clock pauses ──
+
+    @staticmethod
+    def _open_queries(case: dict) -> list[dict]:
+        return [q for q in case.get("queries") or [] if q["status"] == "open"]
+
+    def _paused_seconds(self, case: dict) -> float:
+        s = float(case.get("paused_s") or 0)
+        if case.get("paused_since") and case["status"] == "open":
+            s += max((self.now() - datetime.fromisoformat(case["paused_since"])).total_seconds(), 0)
+        return s
+
+    def _resume_clock(self, case: dict, force: bool = False) -> None:
+        if case.get("paused_since") and (force or not self._open_queries(case)):
+            case["paused_s"] = self._paused_seconds(case)
+            case["paused_since"] = None
+
+    def _query_targets(self, case: dict) -> list[dict]:
+        """Who the officer at the current stage may ask: the officers of the earlier stages."""
+        stages = self.stages()
+        idx = next((i for i, s in enumerate(stages) if s["id"] == case["stage"]), 0)
+        return [{"stage": s["id"], "label": s["label"], "who": self.officer(s["id"])} for s in stages[:idx]]
+
+    def _query(self, case: dict, qid: str) -> dict:
+        q = next((q for q in case.get("queries") or [] if q["id"] == qid), None)
+        if not q:
+            raise NotFoundError(f"Clarification {qid} not found")
+        if q["status"] != "open":
+            raise ConflictError(f"The clarification is already {q['status']}")
+        return q
+
+    def raise_query(self, case_id: str, session: dict, question: str, to_stage: Optional[str] = None) -> dict:
+        with self._lock:
+            case = self._require(case_id)
+            st = self._at_stage(case, session)
+            targets = {t["stage"]: t for t in self._query_targets(case)}
+            if not targets:
+                raise InvalidRequestError("Clarifications are asked of an earlier stage")
+            to = targets.get(to_stage or self.stages()[0]["id"])
+            if not to:
+                raise InvalidRequestError("Ask an officer at an earlier stage")
+            question = (question or "").strip()
+            if not question:
+                raise InvalidRequestError("Type the question")
+            qs = case.setdefault("queries", [])
+            q = {"id": f"Q{len(qs) + 1}", "stage": st["id"], "stage_label": st["label"],
+                 "from_name": session["user"]["name"], "from_role": session["user"]["role"],
+                 "to_stage": to["stage"], "to_label": to["label"], "to_role": self.stage(to["stage"])["role"],
+                 "to_name": to["who"], "question": question, "raised_at": self._stamp(), "status": "open"}
+            qs.append(q)
+            if not case.get("paused_since"):
+                case["paused_since"] = q["raised_at"]
+            self._log(case, "query_raise", session, query=q["id"], to_stage=to["stage"], question=question)
+            self._say(case, f"{q['from_name']} ({st['label']}) asks: “{question}” The proposal stays with "
+                            f"{st['label']}; answer here and the answer goes straight back.", kind="warn",
+                      stage=to["stage"])
+            self._save(case)
+            return case
+
+    def answer_query(self, case_id: str, session: dict, qid: str, answer: str) -> dict:
+        with self._lock:
+            case = self._require(case_id)
+            if case["status"] != "open":
+                raise ConflictError(f"The proposal is {case['status']}")
+            q = self._query(case, qid)
+            if session["user"]["role"] != q["to_role"]:
+                raise ForbiddenError(f"The clarification is addressed to {q['to_label']}")
+            answer = (answer or "").strip()
+            if not answer:
+                raise InvalidRequestError("Type the answer")
+            q.update(status="answered", answer=answer, answered_by=session["user"]["name"], answered_at=self._stamp())
+            self._resume_clock(case)
+            self._log(case, "query_answer", session, query=qid, answer=answer)
+            self._say(case, f"{q['answered_by']} ({q['to_label']}) answered your clarification “{q['question']}”: "
+                            f"“{answer}”.", kind="info", stage=q["stage"])
+            self._save(case)
+            return case
+
+    def withdraw_query(self, case_id: str, session: dict, qid: str) -> dict:
+        with self._lock:
+            case = self._require(case_id)
+            self._at_stage(case, session)
+            q = self._query(case, qid)
+            q.update(status="withdrawn", closed_note=f"Withdrawn by {session['user']['name']}")
+            self._resume_clock(case)
+            self._log(case, "query_withdraw", session, query=qid)
+            self._save(case)
+            return case
+
     # ── the pipeline (work queue, portfolio, executive summary) ─────────────
 
     def queue(self, session: dict) -> dict:
         role = session["user"]["role"]
         rows = [self._row(c) for c in self.store.all()]
-        mine = [r for r in rows if r["status"] == "open" and r["role"] == role]
+        mine = [r for r in rows if r["status"] == "open" and (r["role"] == role or role in r["queries_for"])]
         return {"mine": mine, "all": rows, "others": [r for r in rows if r not in mine], "kpis": self._kpis(rows)}
 
     def _ageing(self, case: dict) -> tuple[float, int, str]:
@@ -619,7 +778,8 @@ class FlowService:
         sla = int(st.get("sla_hours") or 48)
         since = case.get("stage_since") or case["created_at"]
         end = self.now() if case["status"] == "open" else datetime.fromisoformat(case["updated_at"])
-        hours = max((end - datetime.fromisoformat(since)).total_seconds() / 3600, 0)
+        # time waiting on a clarification is not the stage's time: the SLA clock pauses while a query is open
+        hours = max(((end - datetime.fromisoformat(since)).total_seconds() - self._paused_seconds(case)) / 3600, 0)
         state = "breach" if hours >= sla else "amber" if hours >= 0.5 * sla else "ok"
         return round(hours, 2), sla, state if case["status"] == "open" else "closed"
 
@@ -642,7 +802,10 @@ class FlowService:
                 "cam_state": (c.get("cam") or {}).get("state"), "updated_at": c["updated_at"],
                 "created_at": c["created_at"], "sanctioned_cr": (c.get("sanction") or {}).get("limit_cr"),
                 "disbursed_cr": (c.get("release") or {}).get("amount_cr"),
-                "pending_changes": sum(1 for x in c.get("changes") or [] if x["status"] == "pending")}
+                "pending_changes": sum(1 for x in c.get("changes") or [] if x["status"] == "pending"),
+                "open_queries": len(self._open_queries(c)),
+                "queries_for": sorted({q["to_role"] for q in self._open_queries(c)}),
+                "archived": bool(c.get("archived"))}
 
     def _kpis(self, rows: list[dict]) -> dict:
         open_ = [r for r in rows if r["status"] == "open"]
@@ -1929,7 +2092,8 @@ class FlowService:
 
     def blockers(self, case: dict, stage: Optional[dict] = None) -> list[str]:
         st = stage or self.stage(case["stage"])
-        out = []
+        out = [f"Clarification {q['id']} awaits {q['to_name']} ({q['to_label']})" for q in self._open_queries(case)
+               if q["stage"] == st["id"]]
         cam = case.get("cam") or {}
         if st["id"] == self.stages()[0]["id"] and case.get("is_prospect") and case.get("acquisition"):
             srcs = case["acquisition"].get("sources") or {}
@@ -2025,15 +2189,15 @@ class FlowService:
                     self._enter(case, stages[idx + 1]["id"])
                 else:
                     case["status"] = "disbursed"
-                    if case.get("stage_history"):
-                        case["stage_history"][-1]["left"] = self._stamp()
+                    self._close_stage(case)
             elif action in ("reject", "send_back"):
                 if not comment:
                     raise InvalidRequestError("Add remarks — they are recorded and shown to the next officer")
+                for q in self._open_queries(case):          # the proposal moves on: its open questions close
+                    q.update(status="closed", closed_note="Proposal " + ("declined" if action == "reject" else "returned"))
                 if action == "reject":
                     case["status"] = "rejected"
-                    if case.get("stage_history"):
-                        case["stage_history"][-1]["left"] = self._stamp()
+                    self._close_stage(case)
                 else:
                     self._enter(case, st.get("send_back_to") or stages[max(idx - 1, 0)]["id"])
                     case.setdefault("offered", {}).pop(case["stage"], None)
@@ -2409,7 +2573,7 @@ class FlowService:
                   "seconds": int(spent.get(s["id"], 0)) if s["id"] in spent else None,
                   "state": ("done" if (i < idx or case["status"] == "disbursed") else
                             "current" if i == idx and case["status"] == "open" else
-                            "rejected" if i == idx and case["status"] == "rejected" else "todo")}
+                            "rejected" if i == idx and case["status"] in ("rejected", "withdrawn") else "todo")}
                  for i, s in enumerate(stages)]
         editable = is_mine and st["id"] in ("rm", "credit_risk") and (case.get("cam") or {}).get("state") == "ready"
         groups = []
@@ -2513,7 +2677,15 @@ class FlowService:
                     "ews_about": rk.EWS_ABOUT, "incomplete": self._incomplete(case),
                     "register": case.get("register") or [],
                     "cam_sections": self._cam_section_count(),
-                    "deviations": case.get("deviations") or []})
+                    "deviations": case.get("deviations") or [],
+                    "queries": case.get("queries") or [],
+                    "query_targets": self._query_targets(case) if is_mine else [],
+                    "clock_paused": bool(case.get("paused_since")) and case["status"] == "open",
+                    "withdrawn": case.get("withdrawn"), "archived": case.get("archived"),
+                    "can_withdraw": case["status"] == "open" and role == stages[0]["role"],
+                    "can_archive": case["status"] != "open",
+                    "can_delete": role == stages[0]["role"] and not case.get("sanction")
+                    and case["status"] != "disbursed"})
         return out
 
     # ── reports ──────────────────────────────────────────────────────────────

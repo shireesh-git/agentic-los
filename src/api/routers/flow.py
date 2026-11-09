@@ -224,6 +224,65 @@ async def chat(case_id: str, body: Message, x_flow_session: Optional[str] = Head
     return svc.flow.view(case_id, s)
 
 
+class Remark(BaseModel):
+    text: str = ""
+
+
+class Query(BaseModel):
+    question: str = ""
+    to_stage: Optional[str] = None
+
+
+class Archive(BaseModel):
+    archived: bool = True
+
+
+@router.post("/cases/{case_id}/withdraw")
+async def withdraw(case_id: str, body: Remark, x_flow_session: Optional[str] = Header(None),
+                   svc: ServiceContainer = Depends(get_container)):
+    s = _s(svc, x_flow_session)
+    svc.flow.withdraw(case_id, s, body.text)
+    return svc.flow.view(case_id, s)
+
+
+@router.post("/cases/{case_id}/archive")
+async def archive(case_id: str, body: Archive, x_flow_session: Optional[str] = Header(None),
+                  svc: ServiceContainer = Depends(get_container)):
+    s = _s(svc, x_flow_session)
+    svc.flow.archive(case_id, s, body.archived)
+    return svc.flow.view(case_id, s)
+
+
+@router.delete("/cases/{case_id}")
+async def delete_case(case_id: str, x_flow_session: Optional[str] = Header(None),
+                      svc: ServiceContainer = Depends(get_container)):
+    return svc.flow.delete_case(case_id, _s(svc, x_flow_session))
+
+
+@router.post("/cases/{case_id}/queries")
+async def raise_query(case_id: str, body: Query, x_flow_session: Optional[str] = Header(None),
+                      svc: ServiceContainer = Depends(get_container)):
+    s = _s(svc, x_flow_session)
+    svc.flow.raise_query(case_id, s, body.question, body.to_stage)
+    return svc.flow.view(case_id, s)
+
+
+@router.post("/cases/{case_id}/queries/{qid}/answer")
+async def answer_query(case_id: str, qid: str, body: Remark, x_flow_session: Optional[str] = Header(None),
+                       svc: ServiceContainer = Depends(get_container)):
+    s = _s(svc, x_flow_session)
+    svc.flow.answer_query(case_id, s, qid, body.text)
+    return svc.flow.view(case_id, s)
+
+
+@router.post("/cases/{case_id}/queries/{qid}/withdraw")
+async def withdraw_query(case_id: str, qid: str, x_flow_session: Optional[str] = Header(None),
+                         svc: ServiceContainer = Depends(get_container)):
+    s = _s(svc, x_flow_session)
+    svc.flow.withdraw_query(case_id, s, qid)
+    return svc.flow.view(case_id, s)
+
+
 @router.post("/cases/{case_id}/action")
 async def act(case_id: str, body: Action, x_flow_session: Optional[str] = Header(None),
               svc: ServiceContainer = Depends(get_container)):

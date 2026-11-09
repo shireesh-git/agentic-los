@@ -133,11 +133,12 @@
               <select class="input sm" x-model="filter.stage"><option value="">All stages</option><template x-for="s in dir.stages" :key="s.id"><option :value="s.id" x-text="s.short"></option></template></select>
               <select class="input sm" x-model="filter.sla"><option value="">Any SLA status</option><option value="ok">Within SLA</option><option value="amber">Approaching SLA</option><option value="breach">SLA breached</option></select>
               <input class="input sm" placeholder="Filter" x-model="filter.text">
+              <label class="chk-arch" title="Archived proposals are closed ones taken off this list"><input type="checkbox" x-model="filter.archived"> Show archived</label>
             </div>
           </div>
           <div class="table-wrap">
             <table class="tbl">
-              <thead><tr><th>Proposal</th><th>Borrower</th><th>Facility</th><th class="r">Exposure</th><th>Rating</th><th>Stage</th><th>Assigned to</th><th>Ageing · SLA</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Proposal</th><th>Borrower</th><th>Facility</th><th class="r">Exposure</th><th>Rating</th><th>Stage</th><th>Assigned to</th><th>Ageing · SLA</th><th>Status</th></tr></thead>
               <tbody>
                 <template x-for="r in rows()" :key="r.case_id">
                   <tr class="click" @click="location.hash = 'case/' + r.case_id">
@@ -146,11 +147,10 @@
                     <td><span x-text="product(r.product)"></span><div class="sub" x-text="(r.tenor_months || '') + (r.tenor_months ? ' months' : '')"></div></td>
                     <td class="r num" x-text="cr(r.exposure_cr)"></td>
                     <td><span class="grade" :class="grade(r.internal_rating)" x-show="r.internal_rating" x-text="r.internal_rating"></span><div class="sub" x-text="r.external_rating || ''"></div></td>
-                    <td><span class="stage-pill" x-text="r.stage_short"></span><div class="sub" x-show="r.pending_changes" x-text="r.pending_changes + ' override(s) pending'"></div></td>
+                    <td><span class="stage-pill" x-text="r.stage_short"></span><div class="sub" x-show="r.pending_changes" x-text="r.pending_changes + ' override(s) pending'"></div><div class="sub q-note" x-show="r.open_queries" x-text="r.open_queries + ' clarification(s) open' + (r.queries_for.includes(role()) && r.role !== role() ? ' — your answer needed' : '')"></div></td>
                     <td x-text="r.assigned_to || '—'"></td>
                     <td><span class="sla" :class="'sla-' + r.sla_state" x-text="r.status === 'open' ? hours(r.ageing_hours) + ' / ' + r.sla_hours + 'h' : '—'"></span></td>
-                    <td><span class="status" :class="'s-' + r.status" x-text="{open: 'In progress', disbursed: 'Disbursed', rejected: 'Declined'}[r.status]"></span></td>
-                    <td @click.stop><button class="icon-btn sm" title="Reset this borrower" @click="resetBorrower(r.entity_id, r.borrower_name)"><span x-html="icon('reset')"></span></button></td>
+                    <td><span class="status" :class="'s-' + r.status" x-text="{open: 'In progress', disbursed: 'Disbursed', rejected: 'Declined', withdrawn: 'Withdrawn'}[r.status]"></span><div class="sub" x-show="r.archived">Archived</div></td>
                   </tr>
                 </template>
               </tbody>
@@ -179,7 +179,7 @@
                 </div>
               </div>
               <div class="hc-actions">
-                <span class="status lg" :class="'s-' + c.status" x-text="{open: 'In progress', disbursed: 'Disbursed', rejected: 'Declined'}[c.status]"></span>
+                <span class="status lg" :class="'s-' + c.status" x-text="{open: 'In progress', disbursed: 'Disbursed', rejected: 'Declined', withdrawn: 'Withdrawn'}[c.status]"></span>
                 <a class="btn ghost sm" x-show="c.cam.state === 'ready'" :href="link('/cam.pdf')"><span x-html="icon('download')"></span> CAM</a>
                 <div class="menu-wrap">
                   <button class="btn ghost sm" @click="menuOpen = !menuOpen" title="More"><span x-html="icon('more')"></span></button>
@@ -188,7 +188,10 @@
                     <a class="dd-item" :href="link('/ai-governance.html')" target="_blank" @click="menuOpen = false"><span x-html="icon('spark')"></span> AI Governance Pack</a>
                     <a class="dd-item" x-show="c.sanction" :href="link('/sanction-letter.html')" target="_blank" @click="menuOpen = false"><span x-html="icon('doc')"></span> Sanction Letter</a>
                     <a class="dd-item" :href="link('/audit-pack.json')" target="_blank" @click="menuOpen = false"><span x-html="icon('download')"></span> Audit data (JSON)</a>
-                    <a class="dd-item danger" @click="resetBorrower(c.entity_id, c.borrower_name)"><span x-html="icon('reset')"></span> Reset borrower</a>
+                    <a class="dd-item" x-show="c.can_withdraw" @click="withdrawCase()"><span x-html="icon('reset')"></span> Withdraw this proposal</a>
+                    <a class="dd-item" x-show="c.can_archive && !c.archived" @click="archiveCase(true)"><span x-html="icon('layers')"></span> Archive</a>
+                    <a class="dd-item" x-show="c.archived" @click="archiveCase(false)"><span x-html="icon('layers')"></span> Restore from archive</a>
+                    <a class="dd-item danger" x-show="c.can_delete" @click="deleteCase()"><span x-html="icon('reset')"></span> Delete this proposal (demo)</a>
                   </div>
                 </div>
               </div>
@@ -334,7 +337,48 @@
 
           <div class="banner ok" x-show="c.status === 'disbursed' && c.release" x-text="c.release ? 'Disbursed ' + cr(c.release.amount_cr) + ' to ' + c.release.account + ' · UTR ' + c.release.reference + ' (demo — no payment system called)' : ''"></div>
           <div class="banner bad" x-show="c.status === 'rejected'">Declined — see the audit trail for remarks.</div>
-          <div class="banner info" x-show="c.status === 'open' && !c.is_mine" x-text="'View only — the proposal is with ' + c.stage_label + ' (' + (c.chain.find(s => s.state === 'current') || {}).who + ').'"></div>
+          <div class="banner info" x-show="c.status === 'withdrawn'" x-text="c.withdrawn ? 'Withdrawn by ' + c.withdrawn.by + ' on ' + c.withdrawn.at.slice(0, 16).replace('T', ' ') + ': “' + c.withdrawn.reason + '”' : ''"></div>
+          <div class="banner info" x-show="c.status === 'open' && !c.is_mine && !myQueries().length" x-text="'View only — the proposal is with ' + c.stage_label + ' (' + (c.chain.find(s => s.state === 'current') || {}).who + ').'"></div>
+
+          <!-- clarifications inside the stage: the proposal stays where it is; its SLA clock pauses -->
+          <section class="card" id="sec-queries" x-show="(c.queries || []).length || (c.is_mine && (c.query_targets || []).length)" :class="{focus: myQueries().length}">
+            <div class="card-h">
+              <h3><span x-html="icon('chat')"></span> Clarifications</h3>
+              <span class="tag tg-amber" x-show="c.clock_paused">SLA clock paused — awaiting an answer</span>
+            </div>
+            <p class="muted sm" x-show="c.is_mine && c.status === 'open' && (c.query_targets || []).length">Ask an earlier stage a question without returning the proposal. It stays with you, and the time spent waiting for the answer does not count against your SLA.</p>
+            <div class="q-list">
+              <template x-for="q in c.queries || []" :key="q.id">
+                <div class="q-item" :class="'q-' + q.status">
+                  <div class="q-head">
+                    <b x-text="q.id"></b>
+                    <span x-text="q.from_name + ' (' + q.stage_label + ') → ' + q.to_name + ' (' + q.to_label + ')'"></span>
+                    <span class="muted sm" x-text="q.raised_at.slice(0, 16).replace('T', ' ')"></span>
+                    <span class="tag sm" :class="{'tg-amber': q.status === 'open', 'tg-green': q.status === 'answered', 'tg-grey': ['withdrawn', 'closed'].includes(q.status)}" x-text="{open: 'Awaiting answer', answered: 'Answered', withdrawn: 'Withdrawn', closed: 'Closed'}[q.status]"></span>
+                  </div>
+                  <div class="q-text" x-text="'“' + q.question + '”'"></div>
+                  <div class="q-ans" x-show="q.answer" x-text="(q.answered_by || '') + ': “' + (q.answer || '') + '”'"></div>
+                  <div class="muted sm" x-show="q.closed_note" x-text="q.closed_note"></div>
+                  <template x-if="q.status === 'open' && q.to_role === role() && c.status === 'open'">
+                    <div class="q-form">
+                      <textarea class="input" rows="2" x-model="qa[q.id]" placeholder="Your answer goes straight back to them. Upload any supporting document in Data Sources."></textarea>
+                      <button class="btn primary sm" @click="answerQuery(q)" :disabled="busy">Send answer</button>
+                    </div>
+                  </template>
+                  <button class="link sm" x-show="q.status === 'open' && c.is_mine && q.stage === c.stage" @click="withdrawQuery(q)">Withdraw question</button>
+                </div>
+              </template>
+            </div>
+            <template x-if="c.is_mine && c.status === 'open' && (c.query_targets || []).length">
+              <div class="q-form">
+                <select class="input sm" x-model="qf.to" x-show="c.query_targets.length > 1">
+                  <template x-for="t in c.query_targets" :key="t.stage"><option :value="t.stage" x-text="'Ask ' + t.who + ' (' + t.label + ')'"></option></template>
+                </select>
+                <textarea class="input" rows="2" x-model="qf.text" placeholder="e.g. Please confirm the promoter's personal guarantee covers the existing term loan"></textarea>
+                <button class="btn ghost sm" @click="raiseQuery()" :disabled="busy">Ask — keep the proposal here</button>
+              </div>
+            </template>
+          </section>
 
           <!-- data sources: acquisition agents, API first, documents where an API is not connected -->
           <section class="card" id="sec-src" x-show="c.acquisition" :class="{focus: c.can_sources && c.cam.state !== 'ready'}">

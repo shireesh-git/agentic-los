@@ -73,6 +73,12 @@ class FlowStore:
             conn.execute("DELETE FROM flow_cases WHERE entity_id = ?", (entity_id,))
         return ids
 
+    def delete_case(self, case_id: str) -> bool:
+        """One proposal and its events; the borrower's other proposals stay."""
+        with self._lock, self._connect() as conn:
+            conn.execute("DELETE FROM flow_events WHERE case_id = ?", (case_id,))
+            return conn.execute("DELETE FROM flow_cases WHERE case_id = ?", (case_id,)).rowcount > 0
+
     # ── events ───────────────────────────────────────────────────────────────
 
     def log(self, case_id: str, at: str, kind: str, stage: Optional[str] = None, actor: Optional[dict] = None,

@@ -18,7 +18,7 @@ from src.flow import datapoints as dpx
 
 TOUCH = {"edit", "skip", "change_accept", "change_dispute", "approve", "reject", "send_back", "doc_upload",
          "condition_confirm", "condition_reopen", "drawdown_edit", "cam_generate", "cam_rerun", "cam_upload",
-         "challenge_response", "deviation_propose", "deviation_approve", "deviation_reject"}
+         "challenge_response", "deviation_propose", "deviation_approve", "deviation_reject", "query_raise", "query_answer", "withdraw"}
 _KIND_LABEL = {"created": "Proposal initiated", "data_acquired": "Data acquisition agents ran",
                "source_document": "Data source document uploaded","cam_generate": "CAM generation requested (CAM engine)",
                "cam_rerun": "CAM re-run requested", "cam_ready": "CAM ready", "cam_failed": "CAM generation stopped",
@@ -29,7 +29,10 @@ _KIND_LABEL = {"created": "Proposal initiated", "data_acquired": "Data acquisiti
                "condition_confirm": "Condition confirmed", "condition_reopen": "Condition re-opened",
                "drawdown_edit": "Disbursement request edited", "chat_question": "Credit Copilot query",
                "challenge_response": "Key risk challenge answered", "deviation_propose": "Deviation mitigant recorded",
-               "deviation_approve": "Deviation approved", "deviation_reject": "Deviation rejected"}
+               "deviation_approve": "Deviation approved", "deviation_reject": "Deviation rejected",
+               "query_raise": "Clarification asked (proposal kept at its stage)", "query_answer": "Clarification answered",
+               "query_withdraw": "Clarification withdrawn", "withdraw": "Proposal withdrawn",
+               "archive": "Proposal archived", "unarchive": "Proposal restored from the archive"}
 
 
 def _t(at: str) -> datetime:
@@ -76,6 +79,7 @@ def case_times(case: dict, events: list[dict], stages: list[dict], now: datetime
                         "time": _dur(spans.get(s["id"], 0))} for s in stages if s["id"] in spans],
             "touches": len(touches), "touches_by_role": by_role,
             "questions_answered": sum(1 for e in events if e["kind"] == "chat_question"),
+            "clarifications": sum(1 for e in events if e["kind"] == "query_raise"),
             "datapoints": {"total": total, "by_agent": agent, "by_person": person,
                            "auto_pct": round(100.0 * agent / total, 1) if total else 0.0},
             "cam": {"mode": cam.get("mode"), "seconds": cam.get("duration_seconds"),
@@ -250,6 +254,7 @@ def run_analytics(cases: list[dict], events: dict[str, list[dict]], stages: list
         r["engine"] = (c.get("risk") or {}).get("label")
         r["engine_tone"] = (c.get("risk") or {}).get("tone")
         r["outcome"] = ("Disbursed" if c.get("status") == "disbursed" else "Declined" if c.get("status") == "rejected"
+                        else "Withdrawn" if c.get("status") == "withdrawn"
                         else "Sanctioned" if c.get("sanction") else "In progress")
         r["deviation"] = bool(c.get("deviations"))
 
@@ -338,7 +343,7 @@ def audit_pack(case: dict, events: list[dict], stages: list[dict], release_check
         for c in case.get("changes") or []) or "<tr><td colspan=6 class=muted>No underwriting overrides</td></tr>"
     decisions = "".join(
         f"<tr><td>{_e(d['at'])}</td><td>{_e(d['stage_label'])}</td><td>{_e(d['by'])}</td>"
-        f"<td>{_e({'approve': 'Approved', 'reject': 'Rejected', 'send_back': 'Sent back'}.get(d['action'], d['action']))}</td>"
+        f"<td>{_e({'approve': 'Approved', 'reject': 'Rejected', 'send_back': 'Sent back', 'withdraw': 'Withdrawn'}.get(d['action'], d['action']))}</td>"
         f"<td>{_e(d.get('comment') or '')}</td></tr>" for d in case.get("decisions") or []) \
         or "<tr><td colspan=5 class=muted>No decisions yet</td></tr>"
     risk = case.get("risk") or {}
@@ -508,7 +513,8 @@ def decision_summary(case: dict, points: dict, stage_label: str) -> str:
     r = case.get("risk") or {}
     fac = case["facility"]
     p = lambda k: points.get(k) or {}
-    status = {"open": f"In progress — {stage_label}", "disbursed": "Disbursed", "rejected": "Declined"}[case["status"]]
+    status = {"open": f"In progress — {stage_label}", "disbursed": "Disbursed", "rejected": "Declined",
+              "withdrawn": "Withdrawn"}.get(case["status"], case["status"])
     out = "## DECISION SUMMARY\n\n"
     out += (f"*Prepared from the proposal's record on {case['updated_at'][:16].replace('T', ' ')} — no model-written text "
             f"on this page. Proposal {case['case_id']} · {status}.*\n\n")
@@ -577,7 +583,7 @@ def decision_summary(case: dict, points: dict, stage_label: str) -> str:
         out += "### Decision Trail\n\n" + _md_row(["When", "Stage", "Who", "Decision", "Remarks"]) + _md_row(["---"] * 5)
         for d in case["decisions"]:
             out += _md_row([d["at"][:16].replace("T", " "), d["stage_label"], d["by"],
-                            {"approve": "Approved", "reject": "Declined", "send_back": "Returned"}.get(d["action"], d["action"]),
+                            {"approve": "Approved", "reject": "Declined", "send_back": "Returned", "withdraw": "Withdrawn"}.get(d["action"], d["action"]),
                             d.get("comment") or ""])
         out += "\n"
     return out
