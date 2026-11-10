@@ -168,3 +168,47 @@ officers' messages by stage. Bugs: NaN overrides (a duplicate `fmt` in flow.js),
 from the ratios, TAT wording, and an older proposal losing its verdict once the borrower had a newer CAM run (its own run is
 now loaded and the assessment kept). Tab panes use `x-if`: an `x-show` element first set up inside a hidden `x-show` pane
 never hides (Alpine). Phone width checked at 390 px.
+
+## Round 7 — new-to-bank prospects end to end, on Gemini (2026-11-10)
+
+Three listed companies taken from initiation to disbursement on the laptop with Gemini (now the default provider on the
+laptop as on GCP). Each used its real published annual reports (FY2025, FY2026) and CARE rationale. The packs are built by
+`test-documents/<company>/prepare.py`: identifiers (directors' DIN/PAN, company PAN/GSTIN, accounts, contacts) are masked, and
+the MCA, bureau, bank-statement, GST and KYC documents are UAT demo documents labelled as such. The public PDFs are not
+committed (`public/` is git-ignored); `prepare.py` downloads them again.
+
+| Proposal | Prospect | Journey | Outcome |
+|---|---|---|---|
+| LOS-261110-2180 | Transport Corporation of India (logistics) | Generate CAM | Approve with conditions, A 88.1 · **disbursed ₹150 Cr** |
+| LOS-261110-5BD8 | KPI Green Energy (energy) | Generate CAM | Refer, C 62.1; 2 deviations (DSCR 0.73x, Debt/EBITDA 5.72x) approved · **disbursed ₹400 Cr** |
+| LOS-261110-87F7 | H.G. Infra Engineering (infrastructure) | Ingest the bank's CAM (Demo Bank format, `test-documents/hg_infra/bank_cam.py`) | **disbursed ₹200 Cr** (recommended in the bank CAM against ₹250 Cr requested) |
+
+### Fixed in this round
+
+| # | Observation | Cause | Fix |
+|---|---|---|---|
+| R7.1 (B) | TCI read 10× too large. | "₹ in Mn" was not a known unit. | Units lac / cr / mn recognised and named; unit read from the page heads first. |
+| R7.2 (B) | EBITDA overstated for service companies (TCI, H.G. Infra). | EBITDA built from named cost lines; service and contract costs were missed. | EBITDA = revenue − (total expenses − finance cost − depreciation). |
+| R7.3 (B) | TCI current assets ₹10 Cr. | The "assets held for sale" subtotal was read as total current assets. | Guard on held-for-sale; take the "Total current assets" line. |
+| R7.4 (B) | KPI and TCI FY2025 P&L not found; a notes ratio page picked instead. | "Profit and Loss" without "Statement of", singular "operation", heading drawn as an image or on the previous page, ligature "Proﬁt". | NFKC text; heading on this / next / previous page; "&" = "and"; P&L needs "total income"; notes pages penalised; fallback to the page after the balance sheet. |
+| R7.5 (B) | CARE rating misread; rated amount missing. | Only the ICRA / CRISIL formats were known. | CARE format ("CARE AA; Negative") and its facility table. |
+| R7.6 (B) | KPI annual report rejected: "the document names BSE Limited". | The covering letter's addressee was taken as the company name. | Exchange addressees skipped; "For / To / M/s" stripped; names across a line break. |
+| R7.7 (B) | Bureau vs balance sheet warning although the uploaded bureau report agreed. | The demo registry record overrode an uploaded document. | An uploaded document is read before the demo record. |
+| R7.8 (B) | KPI: no auditor's report found; H.G. Infra: "ADVERSE opinion". | Curly apostrophe in "Auditor’s"; the board's sentence "does not constitute … adverse remark" matched. | Apostrophe variants; negated wording reads as a clean opinion (notes reader v7). |
+| R7.9 (S) | A failed verification check was a dead end (KPI: GST turnover 38% below revenue, because sale of power is GST-exempt). | Only "replace the document" was possible. | The RM can **explain** a failed check (Data Sources); it stops blocking and the note is shown to every later officer and logged. |
+| R7.10 (B) | Prospects had two mandatory list checks "not verified". | No regulatory-list data for a prospect. | Demo registry records generated with each pack (all clear). |
+| R7.11 (B) | Ingested bank CAM: revenue, PAT, net worth and debt not read; EBITDA read from the oldest year. | The intake took the first number after a label; table cells one per line. | Table reader: year header, latest actual column, projected columns skipped, lakh / million scaled, a row with the wrong cell count not read. |
+| R7.12 (S) | Ingested bank CAM for a prospect: every ratio "not available", although the agents had read three audited years. | The upload path filled only what the CAM stated. | Figures and ratios the CAM does not state come from the audited statements on record (ratio engine, with the formula); a CAM figure that disagrees with them is flagged. |
+| R7.13 (B) | `_risk_view` rule-code stripping never worked (also on the deployed revision). | A shell heredoc turned the regex `\b` into a backspace character. | Rewritten; all files scanned for backspace bytes. **Cloud fixed at the next deploy.** |
+
+### Open
+
+| # | Observation | Proposed fix |
+|---|---|---|
+| R7.14 (S) | Ingested CAM reaches Underwriting with **no challenges, no risk view and an empty deviation register**, although the bank CAM itself declares a current-ratio deviation (1.17x vs 1.25x). The limit assessment (D8), notes reading (P3), ECL and bureau score are also not on the upload path. | On ingest, run the analytics part of the engine on the acquired data (ratios, D8 limit, P3 notes, hard rules, challenges) without writing the narrative; read the CAM's Deviations section into the register. |
+| R7.15 (R) | TCI: "Sustainable limit ₹434 Cr" and "Assessed limit ₹3.12 Cr" (MPBF II) tiles side by side with no explanation. | Say what each measures, or reconcile (assessed = working-capital need; sustainable = debt capacity). |
+| R7.16 (R) | Copilot chatter: 46 messages to the RM on one prospect; "data needed for the CAM" repeated after every agent re-run. | Post once per change in state; fold repeats. |
+| R7.17 (B) | Raw codes in text: "conditional_approve" in a Copilot answer, "HR_KYC_COMPLETE" in the KYC release check. | Map to labels in both places. |
+| R7.18 (S) | GST vs revenue cannot know that power sales are exempt. | Sector-aware tolerance (energy: exempt supplies) or read the exempt turnover from GSTR-3B. |
+| R7.19 (R) | KPI's rating rationale is published only as an ICRA / CRISIL HTML page; the rating source stays manual. | Accept an HTML / saved page as a rating document. |
+| R7.20 (V) | H.G. Infra: "Rated bank limits vs bureau sanctioned limits" warns (CARE ₹140 Cr vs ₹3,290 Cr) — correct, but CARE rates only part of the lines (ICRA rates the rest). | Allow more than one rating document and sum the rated limits. |

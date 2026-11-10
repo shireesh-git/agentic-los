@@ -222,12 +222,13 @@ class Acquisition:
             except Exception as e:                         # a provider answered something unexpected
                 log.warning("%s API failed", sid, exc_info=True)
                 api_error = f"{type(e).__name__}: {e}"
-        demo = self._demo(ctx, src)
+        # a document the RM uploaded is better evidence than the demo stand-in, so it is read first
+        docs = self._docs(ctx, src) if src.get("upload") else []
+        demo = None if docs else self._demo(ctx, src)
         if demo:
             return self._state(src, plan, "fetched", summary="Demo data · " + summarise(demo),
                                provenance=demo.get("provenance"), demo=True, api_error=api_error, _record=demo)
-        docs = self._docs(ctx, src)
-        if docs and src.get("upload"):
+        if docs:
             path = docs[-1]
             try:
                 env = readers.read_source_document(sid, path, ctx["llm"])

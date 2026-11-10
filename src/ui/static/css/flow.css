@@ -717,3 +717,6 @@ label { font-size: 12.5px; text-transform: none; letter-spacing: 0; color: var(-
 /* P1: back-test */
 .bt-sum { font-size: 15px; font-weight: 600; color: var(--navy); margin: 0 0 14px; }
 .lim-tbl td.num { white-space: nowrap; }
+
+/* a failed verification check explained by the RM */
+.vf-note { display: block; margin-top: 3px; color: var(--amber); font-style: italic; }

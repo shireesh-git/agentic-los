@@ -1,4 +1,4 @@
-active_provider: nvidia_nim
+active_provider: vertex_ai_gemini   # Gemini on the laptop (API key in .env.local) and on GCP (Vertex AI); nvidia_nim kept as an option
 narrative:
   mode: llm
   # When the LLM cannot be reached (no API key, no network): 'template' renders the CAM from the

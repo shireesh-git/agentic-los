@@ -132,6 +132,6 @@ Edit `rules.yaml` → `policy_thresholds`, e.g. `min_dscr: 1.25`. The following 
 
 ### Switch the AI model
 
-In `llm_providers.yaml`, set `active_provider` to one of `nvidia_nim` (default), `anthropic`, `openai`,
-`azure_openai`, `vertex_ai_gemini`, `ollama` (local) or `mock`. `mock` means no AI: everything falls back to
+In `llm_providers.yaml`, set `active_provider` to one of `vertex_ai_gemini` (default: Gemini, by API key on a laptop or Vertex AI on GCP), `nvidia_nim`, `anthropic`, `openai`,
+`azure_openai`, `ollama` (local) or `mock`. `mock` means no AI: everything falls back to
 deterministic text, and it is what the tests use. Put the provider's key in `.env.local`.

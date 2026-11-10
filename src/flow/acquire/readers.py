@@ -27,9 +27,12 @@ NUM = r"\(?-?[\d,]+(?:\.\d+)?\)?|-(?=\s*\|)"
 # ── text ─────────────────────────────────────────────────────────────────────
 
 def page_texts(path: Path) -> list[str]:
+    """Each page's text, Unicode-normalised: typeset reports use ligatures ("Proﬁt", "ﬁnancial") that would
+    otherwise not match the labels."""
+    import unicodedata
     import pymupdf
     with pymupdf.open(str(path)) as doc:
-        return [p.get_text() for p in doc]
+        return [unicodedata.normalize("NFKC", p.get_text()) for p in doc]
 
 
 def joined(text: str) -> str:
@@ -62,26 +65,38 @@ def identity_in(text: str) -> dict:
 
 # ── Financial statements ─────────────────────────────────────────────────────
 
-_UNIT = (("lakh", 0.01), ("crore", 1.0), ("million", 0.1), ("thousand", 0.0001))
+# "₹ in Mn", "Rs. in Cr", "₹ in lacs" are as common as the words in full (the ₹ glyph often extracts as "B" or "`")
+_UNIT = (("lakh", 0.01), ("lac", 0.01), ("crore", 1.0), ("cr", 1.0), ("million", 0.1), ("mn", 0.1),
+         ("thousand", 0.0001))
+_UNIT_WORD = r"(lakhs?|lacs?|crores?|cr\b|millions?|mn\b|thousands?)"
 
 
 def _unit(text: str) -> tuple[str, float]:
     low = text.lower()
-    m = re.search(r"(?:₹|`|rs\.?|inr|h)\s*(?:/\s*)?(?:in\s*)?(lakhs?|crores?|millions?|thousands?)", low) or \
-        re.search(r"\bin\s+(lakhs?|crores?|millions?|thousands?)\b", low) or \
+    m = re.search(r"(?:₹|`|rs\.?|inr|h|b)\s*(?:/\s*)?(?:in\s*)?" + _UNIT_WORD, low) or \
+        re.search(r"\bin\s+" + _UNIT_WORD, low) or \
         re.search(r"(lakhs?|crores?|millions?|thousands?)", low)
     word = m.group(1) if m else "crore"
     for k, f in _UNIT:
         if word.startswith(k):
-            return k, f
+            return {"lac": "lakh", "cr": "crore", "mn": "million"}.get(k, k), f
     return "crore", 1.0
 
 
-def _score(low_head: str, low: str, kind: str) -> int:
+def _score(low_head: str, low: str, kind: str, own: Optional[str] = None, prev: str = "") -> int:
+    """``low``: this page and the next; ``own``: this page alone; ``prev``: the end of the page before. The statement's
+    figures (its key line) must be on this page; its heading may be on this page, the next, or — when the title is set
+    as an image or printed under the previous statement — the page before."""
+    low, low_head = low.replace("&", "and"), low_head.replace("&", "and")
+    own = (own if own is not None else low).replace("&", "and")
     need = {"bs": ("balance sheet", "total assets"),
-            "pl": ("profit and loss", "revenue from operations"),
+            "pl": ("profit and loss", "revenue from operation"),      # "operation" as well as "operations"
             "cf": ("cash flow", "operating activities")}[kind]
-    if not all(n in low for n in need):
+    if need[1] not in own:
+        return -99
+    if kind == "pl" and not re.search(r"total income|total revenue", own):
+        return -99                                  # a notes page that quotes revenue (ratio analysis, segments)
+    if need[0] not in low and need[0] not in prev.replace("&", "and"):
         return -99
     s = 0
     if kind == "bs" and ("total equity" in low or "equity and liabilities" in low):
@@ -94,7 +109,8 @@ def _score(low_head: str, low: str, kind: str) -> int:
     s -= 8 if "consolidated" in low_head else 0
     s -= 5 if ("auditor" in low_head or "report on the audit" in low or "key audit matter" in low) else 0
     s -= 4 if "notes forming part" in low_head else 0
-    title = {"bs": "balance sheet", "pl": "statement of profit and loss", "cf": "cash flow"}[kind]
+    s -= 6 if re.search(r"notes to (?:the )?(?:standalone |consolidated )?financial statements", low_head) else 0
+    title = {"bs": "balance sheet", "pl": "profit and loss", "cf": "cash flow"}[kind]
     s += 3 if title in low_head else 0
     return s
 
@@ -109,11 +125,20 @@ def locate_statements(pages: list[str]) -> dict:
             # the heading area: text before the first figure column; a statement may run onto the next page
             head = low[:900]
             nxt = re.sub(r"\s+", " ", pages[i + 1].lower())[:3000] if i + 1 < len(pages) else ""
-            s = _score(head, low + " " + nxt, kind)
+            prev = re.sub(r"\s+", " ", pages[i - 1].lower())[-1500:] if i > 0 else ""
+            s = _score(head, low + " " + nxt, kind, own=low, prev=prev)
             if s > best_s:
                 best, best_s = i, s
         if best is not None:
             out[kind] = best
+    if "pl" not in out and "bs" in out:
+        # a P&L whose title is drawn as an image has no heading text: the page after the balance sheet that carries
+        # the P&L lines
+        for i in range(out["bs"] + 1, min(out["bs"] + 4, len(pages))):
+            own = re.sub(r"\s+", " ", pages[i].lower())
+            if "revenue from operation" in own and "total income" in own and "tax" in own and "total assets" not in own:
+                out["pl"] = i
+                break
     return out
 
 
@@ -166,13 +191,14 @@ _BS = [  # key, section, label
     ("total_liabilities", "all", r"total liabilities"), ("tel", "all", r"total equity and liabilities"),
 ]
 _PL = [
-    ("revenue_operating", r"revenue from operations"), ("other_income", r"other income"),
+    ("revenue_operating", r"revenue from operations?"), ("other_income", r"other income"),
     ("total_income", r"total income"), ("materials", r"cost of materials consumed"),
     ("purchases", r"purchases? of stock[- ]in[- ]trade"), ("inventory_change", r"changes in inventories"),
     ("employee_cost", r"employee benefits? expenses?"), ("finance_cost", r"finance costs?"),
     ("depreciation", r"depreciation and amorti[sz]ation"), ("other_expenses", r"other expenses"),
     ("total_expenses", r"total expenses"), ("exceptional", r"exceptional items(?! and)"),
-    ("pbt", r"profit\s*/?\s*(?:\(loss\)\s*)?before tax"), ("tax_expense", r"tax expenses?\s*(?:\(\d+\))"),
+    ("pbt", r"profit\s*/?\s*(?:\(loss\)\s*)?before tax"),
+    ("pbt_pre_exceptional", r"profit\s*/?\s*(?:\(loss\)\s*)?before exceptional items? and tax"), ("tax_expense", r"tax expenses?\s*(?:\(\d+\))"),
     ("pat", r"profit\s*/?\s*(?:\(loss\)\s*)?for the (?:year|period)"),
 ]
 _CF = [("ocf", r"net cash (?:generated )?from\s*/?\s*\(?(?:used in)?\)?\s*operating activities|"
@@ -214,13 +240,22 @@ def parse_statements(pages: list[str], loc: dict) -> dict:
             g = _grab(label, bs, a, b)
             if g:
                 raw[key] = (g[0], g[1])
-        m = re.search(r"\|\s*(" + NUM + r")\s*\|\s*(" + NUM + r")\s*\|\s*total assets", bs, re.I)
-        if m:
-            raw["current_assets_subtotal"] = (to_num(m.group(1)), to_num(m.group(2)))
+        # the current-assets total: its own label when printed ("Total Current Assets"); else the subtotal printed
+        # just before "Total assets" — unless a line such as "Non-current assets held for sale" sits between them
+        g = _grab(r"total current assets", bs)
+        if g:
+            raw["current_assets_subtotal"] = (g[0], g[1])
+        else:
+            m = re.search(r"\|\s*(" + NUM + r")\s*\|\s*(" + NUM + r")\s*\|\s*total assets", bs, re.I)
+            before = bs[max(0, m.start() - 160):m.start()].lower() if m else ""
+            if m and "held for sale" not in before:
+                raw["current_assets_subtotal"] = (to_num(m.group(1)), to_num(m.group(2)))
     pl = statement_text(pages, loc, "pl")
     if pl:
         start = re.search(r"statement of profit and loss", pl, re.I)
-        s0 = start.start() if start else 0
+        first = re.search(r"revenue from operations?", pl, re.I)
+        # read from the heading, unless the heading is printed under the figures (then from the top)
+        s0 = start.start() if start and (not first or start.start() < first.start()) else 0
         for key, label in _PL:
             g = _grab(label, pl, s0)
             if g:
@@ -251,11 +286,22 @@ def build_statements(raw: dict, factor: float) -> list[dict]:
         it["finance_cost"] = v("finance_cost")
         it["depreciation"] = v("depreciation")
         it["exceptional_items"] = v("exceptional")
-        it["pbt"] = v("pbt")
+        # "Profit before tax"; a P&L that prints only "before exceptional items and tax" adds the exceptional items
+        it["pbt"] = v("pbt") if "pbt" in raw else round(v("pbt_pre_exceptional") + it["exceptional_items"], 2)
         it["pat"] = v("pat")
         it["tax_expense"] = v("tax_expense") or round(it["pbt"] - it["pat"], 2)
-        it["ebitda"] = round(it["total_income"] - it["raw_material_cost"] - it["employee_cost"]
-                             - it["other_expenses"], 2)
+        if "total_expenses" in raw:
+            # Total expenses less finance cost and depreciation is the operating cost whatever the lines are called
+            # (cost of rendering services, contract and site expenses, power purchase …); the part not named as
+            # employees or other expenses is the direct cost
+            operating = round(v("total_expenses") - it["finance_cost"] - it["depreciation"], 2)
+            direct = round(operating - it["employee_cost"] - it["other_expenses"], 2)
+            if direct > it["raw_material_cost"]:
+                it["raw_material_cost"] = direct
+            it["ebitda"] = round(it["total_income"] - operating, 2)
+        else:
+            it["ebitda"] = round(it["total_income"] - it["raw_material_cost"] - it["employee_cost"]
+                                 - it["other_expenses"], 2)
         it["ebit"] = round(it["ebitda"] - it["depreciation"], 2)
         it["fixed_assets"] = round(v("ppe") + v("cwip") + v("intangibles") + v("goodwill") + v("rou"), 2)
         it["investments"] = round(v("nc_investments") + v("current_investments"), 2)
@@ -346,7 +392,10 @@ def read_financial_statements(path: Path, llm=None, pages: Optional[list[str]] =
     loc = locate_statements(pages)
     if "bs" not in loc or "pl" not in loc:
         raise ValueError(f"{path.name}: no balance sheet and statement of profit and loss found")
-    unit, factor = _unit(" ".join(pages[i][:1500] for i in loc.values()))
+    # the unit is usually under the heading; some reports print "(All amounts are ₹ in Mn)" at the foot of the page
+    heads = " ".join(pages[i][:1500] for i in loc.values())
+    unit_word = r"(?:₹|`|rs\.?|inr)\s*(?:in\s*)?(?:lakhs?|lacs?|crores?|cr\b|millions?|mn\b|thousands?)|\bin\s+(?:lakhs?|lacs?|crores?|millions?|thousands?)\b"
+    unit, factor = _unit(heads) if re.search(unit_word, heads, re.I) else _unit(" ".join(pages[i] for i in loc.values()))
     head = " ".join(pages[i][:900].lower() for i in loc.values())
     basis = "standalone" if "standalone" in head else ("consolidated" if "consolidated" in head else "standalone")
     parsed = parse_statements(pages, loc)
@@ -370,10 +419,18 @@ def read_financial_statements(path: Path, llm=None, pages: Optional[list[str]] =
         statements.append({"period": f"FY{y}", "as_of": f"{y}-03-31", "basis": basis, "items": it,
                            "checks": statement_checks(it)})
     first = "\n".join(pages[:3])
-    name = re.search(r"([A-Z][A-Za-z&().\- ]{3,80}(?:LIMITED|Limited|LTD|Ltd\.?))", first)
+    # an annual report filed on an exchange opens with a covering letter "To, BSE Limited / National Stock Exchange of
+    # India Limited": the addressee is not the company
+    names = (re.sub(r"^(?:For|To|M/s\.?|Annual Report(?: \d{4}-\d{2,4})? of)\s+", "", re.sub(r"\s+", " ", m.group(1))).strip()
+             for m in re.finditer(r"([A-Z][A-Za-z&().\- ]{3,80}(?:\n[A-Za-z&().\- ]{2,60})?(?:LIMITED|Limited|LTD|Ltd\.?))", first))
+    name = next((n for n in names if not _EXCHANGE.search(n)), None)
     return {"document": path.name, "pages": {k: i + 1 for k, i in loc.items()}, "unit": unit, "basis": basis,
             "method": method, "statements": statements, "identity": identity_in(whole),
-            "name_found": name.group(1).strip() if name else None}
+            "name_found": name}
+
+
+_EXCHANGE = re.compile(r"\b(?:BSE|National Stock Exchange|Stock Exchange|Metropolitan Stock Exchange|National Securities "
+                       r"Depository|Central Depository|Securities and Exchange Board)\b", re.I)
 
 
 # ── Rating rationale (ICRA / CRISIL / CARE / India Ratings) ──────────────────
@@ -388,7 +445,8 @@ def read_rating(path: Path, pages: Optional[list[str]] = None) -> dict:
     agency = next((a for a in ("ICRA", "CRISIL", "CARE", "India Ratings") if a.lower() in flat.lower()[:3000]), None)
     d = re.search(r"((?:January|February|March|April|May|June|July|August|September|October|November|December)"
                   r"\s+\d{1,2},\s+20\d\d)", flat)
-    lt = re.search(_RATING + r"\s*\((Stable|Positive|Negative|Developing)\)", flat)
+    # "[ICRA]AA (Stable)", "CARE AA+; Stable", "CRISIL AA/Stable"
+    lt = re.search(_RATING + r"\s*(?:\(|;|/)\s*(Stable|Positive|Negative|Developing)\)?", flat)
     st = re.search(r"(\[ICRA\]\s?A1\+?|CRISIL\s?A1\+?|CARE\s?A1\+?|IND\s?A1\+?)", flat)
     action = re.search(r"(reaffirmed|upgraded|downgraded|assigned|withdrawn)", flat[:2500], re.I)
     total = re.search(r"Total\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})", flat)
@@ -397,13 +455,27 @@ def read_rating(path: Path, pages: Optional[list[str]] = None) -> dict:
                          r"([\d,]+\.\d{2})\s+([\d,]+\.\d{2})", flat[:4000]):
         facilities.append({"tenure": m.group(1), "instrument": m.group(2).strip(" –-"),
                            "previous_cr": to_num(m.group(3)), "current_cr": to_num(m.group(4))})
+    total_bank = None
+    if not facilities:
+        # CARE's table: facility · regulator · amount (₹ crore) · rating · action
+        for m in re.finditer(r"((?:Long[- ]term|Short[- ]term|Long[- ]term\s*/\s*Short[- ]term)\s+bank\s+facilities|"
+                             r"Commercial\s+paper(?:\s*\([^)]*\))?|Non[- ]convertible\s+debentures)\s+(?:RBI|SEBI)?\s*"
+                             r"([\d,]+\.\d{2})\s+(CARE\s?[A-D][A-D1]*[+-]?)", flat[:4000], re.I):
+            kind = m.group(1).strip()
+            facilities.append({"tenure": "Short-term" if re.match(r"short|commercial", kind, re.I) else "Long-term",
+                               "instrument": kind, "previous_cr": None, "current_cr": to_num(m.group(2)),
+                               "rating": m.group(3)})
+        if facilities and not total:
+            bank = [f["current_cr"] for f in facilities if "bank" in f["instrument"].lower()]
+            total_bank = round(sum(bank), 2) if bank else None
     strengths = _headings(flat, "Credit strengths", "Credit challenges")
     challenges = _headings(flat, "Credit challenges", "Environmental and social risks|Liquidity position")
     liquidity = re.search(r"Liquidity position:\s*(\w+)", flat)
     payload = {"rating_agency": agency, "long_term_rating": f"{lt.group(1)} ({lt.group(2)})" if lt else None,
                "outlook": lt.group(2) if lt else None, "short_term_rating": st.group(1) if st else None,
                "last_action": (action.group(1).capitalize() if action else None), "action_date": d.group(1) if d else None,
-               "total_rated_cr": to_num(total.group(2)) if total else None, "rated_facilities": facilities,
+               "total_rated_cr": to_num(total.group(2)) if total else total_bank,
+               "rated_facilities": facilities,
                "key_strengths": strengths, "key_challenges": challenges,
                "liquidity": liquidity.group(1) if liquidity else None}
     return {"payload": payload, "identity": identity_in(text), "page": 1,

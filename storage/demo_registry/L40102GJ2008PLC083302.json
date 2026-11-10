@@ -1,0 +1,30 @@
+{
+  "entity_id": "L40102GJ2008PLC083302",
+  "cin": "L40102GJ2008PLC083302",
+  "company_name": "Kpi Green Energy Limited",
+  "as_of": "2026-10-28",
+  "note": "DEMO DATA: stands in for the bureau, MCA and regulatory-list APIs that are not connected; consistent with the demo bureau report in the test pack. Not a real report on this company.",
+  "bureau": {
+    "cmr_rank": "CMR-4",
+    "dpd_status": "Standard",
+    "max_dpd_last_12m": 0,
+    "worst_status_12m": "Standard",
+    "total_exposure_cr": 5200.0,
+    "total_outstanding_cr": 4669.37,
+    "total_lenders": 5
+  },
+  "mca": {
+    "company_name": "Kpi Green Energy Limited",
+    "cin": "L40102GJ2008PLC083302",
+    "status": "Active",
+    "company_class": "Public, listed"
+  },
+  "registries": {
+    "wilful_defaulter": false,
+    "rbi_defaulter_list": false,
+    "fraud_flag": false,
+    "suit_filed_amount_cr": 0.0,
+    "suits": [],
+    "nclt_cases": []
+  }
+}

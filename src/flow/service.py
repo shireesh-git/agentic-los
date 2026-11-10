@@ -613,7 +613,9 @@ class FlowService:
         vals = list(srcs.values())
         minimum = self._minimum_for_cam()
         return {"state": "running" if running else acq.get("state"), "groups": groups,
-                "verification": acq.get("verification") or [], "finished_at": acq.get("finished_at"),
+                "verification": [{**c, "explained": (case.get("verification_notes") or {}).get(c.get("id"))}
+                                 for c in acq.get("verification") or []],
+                "finished_at": acq.get("finished_at"),
                 "ms": (acq.get("full_run") or {}).get("ms") or acq.get("ms"),
                 "max_concurrency": (acq.get("full_run") or {}).get("max_concurrency") or acq.get("max_concurrency"),
                 "last_ms": acq.get("ms"), "last_agents": [(agents.get(a) or {}).get("label", a)
@@ -642,6 +644,26 @@ class FlowService:
             removed = self.store.delete_entity(entity_id)
         log.info("Flow reset for %s by %s: %s", entity_id, session["user"]["id"], removed)
         return {"entity_id": entity_id, "removed": removed}
+
+    def explain_verification(self, case_id: str, session: dict, check_id: str, note: str) -> dict:
+        """The RM explains a verification check that failed for a known reason (e.g. GST turnover below revenue because
+        electricity sales are exempt). It stops blocking submission; the note is shown to every later officer."""
+        with self._lock:
+            case = self._require(case_id)
+            st = self._at_stage(case, session)
+            if st["id"] != self.stages()[0]["id"]:
+                raise ForbiddenError("Verification checks are explained at Origination")
+            check = next((c for c in (case.get("acquisition") or {}).get("verification") or [] if c.get("id") == check_id), None)
+            if not check:
+                raise NotFoundError(f"Verification check {check_id} not found")
+            note = (note or "").strip()
+            if not note:
+                raise InvalidRequestError("Say why the difference is acceptable — Underwriting and Sanction see it")
+            case.setdefault("verification_notes", {})[check_id] = {"by": session["user"]["name"], "at": self._stamp(),
+                                                                   "note": note, "label": check["label"]}
+            self._log(case, "verification_explained", session, check=check_id, label=check["label"], comment=note)
+            self._save(case)
+            return case
 
     # ── one proposal's lifecycle: withdraw, archive, delete (never the borrower's other proposals) ──
 
@@ -1100,6 +1122,7 @@ class FlowService:
                 found, how = dpx.from_reading(reading, safe), "reader"
                 self._identity_from_record(case, found)
                 self._check_against_record(case, found)
+                self._from_statements(case, found)
             engine = self._with_limit(self.cases.get(case["entity_id"]) if self.cases else None)
             linked = sheet.get("run_id") if how == "sheet" else None
             case["cam"] = {"state": "ready", "mode": "upload", "file": str(path), "file_name": safe,
@@ -1152,6 +1175,41 @@ class FlowService:
                      ("tenor_months", fac["tenor_months"]), ("purpose", fac["purpose"])):
             if v not in (None, "") and k not in found:
                 found[k] = {"value": v, "source": dict(req)}
+
+    _FROM_FS = (("revenue_cr", "revenue_operating"), ("ebitda_cr", "ebitda"), ("pat_cr", "pat"),
+                ("net_worth_cr", "total_equity"), ("total_debt_cr", "total_debt"))
+    _RATIOS = (("current_ratio", "current_ratio"), ("debt_to_ebitda", "debt_to_ebitda"),
+               ("interest_cover", "interest_coverage_ratio"), ("debt_to_equity", "debt_to_equity"),
+               ("tol_tnw", "tocl_ratio"), ("dscr", "dscr"))
+
+    def _from_statements(self, case: dict, found: dict) -> None:
+        """Figures and ratios the bank's CAM does not state, from the audited statements on record (read by the
+        data agents from the annual reports) — so an ingested CAM is still measured on the borrower's numbers."""
+        from src.engines import ratio_engine as re_
+
+        fins = (self.companies.get(case["entity_id"]) or {}).get("financials") or {}
+        audited = [fs for fs in fins.values() if getattr(fs, "source", "") == "audited"]
+        if not audited:
+            return
+        fs = max(audited, key=lambda f: f.period)
+        label = f"Audited statements · {fs.period} ({getattr(fs, 'statement_type', '') or 'standalone'})"
+        for dp_id, item in self._FROM_FS:
+            v = fs.line_items.get(item)
+            if dp_id not in found and isinstance(v, (int, float)):
+                found[dp_id] = {"value": round(float(v), 2), "source": {
+                    "kind": "record", "label": label, "detail": "Read by the financials agent from the annual report",
+                    "confidence": dpx.confidence(90, "Audited figure read from the annual report and reconciled")}}
+        for dp_id, fn in self._RATIOS:
+            if dp_id in found:
+                continue
+            try:
+                r = getattr(re_, fn)(fs)
+            except Exception:
+                continue
+            if r.status == "computed" and isinstance(r.value, (int, float)) and r.denominator:
+                found[dp_id] = {"value": round(float(r.value), 2), "source": {
+                    "kind": "record", "label": f"Ratio engine · {label}", "detail": r.formula,
+                    "confidence": dpx.confidence(85, f"Computed from the audited {fs.period} statements: {r.formula}")}}
 
     def _check_against_record(self, case: dict, found: dict) -> None:
         """A CAM figure that disagrees with the borrower's audited statements is flagged, not accepted silently."""
@@ -2135,9 +2193,12 @@ class FlowService:
                     if s.get("requirement") == "required" and s["status"] not in ("fetched", "read")]
             if need:
                 out.append("Required data sources pending: " + ", ".join(need))
-            if any(c["status"] == "fail" for c in case["acquisition"].get("verification") or []):
-                out.append("Data verification failed: " + "; ".join(
-                    c["label"] for c in case["acquisition"]["verification"] if c["status"] == "fail"))
+            explained = case.get("verification_notes") or {}
+            failed = [c for c in case["acquisition"].get("verification") or []
+                      if c["status"] == "fail" and c.get("id") not in explained]
+            if failed:
+                out.append("Data verification failed: " + "; ".join(c["label"] for c in failed)
+                           + " — explain it (Data Sources) or replace the document")
         for g in st.get("gates") or []:
             if g == "cam_ready" and cam.get("state") != "ready":
                 out.append("Generate or ingest the CAM" if cam.get("state") != "running" else
@@ -2734,7 +2795,7 @@ class FlowService:
         risk = case.get("risk")
         if not risk or not risk.get("rationale"):
             return risk
-        text = re.sub(r"HR_[A-Z_]+", lambda m: chk.plain(m.group(0)).lower(), risk["rationale"])
+        text = re.sub(r"\bHR_[A-Z_]+\b", lambda m: chk.plain(m.group(0)).lower(), risk["rationale"])
         return {**risk, "rationale": text}
 
     # ── reports ──────────────────────────────────────────────────────────────

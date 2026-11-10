@@ -32,7 +32,7 @@ _KIND_LABEL = {"created": "Proposal initiated", "data_acquired": "Data acquisiti
                "challenge_response": "Key risk challenge answered", "deviation_propose": "Deviation mitigant recorded",
                "deviation_approve": "Deviation approved", "deviation_reject": "Deviation rejected",
                "query_raise": "Clarification asked (proposal kept at its stage)", "query_answer": "Clarification answered",
-               "query_withdraw": "Clarification withdrawn", "withdraw": "Proposal withdrawn",
+               "query_withdraw": "Clarification withdrawn", "verification_explained": "Verification difference explained", "withdraw": "Proposal withdrawn",
                "archive": "Proposal archived", "unarchive": "Proposal restored from the archive"}
 
 

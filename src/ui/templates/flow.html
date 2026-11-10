@@ -720,7 +720,9 @@
                 <template x-for="v in c.acquisition?.verification || []" :key="v.id">
                   <div class="vf" :class="'vf-' + v.status">
                     <span class="vf-ic" x-html="icon(v.status === 'pass' ? 'check' : v.status === 'pending' ? 'clock' : 'alert', 14)"></span>
-                    <div><strong x-text="v.label"></strong><span x-text="v.detail"></span></div>
+                    <div><strong x-text="v.label"></strong><span x-text="v.detail"></span>
+                    <span class="vf-note" x-show="v.explained" x-text="'Explained by ' + (v.explained?.by || '') + ': “' + (v.explained?.note || '') + '”'"></span>
+                    <button class="linkbtn" x-show="v.status === 'fail' && !v.explained && c.can_sources" @click="explainCheck(v)">Explain this difference</button></div>
                   </div>
                 </template>
               </div>

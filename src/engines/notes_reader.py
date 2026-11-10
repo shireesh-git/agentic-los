@@ -30,7 +30,7 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
-VERSION = 5
+VERSION = 7
 TOPICS = ["audit_opinion", "ifc_opinion", "emphasis_of_matter", "going_concern", "key_audit_matter", "caro_default",
           "caro_wilful_defaulter", "caro_diversion", "caro_statutory_dues", "caro_fraud", "caro_other",
           "contingent_liabilities", "related_party", "other"]
@@ -89,8 +89,8 @@ def _norm(s: str) -> str:
 
 # ── finding the sections ────────────────────────────────────────────────────
 
-_AUD = re.compile(r"independent auditor.?s'? report", re.I)
-_CARO = re.compile(r"companies \(auditor.?s'? report\) order", re.I)
+_AUD = re.compile(r"independent auditor[s'’]{0,3} report", re.I)          # auditor's / auditors' / auditors’
+_CARO = re.compile(r"companies \(auditor[s'’]{0,3} report\) order", re.I)
 _FLAG = re.compile(r"qualified opinion|adverse opinion|disclaimer of opinion|emphasis of matter|"
                    r"material uncertainty related to going concern", re.I)
 _FS_START = re.compile(r"balance sheet as at", re.I)
@@ -150,7 +150,9 @@ def _hit(pages: list[str], idx: list[int], pattern: str) -> Optional[tuple[int, 
 
 _RULES = [
     # topic, section(s), pattern, clean pattern (a "no / not" form), severity when not clean
-    ("audit_opinion", ("auditor", "flagged", "caro"), r"\b(qualified|adverse) opinion\b|disclaimer of opinion", None, "high"),
+    # "does not constitute a qualification, reservation, adverse remark or disclaimer of opinion" is a clean opinion
+    ("audit_opinion", ("auditor", "flagged", "caro"), r"\b(qualified|adverse) opinion\b|disclaimer of opinion",
+     r"\b(?:not|nor|no)\b[^.]{0,60}(?:constitute|modif|qualification|adverse|disclaimer)|unmodified", "high"),
     ("going_concern", ("auditor", "flagged", "caro"), r"material uncertainty related to going concern", None, "high"),
     ("emphasis_of_matter", ("auditor", "flagged", "caro"), r"emphasis of matter", None, "medium"),
     ("caro_default", ("caro",), r"default(ed)? in (the )?repayment", r"\b(not|no)\b[^.]{0,40}default", "high"),

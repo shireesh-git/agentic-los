@@ -422,7 +422,7 @@ def from_engine(case: dict) -> dict[str, dict]:
 
 _FROM_SECTIONS = {"borrower_and_business": "business_background", "industry_outlook": "industry_outlook",
                   "marketing_arrangements": "marketing_arrangements", "corporate_governance": "corporate_governance",
-                  "strengths": "strengths", "weaknesses": "risks_mitigants", "key_risks": "risks_mitigants",
+                  "strengths": "strengths", "key_risks": "risks_mitigants", "weaknesses": "risks_mitigants",
                   "security": "security", "key_terms": "key_terms", "covenants": "covenants",
                   "deviations": "deviations", "recommendation": "recommendation"}
 _FROM_LABELS = {"cam.profile.sector": "sector", "cam.profile.subsector": "subsector",

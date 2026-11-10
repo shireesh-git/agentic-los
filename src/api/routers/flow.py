@@ -248,6 +248,14 @@ class Archive(BaseModel):
     archived: bool = True
 
 
+@router.post("/cases/{case_id}/verification/{check_id}/explain")
+async def explain_verification(case_id: str, check_id: str, body: Remark, x_flow_session: Optional[str] = Header(None),
+                               svc: ServiceContainer = Depends(get_container)):
+    s = _s(svc, x_flow_session)
+    svc.flow.explain_verification(case_id, s, check_id, body.text)
+    return svc.flow.view(case_id, s)
+
+
 @router.post("/cases/{case_id}/withdraw")
 async def withdraw(case_id: str, body: Remark, x_flow_session: Optional[str] = Header(None),
                    svc: ServiceContainer = Depends(get_container)):

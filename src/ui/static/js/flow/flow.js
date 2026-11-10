@@ -411,6 +411,12 @@ function flowApp() {
         this.notify(files.length + ' document(s) received — the agent is reading', 'ok');
       } finally { this.busy = false; }
     },
+    async explainCheck(v) {
+      const note = await this.ask('Explain: ' + v.label, v.detail + ' — say why this is acceptable (e.g. exempt supplies, a timing difference). Underwriting and the Sanctioning Authority see your note.', 'Explanation (mandatory)', true, 'Record');
+      if (note === null) return;
+      this.setCase(await this.post(this.cp('/verification/' + encodeURIComponent(v.id) + '/explain'), { text: note }));
+      this.notify('Explanation recorded', 'ok');
+    },
     async refreshSources() { this.setCase(await this.post(this.cp('/sources/refresh'))); },
     async openSource(s) { this.srcView = await this.get(this.cp('/sources/' + s.id)); },
     fmtNum(v) { return (v === null || v === undefined) ? '—' : Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
