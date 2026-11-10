@@ -3,7 +3,7 @@
 The CAM engine (src/agents/pipeline.py) reports each agent and each CAM section as it starts and
 finishes. A job keeps two phases, and nothing is shown as done until its own completion event arrives:
 
-    Analysis          the six analysis agents (ingestion, screening, financials, validation,
+    Analysis          the seven analysis agents (ingestion, screening, financials, validation, notes,
                       benchmarking, policy), each with its own time            0–5 %
     Writing the CAM   one entry per CAM section: waiting → writing → done
                       (or reused, when an earlier run already wrote it)         5–95 %
@@ -24,7 +24,8 @@ log = logging.getLogger(__name__)
 
 AGENT_LABELS = {"data_ingestion": "Data ingestion", "pep_screening": "PEP / KYC screening",
                 "financial_analysis": "Financial analysis", "validation": "Data validation",
-                "benchmark": "Peer benchmarking", "policy": "Credit policy checks"}
+                "benchmark": "Peer benchmarking", "policy": "Credit policy checks",
+                "notes_reader": "Auditor's report & notes"}
 
 
 def _section_plan() -> list[tuple[str, str]]:

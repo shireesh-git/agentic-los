@@ -107,6 +107,17 @@ async def report(x_flow_session: Optional[str] = Header(None), svc: ServiceConta
     return svc.flow.time_report()
 
 
+@router.get("/backtest")
+async def backtest(x_flow_session: Optional[str] = Header(None), svc: ServiceContainer = Depends(get_container)):
+    _s(svc, x_flow_session)
+    return svc.flow.backtest()
+
+
+@router.post("/backtest/run")
+async def run_backtest(x_flow_session: Optional[str] = Header(None), svc: ServiceContainer = Depends(get_container)):
+    return svc.flow.run_backtest(_s(svc, x_flow_session))
+
+
 @router.post("/reset")
 async def reset(body: Reset, x_flow_session: Optional[str] = Header(None),
                 svc: ServiceContainer = Depends(get_container)):

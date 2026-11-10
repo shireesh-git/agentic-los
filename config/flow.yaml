@@ -130,6 +130,11 @@ datapoints:
   - {id: tol_tnw, group: metrics, label: TOL / TNW, type: ratio, agent_only: true, computed: true, band: {policy: max_tol_tnw, way: max}}
   - {id: debt_to_equity, group: metrics, label: Debt / equity, type: ratio, agent_only: true, computed: true, band: {policy: max_debt_to_equity, way: max}}
   - {id: sustainable_limit_cr, group: metrics, label: Sustainable limit (₹ Cr), type: amount, agent_only: true, computed: true, band: {vs: recommended_cr}}
+  - {id: assessed_limit_cr, group: metrics, label: Assessed limit (₹ Cr), type: amount, agent_only: true, computed: true, band: {vs: recommended_cr}, unavailable: "Not assessed — see Limit assessment"}
+  - {id: assessment_method, group: metrics, label: Assessment method, type: text, agent_only: true, computed: true}
+  - {id: audit_opinion, group: metrics, label: Audit opinion, type: text, agent_only: true, computed: true, unavailable: "No annual report on record"}
+  - {id: notes_red_flags, group: metrics, label: Auditor / CARO red flags, type: number, agent_only: true, computed: true, band: {max: 0, bad_above: 0}}
+  - {id: margin_of_safety_pct, group: metrics, label: Margin of safety (%), type: number, agent_only: true, computed: true, band: {min: 15}}
   - {id: earnings_quality, group: metrics, label: Earnings quality, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}}
   - {id: revenue_truth, group: metrics, label: Revenue truth score, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}, unavailable: "Not verifiable — no GST or bank statement data on record"}
   - {id: ews_flags, group: metrics, label: Early-warning flags, type: number, agent_only: true, computed: true, band: {max: 0, warn_above: 0, bad_above: 1}}

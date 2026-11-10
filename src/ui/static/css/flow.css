@@ -699,3 +699,21 @@ label { font-size: 12.5px; text-transform: none; letter-spacing: 0; color: var(-
 .fld.unavailable .val.num, .fld.unavailable .val.num > span { white-space: normal; flex: 1 1 auto; font-weight: 400; }
 .rq-list { grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); } .rq b { white-space: nowrap; }
 @media (max-width: 860px) { .card-h .tag, .card-h .muted .tag { white-space: normal; } .card-h > .muted { min-width: 0; } .page, .case-main { overflow-x: hidden; } }
+
+/* D8: limit assessment */
+.lim-basis { margin: 0 0 10px; }
+.lim-tbl td:first-child { min-width: 220px; }
+.lim-alt { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.lim-notes { margin: 10px 0 0; padding-left: 18px; }
+
+/* P3: auditor's report and notes to accounts */
+.nt-list { display: flex; flex-direction: column; gap: 8px; }
+.nt-item { border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+.nt-item.nt-high { border-left-color: var(--red); } .nt-item.nt-medium { border-left-color: #d98a0b; }
+.nt-item.nt-info { border-left-color: var(--green); opacity: .85; }
+.nt-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 3px; }
+.nt-q { margin-top: 5px; font-size: 12.5px; color: var(--muted); font-style: italic; }
+
+/* P1: back-test */
+.bt-sum { font-size: 15px; font-weight: 600; color: var(--navy); margin: 0 0 14px; }
+.lim-tbl td.num { white-space: nowrap; }

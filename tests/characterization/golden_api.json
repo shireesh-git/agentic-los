@@ -60,6 +60,7 @@
     "keys": [
       "ai_governance",
       "approval",
+      "backtest",
       "benchmarks",
       "data_sources",
       "external_apis",
@@ -77,6 +78,7 @@
       "credit_reassessment",
       "ecl",
       "hard_rules",
+      "limit_assessment",
       "policy_thresholds",
       "recommendation",
       "repayment_analysis",

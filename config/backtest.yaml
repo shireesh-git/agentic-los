@@ -1,0 +1,33 @@
+# Back-test on past proposals (roadmap P1; src/flow/backtest.py).
+#
+# Each case is a borrower as it was assessed in the year `as_of`, and what happened to the account afterwards.
+# The CAM engine runs on the record as it stood then: financial statements up to `as_of` only, the annual report
+# for `as_of` or earlier, and no present-day bureau, registry, news or conduct data (that would leak the outcome).
+# Give a case its own point-in-time `external_data` when the bank has the bureau report from that date.
+#
+# outcome: performing | stressed (SMA / overdue) | npa | fraud | restructured | written_off
+#
+# THE CASES BELOW ARE A DEMO SET: the outcomes are labels for the demo borrowers, not the bank's history. Replace
+# them with the bank's own closed files (sanctioned accounts, including those that later slipped) for a real
+# back-test, and change `label` so the screens stop saying "demo".
+
+label: "Demo back-test set — outcomes are demo labels, not a bank's history"
+
+# The notes reader reads each annual report with the AI model (one call per report, cached) when true; by rules
+# when false (no model cost).
+notes_with_ai: true
+
+# The signals that count as "flagged at origination". ews (early-warning flags) is left out: some indicators are
+# measured against today's date, not the as-of date. Every signal's hit rate is shown either way.
+flag_on: [decline, hard_rule_failed, high_challenge, notes_red_flag, limit_above, weak_grade]
+
+cases:
+  - {entity_id: MFL001, as_of: FY2024, outcome: stressed, amount_cr: 120,
+     outcome_note: "SMA-1 with lenders in the following year (demo bureau file); penal interest on GOI loans unpaid"}
+  - {entity_id: ABCE001, as_of: FY2025, outcome: stressed, amount_cr: 250,
+     outcome_note: "Working capital stretched; overdues with lenders (demo borrower)"}
+  - {entity_id: INFY001, as_of: FY2024, outcome: performing, amount_cr: 500, outcome_note: "Regular (demo)"}
+  - {entity_id: MRF001, as_of: FY2024, outcome: performing, amount_cr: 300, outcome_note: "Regular (demo)"}
+  - {entity_id: APOL001, as_of: FY2024, outcome: performing, amount_cr: 750, outcome_note: "Regular (demo)"}
+  - {entity_id: IHCL001, as_of: FY2024, outcome: performing, amount_cr: 1200, outcome_note: "Regular (demo)"}
+  - {entity_id: PNCR001, as_of: FY2024, outcome: performing, amount_cr: 1500, outcome_note: "Regular (demo)"}

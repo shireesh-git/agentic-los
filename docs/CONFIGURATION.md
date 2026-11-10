@@ -19,6 +19,8 @@ comments explaining every setting.
 | Hard rules, rating scorecard, recommendation bands | `rules.yaml` | `hard_rules`, `scoring`, `recommendation` |
 | What the Credit Challenge Agent and observations look for | `rules.yaml` | `credit_challenges`, `credit_observations` |
 | Stress-test scenarios | `rules.yaml` | `stress_testing` |
+| How a working-capital limit is assessed (turnover / MPBF / operating cycle) | `rules.yaml` | `limit_assessment` |
+| The past proposals the engine is back-tested on, and what counts as flagged | `backtest.yaml` | `cases`, `flag_on` |
 | Who may sanction what (delegation of powers) | `approval.yaml` | `authority_levels` |
 | Sector peer benchmarks | `benchmarks.yaml` | `sectors` |
 | Which AI model is used | `llm_providers.yaml` | `active_provider`, `providers` |

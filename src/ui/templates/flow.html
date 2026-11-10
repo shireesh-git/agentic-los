@@ -55,6 +55,7 @@
       <a :class="{on: page === 'pipeline' && queueTab === 'mine'}" @click="queueTab = 'mine'; goPipeline()"><span x-html="icon('queue')"></span><span>My Work Queue</span><b x-show="q.mine.length" x-text="q.mine.length"></b></a>
       <a :class="{on: page === 'pipeline' && queueTab === 'all'}" @click="queueTab = 'all'; goPipeline()"><span x-html="icon('pipeline')"></span><span>Deal Pipeline</span></a>
       <a :class="{on: page === 'analytics'}" @click="openReport()"><span x-html="icon('chart')"></span><span>TAT &amp; Productivity</span></a>
+      <a :class="{on: page === 'backtest'}" @click="openBacktest()"><span x-html="icon('shield')"></span><span>Back-test</span></a>
       <div class="sn-foot">
         <span class="env-tag on-dark" x-text="dir.environment" x-show="dir.environment"></span>
       </div>
@@ -336,6 +337,18 @@
                     <span class="rq-n">Sustainable limit</span><b class="num" x-text="cr(c.risk?.headroom?.sustainable_cr)"></b>
                     <em x-text="'bound by ' + (c.risk?.headroom?.binding || '—')"></em>
                   </div>
+                  <button class="rq click" x-show="c.risk?.notes" :class="'rq-' + (c.risk?.notes?.red_flags ? 'bad' : c.risk?.notes?.to_note ? 'warn' : 'good')" :title="c.risk?.notes?.summary" @click="reveal('sec-notes')">
+                    <span class="rq-ic" x-html="icon(c.risk?.notes?.red_flags || c.risk?.notes?.to_note ? 'alert' : 'check', 12)"></span>
+                    <span class="rq-n">Auditor &amp; notes</span>
+                    <b class="num" x-text="c.risk?.notes?.red_flags ? c.risk.notes.red_flags + ' red flag' + (c.risk.notes.red_flags > 1 ? 's' : '') : c.risk?.notes?.to_note ? c.risk.notes.to_note + ' to note' : 'Clean'"></b>
+                    <em x-text="({unmodified: 'unmodified opinion', qualified: 'QUALIFIED opinion', adverse: 'ADVERSE opinion', disclaimer: 'DISCLAIMER of opinion'}[c.risk?.notes?.opinion] || 'opinion not found') + (c.risk?.notes?.mode === 'ai' ? '' : ' · read by rules')"></em>
+                  </button>
+                  <button class="rq click" x-show="c.risk?.limit" :class="'rq-' + (c.risk?.limit?.within === false ? 'bad' : c.risk?.limit?.within ? 'good' : (c.risk?.limit?.margin_of_safety_pct != null ? (c.risk.limit.margin_of_safety_pct >= 15 ? 'good' : 'warn') : 'na'))" :title="c.risk?.limit?.basis" @click="reveal('sec-limit')">
+                    <span class="rq-ic" x-html="icon(c.risk?.limit?.within === false ? 'alert' : 'check', 12)"></span>
+                    <span class="rq-n" x-text="c.risk?.limit?.kind === 'term' ? 'Margin of safety' : 'Assessed limit'"></span>
+                    <b class="num" x-text="c.risk?.limit?.kind === 'term' ? (c.risk?.limit?.margin_of_safety_pct ?? '—') + '%' : (c.risk?.limit?.available_cr != null ? cr(c.risk.limit.available_cr) : 'Not assessed')"></b>
+                    <em x-text="c.risk?.limit?.kind === 'term' ? 'revenue fall to break-even' : c.risk?.limit?.kind === 'non_fund' ? 'needs the guarantee / LC pipeline' : c.risk?.limit?.method_label + ' · requested ' + cr(c.risk?.limit?.requested_cr)"></em>
+                  </button>
                   <div class="rq" x-show="c.risk?.ecl" :class="'rq-' + ({1: 'good', 2: 'warn', 3: 'bad'}[c.risk?.ecl?.stage] || 'na')" :title="c.risk?.ecl?.basis + ' ' + (c.risk?.ecl?.scale || '')">
                     <span class="rq-ic" x-html="icon(c.risk?.ecl?.stage === 1 ? 'check' : 'alert', 12)"></span>
                     <span class="rq-n">Expected credit loss</span><b class="num" x-text="cr(c.risk?.ecl?.ecl_cr)"></b>
@@ -513,6 +526,56 @@
 
           <template x-if="tab === 'risk'">
           <div class="pane">
+              <!-- P3: the auditor's report, CARO annexure and notes to accounts, each finding with its page and quote -->
+            <section class="card" id="sec-notes" x-show="c.risk?.notes && c.cam.state === 'ready'">
+              <div class="card-h">
+                <h3><span x-html="icon('doc')"></span> Auditor’s report &amp; notes to accounts</h3>
+                <span class="muted sm" x-text="(c.risk?.notes?.document || '') + ' · ' + (c.risk?.notes?.mode === 'ai' ? 'read by the AI, every quote checked against its page' : 'read by rules (the AI model was not used)')"></span>
+              </div>
+              <p class="lim-basis" x-text="c.risk?.notes?.summary"></p>
+              <div class="nt-list">
+                <template x-for="(f, i) in (c.risk?.notes?.findings || []).filter(f => f.severity !== 'info' || expanded.notesInfo)" :key="i">
+                  <div class="nt-item" :class="'nt-' + f.severity">
+                    <div class="nt-top">
+                      <span class="tag sm" :class="{high: 'tg-red', medium: 'tg-amber', low: 'tg-grey', info: 'tg-green'}[f.severity]" x-text="{high: 'Red flag', medium: 'To note', low: 'Minor', info: 'Clean'}[f.severity]"></span>
+                      <b x-text="f.label"></b><span class="muted sm" x-text="'p.' + f.page + (f.by_rules ? ' · found by rules' : '')"></span>
+                    </div>
+                    <div x-text="f.finding"></div>
+                    <div class="nt-q" x-text="'“' + f.quote + '”'"></div>
+                  </div>
+                </template>
+              </div>
+              <button class="linkbtn" x-show="(c.risk?.notes?.findings || []).some(f => f.severity === 'info')" @click="expanded.notesInfo = !expanded.notesInfo"
+                      x-text="expanded.notesInfo ? 'Hide the clean checks' : 'Show the ' + (c.risk?.notes?.findings || []).filter(f => f.severity === 'info').length + ' clean checks'"></button>
+              <p class="muted sm" x-show="c.risk?.notes?.dropped" x-text="c.risk?.notes?.dropped + ' AI finding(s) dropped because their quote was not on the page they named.'"></p>
+            </section>
+
+            <!-- D8: limit assessment — turnover / MPBF / operating cycle for working capital; break-even for term loans -->
+              <section class="card" id="sec-limit" x-show="c.risk?.limit && c.cam.state === 'ready'">
+                <div class="card-h">
+                  <h3><span x-html="icon('chart')"></span> Limit assessment</h3>
+                  <span class="tag" :class="c.risk?.limit?.within === false ? 'tg-red' : c.risk?.limit?.within ? 'tg-green' : 'tg-grey'"
+                        x-text="c.risk?.limit?.within === false ? 'Request above the assessed limit' : c.risk?.limit?.within ? 'Request within the assessed limit' : c.risk?.limit?.method_label"></span>
+                </div>
+                <p class="lim-basis" x-text="c.risk?.limit?.basis"></p>
+                <div class="table-wrap" x-show="(c.risk?.limit?.rows || []).length"><table class="tbl lim-tbl">
+                  <thead><tr><th x-text="c.risk?.limit?.method_label + ' · ' + (c.risk?.limit?.period || '')"></th><th class="r">Amount</th><th>How</th></tr></thead>
+                  <tbody>
+                    <template x-for="(r, i) in c.risk?.limit?.rows || []" :key="i">
+                      <tr :class="{tot: r.total}"><td x-text="r.label"></td><td class="r num" x-text="r.value"></td><td class="muted sm" x-text="r.how"></td></tr>
+                    </template>
+                  </tbody>
+                </table></div>
+                <div class="lim-alt" x-show="(c.risk?.limit?.alternatives || []).length">
+                  <span class="muted sm">Cross-check with the other methods:</span>
+                  <template x-for="a in c.risk?.limit?.alternatives || []" :key="a.method"><span class="tag tg-grey" x-text="a.label + ' ' + cr(a.assessed_cr)"></span></template>
+                </div>
+                <ul class="lim-notes muted sm" x-show="(c.risk?.limit?.assumptions || []).length || c.risk?.limit?.irr_note">
+                  <template x-for="(n, i) in c.risk?.limit?.assumptions || []" :key="i"><li x-text="n"></li></template>
+                  <li x-show="c.risk?.limit?.irr_note" x-text="c.risk?.limit?.irr_note"></li>
+                </ul>
+              </section>
+
             <!-- key risk challenges: what is wrong, why it matters, and what to do about it -->
             <section class="card" id="sec-chal" x-show="(c.against || []).length && c.cam.state === 'ready' && !c.sanction" :class="{focus: c.is_mine && openChallenges().length && ['credit_risk', 'sanction'].includes(c.stage)}">
               <div class="card-h"><h3><span x-html="icon('shield')"></span> Key Risk Challenges</h3>
@@ -674,7 +737,7 @@
                 <button class="choice" @click="generate()" :disabled="busy || !c.can_generate">
                   <span class="ch-ic" x-html="icon('spark', 22)"></span>
                   <strong>Generate CAM (AI)</strong>
-                  <span x-text="c.can_generate ? 'CAM engine: 6 analysis agents, a Decision Summary built from data and ' + (c.cam_sections || 8) + ' AI-written sections' : (c.generate_blocker || 'Requires financial statements on record')"></span>
+                  <span x-text="c.can_generate ? 'CAM engine: 7 analysis agents (including the auditor’s report and notes reader), a Decision Summary built from data and ' + (c.cam_sections || 8) + ' AI-written sections' : (c.generate_blocker || 'Requires financial statements on record')"></span>
                 </button>
                 <label class="choice">
                   <span class="ch-ic" x-html="icon('upload', 22)"></span>
@@ -957,6 +1020,68 @@
         </footer>
       </div>
       </template>
+
+      <!-- ═══ Back-test (roadmap P1): the engine on past proposals, against what happened ═══ -->
+      <main class="page" x-show="page === 'backtest'">
+        <div class="page-head">
+          <div><div class="eyebrow">Analytics · Evidence</div><h1>Back-test</h1>
+            <p class="muted sub-head">The CAM engine on past proposals, as they stood when they were assessed (no later figures, reports or bureau data), against what happened to the account afterwards.</p></div>
+          <button class="btn primary" @click="runBacktest()" :disabled="bt?.running || busy"><span x-html="icon('refresh')"></span> <span x-text="bt?.running ? 'Running…' : 'Run back-test'"></span></button>
+        </div>
+        <div class="banner warn" x-show="bt?.label" x-text="bt?.label"></div>
+        <section class="card" x-show="bt?.running">
+          <div class="pg-head"><strong x-text="'Running ' + (bt?.progress?.current || '') "></strong><span class="num" x-text="(bt?.progress?.done || 0) + ' of ' + (bt?.progress?.total || 0)"></span></div>
+          <div class="bar"><i :style="'width:' + Math.max(2, 100 * (bt?.progress?.done || 0) / Math.max(1, bt?.progress?.total || 1)) + '%'"></i></div>
+        </section>
+        <template x-if="bt?.result">
+          <div>
+            <section class="kpis hero four">
+              <div class="kpi accent"><span>Bad accounts flagged at origination</span>
+                <strong x-text="bt.result.scorecard.caught + ' of ' + bt.result.scorecard.bad"></strong>
+                <em x-text="bt.result.scorecard.caught_pct != null ? bt.result.scorecard.caught_pct + '% caught' + (bt.result.scorecard.missed.length ? ' · missed: ' + bt.result.scorecard.missed.join(', ') : '') : 'no bad accounts in the set'"></em></div>
+              <div class="kpi" :class="{alert: bt.result.scorecard.false_alarms}"><span>False alarms</span>
+                <strong x-text="bt.result.scorecard.false_alarms + ' of ' + bt.result.scorecard.good"></strong>
+                <em>performing accounts the engine flagged</em></div>
+              <div class="kpi"><span>Cases</span><strong x-text="bt.result.scorecard.cases"></strong>
+                <em x-text="(bt.result.scorecard.errors ? bt.result.scorecard.errors + ' could not run · ' : '') + 'run ' + date(bt.result.run_at) + ' by ' + bt.result.by"></em></div>
+              <div class="kpi"><span>Run time</span><strong x-text="dur(bt.result.seconds)"></strong><em>no AI-written text: the signals are judged, not the prose</em></div>
+            </section>
+            <p class="bt-sum" x-text="bt.result.scorecard.text"></p>
+            <section class="card">
+              <div class="card-h"><h3><span x-html="icon('chart')"></span> Which signals fired</h3><span class="muted sm">A good signal fires on the accounts that went bad and rarely on the rest</span></div>
+              <div class="table-wrap"><table class="tbl">
+                <thead><tr><th>Signal</th><th class="r">On bad accounts</th><th class="r">On performing accounts</th><th class="r">When it fired, how often the account went bad</th></tr></thead>
+                <tbody><template x-for="s in bt.result.scorecard.by_signal" :key="s.id">
+                  <tr><td x-text="s.label"></td><td class="r num" x-text="s.on_bad + ' / ' + bt.result.scorecard.bad"></td><td class="r num" x-text="s.on_good + ' / ' + bt.result.scorecard.good"></td>
+                    <td class="r num" x-text="s.precision_pct != null ? s.precision_pct + '%' : '—'"></td></tr>
+                </template></tbody>
+              </table></div>
+            </section>
+            <section class="card">
+              <div class="card-h"><h3><span x-html="icon('layers')"></span> Case by case</h3></div>
+              <div class="table-wrap"><table class="tbl">
+                <thead><tr><th>Borrower</th><th>Assessed as of</th><th>What happened</th><th>Engine verdict</th><th>Flagged</th><th>Why</th></tr></thead>
+                <tbody><template x-for="r in bt.result.rows" :key="r.entity_id + r.as_of">
+                  <tr>
+                    <td><strong x-text="r.borrower"></strong><div class="sub" x-text="r.entity_id + ' · ₹' + r.amount_cr + ' Cr'"></div></td>
+                    <td x-text="r.as_of"><div class="sub"></div></td>
+                    <td><span class="tag" :class="['stressed', 'npa', 'fraud', 'restructured', 'written_off'].includes(r.outcome) ? 'tg-red' : 'tg-green'" x-text="r.outcome"></span><div class="sub" x-text="r.outcome_note || ''"></div></td>
+                    <td><span x-text="r.verdict || '—'"></span><div class="sub" x-text="r.grade ? 'Grade ' + r.grade : ''"></div></td>
+                    <td><span class="tag" x-show="!r.error" :class="r.flagged ? (['stressed', 'npa', 'fraud', 'restructured', 'written_off'].includes(r.outcome) ? 'tg-green' : 'tg-amber') : (['stressed', 'npa', 'fraud', 'restructured', 'written_off'].includes(r.outcome) ? 'tg-red' : 'tg-grey')"
+                              x-text="r.flagged ? (['stressed', 'npa', 'fraud', 'restructured', 'written_off'].includes(r.outcome) ? 'Caught' : 'False alarm') : (['stressed', 'npa', 'fraud', 'restructured', 'written_off'].includes(r.outcome) ? 'Missed' : 'Clear')"></span>
+                        <span class="tag tg-red" x-show="r.error">Could not run</span></td>
+                    <td class="sm"><span x-text="r.error || (r.why || []).join('; ') || '—'"></span></td>
+                  </tr>
+                </template></tbody>
+              </table></div>
+            </section>
+          </div>
+        </template>
+        <div class="empty" x-show="bt && !bt.result && !bt.running">
+          <span class="empty-ic" x-html="icon('chart', 22)"></span>
+          <span x-text="bt?.cases_configured ? bt.cases_configured + ' past proposals are set up in config/backtest.yaml. Run the back-test to see what the engine would have said.' : 'No past proposals set up: add them to config/backtest.yaml.'"></span>
+        </div>
+      </main>
 
       <!-- ═══ TAT & productivity analytics ═══ -->
       <main class="page" x-show="page === 'analytics' && report">

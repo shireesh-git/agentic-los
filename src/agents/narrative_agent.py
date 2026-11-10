@@ -14,7 +14,7 @@ class NarrativeAgent(BaseAgent):
     uses_llm = True
     requires = ("financial_analysis", "validation", "benchmark", "policy")
     # Reuse PEP screening in the fact pack when it succeeded; screen again if it failed.
-    waits_for = ("pep_screening",)
+    waits_for = ("pep_screening", "notes_reader")
 
     def __init__(self, llm_provider=None, checkpoint_factory=None):
         """``checkpoint_factory(entity_id, llm_provider)`` returns a section
@@ -97,6 +97,10 @@ class NarrativeAgent(BaseAgent):
         fact_pack = build_cam_fact_pack(context["company_data"], assessment=self._assessment(context),
                                         pep_result=pep.get("pep_result"),
                                         financial_analysis=context["results"]["financial_analysis"])
+        # the auditor's report, CARO and notes to accounts (roadmap P3), read in parallel by the notes agent
+        notes = (context["results"].get("notes_reader") or {}).get("notes")
+        if notes:
+            fact_pack["notes_to_accounts"] = notes
         fact_pack_ms = round((time.perf_counter() - started) * 1000, 1)
         section_cb, counts = self._counting(context.get("_on_progress"))
 

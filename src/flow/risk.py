@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Optional
 
 SEVERITY = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-VERSION = 4          # bump when assess() gains fields: stored summaries older than this are rebuilt on load
+VERSION = 6          # bump when assess() gains fields: stored summaries older than this are rebuilt on load
 
 # ratio id → label, policy threshold key, direction ("min": higher is better)
 RATIOS = [("dscr", "DSCR", "min_dscr", "min"),
@@ -85,6 +85,8 @@ def assess(engine: Optional[dict]) -> Optional[dict]:
             "ratios": ratios, "breaches": sum(1 for r in ratios if r["status"] == "bad"),
             "headroom": amount_advice(engine), "run_id": engine.get("run_id"), "thresholds": limits,
             "ecl": fp.get("ecl") if (fp.get("ecl") or {}).get("available") else None,
+            "limit": fp.get("limit_assessment") if (fp.get("limit_assessment") or {}).get("available") else None,
+            "notes": fp.get("notes_to_accounts") if (fp.get("notes_to_accounts") or {}).get("available") else None,
             "quality": _quality(fp)}
 
 
@@ -300,6 +302,67 @@ _PLAYBOOK = {
     "FINANCIAL_PERFORMANCE": ["override", "send_back", "justify"],
 }
 _FIELD = {"FINANCIAL_PERFORMANCE": "ebitda_cr"}
+_PLAYBOOK.update({"LIMIT_ABOVE_ASSESSED": ["reduce_amount", "send_back", "justify", "reject"],
+                  "LIMIT_NOT_ASSESSED": ["send_back", "justify"],
+                  "NOTES_RED_FLAGS": ["send_back", "justify", "reject"],
+                  "NOTES_TO_NOTE": ["send_back", "justify"]})
+
+
+def _notes_challenges(engine: Optional[dict]) -> list[dict]:
+    """Challenges from the auditor's report, CARO and notes to accounts (roadmap P3)."""
+    n = ((engine or {}).get("fact_pack") or {}).get("notes_to_accounts") or {}
+    if not n.get("available"):
+        return []
+    out = []
+    for sev, rid, title, why in (
+            ("high", "NOTES_RED_FLAGS", "Red flags in the auditor’s report or CARO",
+             "A modified audit opinion, a going-concern doubt or a CARO-reported default is how trouble is first "
+             "written down — often years before an account slips."),
+            ("medium", "NOTES_TO_NOTE", "Points to note in the auditor’s report and notes to accounts",
+             "Emphasis of matter, controls weaknesses, statutory dues or large contingent liabilities change what "
+             "the reported figures mean.")):
+        items = [f for f in n.get("findings") or [] if f.get("severity") == sev]
+        if not items:
+            continue
+        text = "; ".join(f"{f['label']} (p.{f['page']}): {f['finding']}" for f in items[:4])
+        out.append({"challenge_id": rid, "rule_id": rid, "severity": "HIGH" if sev == "high" else "MEDIUM",
+                    "category": "Notes to accounts", "title": title,
+                    "challenge": f"{n.get('document')}: {text}", "rationale": why,
+                    "required_response": [f"Management’s explanation of {f['label'].lower()} (p.{f['page']})" for f in items[:2]]
+                                         + ["Evidence that it is resolved, or the mitigant"]})
+    return out
+
+
+def _crore(v) -> str:
+    from src.flow.copilot import crore
+    return crore(v)
+
+
+def _limit_challenges(engine: Optional[dict]) -> list[dict]:
+    """Challenges from the limit assessment (roadmap D8), in the engine's challenge shape."""
+    la = ((engine or {}).get("fact_pack") or {}).get("limit_assessment") or {}
+    if not la.get("available"):
+        return []
+    if la.get("kind") == "non_fund":
+        return [{"challenge_id": "LIMIT_NOT_ASSESSED", "rule_id": "LIMIT_NOT_ASSESSED", "severity": "MEDIUM",
+                 "category": "Limit assessment", "title": "Non-fund limit not yet assessed",
+                 "challenge": la.get("basis"),
+                 "rationale": "A guarantee or LC limit larger than the contracts or imports it supports is exposure "
+                              "without a business need.",
+                 "required_response": [f"Provide {la.get('needs')}"]}]
+    if la.get("within") is False:
+        avail = la.get("available_cr") or 0
+        return [{"challenge_id": "LIMIT_ABOVE_ASSESSED", "rule_id": "LIMIT_ABOVE_ASSESSED",
+                 "severity": "HIGH" if la.get("gap_cr", 0) > 0.25 * (la.get("requested_cr") or 1) else "MEDIUM",
+                 "category": "Limit assessment", "title": "Request above the assessed working-capital limit",
+                 "challenge": la.get("basis"),
+                 "rationale": "Working-capital finance above what the operating cycle needs funds something other "
+                              "than operations: it can be diverted to long-term uses or other businesses.",
+                 "required_response": ["Projected turnover, holding levels and creditors behind the request (CMA data)",
+                                       "Working-capital limits with other banks and their utilisation",
+                                       "Why the operations need more than the assessed limit"],
+                 "limit_cr": avail if avail > 0 else None}]
+    return []
 
 
 def _why_short(text: Optional[str]) -> str:
@@ -310,7 +373,8 @@ def _why_short(text: Optional[str]) -> str:
 
 def challenges(engine: Optional[dict], limit: int = 5) -> list[dict]:
     """The engine's challenges, most severe first, each with suggested actions (see _PLAYBOOK)."""
-    items = sorted((engine or {}).get("challenges") or [], key=lambda c: SEVERITY.get(str(c.get("severity")), 9))
+    items = sorted(((engine or {}).get("challenges") or []) + _limit_challenges(engine) + _notes_challenges(engine),
+                   key=lambda c: SEVERITY.get(str(c.get("severity")), 9))
     head = amount_advice(engine)
     out = []
     for c in items[:limit]:
@@ -319,7 +383,11 @@ def challenges(engine: Optional[dict], limit: int = 5) -> list[dict]:
         asks = asks if isinstance(asks, list) else [asks]
         actions = []
         for kind in _PLAYBOOK.get(rid, ["send_back", "justify"]):
-            if kind == "reduce_amount":
+            if kind == "reduce_amount" and c.get("limit_cr") is not None:
+                actions.append({"kind": "reduce_amount", "label": f"Set the limit to the assessed {_crore(c['limit_cr'])}",
+                                "field": "recommended_cr", "value": c["limit_cr"],
+                                "reason": "Within the assessed limit: " + str(c.get("challenge") or "")})
+            elif kind == "reduce_amount":
                 act = structure_action(head)
                 if act:
                     actions.append(act)

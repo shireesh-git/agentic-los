@@ -121,6 +121,8 @@ class FlowService:
         self._lock = threading.RLock()
         self.jobs = CamJobs(self._run_engine, self._cam_done, self._cam_failed)
         self._acq: dict[str, dict] = {}         # case_id → running acquisition (lanes, pending re-run)
+        from src.flow.backtest import Backtests
+        self.backtests = Backtests(companies, llm_factory)   # roadmap P1: the engine on past proposals
 
     # ── configuration ────────────────────────────────────────────────────────
 
@@ -216,7 +218,26 @@ class FlowService:
                 engine = self.cases.get_run(case["entity_id"], run)     # an earlier run (a newer CAM exists)
         except Exception:
             return None
-        return engine if engine and engine.get("run_id") == run else None
+        return self._with_limit(engine) if engine and engine.get("run_id") == run else None
+
+    def _with_limit(self, engine: Optional[dict]) -> Optional[dict]:
+        """A CAM run made before the limit assessment existed (roadmap D8) gets it from the borrower's statements."""
+        if not engine:
+            return engine
+        fp = engine.setdefault("fact_pack", {})
+        if "notes_to_accounts" not in fp and engine.get("entity_id"):
+            # a run made before the notes reader existed: read by rules now (fast, cached); a re-run uses the AI
+            from src.engines import notes_reader
+            fp["notes_to_accounts"] = notes_reader.for_entity(engine["entity_id"], use_model=False)
+        if "limit_assessment" not in fp:
+            company = self.companies.get(engine.get("entity_id") or "")
+            if company:
+                from src.engines import limit_assessment
+                try:
+                    fp["limit_assessment"] = limit_assessment.from_company(company, fp)
+                except Exception:
+                    log.exception("Limit assessment failed for %s", engine.get("entity_id"))
+        return engine
 
     def _save(self, case: dict) -> None:
         case["updated_at"] = self._stamp()
@@ -930,6 +951,7 @@ class FlowService:
         return {"case_id": case_id, "cam": cam, "job": view}
 
     def _cam_done(self, case_id: str, job, engine: dict) -> None:
+        engine = self._with_limit(engine)
         with self._lock:
             case = self._require(case_id)
             narrative = next((e for e in engine.get("pipeline_log") or [] if e.get("agent_name") == "narrative"), {})
@@ -1071,7 +1093,7 @@ class FlowService:
                 found, how = dpx.from_reading(reading, safe), "reader"
                 self._identity_from_record(case, found)
                 self._check_against_record(case, found)
-            engine = self.cases.get(case["entity_id"]) if self.cases else None
+            engine = self._with_limit(self.cases.get(case["entity_id"]) if self.cases else None)
             linked = sheet.get("run_id") if how == "sheet" else None
             case["cam"] = {"state": "ready", "mode": "upload", "file": str(path), "file_name": safe,
                            "read_by": how, "run_id": linked, "generated_at": self._stamp(), "stale": False,
@@ -2741,6 +2763,15 @@ class FlowService:
         if not case.get("sanction"):
             raise ConflictError("The proposal is not sanctioned yet")
         return reports.sanction_letter(case, self.cfg().get("bank_name") or "The Bank")
+
+    def backtest(self) -> dict:
+        return self.backtests.last()
+
+    def run_backtest(self, session: dict) -> dict:
+        try:
+            return self.backtests.start(session["user"]["name"])
+        except ValueError as e:
+            raise InvalidRequestError(str(e))
 
     def time_report(self) -> dict:
         from src.flow import reports

@@ -56,6 +56,8 @@ function flowApp() {
     timeline: [],
     showTimeline: false,
     report: null,
+    bt: null,
+    btPoll: null,
     busy: false,
     msg: '',
     chatOpen: false,
@@ -98,6 +100,7 @@ function flowApp() {
       const m = location.hash.match(/^#case\/(.+)$/);
       if (m) { if (!this.c || this.c.case_id !== m[1] || this.page !== 'case') await this.open(m[1]); }
       else if (location.hash === '#analytics') await this.openReport();
+      else if (location.hash === '#backtest') await this.openBacktest();
       else { this.page = 'pipeline'; this.c = null; this.stopPoll(); await this.loadQueue(); }
     },
 
@@ -315,7 +318,7 @@ function flowApp() {
     },
     riskAny() {
       const c = this.c;
-      return ((c.against || []).length && c.cam.state === 'ready' && !c.sanction) || ((c.register || []).length && c.cam.state === 'ready')
+      return (c.risk && (c.risk.limit || c.risk.notes) && c.cam.state === 'ready') || ((c.against || []).length && c.cam.state === 'ready' && !c.sanction) || ((c.register || []).length && c.cam.state === 'ready')
         || (c.changes || []).some(x => x.status !== 'superseded');
     },
     defaultTab(v) {
@@ -331,7 +334,7 @@ function flowApp() {
     },
     tabOf(id) {
       return { 'sec-checks': 'overview', 'sec-queries': 'overview', 'sec-todo': 'overview', 'sec-src': 'docs', 'sec-cam': 'docs',
-               'sec-ovr': 'risk', 'sec-dev': 'risk', 'sec-chal': 'risk', 'sec-cp': 'post' }[id] || this.tab;
+               'sec-ovr': 'risk', 'sec-dev': 'risk', 'sec-chal': 'risk', 'sec-limit': 'risk', 'sec-notes': 'risk', 'sec-cp': 'post' }[id] || this.tab;
     },
     reveal(id) { this.tab = this.tabOf(id); this.$nextTick(() => this.flash(document.getElementById(id))); },
     todo() {
@@ -708,6 +711,25 @@ function flowApp() {
     out() { return this.an().outcomes || {}; },
     qual() { return this.an().quality || {}; },
     actTotal() { return (this.an().activity || []).reduce((a, d) => a + d.events, 0); },
+    // ── back-test (roadmap P1) ─────────────────────────────────────────────
+    async openBacktest() {
+      this.stopPoll(); this.page = 'backtest'; if (location.hash !== '#backtest') location.hash = 'backtest';
+      this.bt = await this.get('/api/flow/backtest');
+      if (this.bt.running) this.pollBacktest();
+    },
+    async runBacktest() {
+      this.bt = await this.post('/api/flow/backtest/run');
+      this.notify('Back-test started — the engine runs on each past proposal', 'ok');
+      this.pollBacktest();
+    },
+    pollBacktest() {
+      if (this.btPoll) return;
+      this.btPoll = setInterval(async () => {
+        if (this.page !== 'backtest') { clearInterval(this.btPoll); this.btPoll = null; return; }
+        this.bt = await this.get('/api/flow/backtest');
+        if (!this.bt.running) { clearInterval(this.btPoll); this.btPoll = null; this.notify('Back-test complete', 'ok'); }
+      }, 1500);
+    },
     async openReport() { this.stopPoll(); this.report = await this.get('/api/flow/report'); this.page = 'analytics'; if (location.hash !== '#analytics') location.hash = 'analytics'; },
 
     // ── dialogs ────────────────────────────────────────────────────────────

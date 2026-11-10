@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ.setdefault("CAM_GEMINI_OCR", "off")       # no cloud credentials while the image is built
 
 from src.core.runtime_paths import DOCUMENTS_ROOT  # noqa: E402
+from src.engines import notes_reader  # noqa: E402
 from src.services.document_extractor import extract_all_documents  # noqa: E402
 
 
@@ -22,7 +23,9 @@ def main() -> None:
     for folder in sorted(p for p in DOCUMENTS_ROOT.iterdir() if p.is_dir() and not p.name.startswith(("P", "_"))):
         t = time.time()
         res = extract_all_documents(folder.name, DOCUMENTS_ROOT)
-        print(f"{folder.name}: {res.get('document_count', 0)} document(s) in {time.time() - t:.0f}s", flush=True)
+        notes = notes_reader.for_entity(folder.name, use_model=False)   # the rules reading; the AI reads on the first CAM
+        print(f"{folder.name}: {res.get('document_count', 0)} document(s) in {time.time() - t:.0f}s"
+              + (f"; notes: {notes.get('red_flags', 0)} red flag(s)" if notes.get("available") else ""), flush=True)
     print(f"Document cache ready in {time.time() - started:.0f}s", flush=True)
 
 

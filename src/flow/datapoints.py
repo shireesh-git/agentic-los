@@ -367,6 +367,19 @@ def from_engine(case: dict) -> dict[str, dict]:
     if ews.get("available"):
         put("ews_flags", ews.get("flags"), "", f"{ews.get('flags')} flag(s) of {ews.get('checked')} indicator(s) checked; "
             f"{ews.get('not_checked')} not checkable from the data on record")
+    na = fp.get("notes_to_accounts") or {}
+    if na.get("available"):
+        put("audit_opinion", {"unmodified": "Unmodified", "qualified": "Qualified", "adverse": "Adverse",
+                              "disclaimer": "Disclaimer of opinion"}.get(na.get("opinion"), "Not found")
+            + f" ({na.get('document')})", "", na.get("summary") or "")
+        put("notes_red_flags", na.get("red_flags"), "", na.get("summary") or "")
+    la = fp.get("limit_assessment") or {}
+    if la.get("available"):
+        put("assessment_method", la.get("method_label"), "", la.get("method_reason") or la.get("basis") or "")
+        if la.get("available_cr") is not None:
+            put("assessed_limit_cr", la["available_cr"], "", la.get("basis") or "")
+        if la.get("margin_of_safety_pct") is not None:
+            put("margin_of_safety_pct", la["margin_of_safety_pct"], "", la.get("basis") or "")
     ecl = fp.get("ecl") or {}
     if ecl.get("available"):
         put("ecl_cr", ecl.get("ecl_cr"), "", ecl.get("basis", "") + (" Demo PD / LGD values." if ecl.get("demo") else ""))

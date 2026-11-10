@@ -555,7 +555,31 @@ def decision_summary(case: dict, points: dict, stage_label: str) -> str:
         if pt:
             out += _md_row([pt["label"], pt.get("display", "—"), ((pt.get("source") or {}).get("detail") or "")[:300]])
     out += "\n"
-    figs = [k for k in ("revenue_cr", "ebitda_cr", "pat_cr", "net_worth_cr", "total_debt_cr") if p(k).get("value") is not None]
+    na = r.get("notes") or {}
+    if na:
+        out += f"### Auditor’s Report and Notes to Accounts\n\n{na.get('summary') or ''}\n\n"
+        rows = [f for f in na.get("findings") or [] if f.get("severity") in ("high", "medium")]
+        if rows:
+            out += _md_row(["Finding", "Severity", "Page", "Quote"]) + _md_row(["---"] * 4)
+            for f in rows:
+                out += _md_row([f"{f['label']}: {f['finding']}", {"high": "Red flag", "medium": "To note"}[f["severity"]],
+                                f"p.{f['page']}", "“" + (f.get("quote") or "")[:220] + "”"])
+            out += "\n"
+    la = r.get("limit") or {}
+    if la:
+        out += f"### Limit Assessment — {la.get('method_label') or ''}\n\n{la.get('basis') or ''}\n\n"
+        if la.get("rows"):
+            out += _md_row(["Item", "Amount", "How"]) + _md_row(["---"] * 3)
+            for row in la["rows"]:
+                out += _md_row([f"**{row['label']}**" if row.get("total") else row["label"], row["value"], row.get("how") or ""])
+            out += "\n"
+        alts = la.get("alternatives") or []
+        if alts:
+            out += "Cross-check: " + "; ".join(f"{a['label']} {_crore(a['assessed_cr'])}" for a in alts) + ".\n\n"
+        for n in (la.get("assumptions") or []) + ([la["irr_note"]] if la.get("irr_note") else []):
+            out += f"- {n}\n"
+        out += "\n"
+    figs =[k for k in ("revenue_cr", "ebitda_cr", "pat_cr", "net_worth_cr", "total_debt_cr") if p(k).get("value") is not None]
     if figs:
         out += "### Confidence of Key Figures\n\n" + _md_row(["Figure", "Value", "Confidence", "Basis"]) + _md_row(["---"] * 4)
         for k in figs:

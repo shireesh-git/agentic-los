@@ -88,6 +88,22 @@ ecl:
   stage2: {statuses: [SMA-1, SMA-2], dpd_over: 30}
   stage3: {statuses: [Substandard, Doubtful, Loss, NPA], dpd_over: 90}
 
+# Limit assessment (roadmap D8; src/engines/limit_assessment.py). How a working-capital limit is sized:
+#   turnover        limits up to max_limit_cr: need = need_share × projected turnover, banks fund bank_share
+#   mpbf            method II: (projected current assets − other current liabilities) − the borrower's margin,
+#                   the higher of margin_on_current_assets × current assets and its net working capital
+#   operating_cycle sectors that carry little stock: turnover × cycle days / 365, banks fund bank_share
+# Bank guarantees / letters of credit (purpose matching non_fund_words) need the pipeline, so are not sized here.
+# Term loans: break-even revenue and margin of safety from the cost structure.
+limit_assessment:
+  fund_based: [working_capital, cash_credit]
+  term: [term_loan, project_finance]
+  turnover: {max_limit_cr: 5.0, need_share: 0.25, bank_share: 0.20}
+  mpbf: {margin_on_current_assets: 0.25}
+  operating_cycle: {sectors: [it_services, services, infrastructure, hospitality, healthcare], bank_share: 0.75}
+  growth: {floor_pct: -10, cap_pct: 25}            # when the CAM has no projection: last year's growth, bounded
+  break_even: {variable: [raw_material_cost], other_expenses_variable_share: 0.5}
+
 policy_thresholds:
   min_dscr: 1.20
   max_debt_to_equity: 2.5

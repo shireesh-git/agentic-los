@@ -575,6 +575,9 @@ def build_cam_fact_pack(company_data: dict, assessment: CreditAssessment | None 
     # expected credit loss at origination (roadmap D6): stage, PD, LGD, EAD from the grade and security
     from src.engines import ecl_engine
     fact_pack["ecl"] = ecl_engine.from_fact_pack(company_data, fact_pack)
+    # limit assessment (roadmap D8): turnover / MPBF / operating cycle for working capital, break-even for term loans
+    from src.engines import limit_assessment
+    fact_pack["limit_assessment"] = limit_assessment.from_company(company_data, fact_pack)
     from src.engines.data_provenance import classify_fact_pack
     fact_pack["data_provenance"] = classify_fact_pack(fact_pack, company_data)
     return fact_pack

@@ -254,7 +254,7 @@ def test_progress_and_failures_read_as_the_person_needs_them(svc):
     from src.flow.camjob import CamJob
 
     job = CamJob("C1", E)
-    for a in ("data_ingestion", "pep_screening", "financial_analysis", "validation", "benchmark", "policy"):
+    for a in ("data_ingestion", "pep_screening", "financial_analysis", "validation", "benchmark", "policy", "notes_reader"):
         job.on_event({"type": "agent_complete", "agent": a, "status": "completed"})
     assert job.percent() == 5
     job.on_event({"type": "section_start", "section": "s1", "title": "Profile", "total": 20})

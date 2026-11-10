@@ -23,11 +23,11 @@ process.
 | D7 | **Risk-based pricing (RAROC)**: minimum price against the hurdle rate | Pricing becomes a calculation, not free text |
 | L2 | **AI governance pack (RBI FREE-AI)**: per-CAM AI-use log, model card, bias checks — **built 2026-11-09** (proposal menu → AI Governance Pack; config/ai_governance.yaml) | Makes the AI acceptable to a regulated bank |
 | C3 | **Change-only CAM** for renewals and re-runs; role views of one CAM | Reviewers read only what changed |
-| D8 | Working-capital assessment (turnover / MPBF / cash budget); term-loan IRR and break-even | Standard appraisal, automated end to end |
+| D8 | Working-capital assessment (turnover / MPBF / operating cycle); term-loan break-even and margin of safety — **built 2026-11-10** (rules.yaml → limit_assessment; IRR needs project cash flows, not invented) | Standard appraisal, automated end to end |
 | D9 | Related-party, group exposure (Large Exposures Framework) and unhedged forex checks | Compliance |
-| P1 | **Back-test on past CAMs**: run the engine on the bank's historical cases (sanctioned and later defaulted) and show where its verdict and challenges would have flagged them | How a bank decides to buy |
+| P1 | **Back-test on past CAMs** — **built 2026-11-10** (Back-test page; config/backtest.yaml, demo outcomes until the bank's files are loaded): run the engine on the bank's historical cases (sanctioned and later defaulted) and show where its verdict and challenges would have flagged them | How a bank decides to buy |
 | P2 | **Credit policy → rules agent**: reads the bank's credit policy and delegation of powers, drafts `rules.yaml` / `approval.yaml` for a person to approve | Onboarding a bank in days |
-| P3 | **Notes-to-accounts reader**: auditor qualifications, emphasis of matter, CARO remarks, contingent liabilities, related-party notes | Where many problems hide; rarely read |
+| P3 | **Notes-to-accounts reader** — **built 2026-11-10** (an agent in the CAM pipeline; every AI quote checked against its page, rules as back-up): auditor qualifications, emphasis of matter, CARO remarks, contingent liabilities, related-party notes | Where many problems hide; rarely read |
 | P4 | **Borrower document agent**: a borrower link; the agent asks for missing documents, reads them, chases gaps, fills fields | The RM stops chasing paperwork |
 | P5 | Agent accuracy harness: fixed case set, field-extraction accuracy, figures-check rate, drift per model (hygiene) | Model-risk teams ask for it; feeds L2 |
 | P6 | Sanction terms as structured, checkable covenants (enabler for L3) | Monitoring needs rules, not text |

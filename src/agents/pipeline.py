@@ -10,7 +10,8 @@ finished, so independent agents run side by side:
     data_ingestion ─┬─ financial_analysis ── benchmark ─┐
                     └─ validation ──────────────────────┴─ policy ─┐
     pep_screening ─────────────────────────────────────────────────┴─ narrative
-                                              (narrative waits_for pep_screening)
+    data_ingestion ── notes_reader ────────────────────────────────────┘
+                              (narrative waits_for pep_screening and notes_reader)
 
 In sequential mode they run one at a time in list order. Either way the
 pipeline log is kept in list order, so its shape does not depend on timing.
@@ -27,6 +28,7 @@ from src.agents.analysis_agents import BenchmarkAgent, FinancialAnalysisAgent, P
 from src.agents.base_agent import AgentResult, BaseAgent
 from src.agents.ingestion_agent import DataIngestionAgent
 from src.agents.narrative_agent import NarrativeAgent
+from src.agents.notes_agent import NotesReaderAgent
 from src.agents.screening_agent import PEPScreeningAgent
 
 log = logging.getLogger(__name__)
@@ -40,6 +42,7 @@ def default_agents(llm_provider=None, checkpoint_factory=None) -> list[BaseAgent
         ValidationAgent(),
         BenchmarkAgent(),
         PolicyAgent(),
+        NotesReaderAgent(llm_provider=llm_provider),
         NarrativeAgent(llm_provider=llm_provider, checkpoint_factory=checkpoint_factory),
     ]
 
