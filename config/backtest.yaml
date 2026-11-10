@@ -11,6 +11,9 @@
 # them with the bank's own closed files (sanctioned accounts, including those that later slipped) for a real
 # back-test, and change `label` so the screens stop saying "demo".
 
+# The Back-test page is hidden in the LOS until this is true (the engine, the API and this file stay in place).
+show_in_ui: false
+
 label: "Demo back-test set — outcomes are demo labels, not a bank's history"
 
 # The notes reader reads each annual report with the AI model (one call per report, cached) when true; by rules

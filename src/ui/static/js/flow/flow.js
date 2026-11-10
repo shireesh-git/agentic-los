@@ -100,7 +100,7 @@ function flowApp() {
       const m = location.hash.match(/^#case\/(.+)$/);
       if (m) { if (!this.c || this.c.case_id !== m[1] || this.page !== 'case') await this.open(m[1]); }
       else if (location.hash === '#analytics') await this.openReport();
-      else if (location.hash === '#backtest') await this.openBacktest();
+      else if (location.hash === '#backtest' && this.dir.features?.backtest) await this.openBacktest();
       else { this.page = 'pipeline'; this.c = null; this.stopPoll(); await this.loadQueue(); }
     },
 

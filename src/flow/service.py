@@ -101,6 +101,11 @@ def _plain(label: str) -> str:
     return re.sub(r"\s*\((?:₹ Cr|months)[^)]*\)$", "", label or "")
 
 
+def dpx_config(name: str) -> dict:
+    from src.core.config_manager import config
+    return config.get(name, default=None) or {}
+
+
 class FlowService:
     def __init__(self, store: FlowStore, companies: dict, cases, cam_pdf: Callable, files_root: Path,
                  llm_factory: Optional[Callable] = None, register_prospect: Optional[Callable] = None,
@@ -165,6 +170,8 @@ class FlowService:
                             "role": s["role"]} for s in self.stages()],
                 "product_name": self.cfg().get("product_name") or "Corporate Credit Origination",
                 "environment": self.cfg().get("environment") or "",
+                # screens switched on in config (the back-test page is built but hidden until show_in_ui: true)
+                "features": {"backtest": bool((dpx_config("backtest") or {}).get("show_in_ui"))},
                 "note": "Demo environment — single sign-on is disabled; choose a workspace to sign in."}
 
     def sign_in(self, user_id: str) -> dict:

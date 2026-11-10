@@ -55,7 +55,7 @@
       <a :class="{on: page === 'pipeline' && queueTab === 'mine'}" @click="queueTab = 'mine'; goPipeline()"><span x-html="icon('queue')"></span><span>My Work Queue</span><b x-show="q.mine.length" x-text="q.mine.length"></b></a>
       <a :class="{on: page === 'pipeline' && queueTab === 'all'}" @click="queueTab = 'all'; goPipeline()"><span x-html="icon('pipeline')"></span><span>Deal Pipeline</span></a>
       <a :class="{on: page === 'analytics'}" @click="openReport()"><span x-html="icon('chart')"></span><span>TAT &amp; Productivity</span></a>
-      <a :class="{on: page === 'backtest'}" @click="openBacktest()"><span x-html="icon('shield')"></span><span>Back-test</span></a>
+      <a x-show="dir.features?.backtest" :class="{on: page === 'backtest'}" @click="openBacktest()"><span x-html="icon('shield')"></span><span>Back-test</span></a>
       <div class="sn-foot">
         <span class="env-tag on-dark" x-text="dir.environment" x-show="dir.environment"></span>
       </div>
