@@ -1,7 +1,7 @@
 """
 PEP (Politically Exposed Person) Screening Service
 Screens directors/promoters against PEP databases, sanctions lists,
-and adverse media sources.  Mock implementation for the platform.
+and adverse media sources, from the demo watchlist data file (data/reference/pep_watchlist.json).
 """
 
 from datetime import date
@@ -11,110 +11,18 @@ from src.models.canonical_model import (
     DirectorPromoter, PEPMatch, PEPScreeningResult,
 )
 
-# ════════════════════════════════════════════════════════════════════════
-# MOCK PEP DATABASE
-# ════════════════════════════════════════════════════════════════════════
+# The demo watchlist is a data file (data/reference/pep_watchlist.json); no names are held in code.
+def _watchlist() -> dict:
+    import json
+    from src.core.runtime_paths import PROJECT_ROOT
+    p = PROJECT_ROOT / "data" / "reference" / "pep_watchlist.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
-_PEP_DATABASE: dict[str, dict] = {
-    # Known PEP entries (by DIN or name fragments)
-    "00012345": {
-        "person_name": "Sample PEP Director",
-        "pep_category": "Domestic PEP",
-        "pep_designation": "Former Member of Parliament",
-        "pep_jurisdiction": "India",
-        "risk_level": "high",
-        "sanctions_list_hit": False,
-        "adverse_media_count": 3,
-        "related_pep": True,
-        "source": "Consolidated PEP List — MHA/FATF",
-    },
-    # N. Chandrasekaran — Chairman of Tata Sons / IHCL (not PEP but high-profile)
-    "00121863": {
-        "person_name": "Natarajan Chandrasekaran",
-        "pep_category": "Close Associate",
-        "pep_designation": "Chairman — Tata Sons (Government Board advisory roles)",
-        "pep_jurisdiction": "India",
-        "risk_level": "low",
-        "sanctions_list_hit": False,
-        "adverse_media_count": 0,
-        "related_pep": False,
-        "source": "Corporate PEP Watch — Advisory",
-    },
-    # Nandan Nilekani — Infosys Chairman & former UIDAI Chairman (Govt role = PEP)
-    "00041059": {
-        "person_name": "Nandan Nilekani",
-        "pep_category": "Domestic PEP",
-        "pep_designation": "Former Chairman — UIDAI / Aadhaar (Cabinet rank)",
-        "pep_jurisdiction": "India",
-        "risk_level": "low",
-        "sanctions_list_hit": False,
-        "adverse_media_count": 0,
-        "related_pep": False,
-        "source": "Consolidated PEP List — MHA/FATF",
-    },
-    # D. Subbarao — Former RBI Governor, independent director on several boards
-    "00387734": {
-        "person_name": "Duvvuri Subbarao",
-        "pep_category": "Domestic PEP",
-        "pep_designation": "Former Governor — Reserve Bank of India",
-        "pep_jurisdiction": "India",
-        "risk_level": "low",
-        "sanctions_list_hit": False,
-        "adverse_media_count": 0,
-        "related_pep": False,
-        "source": "Consolidated PEP List — MHA/FATF",
-    },
-    # Rana Kapoor — Yes Bank fraud case
-    "00019957": {
-        "person_name": "Rana Kapoor",
-        "pep_category": "Adverse Media",
-        "pep_designation": "Former MD & CEO — Yes Bank (ED custody)",
-        "pep_jurisdiction": "India",
-        "risk_level": "critical",
-        "sanctions_list_hit": False,
-        "adverse_media_count": 45,
-        "related_pep": False,
-        "source": "Adverse Media Screening — Dow Jones / World-Check",
-    },
-    # G. Satheesh Reddy — Former DRDO Chairman, potential board member on defence companies
-    "00112233": {
-        "person_name": "G. Satheesh Reddy",
-        "pep_category": "Domestic PEP",
-        "pep_designation": "Former Chairman — DRDO / Scientific Adviser to Defence Minister",
-        "pep_jurisdiction": "India",
-        "risk_level": "medium",
-        "sanctions_list_hit": False,
-        "adverse_media_count": 0,
-        "related_pep": True,
-        "source": "Consolidated PEP List — MHA/FATF",
-    },
-    # Dr. Prathap C. Reddy — Apollo Hospitals founder, Padma Vibhushan, Rajya Sabha consideration
-    "00003964": {
-        "person_name": "Dr. Prathap C. Reddy",
-        "pep_category": "Close Associate",
-        "pep_designation": "Padma Vibhushan awardee — Government advisory roles in healthcare policy",
-        "pep_jurisdiction": "India",
-        "risk_level": "low",
-        "sanctions_list_hit": False,
-        "adverse_media_count": 0,
-        "related_pep": False,
-        "source": "Corporate PEP Watch — Advisory",
-    },
-}
 
-_SANCTIONS_NAMES: set[str] = {
-    "sanctioned person a",
-    "sanctioned entity b",
-    "nirav modi",
-}
-
-_ADVERSE_MEDIA_TRIGGERS: dict[str, int] = {
-    "rana kapoor": 45,
-    "vijay mallya": 32,
-    "chanda kochhar": 18,
-    "anil ambani": 14,
-    "subhash chandra": 9,
-}
+_WL = _watchlist()
+_PEP_DATABASE: dict[str, dict] = _WL.get("persons_by_din") or {}
+_SANCTIONS_NAMES: set[str] = set(_WL.get("sanctions_names") or [])
+_ADVERSE_MEDIA_TRIGGERS: dict[str, int] = _WL.get("adverse_media_counts") or {}
 
 
 # ════════════════════════════════════════════════════════════════════════

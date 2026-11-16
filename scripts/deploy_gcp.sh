@@ -31,6 +31,8 @@ MART_DATASET="${MART_DATASET:-los_mart}"
 cd "$(dirname "$0")/.."
 # UAT test packs for new-to-bank prospects: fetch the public annual reports / rationales a fresh clone lacks
 python3 scripts/fetch_test_packs.py || echo "Test packs: public documents not fetched; Load test pack will have demo documents only."
+# the listed borrowers' latest annual reports and quarterly results (config/borrower_documents.yaml), not in git
+python3 scripts/fetch_borrower_documents.py || echo "Borrower filings: not all fetched; the CAM still uses the figures on record."
 mkdir -p runtime-db-seed
 if [[ -f runtime-db-seed/cam_platform.sqlite3 ]]; then
   echo "Demo data: runtime-db-seed/cam_platform.sqlite3 ($(du -k runtime-db-seed/cam_platform.sqlite3 | cut -f1) KB)"

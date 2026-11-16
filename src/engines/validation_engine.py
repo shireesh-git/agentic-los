@@ -22,16 +22,21 @@ GST_REVENUE_TOLERANCE = 0.10      # 10%
 # ─── Structural Validations ──────────────────────────────────────────────────
 
 def validate_balance_sheet_balances(fs: FinancialStatement) -> list[ValidationException]:
-    """Check: Total Assets ≈ Total Equity + Long-Term Debt + Current Liabilities
-    Note: current_liabilities includes short-term borrowings, so we use long_term_debt
-    to avoid double counting short_term_debt."""
+    """Check: Total Assets ≈ Total Equity + liabilities.
+
+    Sources report current liabilities with or without the short-term borrowings, and some give the total or
+    non-current liabilities: the balance sheet balances if any of those ways of adding it up agrees (round 9 —
+    Omega's current liabilities exclude short-term borrowings, and it was reported as not balancing)."""
     results = []
     ta = fs.get("total_assets")
     te = fs.get("total_equity")
     ltd = fs.get("long_term_debt")
     cl = fs.get("current_liabilities")
-    if ta > 0:
-        rhs = te + ltd + cl
+    g = lambda k: fs.get(k) or 0.0                      # noqa: E731 - a line read as None counts as absent
+    std, tl, ncl = g("short_term_debt"), g("total_liabilities"), g("non_current_liabilities")
+    if ta > 0 and None not in (te, ltd, cl):
+        ways = [te + ltd + cl, te + ltd + std + cl] + ([te + tl] if tl else []) + ([te + ncl + cl] if ncl else [])
+        rhs = min(ways, key=lambda v: abs(ta - v))
         diff_pct = abs(ta - rhs) / ta
         if diff_pct > BALANCE_SHEET_TOLERANCE:
             results.append(ValidationException(

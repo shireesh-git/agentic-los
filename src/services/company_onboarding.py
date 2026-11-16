@@ -19,7 +19,6 @@ from src.services.external_systems import (
     gstin_details, gstin_turnover, bureau_commercial_report,
     rating_action, market_intelligence, crilc_report,
     epfo_compliance, itr_filing_status,
-    _PAN_TO_GSTIN, _ENTITY_TO_IDS,
 )
 from src.services.document_store import doc_store
 from src.services.probe_service import onboard_company_via_probe

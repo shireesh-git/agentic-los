@@ -293,7 +293,9 @@ def test_demo_borrower_triggers_the_designed_observations(demo_fact_pack):
 
 def test_demo_borrower_statements_are_internally_consistent():
     """Every identity holds in every year; the only deliberate conflict is the FY2026 GST turnover."""
-    from src.data.demo_companies import ABC_ENGG_EXTERNAL_DATA, ABC_ENGG_FINANCIALS
+    from src.data import borrowers
+    abc = borrowers.load("ABCE001")                       # the demo borrower's data file (round 8)
+    ABC_ENGG_FINANCIALS, ABC_ENGG_EXTERNAL_DATA = abc["financials"], abc["external_data"]
     from src.engines.validation_engine import (
         validate_balance_sheet_balances, validate_ebitda_consistency, validate_pat_consistency,
     )

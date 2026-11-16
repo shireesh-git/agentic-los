@@ -3,7 +3,7 @@ Test documents for the new-prospect journey: Dixon Technologies (India) Limited.
 
   python test-documents/dixon_technologies/prepare.py [--no-download]
 
-Real public documents (downloaded once, politely, into ./public — see README.md):
+Real public documents (downloaded once, politely, into ./public; listed in the SPEC below):
   * annual_report_fy2026.pdf / annual_report_fy2025.pdf   BSE filings (audited standalone statements)
   * icra_rationale_2026-01-06.pdf                         ICRA rating rationale
 

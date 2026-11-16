@@ -1,0 +1,485 @@
+# Sector reference for the CAM's industry analysis (moved out of code in round 8).
+# Per sector / sub-sector: overview, regulation, growth drivers, headwinds, listed peers, a description, and the
+# sector's typical revenue segments and geographic mix. General reference, shown as such in the CAM — never as
+# the borrower's own figures. The peer figures are indicative: review them before a bank build.
+
+auto_components:
+  description: The company is an auto component manufacturer supplying to OEMs and the aftermarket segment. Products
+    span across tyres, forgings, castings, or precision components with both domestic and export customer base.
+  typical_revenue_segments:
+  - name: OEM Supplies — Domestic
+    pct: 40.0
+  - name: OEM Supplies — Exports
+    pct: 25.0
+  - name: Aftermarket / Replacement
+    pct: 20.0
+  - name: Industrial & Non-Auto
+    pct: 10.0
+  - name: Others
+    pct: 5.0
+construction_epc:
+  industry_overview: 'India''s road and highway construction sector is the backbone of the National Infrastructure
+    Pipeline, with NHAI and MoRTH targeting 12,000+ km of highway construction annually. The sector is valued at
+    ~₹3.5 lakh Cr and growing at 15-18% CAGR driven by Bharatmala Pariyojana (Phase-I: 34,800 km), expressway corridors,
+    and state highway expansions. EPC contractors with strong order books (3x+ revenue) and BOT/HAM asset portfolios
+    are best positioned for sustained growth.'
+  regulatory_environment: Governed by NHAI, MoRTH (Ministry of Road Transport & Highways), state PWDs, and National
+    Highways Act 1956. Key frameworks include BOT (Build-Operate-Transfer), HAM (Hybrid Annuity Model), and EPC
+    contracting under MoRTH NH works guidelines. Environmental clearances from MoEFCC, forest clearances, and land
+    acquisition under RFCTLARR Act 2013. Concession agreements regulated by PPP Appraisal Committee.
+  growth_drivers:
+  - Bharatmala Pariyojana Phase-I targeting 34,800 km of economic corridors and expressways
+  - HAM (Hybrid Annuity Model) reducing upfront equity requirement for contractors
+  - Government's capital expenditure push — ₹11.1 lakh Cr in FY2025 Union Budget
+  - 'Expressway mega-projects: Delhi-Mumbai, Amritsar-Jamnagar, Bengaluru-Chennai'
+  headwinds:
+  - Rising input costs — bitumen (linked to crude oil), steel, cement, and aggregates
+  - Land acquisition delays causing 6-12 month project slippages
+  - Working capital intensity — mobilization advances, retention money, and RA bill delays
+  - Monsoon seasonality reducing effective construction days to ~250 per year
+  competitors:
+  - name: L&T (Roads & Bridges)
+    revenue_cr: 15000
+    market_share_pct: 10.0
+    rating: CRISIL AAA
+  - name: PNC Infratech
+    revenue_cr: 8650
+    market_share_pct: 5.8
+    rating: CARE AA-
+  - name: IRB Infrastructure
+    revenue_cr: 8500
+    market_share_pct: 5.7
+    rating: CARE AA
+  - name: Dilip Buildcon
+    revenue_cr: 6800
+    market_share_pct: 4.5
+    rating: ICRA A+
+  - name: KNR Constructions
+    revenue_cr: 5200
+    market_share_pct: 3.5
+    rating: CRISIL AA-
+  description: The company is a road and highway construction EPC contractor specializing in NHAI and MoRTH projects
+    including 4-laning, 6-laning, expressway construction, bridges, flyovers, and airport runway development. Revenue
+    recognition follows percentage-of-completion (POCM) method based on physical milestones. The company holds BOT/HAM
+    concession assets generating toll revenue. Key operational metrics include order book-to-revenue ratio, km of
+    road executed per year, per-km construction cost, mobilization advance utilization, and retention money recovery
+    cycle. Projects span 13+ states with a focus on national highway corridors.
+  typical_revenue_segments:
+  - name: EPC Road & Highway Contracts (NHAI/MoRTH)
+    pct: 45.0
+  - name: BOT Toll Revenue (Concession Assets)
+    pct: 22.0
+  - name: Bridges, Flyovers & Grade Separators
+    pct: 14.0
+  - name: Airport Runways & Industrial Infrastructure
+    pct: 11.0
+  - name: O&M (Maintenance of Completed Projects)
+    pct: 8.0
+  typical_geographic_mix:
+  - region: Uttar Pradesh & North India
+    pct: 35.0
+  - region: Madhya Pradesh & Central India
+    pct: 25.0
+  - region: Rajasthan & West India
+    pct: 20.0
+  - region: South India (Karnataka, AP, Telangana)
+    pct: 12.0
+  - region: East & Northeast India
+    pct: 8.0
+hospitality:
+  industry_overview: India's hospitality and tourism sector contributes ~5% to GDP and is a major employment generator
+    (8% of total employment). The sector is recovering strongly post-pandemic with RevPAR surpassing pre-COVID levels.
+    Domestic tourism (~1.8 billion trips/year) and rising inbound tourism (10.9 million visitors in FY2024) are
+    driving robust demand. Branded hotel supply is expanding with ~180,000 rooms in pipeline across luxury, upper-upscale,
+    and midscale.
+  regulatory_environment: Regulated by Ministry of Tourism (classification/ratings), FSSAI (food safety), state
+    excise departments (liquor), BIS standards, fire safety codes, environmental clearances, and RERA for hotel
+    real estate. Classification under Hotel Classification Committee.
+  growth_drivers:
+  - Post-pandemic revenge travel and rising domestic tourism spend
+  - Government's 'Incredible India' campaign and e-visa on arrival for 170+ countries
+  - Rising MICE (Meetings, Incentives, Conferences, Exhibitions) segment
+  - Branded hotel penetration at only ~55% vs. 70%+ in developed markets
+  headwinds:
+  - Cyclicality tied to global economic conditions and travel sentiment
+  - High fixed costs (staff, property maintenance) impacting margins in downturns
+  - Rising OTA (Online Travel Aggregator) commission costs averaging 15-20%
+  - Regulatory complexity across states for excise/tourism licenses
+  competitors:
+  - name: Indian Hotels (Taj)
+    revenue_cr: 6500
+    market_share_pct: 14.0
+    rating: CRISIL AA+
+  - name: ITC Hotels
+    revenue_cr: 3200
+    market_share_pct: 7.0
+    rating: CRISIL AAA
+  - name: Lemon Tree Hotels
+    revenue_cr: 1100
+    market_share_pct: 2.5
+    rating: CRISIL A+
+  - name: EIH (Oberoi)
+    revenue_cr: 2100
+    market_share_pct: 4.5
+    rating: ICRA AA
+  description: The company operates in the Indian hospitality sector with a portfolio of owned, managed, and franchised
+    hotel properties. Revenue is driven by room occupancy, F&B operations, and management fees with exposure to
+    both business and leisure travel segments.
+  typical_revenue_segments:
+  - name: Room Revenue
+    pct: 50.0
+  - name: Food & Beverage
+    pct: 28.0
+  - name: Management & Franchise Fees
+    pct: 10.0
+  - name: Events & Banqueting
+    pct: 8.0
+  - name: Other Operating Income
+    pct: 4.0
+  typical_geographic_mix:
+  - region: India — Metros
+    pct: 55.0
+  - region: India — Tier 2/3 Cities
+    pct: 20.0
+  - region: International
+    pct: 25.0
+infrastructure:
+  industry_overview: India's infrastructure sector is witnessing unprecedented investment through the National Infrastructure
+    Pipeline (NIP) worth ₹111 lakh Cr. The sector spans roads, railways, ports, urban infrastructure, and power.
+    Government's capital expenditure push and PPP models are driving order book growth across EPC and construction
+    companies.
+  regulatory_environment: Regulated by NHAI, MoRTH, MoHUA, state PWDs, RERA, environmental clearances, and PPP concession
+    agreements. SEBI InvIT regulations for infrastructure investment trusts.
+  growth_drivers:
+  - National Infrastructure Pipeline (NIP) — ₹111 lakh Cr investment
+  - PM Gati Shakti National Master Plan for multimodal connectivity
+  - Dedicated freight corridors and high-speed rail initiatives
+  - Smart Cities Mission and AMRUT urban infrastructure
+  headwinds:
+  - Land acquisition delays and regulatory approvals
+  - Rising material costs (steel, cement, bitumen)
+  - Project execution risks and cost overruns
+  - Seasonal impact of monsoon on construction activity
+  competitors:
+  - name: L&T
+    revenue_cr: 22000
+    market_share_pct: 12.0
+    rating: CRISIL AAA
+  - name: IRB Infrastructure
+    revenue_cr: 8500
+    market_share_pct: 5.2
+    rating: CARE AA
+  - name: Dilip Buildcon
+    revenue_cr: 6800
+    market_share_pct: 3.8
+    rating: ICRA A+
+  description: The company is an infrastructure developer and EPC contractor with an order book spanning roads,
+    highways, urban infrastructure, and industrial projects. Revenue recognition follows percentage-of-completion
+    method with a focus on government and institutional contracts.
+  typical_revenue_segments:
+  - name: EPC Contracts
+    pct: 50.0
+  - name: Road / Highway BOT Assets
+    pct: 20.0
+  - name: Real Estate Development
+    pct: 15.0
+  - name: O&M Services
+    pct: 10.0
+  - name: Equipment Rental
+    pct: 5.0
+it_services:
+  industry_overview: India's IT-BPM industry revenue stood at ~$245 billion in FY2024, contributing ~8% to GDP.
+    India is the world's largest outsourcing destination, capturing ~55% of the global IT services outsourcing market.
+    Digital services (cloud, AI/ML, cybersecurity) now account for ~35% of revenue. The industry employs over 5.4
+    million people directly.
+  regulatory_environment: Governed by SEZ Act & rules, STPI scheme, IT Act 2000, DPDP Act 2023 for data privacy,
+    SEBI regulations for listed entities, RBI guidelines for fintech, and NASSCOM industry body.
+  growth_drivers:
+  - Digital transformation and cloud migration across global enterprises
+  - AI/ML and GenAI adoption creating new revenue streams
+  - GCC (Global Capability Centre) expansion in India — 1,700+ centres
+  - Cost arbitrage remains strong with 60-70% salary differential vs. US/Europe
+  headwinds:
+  - Macroeconomic uncertainty in key US/Europe markets impacting deal closures
+  - Visa and immigration policy changes (H-1B restrictions)
+  - Rising employee costs and high attrition (~15-20% industry average)
+  - Generative AI disrupting traditional labour-intensive services
+  competitors:
+  - name: TCS
+    revenue_cr: 240000
+    market_share_pct: 18.0
+    rating: CRISIL AAA
+  - name: Infosys
+    revenue_cr: 153670
+    market_share_pct: 12.0
+    rating: CRISIL AAA
+  - name: Wipro
+    revenue_cr: 90000
+    market_share_pct: 7.0
+    rating: CRISIL AAA
+  - name: HCLTech
+    revenue_cr: 108000
+    market_share_pct: 8.5
+    rating: CRISIL AAA
+  description: The company operates in the Indian IT services sector, providing digital transformation, cloud migration,
+    application development, and consulting services to global enterprises. Revenue is primarily USD-denominated
+    with a diversified client base across BFSI, retail, manufacturing, and healthcare verticals.
+  typical_revenue_segments:
+  - name: Digital & Cloud Services
+    pct: 38.0
+  - name: Application Development & Maintenance
+    pct: 25.0
+  - name: Consulting & Package Implementation
+    pct: 18.0
+  - name: BPO & Platform Services
+    pct: 12.0
+  - name: Products & Platforms
+    pct: 7.0
+  typical_geographic_mix:
+  - region: North America
+    pct: 60.0
+  - region: Europe
+    pct: 24.0
+  - region: India
+    pct: 8.0
+  - region: Rest of World
+    pct: 8.0
+logistics:
+  industry_overview: India's logistics sector is valued at approximately $200 billion and contributes ~14% of GDP.
+    The sector is undergoing transformation through the National Logistics Policy (NLP) targeting cost reduction
+    from ~14% to ~8% of GDP. Multimodal integration, warehouse aggregation, and technology adoption are reshaping
+    the competitive landscape.
+  regulatory_environment: Motor Vehicles Act, MoRTH regulations, GST e-way bill requirements, Customs Act for international
+    freight, DGCA for air cargo, Shipping Ministry for maritime.
+  growth_drivers:
+  - National Logistics Policy driving cost reduction and efficiency
+  - E-commerce growth fuelling warehousing and last-mile demand
+  - Dedicated Freight Corridors reducing transit times
+  - GST unification enabling hub-and-spoke distribution models
+  headwinds:
+  - Fuel price volatility impacting operating margins
+  - Fragmented and unorganized competition in road transport
+  - Infrastructure gaps in cold chain and specialized logistics
+  - Driver shortage and high attrition in workforce
+  competitors:
+  - name: Adani Ports & Logistics
+    revenue_cr: 19000
+    market_share_pct: 9.5
+    rating: ICRA AA+
+  - name: Delhivery
+    revenue_cr: 8200
+    market_share_pct: 4.1
+    rating: CRISIL A+
+  - name: TCI Express
+    revenue_cr: 1400
+    market_share_pct: 0.7
+    rating: CRISIL AA-
+  description: The company provides integrated logistics services including express cargo, warehousing, 3PL solutions,
+    and last-mile delivery. Operations leverage technology for route optimization and real-time tracking across
+    a pan-India network.
+  typical_revenue_segments:
+  - name: Express Cargo & Parcels
+    pct: 35.0
+  - name: Warehousing & 3PL
+    pct: 25.0
+  - name: Part Truckload (PTL)
+    pct: 18.0
+  - name: Full Truckload (FTL)
+    pct: 14.0
+  - name: Cold Chain & Specialized
+    pct: 8.0
+manufacturing:
+  industry_overview: The Indian Manufacturing sector contributes approximately 17% to the national GDP and is a
+    key driver of employment and exports. Government initiatives like 'Make in India', Production Linked Incentive
+    (PLI) schemes, and National Manufacturing Policy are catalysing growth. The sector is experiencing a shift towards
+    automation, Industry 4.0, and sustainability.
+  regulatory_environment: Governed by MCA, SEBI (for listed), BIS standards, environmental clearances (MoEFCC),
+    factory licenses under Factories Act 1948, and sector-specific regulations.
+  growth_drivers:
+  - Government PLI schemes across 14 sectors worth ₹1.97 lakh Cr
+  - China+1 diversification strategy benefiting Indian manufacturers
+  - Growing domestic consumption and middle-class expansion
+  - Digital infrastructure and Industry 4.0 adoption
+  headwinds:
+  - Input cost volatility — raw material and energy prices
+  - Supply chain disruptions and logistics inefficiencies
+  - Competition from imports and global overcapacity
+  - Environmental compliance costs under stricter norms
+  competitors:
+  - name: Tata Group (Diversified)
+    revenue_cr: 11500
+    market_share_pct: 8.2
+    rating: CRISIL AAA
+  - name: Reliance Industries
+    revenue_cr: 28000
+    market_share_pct: 15.1
+    rating: CRISIL AAA
+  - name: Adani Group (Diversified)
+    revenue_cr: 15000
+    market_share_pct: 7.5
+    rating: ICRA AA+
+  description: The company is engaged in manufacturing operations with a product portfolio spanning core industrial
+    products, aftermarket spares, and engineering services. Operations are spread across multiple plants with a
+    growing export footprint.
+  typical_revenue_segments:
+  - name: Core Manufacturing / OEM
+    pct: 45.0
+  - name: Aftermarket & Spares
+    pct: 20.0
+  - name: Exports
+    pct: 18.0
+  - name: Engineering Services
+    pct: 10.0
+  - name: Other Operating Revenue
+    pct: 7.0
+  typical_geographic_mix:
+  - region: India — North & West
+    pct: 40.0
+  - region: India — South & East
+    pct: 25.0
+  - region: Exports — Asia Pacific
+    pct: 18.0
+  - region: Exports — Europe & Americas
+    pct: 17.0
+pharma:
+  industry_overview: India is the 'pharmacy of the world', being the largest producer of generic medicines globally,
+    supplying over 20% of the world's generic drug demand. The domestic pharma market is valued at ~₹2 lakh Cr and
+    growing at 8-10% CAGR. Contract manufacturing (CDMO) and biosimilars present significant growth opportunities.
+  regulatory_environment: Regulated by CDSCO/DCGI, Drug Price Control Order (DPCO/NPPA), USFDA, EMA for exports.
+    WHO-GMP and Schedule M compliance mandatory for manufacturing.
+  growth_drivers:
+  - Patent cliff in global markets opens generic opportunities
+  - Growing CDMO/CMO segment with China+1 tailwinds
+  - Ayushman Bharat and expanding healthcare access
+  - Biosimilar development pipeline
+  headwinds:
+  - USFDA regulatory scrutiny and warning letters
+  - Drug price controls under DPCO impacting margins
+  - R&D costs and clinical trial uncertainties
+  - API import dependency on China (~68%)
+  competitors:
+  - name: Sun Pharma
+    revenue_cr: 42000
+    market_share_pct: 8.5
+    rating: CRISIL AAA
+  - name: Dr. Reddy's
+    revenue_cr: 24500
+    market_share_pct: 5.0
+    rating: CRISIL AA+
+  - name: Cipla
+    revenue_cr: 22500
+    market_share_pct: 4.6
+    rating: CRISIL AA+
+  description: The company operates in the Indian pharmaceutical sector with presence in formulations, API manufacturing,
+    and CDMO services. It services both domestic and regulated international markets (US, EU) with a diversified
+    product pipeline.
+  typical_revenue_segments:
+  - name: Formulations — Domestic
+    pct: 30.0
+  - name: Formulations — Exports
+    pct: 28.0
+  - name: API (Active Pharmaceutical Ingredients)
+    pct: 22.0
+  - name: CDMO / Custom Manufacturing
+    pct: 12.0
+  - name: Others (Biosimilars, OTC)
+    pct: 8.0
+  typical_geographic_mix:
+  - region: USA (ANDA/505b2)
+    pct: 35.0
+  - region: India
+    pct: 30.0
+  - region: Europe
+    pct: 15.0
+  - region: Emerging Markets
+    pct: 12.0
+  - region: Rest of World
+    pct: 8.0
+real_estate:
+  industry_overview: Indian real estate market is projected to reach $1 trillion by 2030. Residential segment has
+    seen strong revival with sales in top 7 cities crossing 3 lakh units in FY2024. Commercial real estate delivered
+    ~55 million sq ft of Grade-A office space. REITs have provided exit routes for developers and institutional
+    investors.
+  regulatory_environment: RERA (Real Estate Regulation Act 2016) at state level, GST for under-construction projects,
+    SEBI REIT regulations, environmental clearances, development authority approvals.
+  growth_drivers:
+  - PMAY (Pradhan Mantri Awas Yojana) boosting affordable housing
+  - GCC expansion driving commercial office demand
+  - Interest rate cycle turning favourable for homebuyers
+  - Infrastructure development (metro, highways) unlocking new micro-markets
+  headwinds:
+  - High unsold inventory in select micro-markets
+  - Rising construction costs (steel, cement, labour)
+  - Interest rate sensitivity of homebuyer demand
+  - RERA compliance costs and timeline pressure on developers
+  competitors:
+  - name: DLF
+    revenue_cr: 6800
+    market_share_pct: 3.2
+    rating: CRISIL AA
+  - name: Godrej Properties
+    revenue_cr: 4200
+    market_share_pct: 2.0
+    rating: CRISIL AA+
+  - name: Prestige Estates
+    revenue_cr: 8800
+    market_share_pct: 4.1
+    rating: ICRA AA
+  description: The company is a real estate developer with residential and commercial projects across key Indian
+    cities. Revenue follows Ind AS 115 (POCM/Completion) and the company maintains a launch pipeline of projects
+    with a mix of affordable and premium segments.
+  typical_revenue_segments:
+  - name: Residential
+    pct: 50.0
+  - name: Commercial Office
+    pct: 25.0
+  - name: Retail / Mall
+    pct: 12.0
+  - name: Plotted Development
+    pct: 8.0
+  - name: Others (Industrial, SEZ)
+    pct: 5.0
+trading:
+  industry_overview: India's trading sector encompasses commodities, gems & jewellery, textiles, and FMCG distribution,
+    contributing significantly to employment. Organized retail penetration is at ~12%, growing at 15% CAGR. The
+    sector benefits from India's consumer market (~1.4 billion population) and rising per-capita income reaching
+    $2,700+.
+  regulatory_environment: Consumer Protection Act 2019, BIS hallmarking for gold/silver, FSSAI for food products,
+    Essential Commodities Act, FDI regulations for multi-brand retail.
+  growth_drivers:
+  - Rising per-capita income and aspirational consumption
+  - Organized retail penetration rising from 12% to projected 25%
+  - D2C and omnichannel distribution models
+  - GST unification enabling nationwide supply chain optimization
+  headwinds:
+  - Intense competition from e-commerce platforms reducing margins
+  - Working capital intensive with thin margins (3-6%)
+  - Inventory holding risk especially in fashion and perishables
+  - Foreign exchange risk for import-dependent traders
+  competitors:
+  - name: Titan
+    revenue_cr: 51000
+    market_share_pct: 6.0
+    rating: CRISIL AAA
+  - name: Trent (Westside/Zudio)
+    revenue_cr: 12000
+    market_share_pct: 1.4
+    rating: CRISIL AA
+  - name: PC Jeweller
+    revenue_cr: 6000
+    market_share_pct: 0.7
+    rating: CARE BB
+  description: The company operates in the trading and distribution sector handling commodities, consumer goods,
+    or specialized products. Business is working-capital intensive with focus on supply chain efficiency and margin
+    management across B2B and retail channels.
+  typical_revenue_segments:
+  - name: Domestic B2B Distribution
+    pct: 40.0
+  - name: Retail & Franchise
+    pct: 25.0
+  - name: Exports
+    pct: 18.0
+  - name: E-commerce / D2C Channel
+    pct: 12.0
+  - name: Others
+    pct: 5.0

@@ -8,7 +8,7 @@
                   "Disputed, retention and arbitration amounts"]},
     {"investigation_id": "INV-ABCE001-DATA_RELIABILITY", "priority": "P1",
      "observation_id": "OBS-ABCE001-DATA_RELIABILITY", "related": [],
-     "evidence": ["GST returns and turnover reconciliation (XSRC_GST_REVENUE_MISMATCH)"]},
+     "evidence": ["GST returns and turnover reconciliation"]},
     {"investigation_id": "INV-ABCE001-POLICY_EXCEPTION", "priority": "P1",
      "observation_id": "OBS-ABCE001-POLICY_DEVIATION", "related": [],
      "evidence": ["Deviation note — DSCR", "Deviation note — Current ratio", "Deviation note — Debt / EBITDA",

@@ -7,6 +7,7 @@ from Dixon's published standalone figures (₹ lakh)."""
 
 import importlib.util
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -140,6 +141,15 @@ def svc():
     return flow
 
 
+def _fresh_dixon(svc, rm):
+    """A prospect is registered once (round 8): clear an earlier Dixon proposal and its documents first."""
+    import shutil
+    for eid, c in list(svc.companies.items()):
+        if c.get("source") == "los_prospect" and (getattr(c["borrower"], "cin", None) or "") == CIN:
+            svc.reset(rm, eid)
+            shutil.rmtree(svc.documents_root / eid, ignore_errors=True)
+
+
 def _upload(svc, cid, rm, sid, path: Path):
     svc.upload_source(cid, rm, sid, path.name, path.read_bytes())
     return svc.wait_for_acquisition(cid)
@@ -191,10 +201,13 @@ def test_an_inactive_api_falls_back_to_the_document(tmp_path):
 
 def test_dixon_prospect_api_first_then_documents_then_the_cam(svc, docs):
     rm = svc.sign_in("f_rm")
+    _fresh_dixon(svc, rm)
     case = svc.create(rm, prospect={"company_name": NAME, "cin": CIN, "sector": "manufacturing"},
                       facility={"product": "working_capital", "amount_cr": 250, "tenor_months": 12,
                                 "purpose": "Fund-based working capital (cash credit) for component inventory"})
     cid = case["case_id"]
+    assert case["acquisition"]["state"] == "pending"            # nothing runs until the RM chooses
+    svc.refresh_sources(cid, rm)                                 # the agents alone (Re-run agents), no CAM yet
     case = svc.wait_for_acquisition(cid)
     src = case["acquisition"]["sources"]
     # live APIs answered; inactive ones wait for documents
@@ -208,10 +221,9 @@ def test_dixon_prospect_api_first_then_documents_then_the_cam(svc, docs):
     assert src["registries"]["status"] == "fetched" and src["registries"]["demo"]
     assert src["registries"]["summary"].startswith("Demo data · Not on the wilful-defaulter")
     v = svc.view(cid, rm)
-    assert v["acquisition"]["counts"]["fetched"] == 4 and not v["can_generate"]
+    assert v["acquisition"]["counts"]["fetched"] == 4 and not svc._can_generate(svc._require(cid))
     assert v["ask"]["kind"] == "source_doc" and v["ask"]["ref"] == "mca"
-    with pytest.raises(InvalidRequestError, match="MCA"):
-        svc.generate_cam(cid, rm)
+    assert "MCA" in svc._cannot_generate(svc._require(cid))
 
     # documents, in the order Copilot asks for them
     case = _upload(svc, cid, rm, "mca", docs["mca"])
@@ -270,11 +282,39 @@ def test_dixon_prospect_api_first_then_documents_then_the_cam(svc, docs):
     assert "Data acquisition (new prospect)" in html and "Fetched via API" in html and "Read from document" in html
 
 
+def test_generate_cam_runs_the_data_agents_first_and_then_the_cam_engine_on_its_own(svc, docs):
+    rm = svc.sign_in("f_rm")
+    _fresh_dixon(svc, rm)
+    before = {e for e, c in svc.companies.items() if c.get("source") == "los_prospect"}
+    case = svc.create(rm, prospect={"company_name": NAME, "cin": CIN, "sector": "manufacturing"},
+                      facility={"product": "working_capital", "amount_cr": 100, "tenor_months": 12})
+    cid = case["case_id"]
+    assert {e for e, c in svc.companies.items() if c.get("source") == "los_prospect"} == before   # the same record
+    assert sum(1 for b in svc.borrowers() if b["cin"] == CIN) == 1
+    v = svc.view(cid, rm)
+    assert v["acquisition"]["state"] == "pending" and v["gathers_first"] and v["can_generate"] and not v["cam_prep"]
+    assert "Generate CAM" in v["chat"][-1]["text"]
+    svc.generate_cam(cid, rm)                                    # step 1: the data agents
+    svc.wait_for_acquisition(cid)
+    v = svc.view(cid, rm)
+    prep = v["cam_prep"]
+    assert v["cam"]["pending"] and prep["state"] == "needs_data" and prep["percent"] == 100
+    assert {"mca", "financials", "kyc"} <= {n["id"] for n in prep["needs"]}
+    assert v["test_pack"]["id"] == "dixon_technologies"
+    assert any("Load test pack" in m["text"] for m in v["chat"])
+    for sid in ("mca", "financials", "kyc"):                     # the CAM's minimum, as the RM uploads it
+        _upload(svc, cid, rm, sid, docs[sid])
+    case = svc.wait_for_cam(cid, timeout=300)                    # step 2 started on its own
+    assert case["cam"]["state"] == "ready" and "pending" not in case["cam"], case["cam"]
+    assert any(m["text"].startswith("The data is in. Step 2") for m in case["chat"])
+
+
 def test_a_document_for_another_company_is_rejected(svc, docs, tmp_path):
     rm = svc.sign_in("f_rm")
     case = svc.create(rm, prospect={"company_name": "Zenith Circuits Private Limited", "sector": "manufacturing"},
                       facility={"product": "term_loan", "amount_cr": 40, "tenor_months": 60})
     cid = case["case_id"]
+    svc.refresh_sources(cid, rm)
     svc.wait_for_acquisition(cid)
     case = _upload(svc, cid, rm, "kyc", docs["kyc"])
     k = case["acquisition"]["sources"]["kyc"]
@@ -287,3 +327,46 @@ def test_verification_flags_a_cin_mismatch():
     recs = {"mca": {"payload": {"cin": "U99999MH2000PTC123456"}}}
     out = {c["id"]: c for c in verify(ctx, {}, recs, [])}
     assert out["cin"]["status"] == "fail"
+
+
+# ── round 8: the AI model reads the statement pages themselves, as a second reading ─────────────────────────────
+
+class _PagesModel:
+    """A vision model that returns the given figures for the statement pages (₹ lakh, as printed)."""
+    name, supports_vision = "fake-vision", True
+
+    def __init__(self, change=None):
+        self.change, self.calls = change or {}, []
+
+    def generate(self, prompt, system_prompt="", temperature=None, max_tokens=None, images=None):
+        self.calls.append([i["mime"] for i in images or []])
+        r = readers.read_financial_statements(statements_pdf(Path(tempfile.mkdtemp()) / "dixon.pdf"))
+        lakh = {k: [round(s["items"][k] * 100, 2) for s in r["statements"]] for k in r["statements"][0]["items"]
+                if k in readers._FS_KEYS and all(k in s["items"] for s in r["statements"])}
+        lakh.update(self.change)
+        return json.dumps({"years": [2026, 2025], "unit": "lakh", "basis": "standalone", "values": lakh})
+
+
+def test_the_ai_reading_of_the_pages_confirms_the_layout_reading(docs):
+    model = _PagesModel()
+    r = readers.read_financial_statements(docs["financials"], model)
+    assert model.calls == [["application/pdf"]]                 # the pages themselves, not their text
+    assert r["method"] == "layout, confirmed by AI" and not r["cross_check"]
+    assert r["statements"][0]["items"]["revenue_operating"] == pytest.approx(3930.48)
+
+
+def test_when_the_two_readings_differ_the_page_reading_is_used_and_the_difference_kept(docs):
+    lay = readers.read_financial_statements(docs["financials"])["statements"][0]["items"]
+    # the page reading takes total finance costs where the text reading took one sub-line (Adani Ports, round 8)
+    fin = round(lay["finance_cost"] * 100 + 2000, 2)
+    model = _PagesModel({"finance_cost": [fin, round(readers.read_financial_statements(docs["financials"])
+                                                       ["statements"][1]["items"]["finance_cost"] * 100, 2)]})
+    r = readers.read_financial_statements(docs["financials"], model)
+    assert r["method"] == "ai (statement pages)"
+    assert r["cross_check"]["finance_cost"]["ai_pages"] == pytest.approx(fin / 100)
+    assert r["statements"][0]["items"]["finance_cost"] == pytest.approx(fin / 100)
+
+
+def test_without_a_vision_model_the_layout_reading_stands(docs):
+    r = readers.read_financial_statements(docs["financials"], None)
+    assert r["method"] == "layout" and r["cross_check"] == {}

@@ -31,16 +31,32 @@ const ICONS = {
 };
 // The Connections picture (knowledge graph around a borrower) as SVG markup: Alpine cannot loop inside <svg>.
 function graphSvg(p) {
+  // the relationship map (round 8): named boxes in columns, each line saying how two parties are connected
   if (!p || !(p.nodes || []).length) return '';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
-  const lines = (p.lines || []).map(l => '<line x1="' + l.x1 + '" y1="' + l.y1 + '" x2="' + l.x2 + '" y2="' + l.y2 +
-    '" class="kg-l kg-' + esc(String(l.kind).toLowerCase()) + (l.demo ? ' kg-demo' : '') + '"/>').join('');
-  const nodes = p.nodes.map(n => '<g class="kg-n kg-' + esc(n.kind) + (n.stress ? ' kg-stress' : '') + (n.official ? ' kg-official' : '') +
-    (n.center ? ' kg-center' : '') + '"><title>' + esc(n.label) + '</title><circle cx="' + n.x + '" cy="' + n.y + '" r="' +
-    (n.center ? 14 : n.kind === 'person' ? 6 : 8) + '"/><text x="' + n.x + '" y="' + (n.y + (n.center ? 28 : 18)) +
-    '" text-anchor="middle">' + esc(n.label) + '</text></g>').join('');
-  return '<svg class="kg-pic" viewBox="0 0 640 400" role="img" aria-label="Network around the borrower">' + lines + nodes + '</svg>' +
-    (p.hidden ? '<div class="muted sm">' + p.hidden + ' more connection(s) not drawn</div>' : '');
+  const W = 170, H = 34, CW = 240;
+  const half = n => (n && n.center ? CW : W) / 2;
+  const at = {}; p.nodes.forEach(n => { at[n.x + ',' + n.y] = n; });
+  const heads = (p.columns || []).map(c => '<text class="kg-col" x="' + c.x + '" y="20" text-anchor="middle">' + esc(c.title) + '</text>').join('');
+  const lines = (p.lines || []).map(l => {
+    const dir = l.x2 >= l.x1 ? 1 : -1;
+    const x1 = l.x1 + dir * half(at[l.x1 + ',' + l.y1]), x2 = l.x2 - dir * half(at[l.x2 + ',' + l.y2]), mx = (x1 + x2) / 2;
+    const d = 'M' + x1 + ',' + l.y1 + ' C' + mx + ',' + l.y1 + ' ' + mx + ',' + l.y2 + ' ' + x2 + ',' + l.y2;
+    return '<g class="kg-e' + (l.stress ? ' kg-e-stress' : '') + (l.demo ? ' kg-demo' : '') + '"><title>' + esc(l.label) + '</title><path d="' + d + '"/></g>';
+  }).join('');
+  const nodes = p.nodes.map(n => {
+    const w = n.center ? CW : W, h = n.center ? 40 : H;
+    const cls = 'kg-b kg-' + esc(n.kind) + (n.stress ? ' kg-stress' : '') + (n.official ? ' kg-official' : '') + (n.center ? ' kg-center' : '') + (n.demo ? ' kg-demo' : '');
+    const tip = n.full + (n.relation ? ' — ' + n.relation : '') + (n.status ? ' — ' + n.status : '') + (n.official ? ' — ' + n.official : '');
+    const tag = n.stress ? n.status : n.official ? 'bank official' : '';
+    const sub = n.center ? 'the borrower' : n.relation;
+    return '<g class="' + cls + '"><title>' + esc(tip) + '</title><rect x="' + (n.x - w / 2) + '" y="' + (n.y - h / 2) + '" width="' + w + '" height="' + h + '" rx="6"/>' +
+      '<text x="' + n.x + '" y="' + (n.y - (sub ? 2 : -4)) + '" text-anchor="middle">' + esc(n.label) + '</text>' +
+      (sub ? '<text class="kg-sub" x="' + n.x + '" y="' + (n.y + 11) + '" text-anchor="middle">' + esc(sub) + '</text>' : '') +
+      (tag ? '<text class="kg-flag" x="' + (n.x + w / 2 - 4) + '" y="' + (n.y - h / 2 - 3) + '" text-anchor="end">' + esc(tag) + '</text>' : '') + '</g>';
+  }).join('');
+  return '<svg class="kg-pic" viewBox="0 0 ' + (p.width || 900) + ' ' + (p.height || 300) + '" role="img" aria-label="Who the borrower is connected to">' + heads + lines + nodes + '</svg>' +
+    (p.hidden ? '<div class="muted sm">' + p.hidden + ' more connection(s) not drawn — see the table below</div>' : '');
 }
 
 function icon(name, size) {
@@ -56,13 +72,14 @@ function flowApp() {
     page: 'pipeline',            // pipeline | case | analytics
     queueTab: 'mine',
     sel: {},                  // proposals ticked on the queue for deletion
+    dataGroup: '',            // Borrower data: the section shown ('' = all)
     q: { mine: [], all: [], kpis: null },
     filter: { stage: '', sla: '', text: '', archived: false },
     qf: { text: '', to: '' },
     qa: {},
     search: '',
     borrowers: [],
-    nc: { open: false, mode: 'borrower', entity_id: '', search: '', product: 'working_capital', amount_cr: '',
+    nc: { open: false, mode: 'borrower', entity_id: '', bsector: '', search: '', product: 'working_capital', amount_cr: '',
           tenor_months: 12, purpose: '', name: '', cin: '', pan: '', sector: 'manufacturing' },
     c: null,
     tab: 'overview',
@@ -249,6 +266,11 @@ function flowApp() {
       const q = this.nc.search.toLowerCase();
       return this.borrowers.filter(b => !q || (b.company_name + ' ' + b.entity_id + ' ' + (b.cin || '')).toLowerCase().includes(q)).slice(0, 40);
     },
+    borrowerSectors() { return [...new Set(this.borrowers.map(b => b.sector))].sort(); },
+    sectorBorrowers() { return this.borrowers.filter(b => !this.nc.bsector || b.sector === this.nc.bsector).slice().sort((x, y) => x.company_name.localeCompare(y.company_name)); },
+    sectorLabel(s) { const t = String(s || '').replace(/_/g, ' '); return ({ nbfc: 'NBFC', it_services: 'IT services' })[s] || t.charAt(0).toUpperCase() + t.slice(1); },
+    pickedBorrower() { return this.borrowers.find(b => b.entity_id === this.nc.entity_id) || null; },
+    pickById(id) { const b = this.borrowers.find(x => x.entity_id === id); if (b) this.pickBorrower(b); },
     pickBorrower(b) {
       this.nc.entity_id = b.entity_id;
       this.nc.product = b.facility.product || 'working_capital';
@@ -329,7 +351,7 @@ function flowApp() {
       const first = !this.c || this.c.case_id !== v.case_id;
       this.c = v; this.page = 'case';
       if (first) {
-        this.showTimeline = false; this.timeline = []; this.edit = null; this.cursor = { missing: -1, skipped: -1 }; this.expandedMsg = {};
+        this.dataGroup = ''; this.showTimeline = false; this.timeline = []; this.edit = null; this.cursor = { missing: -1, skipped: -1 }; this.expandedMsg = {};
         this.tab = this.defaultTab(v); window.scrollTo({ top: 0 });
       }
       if (v.cam && v.cam.state === 'running') this.startPoll(); else this.stopPoll();
@@ -341,7 +363,7 @@ function flowApp() {
     tabs() {
       const c = this.c; if (!c) return [];
       const t = [{ id: 'overview', label: 'Overview', n: this.todo().filter(x => x.tone !== 'info').length },
-                 { id: 'data', label: 'Credit data', n: c.editable ? (c.counts.missing || 0) : 0 },
+                 { id: 'data', label: 'Borrower data', n: c.editable ? (c.counts.missing || 0) : 0 },
                  { id: 'risk', label: 'Risk & decision', n: this.riskOpen() },
                  { id: 'docs', label: 'Documents & CAM', n: c.can_sources ? ((c.acquisition && c.acquisition.counts.needed) || 0) : 0 }];
       if (c.sanction) t.push({ id: 'post', label: 'Post-sanction', n: c.can_conditions && c.status === 'open' ? this.cpCount() - this.cpMet() : 0 });
@@ -380,7 +402,8 @@ function flowApp() {
       this.myQueries().forEach(q => add('warn', q.from_name + ' (' + q.stage_label + ') asks: “' + q.question + '”', 'Answer', () => this.reveal('sec-queries')));
       if (!c.is_mine) return out;
       if (c.ask) add('warn', 'Credit Copilot is waiting for your answer', 'Open Copilot', () => { this.chatOpen = true; this.$nextTick(() => this.scrollChat()); });
-      if (c.can_cam && c.cam.state === 'none')
+      if (c.can_cam && c.cam.state === 'none' && c.cam.pending && c.cam_prep) add(c.cam_prep.state === 'needs_data' ? 'warn' : 'info', c.cam_prep.state === 'needs_data' ? 'The CAM is waiting for documents' + (c.test_pack && !c.test_pack.loaded ? ' — load the test pack or upload them' : '') : 'Generating the CAM · step 1, gathering the borrower’s data · ' + c.cam_prep.percent + '%', 'View', () => this.reveal('sec-cam'));
+      else if (c.can_cam && c.cam.state === 'none')
         add('warn', c.can_generate ? 'Generate the CAM, or ingest the bank’s CAM' : (c.generate_blocker || 'Complete the data sources first'), 'Go', () => this.reveal(c.can_generate ? 'sec-cam' : 'sec-src'));
       if (c.cam.state === 'running') add('info', 'The CAM is being generated · ' + ((c.progress && c.progress.percent) || 0) + '%', 'View progress', () => this.reveal('sec-cam'));
       if (c.cam.state === 'failed' && (c.can_cam || c.can_rerun)) add('bad', 'CAM generation stopped — resume it', 'Go', () => this.reveal('sec-cam'));
@@ -415,7 +438,7 @@ function flowApp() {
           const v = await this.get('/api/flow/cases/' + this.c.case_id);
           const was = this.acquiring();
           this.c = v;
-          if (!this.acquiring()) { this.stopSrcPoll(); if (was) this.notify('Data sources updated', 'ok'); this.$nextTick(() => this.scrollChat()); }
+          if (!this.acquiring()) { this.stopSrcPoll(); this.setCase(v); if (was) this.notify(v.cam && v.cam.state === 'running' ? 'Data gathered — the CAM engine has started' : 'Data sources updated', 'ok'); }
         } catch (e) { this.stopSrcPoll(); }
       }, 1500);
     },
@@ -479,7 +502,7 @@ function flowApp() {
     stopPoll() { if (this.poll) { clearInterval(this.poll); this.poll = null; } },
     async generate() {
       this.busy = true;
-      try { const p = await this.post(this.cp('/cam/generate')); this.c.cam = p.cam; this.c.progress = p.job; this.startPoll(); }
+      try { const p = await this.post(this.cp('/cam/generate')); if (p.cam.state === 'running') { this.c.cam = p.cam; this.c.progress = p.job; this.startPoll(); } else await this.refresh(); }
       finally { this.busy = false; }
     },
     async uploadCam(ev) {
@@ -513,7 +536,7 @@ function flowApp() {
     },
     startEdit(p, value, reason, challenge) {
       this.edit = { id: p.id, label: p.label, type: p.type, value: value != null ? value : (p.value === null ? '' : p.value),
-                    reason: reason || '', needsReason: this.c.stage === 'credit_risk', challenge: challenge || '' };
+                    reason: reason || '', needsReason: this.c.stage === 'credit_risk' || !!p.needs_reason, computed: !!p.needs_reason, challenge: challenge || '' };
     },
     editField(id, value, reason, challenge) {
       // open a credit data field for editing and bring it into view
@@ -524,7 +547,7 @@ function flowApp() {
       this.$nextTick(() => { const el = document.querySelector('.fld[data-id="' + id + '"]'); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } });
     },
     async saveEdit() {
-      if (this.edit.needsReason && !this.edit.reason.trim()) { this.notify('State the rationale — the Sanctioning Authority sees it', 'error'); return; }
+      if (this.edit.needsReason && !this.edit.reason.trim()) { this.notify(this.edit.computed ? 'Say how you arrived at the figure — it is normally calculated' : 'State the rationale — the Sanctioning Authority sees it', 'error'); return; }
       this.busy = true;
       try { this.setCase(await this.put(this.cp('/datapoints/' + this.edit.id), { value: this.edit.value, reason: this.edit.reason, challenge: this.edit.challenge || '' })); this.edit = null; }
       finally { this.busy = false; }
@@ -532,7 +555,7 @@ function flowApp() {
     async skip(p) { this.setCase(await this.post(this.cp('/datapoints/' + p.id + '/skip'))); },
     toggle(id) { this.expanded[id] = !this.expanded[id]; },
     goTo(status) {
-      if (this.tab !== 'data') { this.tab = 'data'; return this.$nextTick(() => this.goTo(status)); }
+      if (this.tab !== 'data' || this.dataGroup) { this.tab = 'data'; this.dataGroup = ''; return this.$nextTick(() => this.goTo(status)); }
       // jump to the next field with this status (pending / not provided), cycling
       const els = Array.from(document.querySelectorAll('.fld[data-status="' + status + '"]'));
       if (!els.length) { this.notify(status === 'missing' ? 'No pending fields' : 'No fields marked not provided'); return; }
@@ -605,17 +628,18 @@ function flowApp() {
     sevLabel(s) { s = String(s || ''); return s ? s.charAt(0) + s.slice(1).toLowerCase() + ' severity' : ''; },
     respText(r) {
       if (!r) return '';
-      const how = { justify: 'Justification recorded', override: 'Figure overridden', send_back: 'Returned for documents', reject: 'Declined' }[r.kind] || r.kind;
+      const how = { justify: 'Risk accepted with justification', override: 'Figure corrected', send_back: 'Evidence requested from the RM', reject: 'Proposal declined', reduce_amount: 'Limit reduced' }[r.kind] || r.kind;
       return how + ' by ' + r.by + (r.note ? ': “' + r.note + '”' : '');
     },
     allowed(x) {
       const has = id => (this.c.actions || []).some(a => a.id === id);
       return { reduce_amount: this.c.editable, override: this.c.editable, send_back: has('send_back'), reject: has('reject'),
-               justify: this.c.is_mine && (this.c.against || []).length > 0, goto: true, approve: has('approve') && this.approveAct().enabled }[x.kind] || false;
+               justify: this.c.is_mine && (this.c.against || []).length > 0, goto: true, withdraw: !!this.c.can_withdraw, approve: has('approve') && this.approveAct().enabled }[x.kind] || false;
     },
     async doAction(x, a) {
       const cid = a ? a.id : (x.challenge || '');
       if (x.kind === 'goto') return this.reveal(x.target);
+      if (x.kind === 'withdraw') return this.withdrawCase();
       if (x.kind === 'reduce_amount' && x.tenor) {
         // a structure: limit and tenor together
         const ok = await this.confirm(x.label + '?', (x.reason || '') + ' Both figures are changed; the CAM is re-run for the new tenor.', 'Apply');
@@ -638,10 +662,10 @@ function flowApp() {
       }
       if (x.kind === 'justify') {
         if (!a) { this.notify('Choose the challenge to answer on screen'); this.reveal('sec-chal'); return; }
-        const note = await this.ask('Justification: ' + a.title, 'Explain why the proposal can proceed despite this challenge, and the mitigants (security, covenant, pricing, condition). The next approver and the audit trail see it.', 'Justification and mitigants', true, 'Record');
+        const note = await this.ask('Accept the risk: ' + a.title, 'You are accepting this: ' + (a.what || a.challenge || '') + '\n\nSay why the proposal can go ahead despite it, and the mitigants (security, covenant, pricing, a condition). The next approver and the audit trail see it.', 'Why it is acceptable, and the mitigants', true, 'Accept the risk');
         if (note === null) return;
         this.busy = true;
-        try { this.setCase(await this.post(this.cp('/challenges/' + encodeURIComponent(a.id)), { kind: 'justify', note })); this.notify('Justification recorded', 'ok'); }
+        try { this.setCase(await this.post(this.cp('/challenges/' + encodeURIComponent(a.id)), { kind: 'justify', note })); this.notify('Risk accepted — justification recorded', 'ok'); }
         finally { this.busy = false; }
       }
     },
@@ -704,7 +728,7 @@ function flowApp() {
         .filter(([k]) => k).map(([k, t]) => k + ' ' + t).join(' · ');
     },
     flash(el) { if (!el) return; el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); },
-    goToField(id) { this.tab = 'data'; this.$nextTick(() => this.flash(document.querySelector('.fld[data-id="' + id + '"]'))); },
+    goToField(id) { this.tab = 'data'; this.dataGroup = ''; this.$nextTick(() => this.flash(document.querySelector('.fld[data-id="' + id + '"]'))); },
     goToTarget(g) {
       if (!g) return;
       this.tab = g.row ? 'post' : this.tabOf(g.target);

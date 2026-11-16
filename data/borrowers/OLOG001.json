@@ -1,0 +1,570 @@
+{
+ "core_banking": {
+  "loan_accounts": [
+   {
+    "account_number": "ACC_OLG_TL01",
+    "entity_id": "OLOG001",
+    "facility_type": "TL",
+    "sanction_limit_cr": 45.0,
+    "outstanding_cr": 38.5,
+    "interest_rate_pct": 11.25,
+    "overdue_amount_cr": 1.2,
+    "dpd": 28,
+    "asset_classification": "Standard",
+    "sanction_date": "2022-04-10",
+    "maturity_date": "2029-04-10",
+    "repayment_frequency": "Monthly"
+   },
+   {
+    "account_number": "ACC_OLG_CC01",
+    "entity_id": "OLOG001",
+    "facility_type": "CC",
+    "sanction_limit_cr": 20.0,
+    "outstanding_cr": 19.7,
+    "interest_rate_pct": 12.5,
+    "overdue_amount_cr": 0.0,
+    "dpd": 0,
+    "asset_classification": "Standard",
+    "sanction_date": "2023-01-15",
+    "maturity_date": "2026-01-15",
+    "repayment_frequency": "Monthly"
+   }
+  ],
+  "bclc": {
+   "total_fund_based_cr": 58.2,
+   "total_non_fund_based_cr": 0.0,
+   "total_exposure_cr": 58.2,
+   "single_borrower_limit_pct": 0.12,
+   "group_borrower_limit_pct": 0.12,
+   "within_single_limit": true,
+   "within_group_limit": true,
+   "industry_exposure_pct": 1.8,
+   "sector_ceiling_pct": 10.0,
+   "rating_based_limit_cr": 200.0
+  },
+  "liability": {
+   "current_account_balance_cr": 2.1,
+   "savings_balance_cr": 0.0,
+   "fixed_deposit_cr": 0.0,
+   "total_deposits_cr": 2.1,
+   "average_balance_6m_cr": 2.8,
+   "reciprocal_business_cr": 2.1,
+   "cross_sell_products": [
+    "Cash Management"
+   ]
+  },
+  "fees_commission": [
+   {
+    "period": "FY2025",
+    "processing_fees_cr": 0.25,
+    "renewal_fees_cr": 0.1,
+    "lc_commission_cr": 0.0,
+    "bg_commission_cr": 0.0,
+    "forex_income_cr": 0.0,
+    "other_charges_cr": 0.05,
+    "total_income_cr": 0.4
+   },
+   {
+    "period": "FY2024",
+    "processing_fees_cr": 0.2,
+    "renewal_fees_cr": 0.08,
+    "lc_commission_cr": 0.0,
+    "bg_commission_cr": 0.0,
+    "forex_income_cr": 0.0,
+    "other_charges_cr": 0.04,
+    "total_income_cr": 0.32
+   }
+  ],
+  "total_exposure_cr": 58.2,
+  "overall_asset_classification": "Standard",
+  "relationship_since": "2020-07-01",
+  "relationship_years": 6
+ },
+ "data_provider": "verified_public_records",
+ "catalog_source": "reference_catalog",
+ "preferred_identifier": "Omega Logistics Pvt Ltd",
+ "reference_prefix": null,
+ "borrower": {
+  "entity_id": "OLOG001",
+  "company_name": "Omega Logistics Pvt Ltd",
+  "cin": "U63090KA2010PTC052345",
+  "pan": "AABCO3456J",
+  "borrower_type": "unlisted",
+  "sector": "logistics",
+  "subsector": "3PL & Warehousing",
+  "date_of_incorporation": "2010-03-25",
+  "registered_state": "Karnataka",
+  "registered_address": "No 78, Whitefield Main Road, Bangalore 560066",
+  "authorized_capital": 25.0,
+  "paid_up_capital": 18.0,
+  "listed_exchange": null,
+  "isin": null,
+  "bse_code": null,
+  "nse_symbol": null,
+  "credit_rating": "BWR BBB+/Stable",
+  "rating_agency": "Brickwork",
+  "employee_count": 1450,
+  "website": "www.omegalogistics.in"
+ },
+ "group": {
+  "group_id": "GRP_OLOG",
+  "group_name": "Omega Group",
+  "parent_entity_id": "OLOG001",
+  "entities": [
+   "OLOG001",
+   "Omega Cold Chain Pvt Ltd"
+  ],
+  "promoter_holding_pct": 72.0,
+  "institutional_holding_pct": 0.0,
+  "public_holding_pct": 28.0,
+  "hierarchy": null,
+  "ultimate_parent": null,
+  "group_revenue_cr": null,
+  "group_net_worth_cr": null,
+  "group_total_debt_cr": null
+ },
+ "directors": [
+  {
+   "din": "00445566",
+   "name": "Pradeep Nair",
+   "designation": "Managing Director",
+   "entity_id": "OLOG001",
+   "pan": "AABPN4567H",
+   "date_of_appointment": "2011-03-25",
+   "other_directorships": [
+    "Omega Cold Chain Pvt Ltd"
+   ],
+   "net_worth_cr": 22.0,
+   "is_promoter": true
+  },
+  {
+   "din": "00445567",
+   "name": "Deepa P. Nair",
+   "designation": "Director",
+   "entity_id": "OLOG001",
+   "pan": "AABPD4568I",
+   "date_of_appointment": "2013-04-01",
+   "other_directorships": [
+    "Omega Cold Chain Pvt Ltd"
+   ],
+   "net_worth_cr": 15.0,
+   "is_promoter": true
+  },
+  {
+   "din": "00445568",
+   "name": "Sanjay Kulkarni",
+   "designation": "Independent Director",
+   "entity_id": "OLOG001",
+   "pan": "AABPS4569J",
+   "date_of_appointment": "2023-08-01",
+   "other_directorships": [
+    "XYZ Freight Ltd"
+   ],
+   "net_worth_cr": 5.0,
+   "is_promoter": false
+  }
+ ],
+ "financials": {
+  "FY2025": {
+   "entity_id": "OLOG001",
+   "period": "FY2025",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2025-03-31",
+   "line_items": {
+    "revenue_operating": 580.0,
+    "other_income": 8.0,
+    "total_income": 588.0,
+    "raw_material_cost": 290.0,
+    "employee_cost": 87.0,
+    "other_expenses": 110.2,
+    "ebitda": 100.8,
+    "depreciation": 34.8,
+    "ebit": 66.0,
+    "finance_cost": 38.0,
+    "pbt": 28.0,
+    "tax_expense": 7.0,
+    "pat": 21.0,
+    "total_equity": 92.0,
+    "reserves_surplus": 74.0,
+    "long_term_debt": 145.0,
+    "short_term_debt": 110.0,
+    "total_debt": 255.0,
+    "current_assets": 195.0,
+    "inventory": 18.0,
+    "trade_receivables": 120.0,
+    "cash_equivalents": 8.0,
+    "other_current_assets": 49.0,
+    "current_liabilities": 155.0,
+    "trade_payables": 85.0,
+    "other_current_liabilities": 70.0,
+    "total_assets": 502.0,
+    "net_fixed_assets": 185.0,
+    "capital_wip": 15.0,
+    "intangible_assets": 12.0,
+    "investments": 5.0,
+    "operating_cash_flow": 52.0,
+    "investing_cash_flow": -38.0,
+    "financing_cash_flow": -8.0,
+    "capex": 32.0,
+    "dividend_paid": 2.0,
+    "contingent_liabilities": 8.5
+   }
+  },
+  "FY2024": {
+   "entity_id": "OLOG001",
+   "period": "FY2024",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2024-03-31",
+   "line_items": {
+    "revenue_operating": 520.0,
+    "other_income": 6.5,
+    "total_income": 526.5,
+    "raw_material_cost": 260.0,
+    "employee_cost": 78.0,
+    "other_expenses": 98.8,
+    "ebitda": 89.7,
+    "depreciation": 31.0,
+    "ebit": 58.7,
+    "finance_cost": 34.0,
+    "pbt": 24.7,
+    "tax_expense": 6.18,
+    "pat": 18.52,
+    "total_equity": 82.0,
+    "reserves_surplus": 64.0,
+    "long_term_debt": 130.0,
+    "short_term_debt": 95.0,
+    "total_debt": 225.0,
+    "current_assets": 172.0,
+    "inventory": 15.0,
+    "trade_receivables": 108.0,
+    "cash_equivalents": 10.0,
+    "other_current_assets": 39.0,
+    "current_liabilities": 138.0,
+    "trade_payables": 76.0,
+    "other_current_liabilities": 62.0,
+    "total_assets": 445.0,
+    "net_fixed_assets": 168.0,
+    "capital_wip": 10.0,
+    "intangible_assets": 10.0,
+    "investments": 5.0,
+    "operating_cash_flow": 48.0,
+    "investing_cash_flow": -28.0,
+    "financing_cash_flow": -15.0,
+    "capex": 25.0,
+    "dividend_paid": 2.0,
+    "contingent_liabilities": 6.0
+   }
+  },
+  "FY2023": {
+   "entity_id": "OLOG001",
+   "period": "FY2023",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2023-03-31",
+   "line_items": {
+    "revenue_operating": 465.0,
+    "other_income": 5.0,
+    "total_income": 470.0,
+    "raw_material_cost": 232.5,
+    "employee_cost": 69.75,
+    "other_expenses": 88.35,
+    "ebitda": 79.4,
+    "depreciation": 27.5,
+    "ebit": 51.9,
+    "finance_cost": 30.0,
+    "pbt": 21.9,
+    "tax_expense": 5.48,
+    "pat": 16.42,
+    "total_equity": 72.0,
+    "reserves_surplus": 54.0,
+    "long_term_debt": 115.0,
+    "short_term_debt": 82.0,
+    "total_debt": 197.0,
+    "current_assets": 148.0,
+    "inventory": 12.0,
+    "trade_receivables": 92.0,
+    "cash_equivalents": 12.0,
+    "other_current_assets": 32.0,
+    "current_liabilities": 118.0,
+    "trade_payables": 65.0,
+    "other_current_liabilities": 53.0,
+    "total_assets": 387.0,
+    "net_fixed_assets": 152.0,
+    "capital_wip": 8.0,
+    "intangible_assets": 8.0,
+    "investments": 4.0,
+    "operating_cash_flow": 42.0,
+    "investing_cash_flow": -22.0,
+    "financing_cash_flow": -18.0,
+    "capex": 20.0,
+    "dividend_paid": 1.5,
+    "contingent_liabilities": 5.0
+   }
+  }
+ },
+ "provisional": {
+  "entity_id": "OLOG001",
+  "period": "FY2026_P",
+  "statement_type": "standalone",
+  "source": "provisional",
+  "as_of_date": "2026-12-31",
+  "line_items": {
+   "revenue_operating": 610.0,
+   "ebitda": 97.6,
+   "pat": 18.0,
+   "total_debt": 270.0,
+   "total_equity": 98.0
+  }
+ },
+ "facility": {
+  "facility_id": "FAC_OLOG_001",
+  "entity_id": "OLOG001",
+  "case_type": "ETB",
+  "facility_type": "working_capital",
+  "amount_requested_cr": 25.0,
+  "purpose": "Enhancement of working capital limit from Rs 110 Cr to Rs 135 Cr to support growing contract logistics volumes.",
+  "tenor_months": 12,
+  "collateral_type": "Receivables + Vehicles",
+  "collateral_value_cr": 48.0,
+  "existing_limit_cr": 110.0,
+  "proposed_limit_cr": 135.0
+ },
+ "collateral": [
+  {
+   "collateral_id": "COL_OLOG_001",
+   "entity_id": "OLOG001",
+   "collateral_type": "Fleet Vehicles",
+   "description": "24 commercial vehicles — 16-tonne trucks",
+   "market_value_cr": 32.0,
+   "forced_sale_value_cr": 19.2,
+   "valuation_date": "2026-08-15",
+   "encumbrance_status": "hypothecated"
+  },
+  {
+   "collateral_id": "COL_OLOG_002",
+   "entity_id": "OLOG001",
+   "collateral_type": "Receivables",
+   "description": "Trade receivables from top 10 customers",
+   "market_value_cr": 16.0,
+   "forced_sale_value_cr": 9.6,
+   "valuation_date": "2027-01-05",
+   "encumbrance_status": "assigned"
+  }
+ ],
+ "market_signals": [
+  {
+   "entity_id": "OLOG001",
+   "signal_type": "news",
+   "headline": "India 3PL market grows 12% YoY; Omega Logistics adds 3 warehouses",
+   "sentiment": "positive",
+   "severity": "low",
+   "source_name": "ET Logistics",
+   "signal_date": "2026-11-10",
+   "details": "3PL sector sees tailwinds from e-commerce and cold-chain demand."
+  },
+  {
+   "entity_id": "OLOG001",
+   "signal_type": "social",
+   "headline": "Customer complaints about delayed shipments from Omega Logistics",
+   "sentiment": "negative",
+   "severity": "medium",
+   "source_name": "Twitter/X",
+   "signal_date": "2026-12-20",
+   "details": "Multiple B2B customers report service quality deterioration in last 2 months."
+  }
+ ],
+ "existing_exposure": [
+  {
+   "facility_id": "EXP_OLOG_WC",
+   "entity_id": "OLOG001",
+   "facility_type": "Working Capital",
+   "sanctioned_limit_cr": 110.0,
+   "outstanding_cr": 105.6,
+   "utilization_pct": 96.0,
+   "overdue_days": 0,
+   "classification": "Standard"
+  },
+  {
+   "facility_id": "EXP_OLOG_TL",
+   "entity_id": "OLOG001",
+   "facility_type": "Term Loan",
+   "sanctioned_limit_cr": 85.0,
+   "outstanding_cr": 62.5,
+   "utilization_pct": 73.5,
+   "overdue_days": 15,
+   "classification": "Standard"
+  }
+ ],
+ "conduct": [
+  {
+   "entity_id": "OLOG001",
+   "period": "Q1_FY2026",
+   "avg_bank_balance_cr": 3.2,
+   "credit_turnover_cr": 145.0,
+   "debit_turnover_cr": 148.0,
+   "cheque_returns": 8,
+   "limit_utilization_pct": 94.0,
+   "overdue_instances": 2,
+   "max_overdue_days": 18,
+   "dpd_30_count": 1,
+   "dpd_60_count": 0,
+   "dpd_90_count": 0
+  },
+  {
+   "entity_id": "OLOG001",
+   "period": "Q2_FY2026",
+   "avg_bank_balance_cr": 2.8,
+   "credit_turnover_cr": 138.0,
+   "debit_turnover_cr": 142.0,
+   "cheque_returns": 12,
+   "limit_utilization_pct": 97.0,
+   "overdue_instances": 3,
+   "max_overdue_days": 25,
+   "dpd_30_count": 1,
+   "dpd_60_count": 0,
+   "dpd_90_count": 0
+  },
+  {
+   "entity_id": "OLOG001",
+   "period": "Q3_FY2026",
+   "avg_bank_balance_cr": 2.1,
+   "credit_turnover_cr": 130.0,
+   "debit_turnover_cr": 135.0,
+   "cheque_returns": 15,
+   "limit_utilization_pct": 98.5,
+   "overdue_instances": 4,
+   "max_overdue_days": 32,
+   "dpd_30_count": 2,
+   "dpd_60_count": 1,
+   "dpd_90_count": 0
+  },
+  {
+   "entity_id": "OLOG001",
+   "period": "Q4_FY2025",
+   "avg_bank_balance_cr": 4.5,
+   "credit_turnover_cr": 155.0,
+   "debit_turnover_cr": 152.0,
+   "cheque_returns": 5,
+   "limit_utilization_pct": 88.0,
+   "overdue_instances": 1,
+   "max_overdue_days": 12,
+   "dpd_30_count": 0,
+   "dpd_60_count": 0,
+   "dpd_90_count": 0
+  }
+ ],
+ "covenants": [
+  {
+   "entity_id": "OLOG001",
+   "covenant_type": "Minimum Current Ratio",
+   "required_value": ">=1.25",
+   "actual_value": "1.26",
+   "compliance_status": "compliant",
+   "period": "FY2024",
+   "breach_details": ""
+  },
+  {
+   "entity_id": "OLOG001",
+   "covenant_type": "Minimum Current Ratio",
+   "required_value": ">=1.25",
+   "actual_value": "1.26",
+   "compliance_status": "compliant",
+   "period": "FY2025",
+   "breach_details": ""
+  },
+  {
+   "entity_id": "OLOG001",
+   "covenant_type": "Maximum Debt/Equity",
+   "required_value": "<=3.0",
+   "actual_value": "2.77",
+   "compliance_status": "compliant",
+   "period": "FY2025",
+   "breach_details": ""
+  },
+  {
+   "entity_id": "OLOG001",
+   "covenant_type": "Minimum DSCR",
+   "required_value": ">=1.20",
+   "actual_value": "1.08",
+   "compliance_status": "breached",
+   "period": "FY2025",
+   "breach_details": "DSCR fell below covenant threshold due to increased debt servicing costs."
+  },
+  {
+   "entity_id": "OLOG001",
+   "covenant_type": "Maximum Cheque Returns",
+   "required_value": "<=5 per quarter",
+   "actual_value": "15",
+   "compliance_status": "breached",
+   "period": "Q3_FY2026",
+   "breach_details": "Cheque returns spiked to 15 in Q3 FY2025 vs limit of 5."
+  }
+ ],
+ "exchange_filing": null,
+ "sector_kpis": {
+  "sector_type": "logistics_3pl",
+  "fleet_profile": {
+   "total_vehicles": 2200,
+   "owned_vehicles": 850,
+   "leased_vehicles": 1350,
+   "avg_fleet_age_years": 4.2,
+   "fleet_utilization_pct_fy25": 78.5,
+   "fleet_utilization_pct_fy24": 75.2,
+   "fleet_utilization_pct_fy23": 72.0,
+   "source": "Company Operational Data"
+  },
+  "warehousing": {
+   "total_warehouse_area_sqft": 2800000,
+   "owned_warehouse_pct": 25,
+   "leased_warehouse_pct": 75,
+   "warehouse_locations": 28,
+   "cold_storage_capacity_mt": 15000,
+   "occupancy_pct": 82,
+   "source": "Company Annual Report"
+  },
+  "route_network": {
+   "total_routes": 450,
+   "express_routes": 120,
+   "ptl_routes": 280,
+   "ftl_routes": 50,
+   "pin_codes_served": 18500,
+   "avg_transit_days_metro": 1.5,
+   "source": "Company Network Report"
+  },
+  "cost_structure": {
+   "fuel_cost_pct_revenue": 32,
+   "driver_cost_pct_revenue": 18,
+   "toll_cost_pct_revenue": 8,
+   "avg_fuel_cost_per_km_rs": 12.5,
+   "avg_revenue_per_ton_km_rs": 2.8,
+   "source": "Company Financial Data"
+  },
+  "technology": {
+   "gps_tracked_fleet_pct": 95,
+   "digital_pod_pct": 78,
+   "route_optimization_ai": true,
+   "customer_app_users": 28000,
+   "source": "Company Technology Report"
+  },
+  "development_projections": {
+   "fleet_expansion_vehicles": 400,
+   "new_warehouse_sqft": 800000,
+   "capex_plan_fy26_cr": 65,
+   "capex_plan_fy27_cr": 80,
+   "projected_revenue_fy26_cr": 640,
+   "projected_revenue_fy27_cr": 720,
+   "ev_fleet_target_pct": 10,
+   "source": "Company Growth Plan"
+  }
+ },
+ "identifiers": {
+  "pan": "AABCO3456J",
+  "gstin": "29AABCO3456J1Z1"
+ },
+ "name_aliases": [
+  "omega logistics",
+  "omega logistics pvt ltd"
+ ]
+}

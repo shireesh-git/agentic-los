@@ -13,7 +13,7 @@ CRILC reports are submitted by banks to RBI and contain:
 """
 
 import logging
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 from src.core.runtime_paths import DOCUMENTS_ROOT
@@ -27,149 +27,14 @@ from reportlab.platypus import (
 
 logger = logging.getLogger(__name__)
 
-# ─── CRILC Data Templates ────────────────────────────────────────────────────
-
-CRILC_DATA: dict[str, dict] = {
-    "INFY001": {
-        "borrower_name": "Infosys Limited",
-        "cin": "L85110KA1981PLC013115",
-        "pan": "AAACI3456C",
-        "sector": "Information Technology",
-        "group": "Infosys Group",
-        "credit_rating": "CRISIL AAA / Stable",
-        "reporting_date": "31-Mar-2025",
-        "reporting_bank": "State Bank of India",
-        "bank_code": "SBI001",
-        "fund_based": [
-            {
-                "facility_type": "Working Capital — Cash Credit",
-                "sanction_limit_cr": 200.00,
-                "outstanding_cr": 85.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "sma_flag": "None",
-                "security": "First charge on current assets",
-            },
-            {
-                "facility_type": "Working Capital — WCDL",
-                "sanction_limit_cr": 150.00,
-                "outstanding_cr": 120.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "sma_flag": "None",
-                "security": "Pari-passu charge on current assets",
-            },
-        ],
-        "non_fund_based": [
-            {
-                "facility_type": "Bank Guarantee — Performance",
-                "sanction_limit_cr": 100.00,
-                "outstanding_cr": 62.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "invoked": "No",
-            },
-            {
-                "facility_type": "Letter of Credit — Inland",
-                "sanction_limit_cr": 50.00,
-                "outstanding_cr": 18.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "invoked": "No",
-            },
-        ],
-        "aggregate_exposure": {
-            "total_fund_based_sanction": 350.00,
-            "total_fund_based_outstanding": 205.00,
-            "total_non_fund_based_sanction": 150.00,
-            "total_non_fund_based_outstanding": 80.00,
-            "total_exposure_sanction": 500.00,
-            "total_exposure_outstanding": 285.00,
-        },
-        "sma_history": [
-            {"month": "Mar-2025", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Feb-2025", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Jan-2025", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Dec-2024", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Nov-2024", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Oct-2024", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-        ],
-    },
-    "APOL001": {
-        "borrower_name": "Apollo Hospitals Enterprise Limited",
-        "cin": "L85110TN1979PLC008035",
-        "pan": "AAACA1234K",
-        "sector": "Healthcare",
-        "group": "Apollo Group",
-        "credit_rating": "ICRA AA+ / Stable",
-        "reporting_date": "31-Mar-2025",
-        "reporting_bank": "State Bank of India",
-        "bank_code": "SBI001",
-        "fund_based": [
-            {
-                "facility_type": "Term Loan — Hospital Capex",
-                "sanction_limit_cr": 400.00,
-                "outstanding_cr": 320.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "sma_flag": "None",
-                "security": "First charge on movable/immovable assets of Apollo Health City, Hyderabad",
-            },
-            {
-                "facility_type": "Working Capital — Cash Credit",
-                "sanction_limit_cr": 150.00,
-                "outstanding_cr": 95.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "sma_flag": "None",
-                "security": "First charge on current assets (hypothecation)",
-            },
-            {
-                "facility_type": "Working Capital — WCDL",
-                "sanction_limit_cr": 100.00,
-                "outstanding_cr": 78.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "sma_flag": "None",
-                "security": "Pari-passu charge on current assets",
-            },
-        ],
-        "non_fund_based": [
-            {
-                "facility_type": "Bank Guarantee — Performance",
-                "sanction_limit_cr": 75.00,
-                "outstanding_cr": 42.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "invoked": "No",
-            },
-            {
-                "facility_type": "Letter of Credit — Import (Medical Equipment)",
-                "sanction_limit_cr": 50.00,
-                "outstanding_cr": 35.00,
-                "dpd": 0,
-                "classification": "Standard",
-                "invoked": "No",
-            },
-        ],
-        "aggregate_exposure": {
-            "total_fund_based_sanction": 650.00,
-            "total_fund_based_outstanding": 493.00,
-            "total_non_fund_based_sanction": 125.00,
-            "total_non_fund_based_outstanding": 77.00,
-            "total_exposure_sanction": 775.00,
-            "total_exposure_outstanding": 570.00,
-        },
-        "sma_history": [
-            {"month": "Mar-2025", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Feb-2025", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Jan-2025", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Dec-2024", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Nov-2024", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-            {"month": "Oct-2024", "sma_0": 0, "sma_1": 0, "sma_2": 0, "classification": "Standard"},
-        ],
-    },
-}
+def get_crilc_data(entity_id: str) -> dict | None:
+    """The borrower's CRILC record (demo, bank-internal) from its data file (``crilc``); None when it has none.
+    No CRILC data is held in code."""
+    from src.data import borrowers
+    try:
+        return borrowers.load(entity_id).get("crilc") or None
+    except FileNotFoundError:
+        return None
 
 
 def generate_crilc_report(entity_id: str) -> dict:
@@ -178,15 +43,10 @@ def generate_crilc_report(entity_id: str) -> dict:
 
     Returns dict with status, file path, and summary.
     """
-    if entity_id not in CRILC_DATA:
-        return {
-            "status": "error",
-            "entity_id": entity_id,
-            "message": f"No CRILC data configured for {entity_id}. "
-                       f"Supported: {list(CRILC_DATA.keys())}",
-        }
-
-    data = CRILC_DATA[entity_id]
+    data = get_crilc_data(entity_id)
+    if not data:
+        return {"status": "error", "entity_id": entity_id,
+                "message": f"No CRILC record on file for {entity_id} (data/borrowers/{entity_id}.json, crilc)"}
     storage_root = DOCUMENTS_ROOT / entity_id
     output_dir = storage_root / "bureau"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -390,7 +250,3 @@ def _build_crilc_pdf(data: dict, output_file: Path):
     doc.build(elements)
     logger.info(f"Generated CRILC report: {output_file}")
 
-
-def get_crilc_data(entity_id: str) -> dict | None:
-    """Get CRILC data for an entity (for direct consumption by fact builder)."""
-    return CRILC_DATA.get(entity_id)

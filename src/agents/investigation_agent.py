@@ -23,6 +23,7 @@ Priority (P1 before committee, P2 before sanction, P3 pre-disbursement condition
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Callable, Optional
 
@@ -214,18 +215,46 @@ _STRUCTURAL = ("Signed audited financial statements",
                "Borrower / auditor")
 
 
+def _doc(text: str) -> str:
+    """A document key as the officer knows it: "annual_report_fy2025" → "annual report FY2025"."""
+    named = {"audited_pdf": "the audited statements", "provisional_excel": "the provisional figures",
+             "gst_turnover": "the GST returns", "bank_credits": "the bank statements"}
+    if str(text or "").strip() in named:
+        return named[str(text).strip()]
+    return re.sub(r"(?i)\bfy(\d{4})", r"FY\1", str(text or "").replace("_", " ")).strip()
+
+
+def _conflict(c: dict) -> str:
+    """One disagreement in plain words, with its figures — never the internal exception code (round 9)."""
+    code, desc = c.get("code") or "", str(c.get("description") or "")
+    period = (re.search(r"\b(FY\d{4})\b", desc) or [None, ""])[1]
+    num = lambda v: (re.match(r"\s*(-?[\d.,]+)", str(v or "")) or [None, str(v or "")])[1]        # noqa: E731
+    where = lambda v: (re.search(r"\(([^)]+)\)", str(v or "")) or [None, ""])[1]                  # noqa: E731
+    if code == "STRUCT_BS_MISMATCH":
+        return (f"{period + ': ' if period else ''}the balance sheet does not add up — total assets ₹{num(c.get('expected'))} Cr, "
+                f"equity and liabilities ₹{num(c.get('observed'))} Cr")
+    if code == "DOC_REVENUE_CROSS_SOURCE":
+        return (f"revenue differs between documents — ₹{num(c.get('expected'))} Cr in {_doc(where(c.get('expected')))} "
+                f"vs ₹{num(c.get('observed'))} Cr in {_doc(where(c.get('observed')))}")
+    plain = re.sub(r"\s*\(?\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b\)?", "", desc).strip()
+    return plain or f"{c.get('observed')} vs {c.get('expected')}"
+
+
 def _data_reliability(primary: dict, linked: dict) -> tuple[str, str, list[dict]]:
     conflicts = _observed(primary, "exceptions") or []
-    evidence = []
+    evidence, seen = [], set()
     for c in conflicts:
         code = c.get("code") or ""
         item, description, source = _SOURCE_REQUESTS.get(code, _STRUCTURAL)
-        evidence.append(_ev(f"{item} ({code})",
-                            f"{description} Conflict: {c.get('observed')} vs {c.get('expected')}.",
+        if item in seen:                                  # one request per document, however many figures
+            continue
+        seen.add(item)
+        found = "; ".join(_conflict(x) for x in conflicts if _SOURCE_REQUESTS.get(x.get("code") or "", _STRUCTURAL)[0] == item)
+        evidence.append(_ev(item, f"{description} Disagreement: {found}.",
                             "Establishes which figure is correct before it is relied on.", source))
-    reason = (f"{len(conflicts)} figure(s) disagree across sources ("
-              + ", ".join(c.get("code") or "" for c in conflicts) + "). Until the correct source is confirmed, the "
-              "ratios and recommendation built on these figures cannot be relied upon.")
+    reason = (f"{len(conflicts)} figure(s) disagree across sources: " + "; ".join(_conflict(c) for c in conflicts)
+              + ". Until the correct source is confirmed, the ratios and recommendation built on these figures "
+                "cannot be relied upon.")
     return "Data reliability — confirm the correct source", reason, evidence
 
 

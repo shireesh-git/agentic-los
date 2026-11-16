@@ -89,7 +89,9 @@ users:
 # to / outside the limit) is shown beside the value, separate from where the value came from.
 # A data point with no extractor in src/flow/datapoints.py is simply asked for in the chat.
 # ``options``: the valid answers, offered as buttons (Not provided last); ``hint``: shown in the reply box for a
-# free-text answer (fix list E1).
+# free-text answer (fix list E1). ``help``: one line under the field's name saying what it means (round 8).
+# ``applies_to``: the products a field applies to (others show ``not_applicable``). A calculated field the engine could
+# not compute can be entered by hand, with the reason (round 8).
 groups:
   - {id: borrower, label: Borrower}
   - {id: facility, label: Facility}
@@ -103,7 +105,7 @@ datapoints:
   - {id: company_name, group: borrower, label: Borrower name, type: text, required: true, ask: "What is the borrower's registered name?"}
   - {id: cin, group: borrower, label: CIN, type: text, ask: "What is the borrower's CIN?"}
   - {id: pan, group: borrower, label: PAN, type: text, ask: "What is the borrower's PAN?"}
-  - {id: sector, group: borrower, label: Sector, type: text, ask: "Which sector is the borrower in?"}
+  - {id: sector, group: borrower, label: Sector, type: text, ask: "Which sector is the borrower in?", options_from: sectors}
   - {id: subsector, group: borrower, label: Sub-sector, type: text, ask: "And the sub-sector?"}
   - {id: constitution, group: borrower, label: Constitution, type: text, ask: "What is the borrower's constitution?", options: ["Public limited (listed)", "Public limited (unlisted)", "Private limited", "LLP", "Partnership"]}
   - {id: banking_arrangement, group: borrower, label: Banking arrangement, type: text, ask: "Is this sole banking, multiple banking or a consortium?", options: ["Sole banking", "Multiple banking", "Consortium"]}
@@ -111,11 +113,11 @@ datapoints:
   - {id: corporate_governance, group: borrower, label: Corporate governance, type: longtext, ask: "Anything to note on management and governance?", hint: "Type a short note, e.g. board composition, promoter track record, auditor changes"}
 
   - {id: product, group: facility, label: Product, type: text, required: true, engine: true, ask: "Which product is proposed?", options: ["Working capital", "Term loan", "Project finance"]}
-  - {id: amount_cr, group: facility, label: Amount requested (₹ Cr), type: amount, required: true, engine: true, ask: "How much is requested, in ₹ crore?"}
-  - {id: tenor_months, group: facility, label: Tenor (months), type: number, engine: true, ask: "What tenor, in months?"}
-  - {id: purpose, group: facility, label: Purpose, type: text, engine: true, ask: "What is the purpose of the facility?"}
-  - {id: recommended_cr, group: facility, label: Recommended limit (₹ Cr), type: amount, required: true, ask: "What limit do you recommend, in ₹ crore?"}
-  - {id: pricing, group: facility, label: Pricing, type: text, ask: "What pricing is proposed?", hint: "Type the pricing, e.g. MCLR + 0.80%"}
+  - {id: amount_cr, group: facility, label: Amount requested (₹ Cr), type: amount, required: true, engine: true, ask: "How much is requested, in ₹ crore?", help: "What the borrower asked for, as entered at initiation."}
+  - {id: tenor_months, group: facility, label: Tenor (months), type: number, engine: true, ask: "What tenor, in months?", options: ["12", "36", "60", "84", "120"]}
+  - {id: purpose, group: facility, label: Purpose, type: text, engine: true, ask: "What is the purpose of the facility?", options: ["Working capital requirements", "Capacity expansion (capex)", "Refinancing existing debt", "Project construction", "General corporate purposes"]}
+  - {id: recommended_cr, group: facility, label: Recommended for sanction (₹ Cr), type: amount, required: true, ask: "What amount do you recommend the bank sanction, in ₹ crore?", help: "The amount the credit team recommends the bank sanction. It starts from the amount requested and can be lower, e.g. capped at the assessed or sustainable limit; the Sanctioning Authority sanctions against it."}
+  - {id: pricing, group: facility, label: Pricing, type: text, ask: "What pricing is proposed?", options: ["1-year MCLR + 0.50%", "1-year MCLR + 1.00%", "1-year MCLR + 1.50%", "Repo + 2.75%"], hint: "Type the pricing, e.g. MCLR + 0.80%"}
 
   - {id: revenue_cr, group: financials, label: Revenue (₹ Cr), type: amount, required: true, engine: true, line_item: revenue_operating, ask: "What was revenue in the latest audited year, in ₹ crore?"}
   - {id: ebitda_cr, group: financials, label: EBITDA (₹ Cr), type: amount, required: true, engine: true, line_item: ebitda, ask: "And EBITDA, in ₹ crore?"}
@@ -134,28 +136,28 @@ datapoints:
   - {id: assessment_method, group: metrics, label: Assessment method, type: text, agent_only: true, computed: true}
   - {id: audit_opinion, group: metrics, label: Audit opinion, type: text, agent_only: true, computed: true, unavailable: "No annual report on record"}
   - {id: notes_red_flags, group: metrics, label: Auditor / CARO red flags, type: number, agent_only: true, computed: true, band: {max: 0, bad_above: 0}}
-  - {id: margin_of_safety_pct, group: metrics, label: Margin of safety (%), type: number, agent_only: true, computed: true, band: {min: 15}}
+  - {id: margin_of_safety_pct, group: metrics, label: Margin of safety (%), type: number, agent_only: true, computed: true, band: {min: 15}, applies_to: [term_loan, project_finance], not_applicable: "Not applicable — the break-even margin is assessed for term loans", unavailable: "Not computed — the cost lines for a break-even point are not on record", help: "How far revenue can fall before the borrower stops covering its costs (term loans)."}
   - {id: earnings_quality, group: metrics, label: Earnings quality, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}}
   - {id: revenue_truth, group: metrics, label: Revenue truth score, type: score, agent_only: true, computed: true, band: {min: 85, warn_below: 60}, unavailable: "Not verifiable — no GST or bank statement data on record"}
   - {id: ews_flags, group: metrics, label: Early-warning flags, type: number, agent_only: true, computed: true, band: {max: 0, warn_above: 0, bad_above: 1}}
   - {id: ecl_cr, group: metrics, label: Expected credit loss (₹ Cr), type: amount, agent_only: true, computed: true}
   - {id: ecl_stage, group: metrics, label: ECL stage, type: number, agent_only: true, computed: true, band: {max: 1, warn_above: 1, bad_above: 2}}
   - {id: hard_rules_failed, group: metrics, label: Hard rules failed, type: number, agent_only: true, computed: true, band: {max: 0}}
-  - {id: bureau_score, group: metrics, label: Bureau score, type: number, agent_only: true, unavailable: "Not on record — no commercial bureau report connected"}
-  - {id: crilc_sma, group: metrics, label: CRILC SMA status, type: text, agent_only: true, unavailable: "Not on record — no CRILC report"}
-  - {id: collateral_fsv_cr, group: metrics, label: Collateral FSV (₹ Cr), type: amount, agent_only: true, unavailable: "Not on record — no collateral valuation"}
+  - {id: bureau_score, group: metrics, label: Bureau score, type: text, ask: "What is the borrower's commercial bureau rank (CIBIL CMR: 1 lowest risk … 10 highest)?", options: ["CMR-1", "CMR-2", "CMR-3", "CMR-4", "CMR-5", "CMR-6", "CMR-7", "CMR-8", "CMR-9", "CMR-10"], hint: "Or type a CRIF score, e.g. 745"}
+  - {id: crilc_sma, group: metrics, label: CRILC SMA status, type: text, ask: "What is the borrower's CRILC status?", options: ["Standard (no SMA)", "SMA-0", "SMA-1", "SMA-2"]}
+  - {id: collateral_fsv_cr, group: metrics, label: Collateral FSV (₹ Cr), type: amount, ask: "What is the forced-sale value of the collateral, in ₹ crore?", hint: "Type the FSV from the valuation report, e.g. 240"}
   - {id: security_cover, group: metrics, label: Security cover (FSV), type: ratio, agent_only: true, computed: true, band: {min: 1.0, way: min}, unavailable: "Not on record — no collateral valuation"}
 
   - {id: internal_rating, group: risk, label: Internal rating, type: text, required: true, ask: "What is the internal rating?"}
-  - {id: external_rating, group: risk, label: External rating, type: text, ask: "What is the external rating, with the agency — e.g. CRISIL AA+/Stable?"}
+  - {id: external_rating, group: risk, label: External rating, type: text, ask: "What is the external rating, with the agency — e.g. CRISIL AA+/Stable?", options: ["Not rated"], hint: "Type the rating with the agency, e.g. CARE AA (Stable)"}
   - {id: strengths, group: risk, label: Strengths, type: longtext, ask: "What are the main strengths?"}
-  - {id: risks_mitigants, group: risk, label: Risks and mitigants, type: longtext, agent_only: true}
-  - {id: industry_outlook, group: risk, label: Industry outlook, type: longtext, agent_only: true}
-  - {id: marketing_arrangements, group: risk, label: Marketing arrangements, type: longtext, agent_only: true}
+  - {id: risks_mitigants, group: risk, label: Risks and mitigants, type: longtext, ask: "What are the main risks, and how is each mitigated?", hint: "Type each risk with its mitigant"}
+  - {id: industry_outlook, group: risk, label: Industry outlook, type: longtext, ask: "What is the outlook for the borrower's industry?", hint: "Type 2–3 lines on demand, competition and regulation"}
+  - {id: marketing_arrangements, group: risk, label: Marketing arrangements, type: longtext, ask: "How does the borrower sell: main customers, contracts or distribution?", options: ["Long-term contracts with a few large customers", "Dealer and distributor network", "Direct sales to many customers", "Government and PSU contracts (tenders)", "Mainly exports"], hint: "Type a short note, e.g. key customers, long-term contracts, dealer network"}
 
-  - {id: security, group: security, label: Security, type: longtext, required: true, ask: "What security is offered?"}
-  - {id: key_terms, group: security, label: Key terms and conditions, type: longtext, ask: "Any key terms and conditions to record?"}
-  - {id: covenants, group: security, label: Covenants, type: longtext, ask: "Which financial covenants apply?"}
+  - {id: security, group: security, label: Security, type: longtext, required: true, ask: "What security is offered?", options: ["First pari-passu charge on fixed assets", "Hypothecation of current assets (stock and receivables)", "Equitable mortgage of immovable property", "Corporate guarantee of the parent", "Unsecured"], hint: "Choose one, or type the full security package"}
+  - {id: key_terms, group: security, label: Key terms and conditions, type: longtext, ask: "Any key terms and conditions to record?", options: ["Standard terms of the sanction letter", "Standard terms, plus no further borrowing without the bank's consent"]}
+  - {id: covenants, group: security, label: Covenants, type: longtext, ask: "Which financial covenants apply?", options_from: policy_covenants, hint: "Choose the policy set, or type the covenants"}
 
   - {id: deviations, group: decision, label: Deviations, type: longtext, agent_only: true}
   - {id: recommendation, group: decision, label: Recommendation, type: longtext, required: true, ask: "What is the recommendation, with the reason?"}

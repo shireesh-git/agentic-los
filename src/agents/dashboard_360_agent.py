@@ -16,9 +16,7 @@ import re
 from datetime import date
 from typing import Any, Optional
 
-from src.services.external_systems import (
-    crilc_report, _ENTITY_TO_IDS,
-)
+from src.services.external_systems import crilc_report, reference_identifiers
 from src.services.document_store import doc_store
 
 
@@ -316,7 +314,7 @@ def generate_360_view(entity_id: str, company_data: dict = None,
     Returns: Structured dict with all 360-view sections
     """
     borrower = (company_data or {}).get("borrower") or {}
-    ids = _ENTITY_TO_IDS.get(entity_id) or {}
+    ids = reference_identifiers(entity_id)
     _bget = (lambda k: getattr(borrower, k, None)) if not isinstance(borrower, dict) else borrower.get
     cin = ids.get("cin") or _bget("cin") or ""
     pan = ids.get("pan") or _bget("pan") or ""

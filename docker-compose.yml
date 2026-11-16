@@ -13,8 +13,7 @@ services:
       - ./storage:/app/storage
       - ./output:/app/output
       - ./runtime-db:/app/runtime-db
-      - "./downloaded document:/app/reference-docs:ro"
-      - ./synthetic-assets:/app/synthetic-assets
+      - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
       - OLLAMA_HOST=http://host.docker.internal:11434

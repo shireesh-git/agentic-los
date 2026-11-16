@@ -511,30 +511,83 @@ def checks(result: Optional[dict]) -> list[dict]:
     return out
 
 
-def picture(g: Graph, start: str, paths: dict[str, list[dict]], cfg: dict, limit: int = 22) -> dict:
-    """A radial layout for the screen: the borrower in the middle, one-hop nodes on the inner ring,
-    two-hop nodes on the outer ring. Coordinates in a 640 × 400 box."""
-    ring1 = [n for n, p in paths.items() if len(p) == 1]
-    ring2 = [n for n, p in paths.items() if len(p) == 2]
-    stressed = {n for n in ring2 + ring1 if g.stress_of(n, cfg)}
-    ring2 = sorted(ring2, key=lambda n: (n not in stressed, g.nodes[n]["name"]))[:max(limit - len(ring1), 0)]
-    ring1 = ring1[:limit]
-    cx, cy = 320, 200
-    pos = {start: (cx, cy)}
-    for ring, (rx, ry) in ((ring1, (150, 105)), (ring2, (290, 175))):
-        for i, n in enumerate(ring):
-            a = -math.pi / 2 + 2 * math.pi * i / max(len(ring), 1) + (0.3 if ring is ring2 else 0)
-            pos[n] = (round(cx + rx * math.cos(a)), round(cy + ry * math.sin(a)))
-    nodes = [{"id": n, "x": x, "y": y, "kind": g.nodes[n]["kind"], "label": g.nodes[n]["name"][:28],
-              "stress": n in stressed, "official": bool(g.nodes[n].get("official")), "center": n == start}
-             for n, (x, y) in pos.items()]
-    shown, lines = set(pos), []
-    for n in pos:
-        for e, other in g.links(n):
-            if other in shown and e["src"] == n:
-                lines.append({"x1": pos[n][0], "y1": pos[n][1], "x2": pos[other][0], "y2": pos[other][1],
-                              "kind": e["kind"], "demo": e["demo"]})
-    return {"nodes": nodes, "lines": lines, "hidden": max(len(paths) - len(pos), 0)}
+def _edge_label(e: dict, forward: bool) -> str:
+    k = e["kind"]
+    if k == "DIRECTOR_OF":
+        return (e.get("detail") or "Director") + (" · promoter" if e.get("promoter") else "")
+    if k == "HOLDS":
+        return f"holds {e['holding_pct']:g}%" if e.get("holding_pct") is not None else "shareholder"
+    if k == "MEMBER_OF":
+        return "same group"
+    if k == "BORROWS_FROM_US":
+        amt = e.get("amount_cr")
+        return "our exposure" + (f" · ₹{amt:,.0f} Cr" if amt else "")
+    if k == "BORROWS_FROM":
+        amt = e.get("amount_cr")
+        return (e.get("detail") or "lender") + (f" · ₹{amt:,.0f} Cr" if amt else "")
+    return k.lower().replace("_", " ")
+
+
+def picture(g: Graph, start: str, paths: dict[str, list[dict]], cfg: dict, per_col: int = 8) -> dict:
+    """A relationship map read left to right (round 8, replacing the radial picture):
+
+        other companies of these people | directors & shareholders | BORROWER | lenders & group companies | their links
+
+    Each box is named; each line says how the two are connected (director, holds 60%, lender …)."""
+    cols = {"far_left": [], "people": [], "right": [], "far_right": []}
+    via: dict[str, tuple[str, dict]] = {}                      # node -> (the node it is reached from, the edge)
+    for n, path in paths.items():
+        if n == start or len(path) > 2:
+            continue
+        prev = start
+        for e in path[:-1]:
+            prev = e["dst"] if e["src"] == prev else e["src"]
+        via[n] = (prev, path[-1])
+        kind = g.nodes[n]["kind"]
+        if len(path) == 1:
+            cols["people" if kind == "person" else "right"].append(n)
+        else:
+            first = g.nodes[prev]["kind"]
+            cols["far_left" if first == "person" and kind != "person" else "far_right"].append(n)
+    for e, other in g.links(start, ("BORROWS_FROM", "BORROWS_FROM_US")):
+        if other not in via:
+            via[other] = (start, e)
+            cols["right"].append(other)
+    stressed = {n for n in via if g.stress_of(n, cfg)}
+    hidden = 0
+    for k, ids in cols.items():
+        ids.sort(key=lambda n: (n not in stressed, not g.nodes[n].get("official"), g.nodes[n]["name"]))
+        hidden += max(len(ids) - per_col, 0)
+        cols[k] = ids[:per_col]
+    xs = {"far_left": 95, "people": 285, "centre": 500, "right": 715, "far_right": 905}
+    titles = {"far_left": "Other companies of these people", "people": "Directors & shareholders",
+              "centre": "Borrower", "right": "Lenders & group companies", "far_right": "Their links"}
+    rows = max([len(v) for v in cols.values()] + [1])
+    top, step = 50, 44
+    height = top + rows * step + 10
+    pos = {start: (xs["centre"], top + (rows - 1) * step / 2)}
+    for k, ids in cols.items():
+        y0 = top + (rows - len(ids)) * step / 2
+        for i, n in enumerate(ids):
+            pos[n] = (xs[k], y0 + i * step)
+    rel = {}
+    for n, (prev, e) in via.items():
+        r, name = _edge_label(e, e["src"] == prev), g.nodes[n]["name"]
+        rel[n] = r[len(name):].lstrip(" ·") or "lender" if r.startswith(name) else r
+    nodes = [{"id": n, "x": x, "y": round(y), "kind": g.nodes[n]["kind"],
+              "label": g.nodes[n]["name"][:34 if n == start else 24], "relation": rel.get(n, "")[:30],
+              "full": g.nodes[n]["name"], "stress": n in stressed, "status": g.stress_of(n, cfg) or "",
+              "official": g.nodes[n].get("official") or "", "center": n == start,
+              "demo": bool(g.nodes[n].get("demo"))} for n, (x, y) in pos.items()]
+    lines = []
+    for n, (prev, e) in via.items():
+        if n in pos and prev in pos:
+            lines.append({"x1": pos[prev][0], "y1": round(pos[prev][1]), "x2": pos[n][0], "y2": round(pos[n][1]),
+                          "kind": e["kind"], "demo": bool(e.get("demo")), "stress": n in stressed,
+                          "label": _edge_label(e, e["src"] == prev)})
+    used = {k for k, v in cols.items() if v} | {"centre"}
+    return {"nodes": nodes, "lines": lines, "hidden": hidden, "width": 1000, "height": height,
+            "columns": [{"x": xs[k], "title": titles[k]} for k in xs if k in used]}
 
 
 def export(g: Graph) -> tuple[list[dict], list[dict]]:

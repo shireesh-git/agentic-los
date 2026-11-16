@@ -25,7 +25,9 @@ from src.models.canonical_model import (
     FinancialStatement, CaseType, BorrowerType,
     FacilityType, Sector, RiskSeverity,
 )
-from src.data.synthetic_companies import ALL_COMPANIES
+from src.data.company_catalog import seed_company_store
+
+ALL_COMPANIES = seed_company_store()   # the borrowers' data files (data/borrowers/)
 from src.engines.ratio_engine import compute_all_ratios, compute_multi_period_ratios
 from src.engines.validation_engine import run_all_validations
 from src.engines.benchmark_engine import benchmark_all_periods, get_worst_benchmarks

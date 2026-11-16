@@ -542,7 +542,8 @@ def detect_data_reliability(f: _Facts) -> Optional[CreditObservation]:
         condition="validation exception with a cross-source / structural / document code",
         thresholds={"code_prefixes": list(prefixes)},
         observed={"exceptions": [{"code": e.get("code"), "expected": e.get("expected"),
-                                  "observed": e.get("observed"), "severity": e.get("severity")} for e in hits]},
+                                  "observed": e.get("observed"), "severity": e.get("severity"),
+                                  "description": e.get("description"), "metric": e.get("metric")} for e in hits]},
         evidence=[_evidence("validation_exception", e.get("code"), e.get("description", "")) for e in hits],
         investigation=["Obtain a reconciliation between the conflicting sources signed by the CFO / auditor.",
                        "For GST gaps: reconcile GSTR-1 / 3B turnover with audited revenue (unbilled revenue, "

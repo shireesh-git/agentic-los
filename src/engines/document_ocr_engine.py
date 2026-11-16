@@ -16,7 +16,7 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _log = logging.getLogger(__name__)
 
@@ -190,6 +190,10 @@ def extract_text_pymupdf(filepath: Path, *, ocr_fallback: bool = True) -> dict[s
 
             all_text_parts.append(page_text)
 
+            # A long annual report (250–580 pages) is mostly narrative: the table finder costs ~0.2 s a page, so on a
+            # long document it runs only on pages that look like financial tables (round 8: 114 s → seconds).
+            if doc.page_count > 120 and not _looks_tabular(page_text):
+                continue
             # Extract tables using PyMuPDF's built-in table finder
             try:
                 tabs = page.find_tables()
@@ -225,6 +229,15 @@ def extract_text_pymupdf(filepath: Path, *, ocr_fallback: bool = True) -> dict[s
         result["error"] = str(e)
 
     return result
+
+
+_FIGURE = re.compile(r"\(?\d{1,3}(?:,\d{2,3})+(?:\.\d+)?\)?|\b\d+\.\d{2}\b")
+_TABLE_WORDS = re.compile(r"particulars|as at|year ended|total|notes?\b", re.I)
+
+
+def _looks_tabular(text: str) -> bool:
+    """A page of a financial statement, schedule or note: many figures and a table's words."""
+    return len(_FIGURE.findall(text)) >= 25 and bool(_TABLE_WORDS.search(text))
 
 
 def _ocr_page(page, filename: str, page_num: int) -> str:
@@ -696,162 +709,3 @@ def extract_text_best(filepath: Path) -> dict[str, Any]:
 
     # Gemini didn't help — use PyMuPDF with Tesseract fallback
     return extract_text_pymupdf(filepath, ocr_fallback=True)
-
-
-# ─── Downloaded Document Mapper ──────────────────────────────────────────────
-
-# Mapping from filename prefixes (in "downloaded document/CAM/") to entity IDs
-DOWNLOADED_DOC_MAP: dict[str, dict] = {
-    "Apollo Hosp": {
-        "entity_id": "APOL001",
-        "company_name": "Apollo Hospitals Enterprise Limited",
-        "doc_type": "annual_report",
-    },
-    "Infy": {
-        "entity_id": "INFY001",
-        "company_name": "Infosys Limited",
-        "doc_type": "annual_report",
-    },
-    "IHCL": {
-        "entity_id": "IHCL001",
-        "company_name": "The Indian Hotels Company Limited",
-        "doc_type": "annual_report",
-    },
-    "Madras Fert": {
-        "entity_id": "MFL001",
-        "company_name": "Madras Fertilizers Limited",
-        "doc_type": "annual_report",
-    },
-    "MRF": {
-        "entity_id": "MRF001",
-        "company_name": "MRF Limited",
-        "doc_type": "annual_report",
-    },
-    "TVS Mot": {
-        "entity_id": None,
-        "company_name": "TVS Motor Company Limited",
-        "doc_type": "annual_report",
-    },
-}
-
-
-def classify_downloaded_document(filename: str) -> dict[str, Any]:
-    """Classify a downloaded document file by company and type."""
-    for prefix, info in DOWNLOADED_DOC_MAP.items():
-        if filename.startswith(prefix):
-            # Determine if it's unaudited or annual report
-            is_unaudited = "Unaudited" in filename
-            # Extract fiscal year
-            fy_match = re.search(r"(\d{2,4})[-_](\d{2,4})", filename)
-            fy = fy_match.group(0) if fy_match else ""
-            if "Unaudited" in filename:
-                fy_match2 = re.search(r"Unaudited[-_]?(\d{4})-?(\d{2})?", filename)
-                if fy_match2:
-                    fy = fy_match2.group(1)
-                    if fy_match2.group(2):
-                        fy += "-" + fy_match2.group(2)
-
-            return {
-                "entity_id": info["entity_id"],
-                "company_name": info["company_name"],
-                "doc_type": "unaudited_financials" if is_unaudited else "annual_report",
-                "fiscal_year": fy,
-                "filename": filename,
-            }
-
-    return {"entity_id": None, "company_name": "Unknown", "doc_type": "unknown", "filename": filename}
-
-
-def ingest_downloaded_documents(
-    downloaded_dir: Path,
-    storage_root: Path,
-    entity_id: Optional[str] = None,
-    on_progress: Optional[callable] = None,
-) -> dict[str, Any]:
-    """
-    Process documents from the 'downloaded document/CAM/' folder.
-    Verifies, extracts, and indexes them for RAG and CAM.
-
-    If entity_id is specified, only processes docs matching that entity.
-    """
-    cam_dir = downloaded_dir / "CAM"
-    if not cam_dir.exists():
-        return {"status": "no_documents", "message": "No downloaded documents found"}
-
-    results = {
-        "processed": [],
-        "skipped": [],
-        "entity_extractions": {},
-        "total_pages": 0,
-        "total_chunks": 0,
-    }
-
-    pdf_files = sorted(cam_dir.glob("*.pdf"))
-
-    # Filter and limit: keep only matching files, sorted newest first (max 2)
-    matching_files = []
-    for pdf_path in pdf_files:
-        classification = classify_downloaded_document(pdf_path.name)
-        if entity_id and classification["entity_id"] != entity_id:
-            continue
-        if classification["entity_id"] is None:
-            results["skipped"].append({
-                "filename": pdf_path.name,
-                "reason": "No matching entity in system",
-                "company": classification["company_name"],
-            })
-            continue
-        matching_files.append((pdf_path, classification))
-
-    # Sort descending by fiscal year so newest come first; keep up to 5 audited reports.
-    matching_files.sort(key=lambda x: x[1].get("fiscal_year", ""), reverse=True)
-    ar_count = 0
-    selected = []
-    for item in matching_files:
-        if item[1]["doc_type"] == "annual_report":
-            if ar_count >= 5:
-                results["skipped"].append({
-                    "filename": item[0].name,
-                    "reason": "Older report — limited to 2 most recent ARs",
-                })
-                continue
-            ar_count += 1
-        selected.append(item)
-
-    for pdf_path, classification in selected:
-        if on_progress:
-            on_progress(f"Processing {pdf_path.name} ({classification['fiscal_year']})...")
-
-        _log.info("Processing downloaded doc: %s → %s", pdf_path.name, classification["entity_id"])
-
-        # Fingerprint for authenticity
-        fingerprint = compute_document_fingerprint(pdf_path)
-
-        # Full PyMuPDF extraction
-        extraction = extract_text_pymupdf(pdf_path, ocr_fallback=True)
-
-        # Financial data extraction if it's an annual report
-        fin_data = {}
-        if classification["doc_type"] in ("annual_report", "unaudited_financials"):
-            fin_data = extract_financials_enhanced(pdf_path, precomputed_raw=extraction)
-
-        eid = classification["entity_id"]
-        results["entity_extractions"].setdefault(eid, [])
-        results["entity_extractions"][eid].append({
-            "filename": pdf_path.name,
-            "doc_type": classification["doc_type"],
-            "fiscal_year": classification["fiscal_year"],
-            "fingerprint": fingerprint.get("sha256", ""),
-            "page_count": extraction.get("page_count", 0),
-            "quality_score": extraction.get("quality_score", 0),
-            "ocr_pages": extraction.get("ocr_pages", 0),
-            "text_length": len(extraction.get("text", "")),
-            "tables_found": len(extraction.get("tables", [])),
-            "financial_metrics_found": list(fin_data.get("data", {}).keys()),
-            "is_verified": fingerprint.get("is_verified", False),
-        })
-
-        results["total_pages"] += extraction.get("page_count", 0)
-        results["processed"].append(pdf_path.name)
-
-    return results

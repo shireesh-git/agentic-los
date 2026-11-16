@@ -1,0 +1,32 @@
+{
+  "entity_id": "DRRD001",
+  "note": "DEMO DATA: generated from the borrower's data file, standing in for the bureau, MCA and regulatory-list APIs that are not connected. The bureau rank is indicative, from the external rating. Not a real report on this company.",
+  "as_of": "2026-11-16",
+  "cin": "L85195TG1984PLC004507",
+  "company_name": "Dr. Reddy's Laboratories Limited",
+  "bureau": {
+    "credit_score": 790,
+    "cmr_rank": "CMR-2",
+    "dpd_status": "Standard",
+    "max_dpd_last_12m": 0,
+    "worst_status_12m": "Standard",
+    "total_outstanding_cr": 5419.0,
+    "basis": "Indicative from the external rating CRISIL AA+/Stable"
+  },
+  "mca": {
+    "company_name": "Dr. Reddy's Laboratories Limited",
+    "cin": "L85195TG1984PLC004507",
+    "status": "Active",
+    "date_of_incorporation": "1984-02-24",
+    "company_class": "Public, listed",
+    "registered_office": "8-2-337, Road No. 3, Banjara Hills, Hyderabad 500034"
+  },
+  "registries": {
+    "wilful_defaulter": false,
+    "rbi_defaulter_list": false,
+    "fraud_flag": false,
+    "suit_filed_amount_cr": 0.0,
+    "suits": [],
+    "nclt_cases": []
+  }
+}

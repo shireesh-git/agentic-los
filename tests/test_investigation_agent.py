@@ -64,7 +64,7 @@ def test_reasons_quote_the_observation_figures(demo_observations):
     ageing = tasks["RECEIVABLE_DETERIORATION"]["required_evidence"][0]["description"]
     assert "₹587.00 Cr" in ageing   # reconciles to the reported receivables
     gst = tasks["DATA_RELIABILITY"]["required_evidence"][0]["description"]
-    assert "GSTR-1" in gst and "2080.00 (audited)" in gst and "1835.00 (GST)" in gst
+    assert "GSTR-1" in gst and "2080.00" in gst and "1835.00" in gst and "XSRC_" not in gst   # round 9: no internal codes
     dscr = tasks["POLICY_EXCEPTION"]["required_evidence"][0]["description"]
     assert "DSRA" in dscr and "1.19" in dscr
 

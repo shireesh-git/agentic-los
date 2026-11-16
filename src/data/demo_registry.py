@@ -114,3 +114,46 @@ def external_data(entity_id: Optional[str], cin: Optional[str] = None, root: Opt
 
 def _strip(env: dict) -> dict:
     return {k: v for k, v in env.items() if k not in ("identity", "name_found")}
+
+
+def from_record(rec: dict, by_rating: dict, as_of: str) -> dict:
+    """A demo file for a borrower on record that has none (round 9): MCA from its data file, a clean
+    regulatory-list result, and an indicative bureau rank from its real external rating (``by_rating``:
+    config data_sources.yaml → demo_data.bureau_by_rating). Exposure is the audited total debt of the latest
+    year. Labelled demo, like every file here."""
+    import re
+    b = rec["borrower"]
+    get = (lambda k: b.get(k)) if isinstance(b, dict) else (lambda k: getattr(b, k, None))   # noqa: E731
+    m = re.search(r"\b(AAA|AA|A|BBB|BB|B|C|D)[+-]?(?=\s|\(|$)", str(get("credit_rating") or "").split("/")[0]
+                  .replace("CRISIL", "").replace("CARE", "").replace("ICRA", "").replace("IND", ""))
+    proxy = dict(by_rating.get(m.group(1)) or {}) if m else {}
+    fins = rec.get("financials") or {}
+    latest = fins[max(fins)] if fins else None
+    items = (latest.get("line_items") if isinstance(latest, dict) else getattr(latest, "line_items", None)) or {}
+    debt = items.get("total_debt")
+    # the record's own account conduct, classified as RBI does: overdue 1–30 days SMA-0, 31–60 SMA-1, 61–90 SMA-2
+    conduct = [c if isinstance(c, dict) else vars(c) for c in rec.get("conduct") or []]
+    dpd = max([int(c.get("max_overdue_days") or 0) for c in conduct] or [0])
+    status = "Standard" if dpd == 0 else "SMA-0" if dpd <= 30 else "SMA-1" if dpd <= 60 else "SMA-2" if dpd <= 90 \
+        else "NPA"
+    inc = get("date_of_incorporation")
+    listed = str(get("borrower_type") or "").lower() == "listed" or bool(get("listed_exchange"))
+    return {
+        "entity_id": get("entity_id"),
+        "note": "DEMO DATA: generated from the borrower's data file, standing in for the bureau, MCA and "
+                "regulatory-list APIs that are not connected. The bureau rank is indicative, from the external "
+                "rating. Not a real report on this company.",
+        "as_of": as_of, "cin": get("cin"), "company_name": get("company_name"),
+        "bureau": {**{k: proxy.get(k) for k in ("credit_score", "cmr_rank")},
+                   "dpd_status": status, "max_dpd_last_12m": dpd, "worst_status_12m": status,
+                   "total_outstanding_cr": round(float(debt), 2) if debt is not None else None,
+                   "basis": f"Indicative from the external rating {get('credit_rating')}" if proxy
+                            else "No external rating on record: rank not indicated"},
+        "mca": {"company_name": get("company_name"), "cin": get("cin"), "status": "Active",
+                "date_of_incorporation": inc.isoformat() if hasattr(inc, "isoformat") else inc,
+                "company_class": "Public, listed" if listed else "Public / private, unlisted",
+                "registered_office": get("registered_address")},
+        "registries": {"wilful_defaulter": False, "rbi_defaulter_list": False, "fraud_flag": False,
+                       "suit_filed_amount_cr": 0.0, "suits": [], "nclt_cases": []},
+    }
+

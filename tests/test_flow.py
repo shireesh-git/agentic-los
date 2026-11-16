@@ -54,16 +54,18 @@ def test_infosys_end_to_end(svc):
     v = svc.view(cid, rm)
     assert v["counts"]["filled"] >= 28 and v["cam"]["mode"] == "generate"
     rev = next(p for g in v["groups"] for p in g["points"] if p["id"] == "revenue_cr")
-    assert rev["value"] == pytest.approx(153670.0) and rev["source"]["kind"] == "engine" and rev["source"]["section"]
+    assert rev["value"] == pytest.approx(148819.0) and rev["source"]["kind"] == "engine" and rev["source"]["section"]
     assert v["progress"] is None and svc.cam_progress(cid)["job"]["percent"] == 100
 
     # the mandatory checks ran at initiation from the demo bureau / MCA / registry file (E5), all clear
     assert v["checks"]["total"] >= 6 and v["checks"]["clear"] == v["checks"]["total"] and v["checks"]["demo"]
     assert v["verdict"]["tone"] == "good" and "mandatory checks are clear" in v["verdict"]["text"]
-    # the lender count in the (demo) bureau report fills the banking arrangement, so nothing is left to ask;
-    # agent-only fields (outlook, marketing, metrics) are never asked
+    # the lender count in the (demo) bureau report fills the banking arrangement, so it is not asked; a field the
+    # agents could not fill (bureau score, CRILC, marketing, FSV …) is asked, optional (round 8); calculated ones never
     pts = {p["id"]: p for g in v["groups"] for p in g["points"]}
-    assert pts["banking_arrangement"]["value"].startswith("Multiple banking") and not v["ask"]
+    asked = (v["ask"] or {}).get("ref")
+    assert pts["banking_arrangement"]["value"].startswith("Multiple banking") and asked != "banking_arrangement"
+    assert not asked or not dpx.spec(asked).get("computed")
     # a question for a closed-answer field offers its answers, the record's suggestion first, skip last (E1)
     q = svc._dp_question(svc.store.get(cid), dpx.spec("banking_arrangement"))
     assert q["quick"][0] == q["suggested"] == "Multiple banking" and set(q["quick"]) == {"Sole banking", "Multiple banking",
@@ -78,7 +80,7 @@ def test_infosys_end_to_end(svc):
 
     # the downloaded CAM carries its data sheet
     pdf, name = svc.cam_file(cid, rm)
-    assert name.endswith(".pdf") and dpx.read_sheet(pdf)["datapoints"]["revenue_cr"]["value"] == pytest.approx(153670.0)
+    assert name.endswith(".pdf") and dpx.read_sheet(pdf)["datapoints"]["revenue_cr"]["value"] == pytest.approx(148819.0)
 
     with pytest.raises(Exception):
         svc.act(cid, cro, "approve")                         # not Credit Risk's turn yet
@@ -91,7 +93,7 @@ def test_infosys_end_to_end(svc):
     v = svc.view(cid, cro)
     ch = v["changes"][0]
     assert (ch["dp"], ch["old"], ch["new"], ch["reason"], ch["status"]) == \
-           ("ebitda_cr", pytest.approx(39594.5), 35900.0, "one-off gain excluded", "pending")
+           ("ebitda_cr", pytest.approx(42504.0), 35900.0, "one-off gain excluded", "pending")
     assert v["cam"]["stale"] and not next(a for a in v["actions"] if a["id"] == "approve")["enabled"]
 
     # the re-run assesses the changed figure; the person's value is kept
@@ -100,14 +102,14 @@ def test_infosys_end_to_end(svc):
     v = svc.view(cid, cro)
     eb = next(p for g in v["groups"] for p in g["points"] if p["id"] == "ebitda_cr")
     assert not v["cam"]["stale"] and eb["value"] == 35900.0 and eb["source"]["kind"] == "person"
-    assert svc.cases.get(E)["fact_pack"]["financial_summary"]["periods"]["FY2025"]["ebitda_cr"] == pytest.approx(35900.0)
+    assert svc.cases.get(E)["fact_pack"]["financial_summary"]["periods"]["FY2026"]["ebitda_cr"] == pytest.approx(35900.0)
     svc.act(cid, cro, "approve", "Recommend")
 
     # the SA must concur with each override before Sanction is enabled; Rahul is not asked the SA's question
     v = svc.view(cid, cro)
     assert v["ask"] is None and "Submitted to Vikram Shah" in [m for m in v["chat"] if m["stage"] == "credit_risk"][-1]["text"]
     v = svc.view(cid, sa)
-    assert v["ask"]["kind"] == "change" and "Underwriting override by Rahul Mehta: FY2025 EBITDA" in v["ask"]["text"]
+    assert v["ask"]["kind"] == "change" and "Underwriting override by Rahul Mehta: FY2026 EBITDA" in v["ask"]["text"]
     assert not next(a for a in v["actions"] if a["id"] == "approve")["enabled"]
     svc.chat(cid, sa, "Return with remarks")
     svc.chat(cid, sa, "Show the one-off gain in the notes")
@@ -166,7 +168,7 @@ def test_infosys_end_to_end(svc):
     assert cs["due"] and cs["status"] == "open"
 
     pack = svc.audit_pack(cid, da)
-    for text in ("Agents proposed; named people decided", "FY2025", "Vikram Shah", "accepted",
+    for text in ("Agents proposed; named people decided", "FY2026", "Vikram Shah", "accepted",
                  "not applicable", "Subsequent", "Released"):
         assert text in pack, text
     rep = svc.time_report()
@@ -186,7 +188,7 @@ def test_infosys_end_to_end(svc):
     v = svc.view(case["case_id"], rm)
     assert v["cam"]["mode"] == "upload" and v["cam"]["read_by"] == "sheet"
     rev = next(p for g in v["groups"] for p in g["points"] if p["id"] == "revenue_cr")
-    assert rev["value"] == pytest.approx(153670.0) and rev["source"]["kind"] == "upload"
+    assert rev["value"] == pytest.approx(148819.0) and rev["source"]["kind"] == "upload"
     assert v["counts"]["filled"] >= 29
 
 

@@ -33,8 +33,8 @@ def test_a_case_runs_on_the_record_as_it_stood(companies):
     before = runs()
     r = bt.run_case({"entity_id": "MFL001", "as_of": "FY2024", "outcome": "stressed", "amount_cr": 120}, companies)
     assert not r.get("error"), r.get("error")
-    assert r["periods"] == ["FY2023", "FY2024"]                     # no FY2025 figures
-    assert r["flagged"] and r["fired"]["decline"] and r["why"]
+    assert r["periods"] == ["FY2024"]               # no FY2025 figures (the real record from round 8: FY2024, FY2025)
+    assert r["flagged"] and r["why"]                 # stressed on the real FY2024 record (negative net worth)
     assert runs() == before                                           # nothing saved to the live runs
     # the live borrower record is untouched
     assert "FY2025" in companies["MFL001"]["financials"] and companies["MFL001"]["facility"].amount_requested_cr != 0

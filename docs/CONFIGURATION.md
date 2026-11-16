@@ -23,15 +23,25 @@ comments explaining every setting.
 | The past proposals the engine is back-tested on, and what counts as flagged | `backtest.yaml` | `cases`, `flag_on` |
 | Exposure limits, what makes a group, what counts as stress, the bank's own directors and officers (knowledge graph checks) | `exposure.yaml` | `bank`, `limits`, `group_rules`, `stress`, `bank_officials` |
 | Who may sanction what (delegation of powers) | `approval.yaml` | `authority_levels` |
-| Sector peer benchmarks | `benchmarks.yaml` | `sectors` |
+| Sector peer benchmarks (ratios) | `benchmarks.yaml` | `sectors` |
+| Sector reference text in the CAM: overview, regulation, drivers, headwinds, listed peers, typical segments | `sector_profiles.yaml` | one entry per sector |
+| The listed borrowers' public filings to fetch (annual report, quarterly results, rating rationale) | `borrower_documents.yaml` | `borrowers` |
+| UAT test packs for new-to-bank prospects | `data_sources.yaml` | `test_packs` |
+| The external company-data provider (Probe42) | `external_apis.yaml` | `probe42` |
 | Which AI model is used | `llm_providers.yaml` | `active_provider`, `providers` |
 | CAM layout: streamlined or classic 21 sections | `llm_providers.yaml` | `narrative.cam_structure` |
 | What happens when the AI cannot be reached | `llm_providers.yaml` | `narrative.on_llm_unavailable` |
 | How many CAM sections are written at once | `llm_providers.yaml` | `narrative.max_parallel_sections` |
 | Server port, scoring weights, validation tolerances | `settings.yaml` | `server`, `scoring`, `validation` |
-| Demo external data server (CAM workspace) | `external_apis.yaml` | `mock_server` |
 
 Secrets such as API keys go in **`.env.local`** (copy `.env.example`). That file is never committed.
+
+**Borrowers are data, not code.** Each borrower on record is one file, `data/borrowers/<ID>.json`: identity,
+directors, audited statements, the facility requested, collateral, lenders, account conduct, covenants, sector KPIs,
+identifiers and the documents profile. Add a borrower by adding a file; change one by editing its file. Real public
+figures are read from the annual reports (see *Latest public documents* below); what is not public (collateral,
+conduct, existing exposure, covenants, CRILC) is demo data, shown as such. The demo PEP / sanctions watchlist is
+`data/reference/pep_watchlist.json` (fictional entries).
 
 ---
 
@@ -110,11 +120,27 @@ Hotels has no bureau report, so "bureau status" stays not verified.
 downloaded by `prepare.py`, not committed) and demo MCA, KYC, bureau, bank-statement and GST documents (`demo/`).
 Packs ship for Transport Corporation of India, KPI Green Energy, H.G. Infra and Dixon Technologies.
 
-Initiate the proposal as a **New-to-bank prospect** using the registered name (the CIN is optional). When the name or
-CIN matches a pack, Data Sources offers **Load test pack**. It files every document as if the RM had uploaded it and
-runs the agents again. Turn this off with `test_packs: {enabled: false}` in `data_sources.yaml`; it is also off when
+Initiate the proposal as a **New-to-bank prospect** using the registered name (the CIN is optional); nothing runs yet.
+Click **Generate CAM**: the data agents gather what the APIs provide and stop on the documents they still need. When
+the name or CIN matches a pack, the CAM card offers **Load test pack**. It files every document as if the RM had
+uploaded it, the agents read them, and the CAM engine then starts on its own. Turn this off with `test_packs: {enabled: false}` in `data_sources.yaml`; it is also off when
 `demo_data` is off. `scripts/deploy_gcp.sh` downloads the public documents in Cloud Shell
 (`scripts/fetch_test_packs.py`) so the packs are complete in the cloud too.
+
+### Latest public documents of the listed borrowers
+
+`config/borrower_documents.yaml` lists, per listed borrower, its FY2026 annual report, its results for the quarter to
+30 September 2026 and its latest rating rationale, with the source URLs (BSE / NSE filings, the company's site, CRISIL /
+CARE). The large filings are not committed: `scripts/fetch_borrower_documents.py` downloads them (run it once on a new
+laptop; `deploy_gcp.sh` runs it in Cloud Shell). The rating rationales are small and committed
+(`scripts/save_rating_rationales.py`).
+
+`scripts/read_fy2026_statements.py` reads each annual report's audited standalone statements with the same reader the
+new-to-bank agents use (layout reading and Gemini reading the pages, cross-checked) and writes them into the borrower's
+data file, `data/borrowers/<ID>.json`: FY2026 and FY2025, plus one earlier year from the previous annual report on
+record. The borrower's external rating is read from its rating rationale. `scripts/refresh_demo_documents.py` then
+regenerates the borrower's demo bank, GST, bureau and KYC documents from the new figures. Run them again when a new
+annual report is published.
 
 ### Expected credit loss (ECL) parameters
 

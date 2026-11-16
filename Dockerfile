@@ -25,6 +25,8 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY src/ ./src/
 COPY config/ ./config/
+# the borrowers on record: one data file each (no borrower data in code)
+COPY data/ ./data/
 COPY scripts/ ./scripts/
 COPY run.py .
 COPY requirements.txt .
@@ -51,8 +53,7 @@ ENV PYTHONUNBUFFERED=1 \
     CAM_STORAGE_ROOT=/app/storage \
     CAM_OUTPUT_ROOT=/app/output \
     CAM_RUNTIME_DB_ROOT=/app/runtime-db \
-    CAM_REFERENCE_ROOT=/app/reference-docs \
-    CAM_SYNTHETIC_ROOT=/app/synthetic-assets
+    CAM_REFERENCE_ROOT=/app/reference-docs
 
 # Cloud Run passes the port in $PORT
 ENV PORT=8000

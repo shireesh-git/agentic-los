@@ -71,3 +71,12 @@ storage/flow/
 
 # credit data mart written locally when BigQuery is not configured (src/core/mart.py)
 storage/mart/
+
+# Latest public filings of the listed borrowers (round 8): large, fetched by scripts/fetch_borrower_documents.py
+# from config/borrower_documents.yaml (locally, and in Cloud Shell before each deploy). The ratings are committed.
+storage/documents/*/financials/annual_report_fy2026.pdf
+storage/documents/*/exchange/quarterly_results_q2fy2027.pdf
+storage/documents/*/exchange/investor_presentation_q2fy2027.pdf
+
+# new-to-bank prospects created while testing (P + name + 4 hex): runtime data, filled from test-documents/
+storage/documents/P????????[0-9A-F][0-9A-F][0-9A-F][0-9A-F]/

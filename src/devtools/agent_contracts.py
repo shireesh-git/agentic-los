@@ -28,13 +28,10 @@ CONTRACTS = {
     "data_ingestion": {
         "purpose": "Collect the borrower's documents and data and make them available to the other agents.",
         "inputs": ["company_data (borrower, financials, external_data bundle)", "storage/documents/{entity}/",
-                   "reference annual-report folder", "extraction / ETB in-memory stores"],
+                   "extraction / ETB in-memory stores"],
         "prompt": None,
         "processing": [
-            "dms_service.fetch_documents — uses files already on disk when 5+ exist; otherwise tries to generate "
-            "them with scripts/generate_poc_documents.py (that import currently fails for every company: KeyError "
-            "'FY2022').",
-            "ingest_downloaded_documents — PyMuPDF/OCR of reference annual reports.",
+            "dms_service.fetch_documents — uses the borrower's documents on disk (storage/documents/{entity}/).",
             "extract_all_documents — PDF/XLSX/JSON parsing with a per-file content-hash cache on disk.",
             "apply_uploaded_financial_overrides — REPLACES company_data['financials'] with uploaded statements.",
             "verify_batch — SHA-256 fingerprints of PDFs.",

@@ -1,0 +1,400 @@
+{
+ "core_banking": {},
+ "data_provider": "verified_public_records",
+ "catalog_source": "reference_catalog",
+ "preferred_identifier": "Pinnacle Infra Projects Ltd",
+ "reference_prefix": null,
+ "borrower": {
+  "entity_id": "PINF001",
+  "company_name": "Pinnacle Infra Projects Ltd",
+  "cin": "L45200DL2005PLC134567",
+  "pan": "AABCP5678G",
+  "borrower_type": "listed",
+  "sector": "infrastructure",
+  "subsector": "Roads & Highways EPC",
+  "date_of_incorporation": "2005-08-22",
+  "registered_state": "Delhi",
+  "registered_address": "502, Nehru Place, New Delhi 110019",
+  "authorized_capital": 200.0,
+  "paid_up_capital": 125.0,
+  "listed_exchange": "NSE",
+  "isin": "INE456B01034",
+  "bse_code": null,
+  "nse_symbol": "PINNACLEINFRA",
+  "credit_rating": "ICRA BBB-/Watch Negative",
+  "rating_agency": "ICRA",
+  "employee_count": 4200,
+  "website": "www.pinnacleinfra.com"
+ },
+ "group": {
+  "group_id": "GRP_PINF",
+  "group_name": "Pinnacle Group",
+  "parent_entity_id": "PINF001",
+  "entities": [
+   "PINF001",
+   "Pinnacle Realty Pvt Ltd",
+   "Pinnacle Equipment Leasing Pvt Ltd"
+  ],
+  "promoter_holding_pct": 44.8,
+  "institutional_holding_pct": 18.2,
+  "public_holding_pct": 37.0,
+  "hierarchy": null,
+  "ultimate_parent": null,
+  "group_revenue_cr": null,
+  "group_net_worth_cr": null,
+  "group_total_debt_cr": null
+ },
+ "directors": [
+  {
+   "din": "00223344",
+   "name": "Vikram Singh Rathore",
+   "designation": "Chairman & MD",
+   "entity_id": "PINF001",
+   "pan": "AABPV2345B",
+   "date_of_appointment": "2006-08-22",
+   "other_directorships": [
+    "Pinnacle Realty Pvt Ltd",
+    "Pinnacle Equipment Leasing Pvt Ltd"
+   ],
+   "net_worth_cr": 120.0,
+   "is_promoter": true
+  },
+  {
+   "din": "00223345",
+   "name": "Anita Rathore",
+   "designation": "Director",
+   "entity_id": "PINF001",
+   "pan": "AABPA2346C",
+   "date_of_appointment": "2011-01-01",
+   "other_directorships": [
+    "Pinnacle Realty Pvt Ltd"
+   ],
+   "net_worth_cr": 65.0,
+   "is_promoter": true
+  },
+  {
+   "din": "00223346",
+   "name": "Ramesh Iyer",
+   "designation": "Independent Director",
+   "entity_id": "PINF001",
+   "pan": "AABPR2347D",
+   "date_of_appointment": "2021-06-15",
+   "other_directorships": [
+    "ABC Bank Ltd"
+   ],
+   "net_worth_cr": 30.0,
+   "is_promoter": false
+  }
+ ],
+ "financials": {
+  "FY2025": {
+   "entity_id": "PINF001",
+   "period": "FY2025",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2025-03-31",
+   "line_items": {
+    "revenue_operating": 2200.0,
+    "other_income": 15.0,
+    "total_income": 2215.0,
+    "raw_material_cost": 1430.0,
+    "employee_cost": 176.0,
+    "other_expenses": 330.0,
+    "ebitda": 279.0,
+    "depreciation": 110.0,
+    "ebit": 169.0,
+    "finance_cost": 145.0,
+    "pbt": 24.0,
+    "tax_expense": 6.0,
+    "pat": 18.0,
+    "total_equity": 520.0,
+    "reserves_surplus": 395.0,
+    "long_term_debt": 980.0,
+    "short_term_debt": 450.0,
+    "total_debt": 1430.0,
+    "current_assets": 1150.0,
+    "inventory": 180.0,
+    "trade_receivables": 680.0,
+    "cash_equivalents": 25.0,
+    "other_current_assets": 265.0,
+    "current_liabilities": 920.0,
+    "trade_payables": 520.0,
+    "other_current_liabilities": 400.0,
+    "total_assets": 2870.0,
+    "net_fixed_assets": 580.0,
+    "capital_wip": 320.0,
+    "intangible_assets": 15.0,
+    "investments": 85.0,
+    "operating_cash_flow": 35.0,
+    "investing_cash_flow": -280.0,
+    "financing_cash_flow": 220.0,
+    "capex": 265.0,
+    "dividend_paid": 0.0,
+    "contingent_liabilities": 185.0
+   }
+  },
+  "FY2024": {
+   "entity_id": "PINF001",
+   "period": "FY2024",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2024-03-31",
+   "line_items": {
+    "revenue_operating": 2550.0,
+    "other_income": 18.0,
+    "total_income": 2568.0,
+    "raw_material_cost": 1581.0,
+    "employee_cost": 178.5,
+    "other_expenses": 306.0,
+    "ebitda": 502.5,
+    "depreciation": 102.0,
+    "ebit": 400.5,
+    "finance_cost": 128.0,
+    "pbt": 272.5,
+    "tax_expense": 68.13,
+    "pat": 204.37,
+    "total_equity": 640.0,
+    "reserves_surplus": 515.0,
+    "long_term_debt": 850.0,
+    "short_term_debt": 380.0,
+    "total_debt": 1230.0,
+    "current_assets": 980.0,
+    "inventory": 155.0,
+    "trade_receivables": 510.0,
+    "cash_equivalents": 55.0,
+    "other_current_assets": 260.0,
+    "current_liabilities": 780.0,
+    "trade_payables": 440.0,
+    "other_current_liabilities": 340.0,
+    "total_assets": 2650.0,
+    "net_fixed_assets": 550.0,
+    "capital_wip": 280.0,
+    "intangible_assets": 12.0,
+    "investments": 78.0,
+    "operating_cash_flow": 180.0,
+    "investing_cash_flow": -195.0,
+    "financing_cash_flow": 30.0,
+    "capex": 180.0,
+    "dividend_paid": 12.5,
+    "contingent_liabilities": 140.0
+   }
+  },
+  "FY2023": {
+   "entity_id": "PINF001",
+   "period": "FY2023",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2023-03-31",
+   "line_items": {
+    "revenue_operating": 2380.0,
+    "other_income": 12.0,
+    "total_income": 2392.0,
+    "raw_material_cost": 1428.0,
+    "employee_cost": 166.6,
+    "other_expenses": 285.6,
+    "ebitda": 511.8,
+    "depreciation": 95.0,
+    "ebit": 416.8,
+    "finance_cost": 115.0,
+    "pbt": 301.8,
+    "tax_expense": 75.45,
+    "pat": 226.35,
+    "total_equity": 560.0,
+    "reserves_surplus": 435.0,
+    "long_term_debt": 720.0,
+    "short_term_debt": 320.0,
+    "total_debt": 1040.0,
+    "current_assets": 850.0,
+    "inventory": 130.0,
+    "trade_receivables": 420.0,
+    "cash_equivalents": 70.0,
+    "other_current_assets": 230.0,
+    "current_liabilities": 680.0,
+    "trade_payables": 380.0,
+    "other_current_liabilities": 300.0,
+    "total_assets": 2320.0,
+    "net_fixed_assets": 520.0,
+    "capital_wip": 230.0,
+    "intangible_assets": 10.0,
+    "investments": 60.0,
+    "operating_cash_flow": 220.0,
+    "investing_cash_flow": -165.0,
+    "financing_cash_flow": -40.0,
+    "capex": 155.0,
+    "dividend_paid": 18.75,
+    "contingent_liabilities": 95.0
+   }
+  }
+ },
+ "provisional": {
+  "entity_id": "PINF001",
+  "period": "FY2026_P",
+  "statement_type": "standalone",
+  "source": "provisional",
+  "as_of_date": "2026-12-31",
+  "line_items": {
+   "revenue_operating": 2400.0,
+   "ebitda": 360.0,
+   "pat": 85.0,
+   "total_debt": 1500.0,
+   "total_equity": 550.0
+  }
+ },
+ "facility": {
+  "facility_id": "FAC_PINF_001",
+  "entity_id": "PINF001",
+  "case_type": "NTB",
+  "facility_type": "term_loan",
+  "amount_requested_cr": 350.0,
+  "purpose": "Term loan for highway project — NH48 bypass section (65 km). NHAI BOT toll project with 20-year concession.",
+  "tenor_months": 120,
+  "collateral_type": "Project Assets + Escrow of Toll Revenue",
+  "collateral_value_cr": 420.0,
+  "existing_limit_cr": null,
+  "proposed_limit_cr": 350.0
+ },
+ "collateral": [
+  {
+   "collateral_id": "COL_PINF_001",
+   "entity_id": "PINF001",
+   "collateral_type": "Project Assets",
+   "description": "Highway project assets — NH48 bypass",
+   "market_value_cr": 280.0,
+   "forced_sale_value_cr": 168.0,
+   "valuation_date": "2026-09-30",
+   "encumbrance_status": "clear"
+  },
+  {
+   "collateral_id": "COL_PINF_002",
+   "entity_id": "PINF001",
+   "collateral_type": "Toll Revenue Escrow",
+   "description": "Escrow of projected toll revenue for debt servicing",
+   "market_value_cr": 140.0,
+   "forced_sale_value_cr": 98.0,
+   "valuation_date": "2026-09-30",
+   "encumbrance_status": "clear"
+  }
+ ],
+ "market_signals": [
+  {
+   "entity_id": "PINF001",
+   "signal_type": "news",
+   "headline": "ICRA places Pinnacle Infra on Watch Negative amid project delays",
+   "sentiment": "negative",
+   "severity": "high",
+   "source_name": "Business Standard",
+   "signal_date": "2026-11-15",
+   "details": "Two highway projects face 6-month execution delay; cost overrun concerns."
+  },
+  {
+   "entity_id": "PINF001",
+   "signal_type": "social",
+   "headline": "Employee reviews flag salary delays at Pinnacle Infra",
+   "sentiment": "negative",
+   "severity": "medium",
+   "source_name": "Glassdoor",
+   "signal_date": "2026-10-03",
+   "details": "Multiple reviews mention 2-3 month salary delays in project sites."
+  },
+  {
+   "entity_id": "PINF001",
+   "signal_type": "news",
+   "headline": "NHAI terminates 2 BOT contracts of Pinnacle Group subsidiary",
+   "sentiment": "negative",
+   "severity": "high",
+   "source_name": "Mint",
+   "signal_date": "2026-08-20",
+   "details": "Contracts terminated due to non-compliance with construction milestones."
+  }
+ ],
+ "existing_exposure": [],
+ "conduct": [],
+ "covenants": [],
+ "exchange_filing": {
+  "entity_id": "PINF001",
+  "period": "FY2026_Q3",
+  "statement_type": "standalone",
+  "source": "exchange",
+  "as_of_date": "2026-12-31",
+  "line_items": {
+   "revenue_operating": 1650.0,
+   "ebitda": 198.0,
+   "pat": -12.0
+  }
+ },
+ "sector_kpis": {
+  "sector_type": "road_construction",
+  "order_book": {
+   "total_order_book_cr": 8500,
+   "book_to_bill_ratio": 3.9,
+   "epc_orders_cr": 5200,
+   "bot_ham_orders_cr": 3300,
+   "orders_received_fy25_cr": 2100,
+   "executable_order_book_cr": 6800,
+   "source": "Company Annual Report"
+  },
+  "project_pipeline": [
+   {
+    "project_name": "NH-48 Bangalore-Hubli (Pkg-3)",
+    "length_km": 134,
+    "contract_value_cr": 2150,
+    "completion_pct": 72,
+    "model": "EPC",
+    "client": "NHAI",
+    "target_completion": "Q3 FY2026"
+   },
+   {
+    "project_name": "Eastern Peripheral Expressway Ext",
+    "length_km": 86,
+    "contract_value_cr": 1650,
+    "completion_pct": 28,
+    "model": "HAM",
+    "client": "NHAI",
+    "target_completion": "Q2 FY2028"
+   },
+   {
+    "project_name": "Solapur-Bijapur 4-lane",
+    "length_km": 98,
+    "contract_value_cr": 1480,
+    "completion_pct": 45,
+    "model": "EPC",
+    "client": "MoRTH",
+    "target_completion": "Q4 FY2027"
+   }
+  ],
+  "execution_metrics": {
+   "km_executed_fy25": 180,
+   "km_executed_fy24": 205,
+   "km_executed_fy23": 230,
+   "avg_construction_cost_per_km_cr": 19.2,
+   "effective_construction_days_per_year": 240,
+   "equipment_utilization_pct": 68.5,
+   "source": "Company Operational Data"
+  },
+  "stress_indicators": {
+   "nhai_arbitration_pending_cr": 850,
+   "mobilization_advances_outstanding_cr": 420,
+   "contract_termination_risk": "High — 1 NHAI project under performance review",
+   "subcontractor_payment_delays_days": 45,
+   "source": "Company Disclosure; NHAI Project Tracker"
+  },
+  "development_projections": {
+   "projected_km_fy26": 160,
+   "projected_km_fy27": 175,
+   "projected_revenue_fy26_cr": 2050,
+   "projected_revenue_fy27_cr": 2200,
+   "capex_plan_fy26_cr": 180,
+   "capex_plan_fy27_cr": 200,
+   "source": "Company Projections"
+  }
+ },
+ "identifiers": {
+  "pan": "AABCP5678G",
+  "gstin": "07AABCP5678G1Z8"
+ },
+ "name_aliases": [
+  "pinnacle infra",
+  "pinnacle infra projects",
+  "pinnacle infra projects ltd"
+ ]
+}

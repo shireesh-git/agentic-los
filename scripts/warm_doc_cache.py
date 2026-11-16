@@ -2,10 +2,11 @@
 
 Run while the cloud image is built (see the Dockerfile): the cache is written for the image's own paths and
 OCR setup, so the first CAM run for a borrower reuses it instead of reading hundreds of pages on one CPU.
-New prospects (folders starting with "P") are read when their documents are uploaded, not here.
+New prospects (folders P<NAME><4 hex>) are read when their documents are uploaded, not here.
 """
 
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -20,7 +21,8 @@ from src.services.document_extractor import extract_all_documents  # noqa: E402
 
 def main() -> None:
     started = time.time()
-    for folder in sorted(p for p in DOCUMENTS_ROOT.iterdir() if p.is_dir() and not p.name.startswith(("P", "_"))):
+    # catalogue borrowers are AAAA999 (PNCR001 and PINF001 start with P too); prospects are P<NAME><4 hex>
+    for folder in sorted(p for p in DOCUMENTS_ROOT.iterdir() if p.is_dir() and re.fullmatch(r"[A-Z]{4}\d{3}", p.name)):
         t = time.time()
         res = extract_all_documents(folder.name, DOCUMENTS_ROOT)
         notes = notes_reader.for_entity(folder.name, use_model=False)   # the rules reading; the AI reads on the first CAM

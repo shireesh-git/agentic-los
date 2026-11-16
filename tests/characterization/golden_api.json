@@ -62,12 +62,14 @@
       "approval",
       "backtest",
       "benchmarks",
+      "borrower_documents",
       "data_sources",
       "exposure",
       "external_apis",
       "flow",
       "llm_providers",
       "rules",
+      "sector_profiles",
       "settings"
     ]
   },

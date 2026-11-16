@@ -90,12 +90,12 @@ def test_an_ingested_cam_is_checked_and_completed_from_the_audited_statements(sv
     rm = svc.sign_in("f_rm")
     svc.reset(rm, E)
     case = svc.create(rm, entity_id=E)
-    svc.upload_cam(case["case_id"], rm, "bank_cam.pdf", _cam_pdf("150,000.00"))
+    svc.upload_cam(case["case_id"], rm, "bank_cam.pdf", _cam_pdf("160,000.00"))
     pts = {p["id"]: p for g in svc.view(case["case_id"], rm)["groups"] for p in g["points"]}
-    assert pts["revenue_cr"]["value"] == 150000.0 and "audited FY2025" in (pts["revenue_cr"]["flag"] or "")
+    assert pts["revenue_cr"]["value"] == 160000.0 and "audited FY2026" in (pts["revenue_cr"]["flag"] or "")
     # not stated in the CAM → from the audited statements on record, with the formula
     assert pts["pat_cr"]["source"]["kind"] == "record" and pts["pat_cr"]["value"] is not None
-    assert pts["current_ratio"]["source"]["label"].startswith("Ratio engine · Audited statements · FY2025")
+    assert pts["current_ratio"]["source"]["label"].startswith("Ratio engine · Audited statements · FY2026")
     svc.reset(rm, E)
 
 

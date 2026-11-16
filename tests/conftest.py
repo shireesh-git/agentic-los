@@ -35,8 +35,12 @@ def _prepare_config(target: Path) -> None:
 
 
 if (PROJECT_ROOT / "storage").exists():
+    # the large public filings fetched by scripts/fetch_borrower_documents.py are not in git (a fresh clone has
+    # none), so the tests do not depend on them — nor on prospects created while testing by hand (P…XXXX)
     shutil.copytree(PROJECT_ROOT / "storage", _TMP / "storage",
-                    ignore=shutil.ignore_patterns("cache"))
+                    ignore=shutil.ignore_patterns("cache", "mart", "annual_report_fy2026.pdf",
+                                                  "quarterly_results_q2fy2027.pdf",
+                                                  "investor_presentation_q2fy2027.pdf"))
 _prepare_config(_TMP / "config")
 
 os.environ["CAM_CONFIG_DIR"] = str(_TMP / "config")

@@ -53,7 +53,7 @@ except Exception:
 # on disk under the file's content hash: unchanged files are not read again.
 # Bump _EXTRACTION_CACHE_VERSION whenever an extractor's output changes.
 
-_EXTRACTION_CACHE_VERSION = "3"   # 3: first matching label wins (revenue never pooled with total income)
+_EXTRACTION_CACHE_VERSION = "4"   # 3: first matching label wins; 4: tables only on tabular pages of long reports
 _EXTRACTION_CACHE_DIR = CACHE_ROOT / "extractions"
 
 

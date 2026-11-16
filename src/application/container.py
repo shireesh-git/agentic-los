@@ -67,7 +67,7 @@ def default_pipeline_factory():
 
 def build_container(pipeline_factory=default_pipeline_factory) -> ServiceContainer:
     from src.core.runtime_paths import DOCUMENTS_ROOT, OUTPUT_ROOT, REFERENCE_CAM_ROOT
-    from src.data.company_catalog import bootstrap_reference_documents, seed_company_store
+    from src.data.company_catalog import seed_company_store
     from src.services.company_onboarding import onboard_company
     from src.services.document_store import doc_store
     from src.services.persistence import persistence
@@ -76,20 +76,14 @@ def build_container(pipeline_factory=default_pipeline_factory) -> ServiceContain
 
     cases = persistence.load_latest_cases()
     companies = seed_company_store()
-    stored = persistence.load_companies()
-    from src.application.company_service import restore_curated_sector
-    for eid, company in stored.items():
-        # One-time repair at the source: a stored sector that was only an inference default is replaced by
-        # the curated catalogue sector and the corrected record is saved (see restore_curated_sector).
-        if restore_curated_sector(companies.get(eid), company):
-            persistence.upsert_company(eid, company, catalog_source=company.get("catalog_source") or "run_autoload")
-    companies.update(stored)
+    # the borrowers on record come from their data files (data/borrowers/); a saved record adds a borrower created in
+    # the app (a new-to-bank prospect, a manual entry) but never replaces a data file's (round 8)
+    companies.update({eid: c for eid, c in persistence.load_companies().items() if eid not in companies})
     state = AppState(
         companies=companies,
         # Repaired once here; CaseService.get no longer repairs on every read.
         cases={eid: repair_mojibake(case) for eid, case in cases.items() if eid in companies},
     )
-    bootstrap_reference_documents()
 
     workspace = DocumentWorkspaceService(DOCUMENTS_ROOT, REFERENCE_CAM_ROOT)
     company_service = CompanyService(state, persistence, doc_store, workspace,

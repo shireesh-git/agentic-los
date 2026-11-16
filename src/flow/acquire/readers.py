@@ -92,8 +92,9 @@ def _score(low_head: str, low: str, kind: str, own: Optional[str] = None, prev: 
     need = {"bs": ("balance sheet", "total assets"),
             "pl": ("profit and loss", "revenue from operation"),      # "operation" as well as "operations"
             "cf": ("cash flow", "operating activities")}[kind]
-    if need[1] not in own:
-        return -99
+    if need[1] not in own and not (kind == "bs" and "balance sheet" in low_head and "non-current assets" in own
+                                   and "equity" in low):
+        return -99                                  # (IHCL prints the asset total without a "Total assets" label)
     if kind == "pl" and not re.search(r"total income|total revenue", own):
         return -99                                  # a notes page that quotes revenue (ratio analysis, segments)
     if need[0] not in low and need[0] not in prev.replace("&", "and"):
@@ -145,7 +146,7 @@ def locate_statements(pages: list[str]) -> dict:
 def _grab(label: str, text: str, start: int = 0, end: Optional[int] = None) -> Optional[tuple[float, float, int]]:
     """(current, previous, position) for the first ``label`` in text[start:end] followed by two figures
     (an optional note number between them is skipped)."""
-    pat = re.compile(r"(?:" + label + r")[^|]*(?:\|[^|\d(\-][^|]*){0,2}?\|\s*(?:\d{1,2}\s*\|\s*)?(" + NUM +
+    pat = re.compile(r"(?:" + label + r")[^|]*(?:\|[^|\d(\-][^|]*){0,2}?\|\s*(?:\d{1,2}(?:\.\d{1,2})?\s*\|\s*)?(" + NUM +
                      r")\s*\|\s*(" + NUM + r")\s*(?=\||$)", re.I)
     m = pat.search(text, start, end if end is not None else len(text))
     if not m:
@@ -199,7 +200,7 @@ _PL = [
     ("total_expenses", r"total expenses"), ("exceptional", r"exceptional items(?! and)"),
     ("pbt", r"profit\s*/?\s*(?:\(loss\)\s*)?before tax"),
     ("pbt_pre_exceptional", r"profit\s*/?\s*(?:\(loss\)\s*)?before exceptional items? and tax"), ("tax_expense", r"tax expenses?\s*(?:\(\d+\))"),
-    ("pat", r"profit\s*/?\s*(?:\(loss\)\s*)?for the (?:year|period)"),
+    ("pat", r"(?:net\s+)?profit\s*/?\s*(?:\(loss\)\s*)?(?:after tax\s+)?for the (?:year|period)"),
 ]
 _CF = [("ocf", r"net cash (?:generated )?from\s*/?\s*\(?(?:used in)?\)?\s*operating activities|"
                r"net cash (?:flow )?(?:generated )?from operating activities"),
@@ -208,10 +209,17 @@ _CF = [("ocf", r"net cash (?:generated )?from\s*/?\s*\(?(?:used in)?\)?\s*operat
 
 def _years(text: str) -> list[int]:
     ys = []
-    for m in re.finditer(r"31(?:st)?\s*march,?\s*(20\d\d)|march\s*31,?\s*(20\d\d)|31[-/.]0?3[-/.](20\d\d)", text, re.I):
+    # a table row joins its cells with " | ": "As at March 31, | 2026 | 2025"
+    for m in re.finditer(r"31(?:st)?[\s|]*march,?[\s|]*(20\d\d)|march[\s|]*31,?[\s|]*(20\d\d)|31[-/.]0?3[-/.](20\d\d)",
+                         text, re.I):
         y = int(next(g for g in m.groups() if g))
         if y not in ys:
             ys.append(y)
+    if len(ys) == 1:
+        # one dated column and a bare year beside it: "As at March 31, 2026 2025" (Infosys)
+        m = re.search(r"(?:march[\s|]*31,?|31(?:st)?[\s|]*march,?)[\s|]*" + str(ys[0]) + r"[\s|]+(20\d\d)\b", text, re.I)
+        if m and int(m.group(1)) == ys[0] - 1:
+            ys.append(ys[0] - 1)
     return ys[:2]
 
 
@@ -260,6 +268,10 @@ def parse_statements(pages: list[str], loc: dict) -> dict:
             g = _grab(label, pl, s0)
             if g:
                 raw[key] = (g[0], g[1])
+        # revenue printed as its parts first (sale of products, other operating revenue), then their total (Cipla)
+        g = _grab(r"total revenue from operations?", pl, s0)
+        if g:
+            raw["revenue_operating"] = (g[0], g[1])
     if "cf" in loc:
         cf = joined(" \n".join(pages[loc["cf"]:loc["cf"] + 2]))
         for key, label in _CF:
@@ -386,8 +398,66 @@ def llm_statements(pages: list[str], loc: dict, llm) -> Optional[dict]:
         return None
 
 
+def statement_pages(path: Path, loc: dict, n_pages: int) -> list[int]:
+    """The located statement pages (0-based) and the page after the balance sheet and the P&L (a statement often runs
+    over), at most six."""
+    idx = set(loc.values()) | {loc[k] + 1 for k in ("bs", "pl") if k in loc and loc[k] + 1 < n_pages}
+    return sorted(idx)[:6]
+
+
+def pages_pdf(path: Path, indices: list[int]) -> bytes:
+    """A PDF of just these pages of ``path`` (what Gemini reads: the pages as printed, tables and columns intact)."""
+    import pymupdf
+    with pymupdf.open(str(path)) as src, pymupdf.open() as out:
+        for i in indices:
+            out.insert_pdf(src, from_page=i, to_page=i)
+        return out.tobytes()
+
+
+def vision_statements(path: Path, loc: dict, n_pages: int, llm) -> Optional[dict]:
+    """Gemini (or any model configured with ``vision: true``) reads the statement pages themselves — not their extracted
+    text — into the same keys, with the year columns and the unit as printed (round 8). None when no such model."""
+    if llm is None or getattr(llm, "name", "") == "mock" or not getattr(llm, "supports_vision", False):
+        return None
+    from src.services.observation_narrator import _parse_json_object
+    idx = statement_pages(path, loc, n_pages)
+    prompt = ("These pages are the STANDALONE balance sheet, statement of profit and loss and cash flow statement of an "
+              "Indian company's audited annual report (ignore any consolidated statement). Return "
+              "{\"years\": [current_year_end_YYYY, previous_year_end_YYYY], \"unit\": \"the unit printed under the "
+              "heading, e.g. crore, lakh, million, thousand\", \"basis\": \"standalone\" or \"consolidated\", "
+              "\"values\": {key: [current, previous]}} for these keys (omit a key that is not printed): "
+              + ", ".join(_FS_KEYS) + ". 'tel' is total equity and liabilities; 'lt_' non-current, 'st_' current; "
+              "'current_assets_subtotal' is the total of current assets; 'revenue_operating' is total revenue from "
+              "operations; 'pat' is the profit for the year; 'lt_borrowings' is Borrowings under non-current (financial) "
+              "liabilities and 'st_borrowings' Borrowings under current (financial) liabilities — give both whenever "
+              "borrowings are printed; 'nc_lease' / 'c_lease' the lease liabilities; 'finance_cost' total finance "
+              "costs; 'depreciation' depreciation and amortisation expense. Read each figure from its own row and column.")
+    try:
+        raw = llm.generate(prompt=prompt, system_prompt=_FS_SYSTEM, temperature=0.0, max_tokens=6000,
+                           images=[{"mime": "application/pdf", "data": pages_pdf(path, idx)}])
+        data = _parse_json_object(raw)
+        vals = {k: (float(v[0]), float(v[1])) for k, v in (data.get("values") or {}).items()
+                if k in _FS_KEYS and isinstance(v, (list, tuple)) and len(v) == 2
+                and all(isinstance(x, (int, float)) for x in v)}
+        years = [int(str(y)[:4]) for y in (data.get("years") or [])][:2]
+        return {"years": years, "raw": vals, "unit": str(data.get("unit") or ""),
+                "basis": str(data.get("basis") or "").lower(), "pages": [i + 1 for i in idx]} if vals else None
+    except Exception:
+        log.warning("AI reading of the statement pages of %s failed", path.name, exc_info=True)
+        return None
+
+
+# the figures the two readings must agree on before a reading is called confirmed
+_CROSS = ("revenue_operating", "pat", "total_assets", "total_equity", "pbt", "finance_cost", "depreciation")
+
+
 def read_financial_statements(path: Path, llm=None, pages: Optional[list[str]] = None) -> dict:
-    """Both year columns of the standalone statements in an annual report / audited accounts."""
+    """Both year columns of the standalone statements in an annual report / audited accounts.
+
+    Two independent readings of the located pages (round 8): our layout reading of the extracted text, and the AI
+    model reading the pages themselves. Each must reconcile and be plausible. Both pass and agree: "layout, confirmed
+    by AI". Both pass and differ: the page reading is used and the difference is recorded for review. Only one
+    passes: that one. Neither: the AI model reads the extracted text (the earlier fallback)."""
     pages = pages or page_texts(path)
     loc = locate_statements(pages)
     if "bs" not in loc or "pl" not in loc:
@@ -401,15 +471,59 @@ def read_financial_statements(path: Path, llm=None, pages: Optional[list[str]] =
     parsed = parse_statements(pages, loc)
     method = "layout"
     years_items = build_statements(parsed["raw"], factor)
-    ok = all(c["ok"] for it in years_items for c in statement_checks(it))
+
+    def plausible(it: dict) -> bool:
+        # a balance sheet can reconcile while the P&L line was misread (round 8: revenue ₹0.21 Cr against a profit of
+        # ₹3,220 Cr): revenue must exceed the absolute profit, and a profit of exactly nil is a misreading
+        rev, pat = it.get("revenue_operating") or 0, it.get("pat")
+        return rev > 0 and pat not in (None, 0) and abs(pat) < rev
+
+    def passes(items: list[dict]) -> bool:
+        return len(items) >= 2 and all(c["ok"] for it in items for c in statement_checks(it)) \
+            and all(plausible(it) for it in items[:2])
+
+    ok = passes(years_items)
+    cross: dict = {}
+    vis = vision_statements(path, loc, len(pages), llm)
+    if vis:
+        v_factor = _unit(vis["unit"])[1] if vis["unit"] and re.search(r"lakh|lac|crore|cr\b|million|mn\b|thousand",
+                                                                       vis["unit"], re.I) else factor
+        # a field the page reading left out (Madras Fertilizers' current borrowings, ₹1,594 Cr) is taken from the
+        # layout reading of the same row, when it has one; the merged reading must still pass the checks
+        filled = {k: v for k, v in parsed["raw"].items() if k not in vis["raw"] and k in _FS_KEYS}
+        # a balance sheet in order of liquidity (an NBFC's) has one "Borrowings" row: the layout reading finds it under
+        # both the non-current and the current heading — the same figures twice are not two borrowings
+        for a, b in (("lt_borrowings", "st_borrowings"), ("nc_lease", "c_lease"), ("nc_investments", "current_investments")):
+            if parsed["raw"].get(a) is not None and parsed["raw"].get(a) == parsed["raw"].get(b):
+                filled.pop(a, None), filled.pop(b, None)
+        if filled and v_factor == factor:
+            merged = {**vis["raw"], **filled}
+            if passes(build_statements(merged, v_factor)):
+                vis = {**vis, "raw": merged, "filled_from_layout": sorted(filled)}
+        v_items = build_statements(vis["raw"], v_factor)
+        if passes(v_items):
+            if ok:
+                cur, v_cur = years_items[0], v_items[0]
+                cross = {k: [cur.get(k), v_cur.get(k)] for k in _CROSS
+                         if cur.get(k) is not None and v_cur.get(k) is not None
+                         and abs(cur[k] - v_cur[k]) > 0.005 * max(abs(cur[k]), abs(v_cur[k]), 1)}
+            if ok and not cross:
+                method = "layout, confirmed by AI"
+            else:
+                parsed = {"years": vis["years"] if len(vis["years"]) == 2 else parsed["years"], "raw": vis["raw"]}
+                years_items, method, ok = v_items, "ai (statement pages)", True
+                if vis["unit"] and v_factor != factor:
+                    unit = _unit(vis["unit"])[0]
     if not ok:
         alt = llm_statements(pages, loc, llm)
         if alt:
             alt_items = build_statements(alt["raw"], factor)
-            if all(c["ok"] for it in alt_items for c in statement_checks(it)):
+            if all(c["ok"] for it in alt_items for c in statement_checks(it)) and all(plausible(it) for it in alt_items[:2]):
                 parsed, years_items, method = {"years": alt["years"] or parsed["years"], "raw": alt["raw"]}, \
                     alt_items, "ai"
     years = parsed["years"]
+    if len(years) < 2 and vis and len(vis["years"]) == 2:
+        years = vis["years"]                        # the AI model read the column heads the layout reading missed
     if len(years) < 2:
         raise ValueError(f"{path.name}: the statement dates could not be read")
     whole = "\n".join(pages[:6]) + "\n" + "\n".join(pages[i] for i in loc.values())
@@ -426,7 +540,10 @@ def read_financial_statements(path: Path, llm=None, pages: Optional[list[str]] =
     name = next((n for n in names if not _EXCHANGE.search(n)), None)
     return {"document": path.name, "pages": {k: i + 1 for k, i in loc.items()}, "unit": unit, "basis": basis,
             "method": method, "statements": statements, "identity": identity_in(whole),
-            "name_found": name}
+            "name_found": name,
+            # where the two readings differed (layout, AI from the pages): kept for the officer and the audit trail
+            "cross_check": {k: {"layout": a, "ai_pages": b} for k, (a, b) in cross.items()},
+            "filled_from_layout": (vis or {}).get("filled_from_layout") or [] if method.startswith("ai (") else []}
 
 
 _EXCHANGE = re.compile(r"\b(?:BSE|National Stock Exchange|Stock Exchange|Metropolitan Stock Exchange|National Securities "
@@ -445,8 +562,12 @@ def read_rating(path: Path, pages: Optional[list[str]] = None) -> dict:
     agency = next((a for a in ("ICRA", "CRISIL", "CARE", "India Ratings") if a.lower() in flat.lower()[:3000]), None)
     d = re.search(r"((?:January|February|March|April|May|June|July|August|September|October|November|December)"
                   r"\s+\d{1,2},\s+20\d\d)", flat)
-    # "[ICRA]AA (Stable)", "CARE AA+; Stable", "CRISIL AA/Stable"
-    lt = re.search(_RATING + r"\s*(?:\(|;|/)\s*(Stable|Positive|Negative|Developing)\)?", flat)
+    # "[ICRA]AA (Stable)", "CARE AA+; Stable", "CRISIL AA/Stable", "Crisil AAA/Stable" (CRISIL's style since 2025),
+    # "CARE AA+ (RWN)" (on rating watch). The long-term rating is the first one in the rating table at the top, after
+    # "Long-term" — not any rating quoted later in the text (round 8: PNC read as another entity's "CARE AAA").
+    outlook = r"\s*(?:\(|;|/)\s*(Stable|Positive|Negative|Developing|RWN|RWP|RWD|Rating Watch[^)]{0,40})\)?"
+    lt = re.search(r"long[- ]term[^.]{0,200}?" + _RATING + r"(?:" + outlook + r")?", flat[:4000], re.I) \
+        or re.search(_RATING + outlook, flat, re.I)
     st = re.search(r"(\[ICRA\]\s?A1\+?|CRISIL\s?A1\+?|CARE\s?A1\+?|IND\s?A1\+?)", flat)
     action = re.search(r"(reaffirmed|upgraded|downgraded|assigned|withdrawn)", flat[:2500], re.I)
     total = re.search(r"Total\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})", flat)
@@ -471,8 +592,11 @@ def read_rating(path: Path, pages: Optional[list[str]] = None) -> dict:
     strengths = _headings(flat, "Credit strengths", "Credit challenges")
     challenges = _headings(flat, "Credit challenges", "Environmental and social risks|Liquidity position")
     liquidity = re.search(r"Liquidity position:\s*(\w+)", flat)
-    payload = {"rating_agency": agency, "long_term_rating": f"{lt.group(1)} ({lt.group(2)})" if lt else None,
-               "outlook": lt.group(2) if lt else None, "short_term_rating": st.group(1) if st else None,
+    lt_rating = re.sub(r"^(crisil|care|ind)(?=\s|$)", lambda m: m.group(1).upper(), lt.group(1), flags=re.I) if lt else None
+    lt_outlook = (lt.group(2) or "").strip() or None if lt else None
+    payload = {"rating_agency": agency,
+               "long_term_rating": (f"{lt_rating} ({lt_outlook})" if lt_outlook else lt_rating) if lt else None,
+               "outlook": lt_outlook, "short_term_rating": st.group(1) if st else None,
                "last_action": (action.group(1).capitalize() if action else None), "action_date": d.group(1) if d else None,
                "total_rated_cr": to_num(total.group(2)) if total else total_bank,
                "rated_facilities": facilities,

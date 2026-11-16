@@ -67,8 +67,9 @@ def test_amount_advice():
 
 def test_challenges_most_severe_first_with_actions():
     ch = rk.challenges(_engine())
-    assert [c["id"] for c in ch] == ["C-POL", "C-LEV"]                           # CRITICAL before HIGH
-    lev = ch[1]
+    # round 9: the policy breaches are decided in the Deviation Register, not as a challenge of their own
+    assert [c["id"] for c in ch] == ["C-LEV"]
+    lev = ch[0]
     assert [a["kind"] for a in lev["actions"]] == ["send_back", "justify", "reject"]   # no amount fits
     assert lev["why"] == "More exposure raises loss given default." and lev["amount_note"]
     assert "Lender-wise debt schedule" in lev["actions"][0]["prefill"]
@@ -84,8 +85,12 @@ def test_challenges_most_severe_first_with_actions():
     assert labelled.startswith("Decline. The engine") and "**Recommend for Sanction**" in labelled
     assert "Return with remarks" not in labelled
     assert {b["label"] for b in buttons} >= {"Return to RM", "Recommend for Sanction"}
-    done, _ = rk.plan("credit_risk", ["approve"], None, ch, {"C-POL": {}, "C-LEV": {}}, [], True)
+    done, _ = rk.plan("credit_risk", ["approve"], None, ch, {"C-LEV": {}}, [], True)
     assert "Already answered" in done
+    # round 9: an officer who cannot decline (Origination) is told who can, and offered Withdraw
+    rm, rm_buttons = rk.plan("rm", ["approve"], rk.assess(_engine()), ch, {}, [], True, can_withdraw=True)
+    assert "You cannot decline at this stage" in rm and "written justification" in rm
+    assert {b["kind"] for b in rm_buttons} >= {"approve", "withdraw"}
 
 
 @pytest.fixture(scope="module")
@@ -133,11 +138,13 @@ def test_madras_decline_needs_justification(svc):
     # Copilot: concrete next steps with buttons, and the amount check
     svc.chat(cid, cro, "What should I do next?")
     msg = svc.view(cid, cro)["chat"][-1]
-    assert msg["text"].startswith("Decline.") and "\nNext steps:\n1." in msg["text"] and msg.get("actions")
+    assert msg["text"].startswith("Engine verdict: Decline.") and "\nNext steps:\n1." in msg["text"] and msg.get("actions")
     assert "HR_" not in msg["text"] and "Return with remarks" not in msg["text"]
     svc.chat(cid, cro, "reading the risks, should I change the amount requested?")
     msg = svc.view(cid, cro)["chat"][-1]
-    assert "Sustainable limit" in msg["text"] and "already outside" in msg["text"] and "DSCR" in msg["text"]
+    # the amount is measured against the sustainable limit (on the real FY2025 record the ₹120 Cr request is within it;
+    # the Decline comes from negative net worth, the current ratio and two failed hard rules)
+    assert "Sustainable limit" in msg["text"] and "₹120.00 Cr" in msg["text"]
 
     # answer one challenge in writing, return for documents on another
     a0, a1 = v["against"][0]["id"], v["against"][1]["id"]
@@ -195,8 +202,11 @@ def test_quality_blocks_on_madras(svc):
     case = next(c for c in svc.store.all() if c["entity_id"] == E and c["status"] == "open")
     v = svc.view(case["case_id"], rm)
     pts = {p["id"]: p for g in v["groups"] for p in g["points"]}
-    assert pts["dscr"]["band"]["status"] == "bad" and pts["dscr"]["computed"]
-    assert pts["sustainable_limit_cr"]["value"] == 0.0 and pts["sustainable_limit_cr"]["band"]["status"] == "bad"
+    # the real FY2025 record (round 8): negative net worth (₹-32 Cr), current ratio 0.68x, two hard rules failed
+    assert pts["dscr"]["computed"] and pts["dscr"]["band"]["status"]
+    assert pts["current_ratio"]["band"]["status"] == "bad" and pts["net_worth_cr"]["value"] < 0
+    assert pts["hard_rules_failed"]["value"] >= 1 and pts["hard_rules_failed"]["band"]["status"] == "bad"
+    assert pts["sustainable_limit_cr"]["value"] is not None and pts["sustainable_limit_cr"]["band"]
     assert pts["ews_flags"]["value"] >= 2 and pts["earnings_quality"]["value"] < 85
     assert pts["revenue_cr"]["confidence"]["score"] <= 90 and "not cross-checked" in pts["revenue_cr"]["confidence"]["basis"]
     assert pts["revenue_truth"]["status"] == "unavailable"

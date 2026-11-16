@@ -409,6 +409,8 @@
                   <button class="linkbtn" x-show="!c.checks?.open" @click="expanded.checks = !expanded.checks" x-text="expanded.checks ? 'Hide' : 'Show all'"></button>
                 </span>
               </div>
+              <p class="muted sm" x-show="(c.checks?.items || []).some(i => i.open && i.status === 'not_verified')">
+                <b>Not verified</b> means no bureau, MCA or RBI / CIC list data is connected for this borrower, so the check could not run — it is not a finding against the borrower. To clear one: look it up yourself (bureau report, MCA21, the RBI and CIC lists) and <b>Record verification</b> with what you saw; or <b>Proceed with justification</b> if it cannot be obtained now. Underwriting and the Sanctioning Authority see your note.</p>
               <div class="table-wrap" x-show="c.checks?.open || expanded.checks"><table class="tbl">
                 <thead><tr><th>Check</th><th>Result</th><th>Finding · source</th><th>Evidence that clears it</th></tr></thead>
                 <tbody>
@@ -458,7 +460,7 @@
             </section>
             <!-- E7: which fields are incomplete, why, and who provides them -->
             <section class="card incomplete" x-show="c.cam.state === 'ready' && expanded.incomplete && (c.incomplete || []).length">
-              <div class="card-h"><h3><span x-html="icon('alert')"></span> Incomplete credit data fields</h3>
+              <div class="card-h"><h3><span x-html="icon('alert')"></span> Incomplete fields</h3>
                 <button class="linkbtn" @click="expanded.incomplete = false">Close</button></div>
               <div class="table-wrap"><table class="tbl">
                 <thead><tr><th>Field</th><th>Status</th><th>Why · who</th><th></th></tr></thead>
@@ -473,9 +475,19 @@
               </table></div>
             </section>
 
-            <!-- credit data fields: dense rows; only exceptions are marked (U3, U4) -->
+            <!-- borrower data, by section (round 8): pick a section, or All -->
+            <nav class="subtabs" x-show="c.cam.state === 'ready'">
+              <button :class="{on: !dataGroup}" @click="dataGroup = ''">All <b x-text="c.counts.filled + '/' + c.counts.total"></b></button>
+              <template x-for="g in c.groups" :key="'st' + g.id">
+                <button :class="{on: dataGroup === g.id, bad: g.missing}" @click="dataGroup = g.id">
+                  <span x-text="g.label"></span>
+                  <b x-text="g.missing ? g.missing + ' pending' : g.points.filter(p => p.status === 'filled').length + '/' + g.points.length"></b>
+                </button>
+              </template>
+            </nav>
+            <!-- the fields: dense rows; only exceptions are marked (U3, U4) -->
             <section class="fields" x-show="c.cam.state === 'ready'">
-              <template x-for="g in c.groups" :key="g.id">
+              <template x-for="g in c.groups.filter(g => !dataGroup || g.id === dataGroup)" :key="g.id">
                 <div class="card group" :class="{'has-missing': g.missing}">
                   <div class="card-h">
                     <h3 :class="{red: g.missing}" x-text="g.label"></h3>
@@ -486,8 +498,8 @@
                     </span>
                   </div>
                   <template x-for="p in g.points" :key="p.id">
-                    <div class="fld" :data-id="p.id" :data-status="p.status" :class="{wide: p.type === 'longtext', missing: p.status === 'missing', skipped: p.status === 'skipped', unavailable: p.status === 'unavailable', changed: p.change && p.change.status !== 'superseded', ['band-' + (p.band?.status || '')]: !!p.band}">
-                      <div class="fld-l"><span x-text="p.label"></span><b class="req" x-show="p.required" title="Mandatory">*</b></div>
+                    <div class="fld" :data-id="p.id" :data-status="p.status" :class="{wide: p.type === 'longtext', missing: p.status === 'missing', skipped: p.status === 'skipped', unavailable: p.status === 'unavailable' || p.status === 'not_applicable', changed: p.change && p.change.status !== 'superseded', ['band-' + (p.band?.status || '')]: !!p.band}">
+                      <div class="fld-l"><span x-text="p.label"></span><b class="req" x-show="p.required" title="Mandatory">*</b><span class="fld-help" x-show="p.help" x-text="p.help"></span></div>
                       <template x-if="!(edit && edit.id === p.id)">
                         <div class="fld-v">
                           <div class="fld-row">
@@ -498,7 +510,7 @@
                             <span class="tag sm" x-show="tag(p)" :class="tag(p)?.c" x-text="tag(p)?.t"></span>
                             <span class="conf" x-show="p.confidence && p.confidence.level !== 'high'" :class="'cf-' + (p.confidence?.level || '')" :title="p.confidence?.basis" x-text="'Confidence ' + (p.confidence?.level || '')"></span>
                             <button class="src-btn" x-show="p.source" @click="evidence = p" :title="'Source: ' + provenance(p)"><span x-html="icon('doc', 13)"></span></button>
-                            <div class="fld-acts" x-show="c.editable && !p.computed && p.status !== 'unavailable'">
+                            <div class="fld-acts" x-show="c.editable && p.can_edit">
                             <button class="link" @click="startEdit(p)" x-text="p.status === 'filled' ? (c.stage === 'credit_risk' ? 'Override' : 'Edit') : 'Provide'"></button>
                             <button class="link" x-show="c.stage === 'rm' && p.status === 'missing' && !p.required" @click="skip(p)">Mark not provided</button>
                           </div>
@@ -517,7 +529,7 @@
                             </div>
                           </template>
                           <template x-if="p.type !== 'longtext' && !(p.options || []).length"><input class="input" :type="['amount', 'number'].includes(p.type) ? 'number' : 'text'" step="any" x-model="edit.value" :placeholder="p.hint || ''"></template>
-                          <input class="input" x-show="edit.needsReason" x-model="edit.reason" placeholder="Override rationale (shown to the Sanctioning Authority)">
+                          <input class="input" x-show="edit.needsReason" x-model="edit.reason" :placeholder="edit.computed ? 'How you arrived at it — this figure is normally calculated (mandatory)' : 'Override rationale (shown to the Sanctioning Authority)'">
                           <div class="muted sm" x-show="edit.challenge" x-text="'In answer to: ' + ((c.against || []).find(a => a.id === edit.challenge) || {}).title"></div>
                           <div class="r"><button class="btn ghost sm" @click="edit = null">Cancel</button> <button class="btn primary sm" @click="saveEdit()" :disabled="busy">Save</button></div>
                         </div>
@@ -527,7 +539,7 @@
                 </div>
               </template>
             </section>
-            <div class="empty pane-empty" x-show="c.cam.state !== 'ready'">Credit data fields are filled by the agents when the CAM is ready.</div>
+            <div class="empty pane-empty" x-show="c.cam.state !== 'ready'">The borrower data is filled by the agents when the CAM is ready.</div>
           </div>
           </template>
 
@@ -543,37 +555,40 @@
                   <span class="tag tg-grey" x-show="c.graph?.demo" title="The MCA director network, connected companies' bureau status and the loan book come from demo files until the APIs are connected">Demo network</span>
                 </span>
               </div>
-              <div class="kg-grid">
+              <!-- the three questions the graph answers, in plain words -->
+              <div class="kg-find">
+                <template x-for="f in c.graph?.findings || []" :key="f.code">
+                  <div class="kg-f" :class="f.status">
+                    <span class="kg-fi" x-text="{pass: '✓', fail: '!', not_verified: '?'}[f.status]"></span>
+                    <div><b x-text="{KG_CONNECTED_STRESS: 'Anyone connected in financial stress?', KG_GROUP_EXPOSURE: 'Within our exposure limits?', KG_CONNECTED_LENDING: 'Linked to the bank’s own directors?'}[f.code] || f.label"></b>
+                      <span x-text="(/^No /.test(f.detail || '') ? '' : ({pass: 'No. ', fail: 'Yes — ', not_verified: 'Not verified: '}[f.status] || '')) + (f.detail || '')" x-show="f.code !== 'KG_GROUP_EXPOSURE'"></span>
+                      <span x-text="({pass: 'Yes. ', fail: 'No — ', not_verified: 'Not verified: '}[f.status] || '') + (f.detail || '')" x-show="f.code === 'KG_GROUP_EXPOSURE'"></span></div>
+                  </div>
+                </template>
+              </div>
+              <p class="kg-read">How to read the map: the borrower is in the middle; its directors and shareholders are to the left, and the other companies those people run further left; its lenders and group companies are to the right. Each line says how two parties are connected. Red = in financial stress (e.g. SMA-2, NPA); amber = a director or officer of our bank; dashed = demo data.</p>
+              <div class="kg-map" x-html="graphSvg(c.graph?.picture)"></div>
+              <div class="kg-under">
                 <div>
                   <template x-for="k in ['single', 'group']" :key="k">
                     <div class="kg-exp" x-show="c.graph?.exposure?.[k + '_limit_cr']">
-                      <div class="kg-exp-h"><b x-text="k === 'single' ? 'Exposure to the borrower' : 'Exposure to the group (' + (c.graph?.group?.length || 0) + ')'"></b>
+                      <div class="kg-exp-h"><b x-text="k === 'single' ? 'Our exposure to the borrower' : 'Our exposure to its group (' + (c.graph?.group?.length || 0) + ' compan' + ((c.graph?.group?.length || 0) === 1 ? 'y' : 'ies') + ')'"></b>
                         <span x-text="cr(c.graph?.exposure?.[k + '_cr']) + ' of ' + cr(c.graph?.exposure?.[k + '_limit_cr']) + ' limit'"></span></div>
                       <div class="kg-bar"><span :class="(c.graph?.exposure?.[k + '_used_pct'] || 0) > 100 ? 'over' : (c.graph?.exposure?.[k + '_used_pct'] || 0) >= c.graph?.exposure?.warn_at ? 'warn' : ''"
                         :style="'width:' + Math.min(c.graph?.exposure?.[k + '_used_pct'] || 0, 100) + '%'"></span></div>
-                      <div class="muted sm" x-text="(c.graph?.exposure?.[k + '_used_pct'] ?? 0) + '% used · limit ' + c.graph?.exposure?.[k + '_pct'] + '% of Tier 1 capital (' + cr(c.graph?.exposure?.tier1_cr) + ', ' + (c.graph?.exposure?.bank || 'the bank') + ')'"></div>
+                      <div class="muted sm" x-text="(c.graph?.exposure?.[k + '_used_pct'] ?? 0) + '% of the limit used. The limit is ' + c.graph?.exposure?.[k + '_pct'] + '% of ' + (c.graph?.exposure?.bank || 'the bank') + '’s Tier 1 capital (' + cr(c.graph?.exposure?.tier1_cr) + '); exposure counts this proposal and every open or sanctioned one.'"></div>
                     </div>
                   </template>
-                  <div class="kg-alerts">
-                    <template x-for="(s, i) in c.graph?.stressed || []" :key="'s' + i">
-                      <div class="kg-alert"><span class="tag tg-red" x-text="s.status"></span> <b x-text="s.name"></b>
-                        <div class="sm" x-text="s.path"></div><div class="muted sm" x-text="(s.detail ? s.detail + ' · ' : '') + 'Source: ' + s.source"></div></div>
-                    </template>
-                    <template x-for="(o, i) in c.graph?.officials || []" :key="'o' + i">
-                      <div class="kg-alert"><span class="tag tg-red">Connected lending</span> <b x-text="o.name"></b>
-                        <div class="sm" x-text="o.role + ' — ' + o.relation + ' of the borrower'"></div></div>
-                    </template>
-                    <p class="muted sm" x-show="!(c.graph?.stressed || []).length && !(c.graph?.officials || []).length"
-                       x-text="'No connected company in stress and no link to the bank\'s own directors or officers within two hops.'"></p>
-                  </div>
                 </div>
-                <div>
-                  <div class="kg-pic-wrap" x-html="graphSvg(c.graph?.picture)"></div>
-                  <div class="kg-legend muted sm">
-                    <span><i class="kg-dot kg-company"></i>Company</span><span><i class="kg-dot kg-person"></i>Person</span>
-                    <span><i class="kg-dot kg-stress"></i>In stress</span><span><i class="kg-dot kg-official"></i>Bank official</span>
-                    <span><i class="kg-dot kg-bank"></i>Our bank</span><span>– – demo data</span>
-                  </div>
+                <div class="kg-alerts">
+                  <template x-for="(s, i) in c.graph?.stressed || []" :key="'s' + i">
+                    <div class="kg-alert"><span class="tag tg-red" x-text="s.status"></span> <b x-text="s.name"></b>
+                      <div class="sm" x-text="'How it is connected: ' + s.path"></div><div class="muted sm" x-text="(s.detail ? s.detail + ' · ' : '') + 'Source: ' + s.source"></div></div>
+                  </template>
+                  <template x-for="(o, i) in c.graph?.officials || []" :key="'o' + i">
+                    <div class="kg-alert"><span class="tag tg-red">Connected lending</span> <b x-text="o.name"></b>
+                      <div class="sm" x-text="o.role + ' — and ' + o.relation + ' of the borrower'"></div></div>
+                  </template>
                 </div>
               </div>
               <div class="table-wrap" x-show="(c.graph?.group || []).length > 1"><table class="tbl">
@@ -651,11 +666,12 @@
                       <span class="tag" :class="(c.responses || {})[a.id] ? 'tg-green' : 'tg-grey'" x-text="(c.responses || {})[a.id] ? 'Answered' : 'Open'"></span>
                     </span>
                   </div>
+                  <div class="ch-decide" x-show="a.decision && !(c.responses || {})[a.id]"><b>Decision needed</b><span x-text="a.decision"></span></div>
                   <div class="ch-grid">
-                    <span>What is wrong</span><p x-text="a.what || a.challenge"></p>
+                    <span>What we found</span><p x-text="a.what || a.challenge"></p>
                     <span x-show="a.why">Why it matters</span><p x-show="a.why" x-text="a.why"></p>
                     <span x-show="a.amount_note">Amount check</span><p x-show="a.amount_note" x-text="a.amount_note"></p>
-                    <span x-show="(a.asks || []).length">Evidence to ask for</span>
+                    <span x-show="(a.asks || []).length">Evidence that would settle it</span>
                     <ul x-show="(a.asks || []).length"><template x-for="(q, qi) in a.asks || []" :key="qi"><li x-text="q"></li></template></ul>
                   </div>
                   <div class="ch-ans" x-show="(c.responses || {})[a.id]">
@@ -663,7 +679,7 @@
                     <span x-text="respText((c.responses || {})[a.id])"></span>
                   </div>
                   <div class="ch-acts" x-show="c.is_mine && c.status === 'open' && !(c.responses || {})[a.id] && (a.actions || []).some(x => allowed(x))">
-                    <span class="muted sm">Suggested actions</span>
+                    <span class="muted sm">Your options</span>
                     <template x-for="(x, xi) in (a.actions || []).filter(x => allowed(x))" :key="xi">
                       <button class="btn sm" :class="x.kind === 'reject' ? 'danger' : (x.kind === 'reduce_amount' || x.kind === 'override') ? 'primary' : 'ghost'" @click="doAction(x, a)" :disabled="busy" x-text="x.label"></button>
                     </template>
@@ -676,6 +692,7 @@
             <section class="card" id="sec-dev" x-show="(c.register || []).length && c.cam.state === 'ready'" :class="{focus: c.is_mine && devTodo().length}">
               <div class="card-h"><h3><span x-html="icon('layers')"></span> Deviation Register</h3>
                 <span class="muted sm" x-text="(c.register || []).filter(d => d.status === 'approved').length + ' of ' + (c.register || []).length + ' approved · authority: ' + ((c.register || [])[0]?.authority || '')"></span></div>
+              <p class="muted sm">Every point where this proposal breaks the bank's credit policy. The bank can still lend, but only as a recorded exception: Underwriting proposes a mitigant and the reason for each breach, and the authority named here approves or rejects it. Sanction stays disabled until each one is approved. Each step is kept in the audit trail, for internal audit and RBI inspection.</p>
               <div class="table-wrap"><table class="tbl">
                 <thead><tr><th>Breach</th><th>Policy</th><th>Mitigant · justification</th><th>Status</th><th></th></tr></thead>
                 <tbody>
@@ -729,73 +746,6 @@
 
           <template x-if="tab === 'docs'">
           <div class="pane">
-            <!-- data sources: acquisition agents, API first, documents where an API is not connected -->
-            <section class="card" id="sec-src" x-show="c.acquisition" :class="{focus: c.can_sources && c.cam.state !== 'ready'}">
-              <div class="card-h">
-                <h3><span x-html="icon('layers')"></span> Data Sources</h3>
-                <span class="tag" :class="srcTag().cls" x-text="srcTag().text"></span>
-              </div>
-              <div class="src-sum" x-show="c.acquisition">
-                <span><b class="num" x-text="c.acquisition?.counts?.api_live"></b> live APIs</span>
-                <span><b class="num" x-text="c.acquisition?.counts?.fetched"></b> fetched via API</span>
-                <span><b class="num" x-text="c.acquisition?.counts?.read"></b> read from documents</span>
-                <span :class="{bad: c.acquisition?.counts?.needed}"><b class="num" x-text="c.acquisition?.counts?.needed"></b> required pending</span>
-                <span class="muted sm" x-show="c.acquisition?.ms" x-text="'Full run ' + ((c.acquisition?.ms || 0) / 1000).toFixed(1) + 's · ' + (c.acquisition?.max_concurrency || 0) + ' agents in parallel' + (c.acquisition?.runs > 1 ? ' · last update: ' + (c.acquisition?.last_agents || []).join(', ') + ' (' + ((c.acquisition?.last_ms || 0) / 1000).toFixed(1) + 's)' : '')"></span>
-                <button class="btn ghost sm" x-show="c.can_sources" @click="refreshSources()" :disabled="busy || c.acquisition?.state === 'running'"><span x-html="icon('refresh')"></span> Re-run agents</button>
-              </div>
-              <div class="test-pack" x-show="c.test_pack">
-                <span x-html="icon('doc')"></span>
-                <span x-show="!c.test_pack?.loaded">UAT test pack available for <b x-text="c.test_pack?.name"></b>: <span x-text="c.test_pack?.documents"></span> documents (real annual reports and rating rationale, demo MCA, KYC, bureau, bank and GST documents).</span>
-                <span x-show="c.test_pack?.loaded">UAT test pack for <b x-text="c.test_pack?.name"></b> loaded by <span x-text="c.test_pack?.loaded?.by"></span>; its documents are filed under each source below.</span>
-                <button class="btn sm" :class="c.test_pack?.loaded ? 'ghost' : 'primary'" @click="loadTestPack()" :disabled="busy || c.acquisition?.state === 'running'" x-text="c.test_pack?.loaded ? 'Load again' : 'Load test pack'"></button>
-              </div>
-              <div class="agents">
-                <template x-for="g in c.acquisition?.groups || []" :key="g.agent">
-                  <div class="agent" :class="'ag-' + (g.lane.status || 'waiting')">
-                    <div class="ag-h">
-                      <strong x-text="g.label"></strong>
-                      <span class="tag sm" :class="stepClass(g.lane.status === 'done' ? 'done' : g.lane.status)" x-text="{running: 'Working', done: 'Done' + (g.lane.ms ? ' · ' + (g.lane.ms / 1000).toFixed(1) + 's' : ''), failed: 'Failed', kept: 'Unchanged', waiting: 'Queued'}[g.lane.status || 'waiting']"></span>
-                    </div>
-                    <template x-for="s in g.sources" :key="s.id">
-                      <div class="src" :class="'ss-' + s.status">
-                        <div class="src-top">
-                          <span class="src-l" x-text="s.label"></span>
-                          <span class="tag sm" :class="srcStatus(s).cls" x-text="srcStatus(s).text"></span>
-                        </div>
-                        <div class="src-meta">
-                          <span class="mode" :class="s.mode === 'api' ? 'live' : 'off'" :title="s.mode_reason || ''" x-text="s.mode === 'api' ? 'API · live' : 'API inactive'"></span>
-                          <span x-text="s.provider"></span>
-                          <span class="req" x-show="s.requirement && s.requirement !== 'not_required'" :title="s.basis" x-text="s.requirement === 'required' ? 'Required' : 'Recommended'"></span>
-                        </div>
-                        <div class="src-sm" x-show="s.summary" x-text="s.summary"></div>
-                        <div class="src-err" x-show="s.error && s.status !== 'fetched' && s.status !== 'read'" x-text="s.error"></div>
-                        <div class="src-err muted" x-show="s.api_error && s.status === 'read'" x-text="'API: ' + s.api_error + ' — read from the document instead'"></div>
-                        <div class="src-act">
-                          <a class="lnk" x-show="['fetched', 'read', 'match'].includes(s.status)" @click="openSource(s)">View record</a>
-                          <label class="btn sm ghost" x-show="s.upload && c.can_sources">
-                            <span x-html="icon('upload')"></span> <span x-text="['read', 'fetched'].includes(s.status) ? 'Replace' : 'Upload'"></span>
-                            <input type="file" accept="application/pdf" hidden :multiple="!!s.upload?.multiple" @change="uploadSource(s.id, $event)">
-                          </label>
-                          <span class="muted sm" x-show="(s.documents || []).length" x-text="(s.documents || []).join(', ')"></span>
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-              </div>
-              <div class="verify" x-show="(c.acquisition?.verification || []).length">
-                <div class="vf-h"><strong>Verification agent</strong><span class="muted sm">Cross-checks between sources</span></div>
-                <template x-for="v in c.acquisition?.verification || []" :key="v.id">
-                  <div class="vf" :class="'vf-' + v.status">
-                    <span class="vf-ic" x-html="icon(v.status === 'pass' ? 'check' : v.status === 'pending' ? 'clock' : 'alert', 14)"></span>
-                    <div><strong x-text="v.label"></strong><span x-text="v.detail"></span>
-                    <span class="vf-note" x-show="v.explained" x-text="'Explained by ' + (v.explained?.by || '') + ': “' + (v.explained?.note || '') + '”'"></span>
-                    <button class="linkbtn" x-show="v.status === 'fail' && !v.explained && c.can_sources" @click="explainCheck(v)">Explain this difference</button></div>
-                  </div>
-                </template>
-              </div>
-            </section>
-
             <!-- CAM -->
             <section class="card" id="sec-cam">
               <div class="card-h">
@@ -803,11 +753,11 @@
                 <span class="tag" :class="{'tg-green': c.cam.state === 'ready' && !c.cam.stale, 'tg-amber': c.cam.state === 'ready' && c.cam.stale, 'tg-blue': c.cam.state === 'running', 'tg-red': c.cam.state === 'failed', 'tg-grey': c.cam.state === 'none'}"
                       x-text="{none: 'Not started', running: 'Generating', ready: c.cam.stale ? 'Out of date' : 'Ready', failed: 'Stopped'}[c.cam.state]"></span>
               </div>
-              <div class="cam-choose" x-show="c.cam.state === 'none' && c.can_cam">
+              <div class="cam-choose" x-show="c.cam.state === 'none' && c.can_cam && !c.cam.pending">
                 <button class="choice" @click="generate()" :disabled="busy || !c.can_generate">
                   <span class="ch-ic" x-html="icon('spark', 22)"></span>
                   <strong>Generate CAM (AI)</strong>
-                  <span x-text="c.can_generate ? 'CAM engine: 7 analysis agents (including the auditor’s report and notes reader), a Decision Summary built from data and ' + (c.cam_sections || 8) + ' AI-written sections' : (c.generate_blocker || 'Requires financial statements on record')"></span>
+                  <span x-text="c.gathers_first ? 'Step 1: the data agents gather the borrower’s data (identity and registry, annual reports, bureau, bank, GST, compliance, market). Step 2: the CAM engine analyses it and writes the CAM' : c.can_generate ? 'CAM engine: 7 analysis agents (including the auditor’s report and notes reader), a Decision Summary built from data and ' + (c.cam_sections || 8) + ' AI-written sections' : (c.generate_blocker || 'Requires financial statements on record')"></span>
                 </button>
                 <label class="choice">
                   <span class="ch-ic" x-html="icon('upload', 22)"></span>
@@ -819,6 +769,41 @@
               <p class="muted" x-show="c.cam.state === 'none' && !c.can_cam">Awaiting the CAM from Origination.</p>
               <p class="muted sm" x-show="msg" x-text="msg"></p>
 
+
+              <!-- step 1 for a new-to-bank prospect: the data agents, then the CAM engine starts on its own -->
+              <div class="progress" x-show="c.cam.pending && c.cam_prep && c.cam.state !== 'running'">
+                <div class="pg-head">
+                  <strong x-text="c.cam_prep?.step"></strong>
+                  <span><b class="num" x-text="(c.cam_prep?.percent || 0) + '%'"></b> <span class="muted sm">of step 1</span></span>
+                </div>
+                <div class="bar"><i :style="'width:' + Math.max(1, c.cam_prep?.percent || 0) + '%'"></i></div>
+                <div class="phase">
+                  <div class="ph-h"><span class="ph-n">1</span> Gathering the borrower’s data
+                    <span class="tag sm" :class="stepClass({running: 'running', failed: 'failed', needs_data: 'waiting', done: 'done'}[c.cam_prep?.state])" x-text="{running: 'In progress', failed: 'Stopped', needs_data: 'Waiting for documents', done: 'Complete'}[c.cam_prep?.state]"></span>
+                    <span class="muted sm" x-text="(c.cam_prep?.done || 0) + ' of ' + (c.cam_prep?.total || 0) + ' agents'"></span></div>
+                  <div class="steps">
+                    <template x-for="a in c.cam_prep?.agents || []" :key="a.agent">
+                      <span class="step" :class="stepClass(a.status === 'kept' ? 'done' : a.status)"><i></i><span x-text="a.label"></span><em x-show="a.ms" x-text="((a.ms || 0) / 1000).toFixed(1) + 's'"></em></span>
+                    </template>
+                  </div>
+                </div>
+                <div class="prep-needs" x-show="c.cam_prep?.state === 'needs_data'">
+                  <strong>The CAM is waiting for:</strong>
+                  <ul><template x-for="n in c.cam_prep?.needs || []" :key="n.id"><li><b x-text="n.label"></b><span x-show="n.ask" x-text="' — ' + n.ask"></span></li></template></ul>
+                  <div class="prep-act">
+                    <button class="btn primary sm" x-show="c.test_pack && !c.test_pack.loaded" @click="loadTestPack()" :disabled="busy"><span x-html="icon('doc')"></span> <span x-text="'Load test pack · ' + (c.test_pack?.name || '')"></span></button>
+                    <button class="btn ghost sm" @click="reveal('sec-src')"><span x-html="icon('upload')"></span> Upload in Data Sources</button>
+                  </div>
+                  <span class="muted sm">The CAM engine starts as soon as the documents are read.</span>
+                </div>
+                <div class="error" x-show="c.cam_prep?.state === 'failed'">
+                  <span x-text="c.cam_prep?.step"></span>
+                  <button class="btn primary sm" @click="generate()" :disabled="busy"><span x-html="icon('refresh')"></span> Retry</button>
+                </div>
+                <div class="phase dim">
+                  <div class="ph-h"><span class="ph-n">2</span> Analysis <span class="ph-n">3</span> Writing the CAM <span class="muted sm">start when the data is in</span></div>
+                </div>
+              </div>
               <!-- progress: analysis, then the sections; each turns green only when its own event arrives -->
               <div class="progress" x-show="c.cam.state === 'running' || (c.cam.state === 'failed' && c.progress)">
                 <div class="pg-head">
@@ -826,6 +811,9 @@
                   <span><b class="num" x-text="(c.progress?.percent || 0) + '%'"></b> <span class="muted sm" x-show="c.cam.state === 'running'" x-text="'· ' + eta(c.progress?.eta_seconds)"></span></span>
                 </div>
                 <div class="bar"><i :style="'width:' + Math.max(1, c.progress?.percent || 0) + '%'"></i></div>
+                <div class="phase" x-show="c.cam_prep?.state === 'done'">
+                  <div class="ph-h"><span class="ph-n">✓</span> Borrower data gathered <span class="tag sm st-done">Complete</span> <span class="muted sm" x-show="c.cam_prep?.ms" x-text="(c.cam_prep?.total || 0) + ' agents · ' + ((c.cam_prep?.ms || 0) / 1000).toFixed(1) + 's'"></span></div>
+                </div>
                 <div class="phase">
                   <div class="ph-h"><span class="ph-n">1</span> Analysis <span class="tag sm" :class="stepClass(phase('analysis').status)" x-text="{done: 'Complete', running: 'In progress', waiting: 'Queued'}[phase('analysis').status]"></span></div>
                   <div class="steps">
@@ -879,6 +867,74 @@
                 </div>
               </div>
             </section>
+
+            <!-- data sources: acquisition agents, API first, documents where an API is not connected -->
+            <section class="card" id="sec-src" x-show="c.acquisition && c.acquisition.state !== 'pending'" :class="{focus: c.can_sources && c.cam_prep?.state === 'needs_data'}">
+              <div class="card-h">
+                <h3><span x-html="icon('layers')"></span> Data Sources</h3>
+                <span class="tag" :class="srcTag().cls" x-text="srcTag().text"></span>
+              </div>
+              <div class="src-sum" x-show="c.acquisition">
+                <span><b class="num" x-text="c.acquisition?.counts?.api_live"></b> live APIs</span>
+                <span><b class="num" x-text="c.acquisition?.counts?.fetched"></b> fetched via API</span>
+                <span><b class="num" x-text="c.acquisition?.counts?.read"></b> read from documents</span>
+                <span :class="{bad: c.acquisition?.counts?.needed}"><b class="num" x-text="c.acquisition?.counts?.needed"></b> required pending</span>
+                <span class="muted sm" x-show="c.acquisition?.ms" x-text="'Full run ' + ((c.acquisition?.ms || 0) / 1000).toFixed(1) + 's · ' + (c.acquisition?.max_concurrency || 0) + ' agents in parallel' + (c.acquisition?.runs > 1 ? ' · last update: ' + (c.acquisition?.last_agents || []).join(', ') + ' (' + ((c.acquisition?.last_ms || 0) / 1000).toFixed(1) + 's)' : '')"></span>
+                <button class="btn ghost sm" x-show="c.can_sources" @click="refreshSources()" :disabled="busy || c.acquisition?.state === 'running'"><span x-html="icon('refresh')"></span> Re-run agents</button>
+              </div>
+              <div class="test-pack" x-show="c.test_pack && (c.test_pack.loaded || (c.acquisition?.state === 'done' && c.acquisition?.counts?.needed))">
+                <span x-html="icon('doc')"></span>
+                <span x-show="!c.test_pack?.loaded">UAT test pack available for <b x-text="c.test_pack?.name"></b>: <span x-text="c.test_pack?.documents"></span> documents (real annual reports and rating rationale, demo MCA, KYC, bureau, bank and GST documents).</span>
+                <span x-show="c.test_pack?.loaded">UAT test pack for <b x-text="c.test_pack?.name"></b> loaded by <span x-text="c.test_pack?.loaded?.by"></span>; its documents are filed under each source below.</span>
+                <button class="btn sm" :class="c.test_pack?.loaded ? 'ghost' : 'primary'" @click="loadTestPack()" :disabled="busy || c.acquisition?.state === 'running'" x-text="c.test_pack?.loaded ? 'Load again' : 'Load test pack'"></button>
+              </div>
+              <div class="agents">
+                <template x-for="g in c.acquisition?.groups || []" :key="g.agent">
+                  <div class="agent" :class="'ag-' + (g.lane.status || 'waiting')">
+                    <div class="ag-h">
+                      <strong x-text="g.label"></strong>
+                      <span class="tag sm" :class="stepClass(g.lane.status === 'done' ? 'done' : g.lane.status)" x-text="{running: 'Working', done: 'Done' + (g.lane.ms ? ' · ' + (g.lane.ms / 1000).toFixed(1) + 's' : ''), failed: 'Failed', kept: 'Unchanged', waiting: 'Queued'}[g.lane.status || 'waiting']"></span>
+                    </div>
+                    <template x-for="s in g.sources" :key="s.id">
+                      <div class="src" :class="'ss-' + s.status">
+                        <div class="src-top">
+                          <span class="src-l" x-text="s.label"></span>
+                          <span class="tag sm" :class="srcStatus(s).cls" x-text="srcStatus(s).text"></span>
+                        </div>
+                        <div class="src-meta">
+                          <span class="mode" :class="s.mode === 'api' ? 'live' : 'off'" :title="s.mode_reason || ''" x-text="s.mode === 'api' ? 'API · live' : 'API inactive'"></span>
+                          <span x-text="s.provider"></span>
+                          <span class="req" x-show="s.requirement && s.requirement !== 'not_required'" :title="s.basis" x-text="s.requirement === 'required' ? 'Required' : 'Recommended'"></span>
+                        </div>
+                        <div class="src-sm" x-show="s.summary" x-text="s.summary"></div>
+                        <div class="src-err" x-show="s.error && s.status !== 'fetched' && s.status !== 'read'" x-text="s.error"></div>
+                        <div class="src-err muted" x-show="s.api_error && s.status === 'read'" x-text="'API: ' + s.api_error + ' — read from the document instead'"></div>
+                        <div class="src-act">
+                          <a class="lnk" x-show="['fetched', 'read', 'match'].includes(s.status)" @click="openSource(s)">View record</a>
+                          <label class="btn sm ghost" x-show="s.upload && c.can_sources">
+                            <span x-html="icon('upload')"></span> <span x-text="['read', 'fetched'].includes(s.status) ? 'Replace' : 'Upload'"></span>
+                            <input type="file" accept="application/pdf" hidden :multiple="!!s.upload?.multiple" @change="uploadSource(s.id, $event)">
+                          </label>
+                          <span class="muted sm" x-show="(s.documents || []).length" x-text="(s.documents || []).join(', ')"></span>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+              <div class="verify" x-show="(c.acquisition?.verification || []).length">
+                <div class="vf-h"><strong>Verification agent</strong><span class="muted sm">Cross-checks between sources</span></div>
+                <template x-for="v in c.acquisition?.verification || []" :key="v.id">
+                  <div class="vf" :class="'vf-' + v.status">
+                    <span class="vf-ic" x-html="icon(v.status === 'pass' ? 'check' : v.status === 'pending' ? 'clock' : 'alert', 14)"></span>
+                    <div><strong x-text="v.label"></strong><span x-text="v.detail"></span>
+                    <span class="vf-note" x-show="v.explained" x-text="'Explained by ' + (v.explained?.by || '') + ': “' + (v.explained?.note || '') + '”'"></span>
+                    <button class="linkbtn" x-show="v.status === 'fail' && !v.explained && c.can_sources" @click="explainCheck(v)">Explain this difference</button></div>
+                  </div>
+                </template>
+              </div>
+            </section>
+
           </div>
           </template>
 
@@ -1083,6 +1139,7 @@
               <span x-html="icon('alert', 13)"></span> <span x-text="'Proceeding needs a written justification: ' + (approveAct().justify || []).join('; ')"></span></span>
           </div>
           <div class="act-btns">
+            <button class="btn ghost" x-show="c.can_withdraw" :disabled="busy || c.cam.state === 'running'" @click="withdrawCase()" title="The borrower dropped it, or it was raised in error — kept, with the reason, in the audit trail">Withdraw</button>
             <template x-for="a in c.actions" :key="a.id">
               <button class="btn" :class="a.id === 'approve' ? 'primary' : a.id === 'reject' ? 'danger' : 'ghost'" :disabled="!a.enabled || busy || c.cam.state === 'running'" @click="act(a)" x-text="a.label"></button>
             </template>
@@ -1301,16 +1358,28 @@
         <button :class="{on: nc.mode === 'borrower'}" @click="nc.mode = 'borrower'">Existing borrower</button>
         <button :class="{on: nc.mode === 'prospect'}" @click="nc.mode = 'prospect'">New-to-bank prospect</button>
       </div>
+      <!-- existing borrower: three linked dropdowns (round 8) — sector narrows the list; name and CIN pick the same borrower -->
       <div x-show="nc.mode === 'borrower'">
-        <input class="input" placeholder="Search by name, CIN or customer ID" x-model="nc.search">
-        <div class="pick-list">
-          <template x-for="b in filteredBorrowers()" :key="b.entity_id">
-            <button class="pick" :class="{on: nc.entity_id === b.entity_id}" @click="pickBorrower(b)" :disabled="!!b.open_case">
-              <strong x-text="b.company_name"></strong>
-              <span class="mono" x-text="b.cin || b.entity_id"></span>
-              <span x-text="b.sector.replace('_', ' ') + (b.external_rating ? ' · ' + b.external_rating : '') + (b.open_case ? ' · proposal in progress' : '')"></span>
-            </button>
-          </template>
+        <div class="form3">
+          <label>Sector
+            <select class="input" x-model="nc.bsector" @change="if (nc.entity_id && !sectorBorrowers().some(b => b.entity_id === nc.entity_id)) nc.entity_id = ''">
+              <option value="">All sectors</option>
+              <template x-for="s in borrowerSectors()" :key="s"><option :value="s" x-text="sectorLabel(s) + ' (' + borrowers.filter(b => b.sector === s).length + ')'"></option></template>
+            </select></label>
+          <label>Borrower name
+            <select class="input" x-model="nc.entity_id" @change="pickById(nc.entity_id)">
+              <option value="" x-text="'Choose a borrower (' + sectorBorrowers().length + ')'"></option>
+              <template x-for="b in sectorBorrowers()" :key="'n' + b.entity_id"><option :value="b.entity_id" :disabled="!!b.open_case" x-text="b.company_name + (b.prospect ? ' · new-to-bank' : '') + (b.open_case ? ' — proposal in progress' : '')"></option></template>
+            </select></label>
+          <label>CIN
+            <select class="input mono" x-model="nc.entity_id" @change="pickById(nc.entity_id)">
+              <option value="">Choose by CIN</option>
+              <template x-for="b in sectorBorrowers().slice().sort((x, y) => (x.cin || x.entity_id).localeCompare(y.cin || y.entity_id))" :key="'c' + b.entity_id"><option :value="b.entity_id" :disabled="!!b.open_case" x-text="(b.cin || '(no CIN) ' + b.entity_id)"></option></template>
+            </select></label>
+        </div>
+        <div class="pick-sum" x-show="pickedBorrower()">
+          <strong x-text="pickedBorrower()?.company_name"></strong>
+          <span x-text="[sectorLabel(pickedBorrower()?.sector || ''), pickedBorrower()?.cin, pickedBorrower()?.external_rating, pickedBorrower()?.prospect ? 'new-to-bank prospect' : 'existing borrower'].filter(Boolean).join(' · ')"></span>
         </div>
       </div>
       <div class="form2" x-show="nc.mode === 'prospect'">
@@ -1318,7 +1387,7 @@
         <label>Sector<select class="input" x-model="nc.sector"><template x-for="s in sectors"><option :value="s" x-text="s.replace('_', ' ')"></option></template></select></label>
         <label>CIN<input class="input mono" x-model="nc.cin"></label>
         <label>PAN<input class="input mono" x-model="nc.pan"></label>
-        <p class="muted sm span2">The data acquisition agents fetch what the connected APIs provide (LEI, sanctions, adverse media; MCA when Probe42 is configured) and ask you for the documents where an API is not connected. CIN and PAN are optional — the Identity agent resolves them.</p>
+        <p class="muted sm span2">Nothing runs yet. When you choose Generate CAM, the data acquisition agents first fetch what the connected APIs provide (LEI, sanctions, adverse media; MCA when Probe42 is configured) and ask for the documents where an API is not connected; then the CAM engine writes the CAM. CIN and PAN are optional — the Identity agent resolves them.</p>
       </div>
       <h4 class="mt">Facility</h4>
       <div class="form4">

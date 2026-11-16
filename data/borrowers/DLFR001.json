@@ -1,0 +1,570 @@
+{
+ "core_banking": {
+  "loan_accounts": [
+   {
+    "account_number": "ACC_DLF_TL01",
+    "entity_id": "DLFR001",
+    "facility_type": "TL",
+    "sanction_limit_cr": 1500.0,
+    "outstanding_cr": 1380.0,
+    "interest_rate_pct": 9.5,
+    "overdue_amount_cr": 45.0,
+    "dpd": 38,
+    "asset_classification": "SMA-1",
+    "sanction_date": "2020-09-10",
+    "maturity_date": "2027-09-10",
+    "repayment_frequency": "Monthly"
+   },
+   {
+    "account_number": "ACC_DLF_CC01",
+    "entity_id": "DLFR001",
+    "facility_type": "CC",
+    "sanction_limit_cr": 800.0,
+    "outstanding_cr": 765.0,
+    "interest_rate_pct": 10.25,
+    "overdue_amount_cr": 0.0,
+    "dpd": 0,
+    "asset_classification": "Standard",
+    "sanction_date": "2021-04-01",
+    "maturity_date": "2026-03-31",
+    "repayment_frequency": "Monthly"
+   }
+  ],
+  "bclc": {
+   "total_fund_based_cr": 2145.0,
+   "total_non_fund_based_cr": 250.0,
+   "total_exposure_cr": 2395.0,
+   "single_borrower_limit_pct": 5.2,
+   "group_borrower_limit_pct": 8.8,
+   "within_single_limit": true,
+   "within_group_limit": true,
+   "industry_exposure_pct": 6.8,
+   "sector_ceiling_pct": 15.0,
+   "rating_based_limit_cr": 3000.0
+  },
+  "liability": {
+   "current_account_balance_cr": 8.2,
+   "savings_balance_cr": 0.0,
+   "fixed_deposit_cr": 25.0,
+   "total_deposits_cr": 33.2,
+   "average_balance_6m_cr": 18.5,
+   "reciprocal_business_cr": 33.2,
+   "cross_sell_products": [
+    "Current Account",
+    "Project Finance"
+   ]
+  },
+  "fees_commission": [
+   {
+    "period": "FY2025",
+    "processing_fees_cr": 3.5,
+    "renewal_fees_cr": 1.2,
+    "lc_commission_cr": 0.0,
+    "bg_commission_cr": 0.45,
+    "forex_income_cr": 0.0,
+    "other_charges_cr": 0.85,
+    "total_income_cr": 6.0
+   }
+  ],
+  "total_exposure_cr": 2395.0,
+  "overall_asset_classification": "SMA-1",
+  "relationship_since": "2015-08-01",
+  "relationship_years": 11
+ },
+ "data_provider": "verified_public_records",
+ "catalog_source": "reference_catalog",
+ "preferred_identifier": "DLF Limited",
+ "reference_prefix": null,
+ "borrower": {
+  "entity_id": "DLFR001",
+  "company_name": "DLF Limited",
+  "cin": "L70101HR1963PLC002484",
+  "pan": "AAACD7890G",
+  "borrower_type": "listed",
+  "sector": "real_estate",
+  "subsector": "Residential & Commercial Real Estate",
+  "date_of_incorporation": "1963-03-15",
+  "registered_state": "Haryana",
+  "registered_address": "Shopping Mall, 3rd Floor, Arjun Marg, Phase I, DLF City, Gurgaon 122002",
+  "authorized_capital": 350.0,
+  "paid_up_capital": 247.82,
+  "listed_exchange": "BSE, NSE",
+  "isin": "INE271C01023",
+  "bse_code": "532868",
+  "nse_symbol": "DLF",
+  "credit_rating": "CRISIL AA+ (Stable)",
+  "rating_agency": "CRISIL",
+  "employee_count": 4200,
+  "website": "www.dlf.in"
+ },
+ "group": {
+  "group_id": "GRP_DLFR",
+  "group_name": "DLF Group",
+  "parent_entity_id": "DLFR001",
+  "entities": [
+   "DLFR001",
+   "DL Cyber City Developers Ltd",
+   "DL Home Developers Ltd",
+   "DL Assets Pvt Ltd",
+   "Hines DL JV Ltd"
+  ],
+  "promoter_holding_pct": 74.1,
+  "institutional_holding_pct": 15.2,
+  "public_holding_pct": 10.7,
+  "hierarchy": null,
+  "ultimate_parent": null,
+  "group_revenue_cr": null,
+  "group_net_worth_cr": null,
+  "group_total_debt_cr": null
+ },
+ "directors": [
+  {
+   "din": "00015678",
+   "name": "Rajiv K. Singh",
+   "designation": "Managing Director",
+   "entity_id": "DLFR001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": 180.0,
+   "is_promoter": false
+  },
+  {
+   "din": "00016789",
+   "name": "K.P. Singh",
+   "designation": "Chairman Emeritus",
+   "entity_id": "DLFR001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "DL Cyber City Developers Ltd",
+    "DL Home Developers Ltd"
+   ],
+   "net_worth_cr": 22000.0,
+   "is_promoter": true
+  },
+  {
+   "din": "00017890",
+   "name": "Pia Singh",
+   "designation": "Non-Executive Director",
+   "entity_id": "DLFR001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": 8500.0,
+   "is_promoter": true
+  }
+ ],
+ "financials": {
+  "FY2026": {
+   "entity_id": "DLFR001",
+   "period": "FY2026",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2026-03-31",
+   "line_items": {
+    "capex": -19.2,
+    "cash_equivalents": 1783.66,
+    "current_assets": 22962.65,
+    "current_liabilities": 18075.79,
+    "depreciation": 69.59,
+    "ebit": 4416.95,
+    "ebitda": 4486.54,
+    "employee_cost": 389.11,
+    "exceptional_items": 214.45,
+    "fcff": 6053.68,
+    "finance_cost": 140.66,
+    "fixed_assets": 287.9,
+    "inventory": 12344.43,
+    "investments": 45.05,
+    "lease_liabilities": 45.59,
+    "long_term_debt": 0.0,
+    "non_current_liabilities": 108.68,
+    "ocf": 6072.88,
+    "other_expenses": 593.53,
+    "other_income": 2755.27,
+    "pat": 3747.92,
+    "pbt": 4490.75,
+    "raw_material_cost": 1270.56,
+    "revenue_operating": 3984.47,
+    "share_capital": 495.06,
+    "short_term_debt": 0.0,
+    "tax_expense": 742.83,
+    "total_assets": 49772.26,
+    "total_debt": 0.0,
+    "total_equity": 31587.79,
+    "total_income": 6739.74,
+    "trade_payables": 773.22,
+    "trade_receivables": 1353.34,
+    "working_capital": 4886.86
+   }
+  },
+  "FY2025": {
+   "entity_id": "DLFR001",
+   "period": "FY2025",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2025-03-31",
+   "line_items": {
+    "capex": -59.6,
+    "cash_equivalents": 194.16,
+    "current_assets": 20622.65,
+    "current_liabilities": 13214.61,
+    "depreciation": 73.24,
+    "ebit": 2712.97,
+    "ebitda": 2786.21,
+    "employee_cost": 384.76,
+    "exceptional_items": -302.39,
+    "fcff": 4628.35,
+    "finance_cost": 338.12,
+    "fixed_assets": 298.46,
+    "inventory": 11024.88,
+    "investments": 50.05,
+    "lease_liabilities": 41.11,
+    "long_term_debt": 1073.47,
+    "non_current_liabilities": 1146.44,
+    "ocf": 4687.95,
+    "other_expenses": 725.64,
+    "other_income": 1525.62,
+    "pat": 1577.44,
+    "pbt": 2072.46,
+    "raw_material_cost": 2110.52,
+    "revenue_operating": 4481.51,
+    "share_capital": 495.06,
+    "short_term_debt": 2147.37,
+    "tax_expense": 495.02,
+    "total_assets": 43689.85,
+    "total_debt": 3220.84,
+    "total_equity": 29328.8,
+    "total_income": 6007.13,
+    "trade_payables": 1150.91,
+    "trade_receivables": 213.9,
+    "working_capital": 7408.04
+   }
+  }
+ },
+ "provisional": null,
+ "facility": {
+  "facility_id": "FAC_DLFR_001",
+  "entity_id": "DLFR001",
+  "case_type": "ETB",
+  "facility_type": "working_capital",
+  "amount_requested_cr": 500.0,
+  "purpose": "Enhancement of existing working capital limit for new residential project Phase V launch at Gurugram",
+  "tenor_months": 24,
+  "collateral_type": null,
+  "collateral_value_cr": 800.0,
+  "existing_limit_cr": 1200.0,
+  "proposed_limit_cr": 1700.0
+ },
+ "collateral": [
+  {
+   "collateral_id": "COL_DLFR_01",
+   "entity_id": "DLFR001",
+   "collateral_type": "Land & Building",
+   "description": "Plot at Sector 63, Gurugram for Phase V project",
+   "market_value_cr": 600.0,
+   "forced_sale_value_cr": 420.0,
+   "valuation_date": "2026-06-01",
+   "encumbrance_status": "clear"
+  },
+  {
+   "collateral_id": "COL_DLFR_02",
+   "entity_id": "DLFR001",
+   "collateral_type": "Receivables Pool",
+   "description": "Unsold inventory receivables from Phase III",
+   "market_value_cr": 200.0,
+   "forced_sale_value_cr": 120.0,
+   "valuation_date": "2026-06-01",
+   "encumbrance_status": "hypothecated"
+  }
+ ],
+ "market_signals": [],
+ "existing_exposure": [
+  {
+   "facility_id": "EXP_DLFR_01",
+   "entity_id": "DLFR001",
+   "facility_type": "working_capital",
+   "sanctioned_limit_cr": 1200.0,
+   "outstanding_cr": 1140.0,
+   "utilization_pct": 95.0,
+   "overdue_days": 0,
+   "classification": "Standard"
+  },
+  {
+   "facility_id": "EXP_DLFR_02",
+   "entity_id": "DLFR001",
+   "facility_type": "term_loan",
+   "sanctioned_limit_cr": 800.0,
+   "outstanding_cr": 620.0,
+   "utilization_pct": 77.5,
+   "overdue_days": 22,
+   "classification": "Standard"
+  }
+ ],
+ "conduct": [
+  {
+   "entity_id": "DLFR001",
+   "period": "Q1_FY2026",
+   "avg_bank_balance_cr": 4.5,
+   "credit_turnover_cr": 52.0,
+   "debit_turnover_cr": 51.2,
+   "cheque_returns": 3,
+   "limit_utilization_pct": 92.0,
+   "overdue_instances": 1,
+   "max_overdue_days": 12,
+   "dpd_30_count": 1,
+   "dpd_60_count": 0,
+   "dpd_90_count": 0
+  },
+  {
+   "entity_id": "DLFR001",
+   "period": "Q2_FY2026",
+   "avg_bank_balance_cr": 3.8,
+   "credit_turnover_cr": 48.0,
+   "debit_turnover_cr": 49.5,
+   "cheque_returns": 5,
+   "limit_utilization_pct": 94.0,
+   "overdue_instances": 2,
+   "max_overdue_days": 18,
+   "dpd_30_count": 1,
+   "dpd_60_count": 0,
+   "dpd_90_count": 0
+  },
+  {
+   "entity_id": "DLFR001",
+   "period": "Q3_FY2026",
+   "avg_bank_balance_cr": 2.9,
+   "credit_turnover_cr": 42.0,
+   "debit_turnover_cr": 44.8,
+   "cheque_returns": 8,
+   "limit_utilization_pct": 96.0,
+   "overdue_instances": 3,
+   "max_overdue_days": 25,
+   "dpd_30_count": 2,
+   "dpd_60_count": 0,
+   "dpd_90_count": 0
+  },
+  {
+   "entity_id": "DLFR001",
+   "period": "Q4_FY2026",
+   "avg_bank_balance_cr": 2.1,
+   "credit_turnover_cr": 38.0,
+   "debit_turnover_cr": 40.2,
+   "cheque_returns": 11,
+   "limit_utilization_pct": 98.0,
+   "overdue_instances": 4,
+   "max_overdue_days": 32,
+   "dpd_30_count": 3,
+   "dpd_60_count": 1,
+   "dpd_90_count": 0
+  }
+ ],
+ "covenants": [
+  {
+   "entity_id": "DLFR001",
+   "covenant_type": "DSCR",
+   "required_value": ">=1.20",
+   "actual_value": "1.08",
+   "compliance_status": "breached",
+   "period": "Q3_FY2026",
+   "breach_details": "DSCR fell below 1.20x due to slow sales velocity"
+  },
+  {
+   "entity_id": "DLFR001",
+   "covenant_type": "Debt/Equity",
+   "required_value": "<=1.50",
+   "actual_value": "1.11",
+   "compliance_status": "compliant",
+   "period": "Q3_FY2026",
+   "breach_details": ""
+  },
+  {
+   "entity_id": "DLFR001",
+   "covenant_type": "Max Cheque Returns",
+   "required_value": "<=5/quarter",
+   "actual_value": "11",
+   "compliance_status": "breached",
+   "period": "Q4_FY2026",
+   "breach_details": "Cheque returns spiked due to collection delays from home buyers"
+  }
+ ],
+ "exchange_filing": {
+  "entity_id": "DLFR001",
+  "period": "FY2026_Q3",
+  "statement_type": "standalone",
+  "source": "exchange",
+  "as_of_date": "2025-12-31",
+  "line_items": {
+   "revenue_operating": 4200.0,
+   "ebitda": 1200.0,
+   "pat": -150.0,
+   "total_debt": 21500.0,
+   "total_equity": 17200.0
+  }
+ },
+ "sector_kpis": {
+  "sector_type": "real_estate_development",
+  "development_portfolio": {
+   "total_developable_area_msf": 215,
+   "completed_area_msf": 145,
+   "ongoing_projects_msf": 38,
+   "planned_area_msf": 32,
+   "luxury_residential_pct": 35,
+   "commercial_office_pct": 40,
+   "retail_pct": 15,
+   "plotted_development_pct": 10,
+   "source": "Company Annual Report"
+  },
+  "sales_performance": {
+   "new_bookings_cr_fy25": 15500,
+   "new_bookings_cr_fy24": 14800,
+   "new_bookings_cr_fy23": 8000,
+   "collections_cr_fy25": 12800,
+   "unsold_inventory_cr": 28000,
+   "avg_realization_per_sqft_rs": 12500,
+   "source": "Company Quarterly Results; RERA Data"
+  },
+  "rental_portfolio": {
+   "total_leasable_area_msf": 42.5,
+   "leased_area_msf": 38.2,
+   "occupancy_pct": 89.8,
+   "rental_income_cr_fy25": 6200,
+   "avg_rental_per_sqft_month_rs": 125,
+   "source": "Company Annual Report; Property Records"
+  },
+  "land_bank": {
+   "total_land_bank_acres": 160,
+   "land_cost_cr": 4500,
+   "market_value_cr": 22000,
+   "licensed_area_msf": 85,
+   "source": "Company Disclosure; Circle Rate Data"
+  },
+  "debt_profile": {
+   "net_debt_cr": 4200,
+   "net_debt_equity": 0.45,
+   "avg_cost_of_debt_pct": 8.2,
+   "upcoming_maturities_fy26_cr": 1800,
+   "source": "Company Financial Statements"
+  },
+  "development_projections": {
+   "new_launches_msf_fy26": 12,
+   "capex_plan_fy26_cr": 4500,
+   "capex_plan_fy27_cr": 5000,
+   "projected_revenue_fy26_cr": 7500,
+   "projected_revenue_fy27_cr": 8800,
+   "presales_target_fy26_cr": 17000,
+   "source": "Company Guidance; Launch Pipeline"
+  }
+ },
+ "verified_overrides": {
+  "financials": [
+   "FY2026.capex",
+   "FY2026.cash_equivalents",
+   "FY2026.current_assets",
+   "FY2026.current_liabilities",
+   "FY2026.depreciation",
+   "FY2026.ebit",
+   "FY2026.ebitda",
+   "FY2026.employee_cost",
+   "FY2026.exceptional_items",
+   "FY2026.fcff",
+   "FY2026.finance_cost",
+   "FY2026.fixed_assets",
+   "FY2026.inventory",
+   "FY2026.investments",
+   "FY2026.lease_liabilities",
+   "FY2026.long_term_debt",
+   "FY2026.non_current_liabilities",
+   "FY2026.ocf",
+   "FY2026.other_expenses",
+   "FY2026.other_income",
+   "FY2026.pat",
+   "FY2026.pbt",
+   "FY2026.raw_material_cost",
+   "FY2026.revenue_operating",
+   "FY2026.share_capital",
+   "FY2026.short_term_debt",
+   "FY2026.tax_expense",
+   "FY2026.total_assets",
+   "FY2026.total_debt",
+   "FY2026.total_equity",
+   "FY2026.total_income",
+   "FY2026.trade_payables",
+   "FY2026.trade_receivables",
+   "FY2026.working_capital",
+   "FY2025.capex",
+   "FY2025.cash_equivalents",
+   "FY2025.current_assets",
+   "FY2025.current_liabilities",
+   "FY2025.depreciation",
+   "FY2025.ebit",
+   "FY2025.ebitda",
+   "FY2025.employee_cost",
+   "FY2025.exceptional_items",
+   "FY2025.fcff",
+   "FY2025.finance_cost",
+   "FY2025.fixed_assets",
+   "FY2025.inventory",
+   "FY2025.investments",
+   "FY2025.lease_liabilities",
+   "FY2025.long_term_debt",
+   "FY2025.non_current_liabilities",
+   "FY2025.ocf",
+   "FY2025.other_expenses",
+   "FY2025.other_income",
+   "FY2025.pat",
+   "FY2025.pbt",
+   "FY2025.raw_material_cost",
+   "FY2025.revenue_operating",
+   "FY2025.share_capital",
+   "FY2025.short_term_debt",
+   "FY2025.tax_expense",
+   "FY2025.total_assets",
+   "FY2025.total_debt",
+   "FY2025.total_equity",
+   "FY2025.total_income",
+   "FY2025.trade_payables",
+   "FY2025.trade_receivables",
+   "FY2025.working_capital"
+  ]
+ },
+ "latest_statement_source": {
+  "period": "FY2026",
+  "document": "financials/annual_report_fy2026.pdf",
+  "pages": {
+   "bs": 118,
+   "cf": 119,
+   "pl": 118
+  },
+  "method": "layout, confirmed by AI",
+  "unit": "lakh"
+ },
+ "identifiers": {
+  "pan": "AAACD7890G",
+  "gstin": "06AAACD7890G1Z9"
+ },
+ "name_aliases": [],
+ "profile": {
+  "actual_company_name": "DLF Limited",
+  "wikipedia_title": "DLF Limited",
+  "official_url": "https://www.dlf.in/",
+  "bse_code": "532868",
+  "auditor": "S R Batliboi & Associates LLP",
+  "narrative": {
+   "chairman_message": "DLF focused on monetization of a premium residential pipeline while preserving liquidity and reducing net leverage through disciplined execution.",
+   "mda_summary": "The profile combines annuity cash flows from commercial assets with cyclical residential development cash flows in key urban markets.",
+   "risk_factors": [
+    "Real-estate cycle volatility",
+    "Project execution and approvals",
+    "Interest-rate sensitivity"
+   ],
+   "request_focus": "construction finance and working capital for staged real-estate development"
+  }
+ },
+ "rating_source": {
+  "document": "ratings/rating_rationale_crisil_2025-10-17.pdf",
+  "short_term": null,
+  "date": "October 17, 2025"
+ }
+}

@@ -1,0 +1,21 @@
+{
+ "_note": "Demo PEP / sanctions watchlist for UAT (round 8: moved out of code). Fictional sample entries only — real persons were removed; production screens against a licensed PEP database and the OFAC / UN sanctions lists (the compliance agent already screens OFAC and UN).",
+ "persons_by_din": {
+  "00012345": {
+   "person_name": "Sample PEP Director",
+   "pep_category": "Domestic PEP",
+   "pep_designation": "Former Member of Parliament",
+   "pep_jurisdiction": "India",
+   "risk_level": "high",
+   "sanctions_list_hit": false,
+   "adverse_media_count": 3,
+   "related_pep": true,
+   "source": "Consolidated PEP List — MHA/FATF"
+  }
+ },
+ "sanctions_names": [
+  "sanctioned entity b",
+  "sanctioned person a"
+ ],
+ "adverse_media_counts": {}
+}

@@ -18,8 +18,6 @@ RUNTIME_DB_ROOT = _env_path("CAM_RUNTIME_DB_ROOT", PROJECT_ROOT / "runtime-db")
 RUNTIME_DB_PATH = RUNTIME_DB_ROOT / "cam_platform.sqlite3"
 REFERENCE_ROOT = _env_path("CAM_REFERENCE_ROOT", PROJECT_ROOT / "downloaded document")
 REFERENCE_CAM_ROOT = REFERENCE_ROOT / "CAM"
-SYNTHETIC_ROOT = _env_path("CAM_SYNTHETIC_ROOT", PROJECT_ROOT / "synthetic-assets")
-ETB_OVERLAY_ROOT = SYNTHETIC_ROOT / "etb_overlays"
 
 
 def ensure_runtime_dirs() -> None:
@@ -29,8 +27,6 @@ def ensure_runtime_dirs() -> None:
         CACHE_ROOT,
         OUTPUT_ROOT,
         RUNTIME_DB_ROOT,
-        SYNTHETIC_ROOT,
-        ETB_OVERLAY_ROOT,
     ):
         path.mkdir(parents=True, exist_ok=True)
 

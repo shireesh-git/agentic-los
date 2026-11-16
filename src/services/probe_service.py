@@ -35,7 +35,7 @@ from src.models.canonical_model import (
 )
 from src.services.document_store import doc_store
 from src.services.document_classifier import requirement_is_satisfied
-from src.services.external_systems import resolve_company as resolve_local_company, _ENTITY_TO_IDS
+from src.services.external_systems import entity_id_map, resolve_company as resolve_local_company
 from src.services.probe_mcp_client import ProbeMcpClient, ProbeMcpError
 
 log = logging.getLogger(__name__)
@@ -350,7 +350,7 @@ def _identifier_kind(identifier: str) -> str:
         return "pan"
     if re.fullmatch(r"\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z\d]Z[A-Z\d]", value.upper()):
         return "gstin"
-    if value.upper() in _ENTITY_TO_IDS:
+    if value.upper() in entity_id_map():
         return "entity_id"
     return "name"
 
@@ -414,7 +414,7 @@ def _normalize_company_name(value: str, fallback: str = "") -> str:
 
 
 def _build_entity_id(company_name: str, cin: str | None = None) -> str:
-    local = next((eid for eid, ids in _ENTITY_TO_IDS.items() if cin and ids.get("cin") == cin), None)
+    local = next((eid for eid, ids in entity_id_map().items() if cin and ids.get("cin") == cin), None)
     if local:
         return local
     letters = re.sub(r"[^A-Z0-9]", "", (company_name or "").upper())[:4] or "PRBE"

@@ -1,0 +1,377 @@
+{
+ "core_banking": {},
+ "data_provider": "verified_public_records",
+ "catalog_source": "reference_catalog",
+ "preferred_identifier": "Sunrise Pharma Pvt Ltd",
+ "reference_prefix": null,
+ "borrower": {
+  "entity_id": "SPHR001",
+  "company_name": "Sunrise Pharma Pvt Ltd",
+  "cin": "U24230GJ2012PTC068945",
+  "pan": "AABCS9012H",
+  "borrower_type": "unlisted",
+  "sector": "pharma",
+  "subsector": "API Manufacturing",
+  "date_of_incorporation": "2012-06-10",
+  "registered_state": "Gujarat",
+  "registered_address": "Survey No 142, GIDC Ankleshwar, Gujarat 393002",
+  "authorized_capital": 50.0,
+  "paid_up_capital": 35.0,
+  "listed_exchange": null,
+  "isin": null,
+  "bse_code": null,
+  "nse_symbol": null,
+  "credit_rating": "CARE BBB/Stable",
+  "rating_agency": "CARE",
+  "employee_count": 680,
+  "website": "www.sunrisepharma.in"
+ },
+ "group": {
+  "group_id": "GRP_SPHR",
+  "group_name": "Sunrise Healthcare Group",
+  "parent_entity_id": "SPHR001",
+  "entities": [
+   "SPHR001",
+   "Sunrise Biotech Pvt Ltd",
+   "Sunrise Formulations Pvt Ltd",
+   "Sunrise Medicare Pvt Ltd"
+  ],
+  "promoter_holding_pct": 85.0,
+  "institutional_holding_pct": 0.0,
+  "public_holding_pct": 15.0,
+  "hierarchy": null,
+  "ultimate_parent": null,
+  "group_revenue_cr": null,
+  "group_net_worth_cr": null,
+  "group_total_debt_cr": null
+ },
+ "directors": [
+  {
+   "din": "00334455",
+   "name": "Dr. Harish Patel",
+   "designation": "Managing Director",
+   "entity_id": "SPHR001",
+   "pan": "AABPH3456E",
+   "date_of_appointment": "2013-06-10",
+   "other_directorships": [
+    "Sunrise Biotech Pvt Ltd",
+    "Sunrise Formulations Pvt Ltd",
+    "Sunrise Medicare Pvt Ltd",
+    "Global Health Exports LLC"
+   ],
+   "net_worth_cr": 42.0,
+   "is_promoter": true
+  },
+  {
+   "din": "00334456",
+   "name": "Meera H. Patel",
+   "designation": "Director",
+   "entity_id": "SPHR001",
+   "pan": "AABPM3457F",
+   "date_of_appointment": "2013-06-10",
+   "other_directorships": [
+    "Sunrise Biotech Pvt Ltd",
+    "Sunrise Medicare Pvt Ltd"
+   ],
+   "net_worth_cr": 28.0,
+   "is_promoter": true
+  },
+  {
+   "din": "00334457",
+   "name": "Kiran Shah",
+   "designation": "Director — Finance",
+   "entity_id": "SPHR001",
+   "pan": "AABPK3458G",
+   "date_of_appointment": "2017-04-01",
+   "other_directorships": [
+    "Sunrise Formulations Pvt Ltd"
+   ],
+   "net_worth_cr": 8.5,
+   "is_promoter": false
+  }
+ ],
+ "financials": {
+  "FY2025": {
+   "entity_id": "SPHR001",
+   "period": "FY2025",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2025-03-31",
+   "line_items": {
+    "revenue_operating": 420.0,
+    "other_income": 5.5,
+    "total_income": 425.5,
+    "raw_material_cost": 210.0,
+    "employee_cost": 42.0,
+    "other_expenses": 63.0,
+    "ebitda": 110.5,
+    "depreciation": 21.0,
+    "ebit": 89.5,
+    "finance_cost": 32.0,
+    "pbt": 57.5,
+    "tax_expense": 14.38,
+    "pat": 43.12,
+    "total_equity": 165.0,
+    "reserves_surplus": 130.0,
+    "long_term_debt": 120.0,
+    "short_term_debt": 85.0,
+    "total_debt": 205.0,
+    "current_assets": 185.0,
+    "inventory": 62.0,
+    "trade_receivables": 78.0,
+    "cash_equivalents": 12.0,
+    "other_current_assets": 33.0,
+    "current_liabilities": 115.0,
+    "trade_payables": 65.0,
+    "other_current_liabilities": 50.0,
+    "total_assets": 490.0,
+    "net_fixed_assets": 180.0,
+    "capital_wip": 25.0,
+    "intangible_assets": 8.0,
+    "investments": 42.0,
+    "operating_cash_flow": 72.0,
+    "investing_cash_flow": -55.0,
+    "financing_cash_flow": -12.0,
+    "capex": 35.0,
+    "dividend_paid": 5.0,
+    "contingent_liabilities": 15.0
+   }
+  },
+  "FY2024": {
+   "entity_id": "SPHR001",
+   "period": "FY2024",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2024-03-31",
+   "line_items": {
+    "revenue_operating": 385.0,
+    "other_income": 4.8,
+    "total_income": 389.8,
+    "raw_material_cost": 196.35,
+    "employee_cost": 38.5,
+    "other_expenses": 57.75,
+    "ebitda": 97.2,
+    "depreciation": 18.5,
+    "ebit": 78.7,
+    "finance_cost": 28.0,
+    "pbt": 50.7,
+    "tax_expense": 12.68,
+    "pat": 38.02,
+    "total_equity": 148.0,
+    "reserves_surplus": 113.0,
+    "long_term_debt": 105.0,
+    "short_term_debt": 72.0,
+    "total_debt": 177.0,
+    "current_assets": 162.0,
+    "inventory": 55.0,
+    "trade_receivables": 68.0,
+    "cash_equivalents": 10.0,
+    "other_current_assets": 29.0,
+    "current_liabilities": 98.0,
+    "trade_payables": 56.0,
+    "other_current_liabilities": 42.0,
+    "total_assets": 425.0,
+    "net_fixed_assets": 160.0,
+    "capital_wip": 18.0,
+    "intangible_assets": 6.0,
+    "investments": 35.0,
+    "operating_cash_flow": 62.0,
+    "investing_cash_flow": -42.0,
+    "financing_cash_flow": -15.0,
+    "capex": 28.0,
+    "dividend_paid": 4.0,
+    "contingent_liabilities": 12.0
+   }
+  },
+  "FY2023": {
+   "entity_id": "SPHR001",
+   "period": "FY2023",
+   "statement_type": "standalone",
+   "source": "audited",
+   "as_of_date": "2023-03-31",
+   "line_items": {
+    "revenue_operating": 340.0,
+    "other_income": 3.5,
+    "total_income": 343.5,
+    "raw_material_cost": 170.0,
+    "employee_cost": 34.0,
+    "other_expenses": 51.0,
+    "ebitda": 88.5,
+    "depreciation": 16.0,
+    "ebit": 72.5,
+    "finance_cost": 24.0,
+    "pbt": 48.5,
+    "tax_expense": 12.13,
+    "pat": 36.37,
+    "total_equity": 130.0,
+    "reserves_surplus": 95.0,
+    "long_term_debt": 92.0,
+    "short_term_debt": 60.0,
+    "total_debt": 152.0,
+    "current_assets": 140.0,
+    "inventory": 48.0,
+    "trade_receivables": 58.0,
+    "cash_equivalents": 8.0,
+    "other_current_assets": 26.0,
+    "current_liabilities": 82.0,
+    "trade_payables": 48.0,
+    "other_current_liabilities": 34.0,
+    "total_assets": 362.0,
+    "net_fixed_assets": 142.0,
+    "capital_wip": 12.0,
+    "intangible_assets": 5.0,
+    "investments": 25.0,
+    "operating_cash_flow": 55.0,
+    "investing_cash_flow": -35.0,
+    "financing_cash_flow": -18.0,
+    "capex": 25.0,
+    "dividend_paid": 3.5,
+    "contingent_liabilities": 10.0
+   }
+  }
+ },
+ "provisional": {
+  "entity_id": "SPHR001",
+  "period": "FY2026_P",
+  "statement_type": "standalone",
+  "source": "provisional",
+  "as_of_date": "2026-12-31",
+  "line_items": {
+   "revenue_operating": 465.0,
+   "ebitda": 120.9,
+   "pat": 48.0,
+   "total_debt": 225.0,
+   "total_equity": 185.0
+  }
+ },
+ "facility": {
+  "facility_id": "FAC_SPHR_001",
+  "entity_id": "SPHR001",
+  "case_type": "NTB",
+  "facility_type": "term_loan",
+  "amount_requested_cr": 75.0,
+  "purpose": "Capacity expansion of API manufacturing facility at Ankleshwar GIDC. Addition of 2 new reaction vessels and effluent treatment plant upgrade.",
+  "tenor_months": 84,
+  "collateral_type": "Factory Land & Building + Plant & Machinery",
+  "collateral_value_cr": 110.0,
+  "existing_limit_cr": null,
+  "proposed_limit_cr": 75.0
+ },
+ "collateral": [
+  {
+   "collateral_id": "COL_SPHR_001",
+   "entity_id": "SPHR001",
+   "collateral_type": "Factory Land & Building",
+   "description": "Factory premises at GIDC Ankleshwar — 5 acres with building",
+   "market_value_cr": 72.0,
+   "forced_sale_value_cr": 50.4,
+   "valuation_date": "2026-10-20",
+   "encumbrance_status": "clear"
+  },
+  {
+   "collateral_id": "COL_SPHR_002",
+   "entity_id": "SPHR001",
+   "collateral_type": "Plant & Machinery",
+   "description": "Reaction vessels, distillation units, ETP — existing setup",
+   "market_value_cr": 38.0,
+   "forced_sale_value_cr": 22.8,
+   "valuation_date": "2026-10-20",
+   "encumbrance_status": "clear"
+  }
+ ],
+ "market_signals": [
+  {
+   "entity_id": "SPHR001",
+   "signal_type": "news",
+   "headline": "Sunrise Biotech (group entity) faces FDA warning letter",
+   "sentiment": "negative",
+   "severity": "high",
+   "source_name": "Pharma Biz",
+   "signal_date": "2026-09-12",
+   "details": "US FDA issued warning letter to Sunrise Biotech for GMP violations at Ankleshwar unit."
+  },
+  {
+   "entity_id": "SPHR001",
+   "signal_type": "news",
+   "headline": "Sunrise Medicare defaults on bank loan — Rs 8 Cr overdue",
+   "sentiment": "negative",
+   "severity": "critical",
+   "source_name": "Money Control",
+   "signal_date": "2026-07-28",
+   "details": "Group company Sunrise Medicare classified as SMA-2 by consortium banks."
+  },
+  {
+   "entity_id": "SPHR001",
+   "signal_type": "analyst",
+   "headline": "API prices stabilize after 18-month correction",
+   "sentiment": "positive",
+   "severity": "low",
+   "source_name": "ICRA Research",
+   "signal_date": "2026-11-05",
+   "details": "Indian API manufacturers expected to benefit from China+1 sourcing trend."
+  }
+ ],
+ "existing_exposure": [],
+ "conduct": [],
+ "covenants": [],
+ "exchange_filing": null,
+ "sector_kpis": {
+  "sector_type": "pharma_api_formulations",
+  "product_portfolio": {
+   "total_products": 85,
+   "anda_filed": 18,
+   "anda_approved": 12,
+   "dmf_filed": 35,
+   "active_dossiers": 45,
+   "source": "Company Records"
+  },
+  "manufacturing": {
+   "formulation_plants": 2,
+   "api_plants": 1,
+   "who_gmp_certified": true,
+   "usfda_approved": false,
+   "capacity_utilization_pct": 68,
+   "plant_locations": [
+    "Ahmedabad",
+    "Ankleshwar"
+   ],
+   "source": "Company Annual Report"
+  },
+  "geographic_mix": {
+   "india_pct": 55,
+   "africa_pct": 25,
+   "asia_ex_india_pct": 12,
+   "latam_pct": 8,
+   "source": "Company Export Data"
+  },
+  "rd_profile": {
+   "rd_spend_pct_of_revenue": 4.2,
+   "rd_spend_cr_fy25": 17.6,
+   "patents_filed": 8,
+   "source": "Company R&D Report"
+  },
+  "group_risk_factors": {
+   "group_entity_fda_warning": "Sunrise Biotech — FDA Warning Letter (Oct 2024)",
+   "related_party_transactions_cr": 42,
+   "promoter_holding_pct": 85,
+   "group_entities_count": 4,
+   "source": "Company Disclosure; MCA Filings"
+  },
+  "development_projections": {
+   "capex_plan_fy26_cr": 28,
+   "capex_plan_fy27_cr": 35,
+   "projected_revenue_fy26_cr": 465,
+   "projected_revenue_fy27_cr": 510,
+   "usfda_filing_target": "FY2027",
+   "source": "Company Projections"
+  }
+ },
+ "identifiers": {
+  "pan": "AABCS9012H",
+  "gstin": "24AABCS9012H1Z2"
+ },
+ "name_aliases": [
+  "sunrise pharma",
+  "sunrise pharma pvt ltd"
+ ]
+}

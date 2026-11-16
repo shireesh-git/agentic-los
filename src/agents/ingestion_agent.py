@@ -5,7 +5,7 @@ import logging
 from src.agents.base_agent import BaseAgent
 from src.agents.financial_overrides import apply_uploaded_financial_overrides
 from src.core.config_manager import config
-from src.core.runtime_paths import DOCUMENTS_ROOT, REFERENCE_ROOT
+from src.core.runtime_paths import DOCUMENTS_ROOT
 from src.data import demo_registry
 
 log = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class DataIngestionAgent(BaseAgent):
 
         cached_extraction = "extraction_engine" in (extraction_store.get(entity_id) or {})
         dms = self._fetch_from_dms(entity_id, cd, emit) or {}
-        downloaded_reports = self._ingest_downloaded_reports(entity_id, emit)
+        downloaded_reports: dict = {}          # the reference-CAM folder path was removed in round 8 (it did not exist)
         self._extract_documents(entity_id, cd, extraction_store, downloaded_reports, emit)
         if not cd.get("financials"):
             # Every engine after this point analyses financial statements; without one (e.g. a new
@@ -76,23 +76,6 @@ class DataIngestionAgent(BaseAgent):
         log.debug("DIA dms: %d documents, categories=%s", result.get("total_documents", 0),
                   [c["category"] for c in result.get("categories_populated", [])])
         return result
-
-    @staticmethod
-    def _ingest_downloaded_reports(entity_id, emit) -> dict:
-        """Annual reports downloaded into the reference folder (real PDFs, if any)."""
-        try:
-            from src.engines.document_ocr_engine import ingest_downloaded_documents
-            if not REFERENCE_ROOT.exists():
-                return {}
-            emit("Processing downloaded annual reports (PyMuPDF OCR)...")
-            reports = ingest_downloaded_documents(REFERENCE_ROOT, DOCUMENTS_ROOT,
-                                                  entity_id=entity_id, on_progress=emit)
-            if reports.get("processed"):
-                emit(f"Verified & extracted {len(reports['processed'])} annual report(s)")
-            return reports
-        except Exception as e:
-            log.warning("Downloaded doc processing: %s", e)
-            return {}
 
     @staticmethod
     def _extract_documents(entity_id, cd, extraction_store, downloaded_reports, emit):

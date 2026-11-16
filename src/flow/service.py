@@ -295,11 +295,17 @@ class FlowService:
         if not res:
             return None
         g = self.graph()
-        return {**res, "nodes_total": len(g.nodes), "edges_total": len(g.edges),
+        from src.flow import graph as kg
+        return {**res, "findings": [{"code": i["code"], "label": i["label"], "status": i["status"], "detail": i.get("detail")}
+                                    for i in kg.checks(res)],
+                "nodes_total": len(g.nodes), "edges_total": len(g.edges),
                 "borrowers_total": sum(1 for c in self.companies.values() if c.get("borrower") is not None)}
 
     def _say_graph(self, case: dict) -> None:
-        """Tell the RM at initiation what the knowledge graph found."""
+        """Tell the RM what the knowledge graph found — once the CAM is there (round 9: before it, findings read as
+        "data missing" while nothing has been gathered yet); until then it waits for _intro_after_cam."""
+        if (case.get("cam") or {}).get("state") != "ready":
+            return
         from src.flow import graph as kg
         res = self.connections(case)
         if not res:
@@ -314,18 +320,44 @@ class FlowService:
     def _log(self, case: dict, kind: str, session: Optional[dict] = None, **detail) -> None:
         self.store.log(case["case_id"], self._stamp(), kind, case.get("stage"), self._actor(session), detail)
 
+    @staticmethod
+    def _company_key(company: dict) -> str:
+        """One company, however often it was registered: its CIN, else its registered name."""
+        from src.flow.graph import norm_name
+        b = company["borrower"]
+        return (getattr(b, "cin", None) or "").strip().upper() or "name:" + norm_name(b.company_name)
+
+    def _prospect_record(self, key: str) -> Optional[str]:
+        """The prospect record to use for a company registered more than once: the one with an open proposal, else
+        the most recently used, else the newest."""
+        ids = [e for e, c in self.companies.items() if c.get("source") == "los_prospect" and self._company_key(c) == key]
+        if not ids:
+            return None
+        cases = self.store.all()
+        def rank(e):
+            mine = [c for c in cases if c["entity_id"] == e]
+            return (any(c["status"] == "open" for c in mine), max((c["created_at"] for c in mine), default=""), e)
+        return max(ids, key=rank)
+
     def borrowers(self) -> list[dict]:
         out = []
         open_by_entity = {x["entity_id"]: x["case_id"] for x in self.store.all() if x["status"] == "open"}
+        shown: set = set()
         for eid, c in self.companies.items():
+            if c.get("source") == "los_prospect":
+                key = self._company_key(c)
+                if key in shown or self._prospect_record(key) != eid:
+                    continue                                 # a prospect registered twice is listed once
+                shown.add(key)
             b, f = c["borrower"], c["facility"]
             out.append({"entity_id": eid, "company_name": b.company_name, "sector": b.sector.value,
                         "cin": b.cin, "pan": b.pan, "external_rating": b.credit_rating,
                         "facility": {"product": getattr(f.facility_type, "value", str(f.facility_type)),
                                      "amount_cr": f.amount_requested_cr, "tenor_months": f.tenor_months,
                                      "purpose": f.purpose},
-                        "has_financials": bool(c.get("financials")), "open_case": open_by_entity.get(eid)})
-        out.sort(key=lambda r: (r["entity_id"] != "INFY001", r["company_name"]))
+                        "has_financials": bool(c.get("financials")), "open_case": open_by_entity.get(eid),
+                        "prospect": c.get("source") == "los_prospect"})
+        out.sort(key=lambda r: r["company_name"])
         return out
 
     def _require_role(self, session: dict, role: str) -> None:
@@ -367,6 +399,19 @@ class FlowService:
                     raise InvalidRequestError("Enter the prospect's registered name")
                 if not self.register_prospect:
                     raise InvalidRequestError("New prospects are not enabled")
+                from src.flow.graph import norm_name
+                cin = str(prospect.get("cin") or "").strip().upper()
+                same = [(e, c) for e, c in self.companies.items()
+                        if (cin and (getattr(c["borrower"], "cin", None) or "").upper() == cin)
+                        or norm_name(c["borrower"].company_name) == norm_name(name)]
+                known = next(((e, c) for e, c in same if c.get("source") != "los_prospect"), None)
+                if known:
+                    raise ConflictError(f"{known[1]['borrower'].company_name} is already a borrower on record — choose "
+                                        f"it under Existing borrower")
+                again = self._prospect_record(self._company_key(same[0][1])) if same else None
+            if prospect and not entity_id and again:
+                entity_id = again                            # the same prospect again: one record, not a new one
+            elif prospect and not entity_id:
                 entity_id = "P" + re.sub(r"[^A-Z0-9]", "", name.upper())[:8] + secrets.token_hex(2).upper()
                 self.register_prospect(entity_id, {"company_name": name, "cin": prospect.get("cin"),
                                                    "pan": prospect.get("pan"),
@@ -394,31 +439,32 @@ class FlowService:
                     "entity_id": entity_id, "borrower_name": b.company_name, "cin": b.cin, "status": "open",
                     "stage": None, "created_at": at, "updated_at": at,
                     "created_by": session["user"]["id"], "rm_name": session["user"]["name"],
-                    "facility": fac, "is_prospect": not company.get("financials"),
+                    "facility": fac, "is_prospect": not company.get("financials") or company.get("source") == "los_prospect",
                     "cam": {"state": "none", "mode": None}, "dp": {}, "changes": [], "chat": [], "ask": None,
                     "offered": {}, "against": [], "conditions": [], "sanction": None, "drawdown": None,
                     "release": None, "decisions": [], "stage_history": []}
             self._enter(case, self.stages()[0]["id"])
             self._save(case)
             self._log(case, "created", session, facility=fac)
-            acquire = bool(case["is_prospect"] and self.acquirer)
-            if acquire:
+            prospect_flow = bool(case["is_prospect"] and self.acquirer)
+            if prospect_flow:
+                # nothing runs yet: the RM chooses Generate CAM (the data agents gather the borrower's data first,
+                # then the CAM engine runs) or Ingest Bank CAM
                 case["prospect"] = {"cin": (prospect or {}).get("cin") or None, "pan": (prospect or {}).get("pan") or None}
-                case["acquisition"] = {"state": "running", "started_at": self._stamp()}
-                self._say(case, f"Proposal initiated for {b.company_name}: {self._fac_text(fac)}. The data "
-                                f"acquisition agents are gathering the borrower's data — APIs first; where an API is "
-                                f"not connected I will ask you for the document.")
+                case["acquisition"] = {"state": "pending"}
+                self._say(case, f"Proposal initiated for {b.company_name}: {self._fac_text(fac)}. Next step: "
+                                f"**Generate CAM**: the data acquisition agents first gather the borrower's data "
+                                f"(APIs first; I will ask for any document an API cannot provide), then the CAM engine "
+                                f"writes the CAM. Or **Ingest Bank CAM** if the bank's CAM is already written.")
             else:
-                self._say(case, f"Proposal initiated for {b.company_name}: {self._fac_text(fac)}. Next step: generate "
-                                f"the CAM with the CAM engine, or ingest the bank's CAM. Credit data fields are "
-                                f"populated from it.")
+                self._say(case, f"Proposal initiated for {b.company_name}: {self._fac_text(fac)}. Next step: **Generate "
+                                f"CAM** with the CAM engine, or **Ingest Bank CAM**. Credit data fields, the mandatory "
+                                f"checks and the connections are filled from it; I will then ask for anything missing.")
                 self._run_checks(case, company)
             self._save(case)
-            if not acquire:                                  # the graph counts this proposal once it is saved
+            if not prospect_flow:                            # the graph counts this proposal once it is saved
                 self._say_graph(case)
                 self._save(case)
-        if acquire:
-            self._start_acquire(case["case_id"])
         return case
 
     # ── Mandatory checks, brought forward to initiation (fix list E5) ─────────
@@ -437,6 +483,13 @@ class FlowService:
         if not res:
             return
         case["checks"] = res
+        if (case.get("cam") or {}).get("state") == "ready":
+            self._say_checks(case)                           # otherwise said with the CAM (_intro_after_cam)
+
+    def _say_checks(self, case: dict) -> None:
+        res = case.get("checks")
+        if not res:
+            return
         v = chk.view(res, case.get("check_notes"))
         demo = " (demo data: the bureau, MCA and registry APIs are not connected)" if v["demo"] else ""
         parts = []
@@ -536,11 +589,17 @@ class FlowService:
                           kind="warn" if any(c["status"] == "fail" for c in result["verification"]) else "info")
                 if company is not None and (case.get("cam") or {}).get("state") != "ready":
                     self._run_checks(case, company)
-                if case.get("stage") == self.stages()[0]["id"]:
+                starts_cam = bool((case.get("cam") or {}).get("pending")) and self._can_generate(case)
+                if case.get("stage") == self.stages()[0]["id"] and not starts_cam:
                     self._ask_next(case)
                 self._save(case)
                 if first:
                     self._say_graph(case)                         # directors and lenders are on record now
+                    self._save(case)
+                if self._after_acquire(case) or (case.get("cam") or {}).get("pending"):
+                    self._save(case)
+                elif (case.get("cam") or {}).get("mode") == "upload" and first:
+                    self._statements_into_ingested(case)
                     self._save(case)
         except Exception as e:                                   # recorded; the RM can retry from the panel
             log.exception("Data acquisition failed for %s", case_id)
@@ -1085,19 +1144,149 @@ class FlowService:
             st = self._at_stage(case, session)
             if st["id"] not in ("rm", "credit_risk"):
                 raise ForbiddenError("The CAM is generated at Origination and re-run at Underwriting")
-            if not self._can_generate(case):
-                raise InvalidRequestError(self._cannot_generate(case))
             if self.jobs.running(case_id):
                 return self.cam_progress(case_id)
-            resumed = (case.get("cam") or {}).get("state") == "failed"
-            reason = "rerun" if (case.get("cam") or {}).get("run_id") else "generate"
-            case["cam"] = {**(case.get("cam") or {}), "state": "running", "mode": "generate",
-                           "started_at": self._stamp(), "error": None}
-            case["ask"] = None
-            self._save(case)
-            self._log(case, "cam_rerun" if reason == "rerun" else "cam_generate", session, resume=resumed)
-            self.jobs.start(case_id, case["entity_id"], self._overrides(case), reason)
+            if self._gathers_first(case):
+                start = self._request_cam(case, session)
+                self._save(case)
+            else:
+                start = None
+        if start is not None:
+            if start:
+                self._start_acquire(case_id)
             return self.cam_progress(case_id)
+        with self._lock:
+            case = self._require(case_id)
+            if not self._can_generate(case):
+                raise InvalidRequestError(self._cannot_generate(case))
+            self._start_cam(case, session)
+            return self.cam_progress(case_id)
+
+    # ── a new-to-bank prospect: the data agents run first, then the CAM engine ──
+
+    def _gathers_first(self, case: dict) -> bool:
+        """A prospect's first CAM: the data agents must gather (or finish gathering) the borrower's data first."""
+        if not (case.get("is_prospect") and self.acquirer and case.get("acquisition") is not None):
+            return False
+        if (case.get("cam") or {}).get("run_id"):
+            return False                                 # a re-run uses the data already gathered
+        return not self._can_generate(case)
+
+    def _acq_running(self, case: dict) -> bool:
+        return (case.get("acquisition") or {}).get("state") == "running" or \
+            bool((self._acq.get(case["case_id"]) or {}).get("running"))
+
+    def _request_cam(self, case: dict, session: dict) -> bool:
+        """Record that the RM asked for the CAM; returns True when the agents must be started now."""
+        cam = case.get("cam") or {}
+        case["cam"] = {**cam, "state": "none" if cam.get("state") != "failed" else "failed",
+                       "pending": {"since": self._stamp(), "by": session["user"]["name"]}}
+        case["ask"] = None
+        self._log(case, "cam_generate_requested", session)
+        acq = case.get("acquisition") or {}
+        if self._acq_running(case):
+            return False
+        if acq.get("state") == "done":                   # gathered, but documents are missing
+            self._say_needs(case)
+            return False
+        case["acquisition"] = {**acq, "state": "running", "started_at": self._stamp(), "error": None}
+        self._say(case, "Generating the CAM. Step 1: the data acquisition agents are gathering the borrower's data "
+                        "(identity and registry, financial statements, credit and banking, compliance, market). "
+                        "Follow the progress on the **CAM** card.")
+        return True
+
+    def _say_needs(self, case: dict) -> None:
+        gaps = self._sources_ok(case, self._minimum_for_cam())
+        pack = self._test_pack(case)
+        what = "; ".join(f"{g['label']}" + (f" (upload {g['upload'].get('ask')})" if g.get("upload") else "")
+                         for g in gaps) or "the audited financial statements"
+        self._say(case, f"The CAM is waiting for data: {what}. "
+                        + (f"**Load test pack** ({pack['name']}) on the CAM card fills them for testing, or upload the "
+                           f"documents in Data Sources." if pack and not case.get("test_pack_loaded") else
+                           "Upload the documents in Data Sources.")
+                        + " The CAM engine starts as soon as they are read.", kind="warn",
+                  stage=self.stages()[0]["id"])
+
+    def _after_acquire(self, case: dict) -> bool:
+        """After the agents finish: when the RM asked for the CAM, start it if the data is in (True), else say what
+        is still needed (the source-document question covers the rest; the test pack is offered once)."""
+        if not (case.get("cam") or {}).get("pending"):
+            return False
+        if not self._can_generate(case):
+            if self._test_pack(case) and not case.get("test_pack_loaded"):
+                self._say_needs(case)
+            return False
+        self._start_cam(case, None)
+        return True
+
+    def _prep_view(self, case: dict) -> Optional[dict]:
+        """Step 1 of a prospect's CAM on the CAM card: the data agents' progress (percent, which agent is working),
+        then what is still needed when they stop short."""
+        pend = (case.get("cam") or {}).get("pending")
+        acq = case.get("acquisition") or {}
+        if not pend and not (case.get("is_prospect") and acq.get("state") == "done" and self.acquirer):
+            return None
+        agents = self.acquirer.agents() if self.acquirer else {}
+        job = self._acq.get(case["case_id"]) or {}
+        running = self._acq_running(case)
+        lanes = (job.get("lanes") if job.get("running") else acq.get("lanes")) or []
+        by = {l["agent"]: l for l in lanes}
+        order = list(agents) or [l["agent"] for l in lanes]
+        rows = [{"agent": a, "label": (agents.get(a) or {}).get("label", a),
+                 "status": (by.get(a) or {}).get("status") or ("waiting" if running else "done"),
+                 "ms": (by.get(a) or {}).get("ms")} for a in order]
+        done = sum(1 for r in rows if r["status"] in ("done", "failed", "kept"))
+        working = [r["label"] for r in rows if r["status"] == "running"]
+        gaps = [] if running else self._sources_ok(case, self._minimum_for_cam())
+        no_fs = not (self.companies.get(case["entity_id"]) or {}).get("financials")
+        state = "running" if running else "failed" if acq.get("state") == "failed" else \
+            "needs_data" if (gaps or no_fs) else "done"
+        if not pend and state != "done":
+            return None                                   # agents run for an ingested CAM: Data Sources shows them
+        step = ("Data agents working: " + ", ".join(working) if working else
+                "Starting the data agents" if running else
+                {"failed": "The data agents stopped: " + str(acq.get("error") or "retry"),
+                 "needs_data": "Waiting for documents", "done": "Borrower data gathered"}[state])
+        return {"state": state, "pending": bool(pend), "agents": rows, "done": done, "total": len(rows),
+                "percent": 100 if state == "done" else round(100 * done / max(len(rows), 1)),
+                "step": step, "since": (pend or {}).get("since") or acq.get("started_at"),
+                "ms": (acq.get("full_run") or {}).get("ms") or acq.get("ms"),
+                "needs": [{"id": g.get("id"), "label": g.get("label"),
+                           "ask": (g.get("upload") or {}).get("ask"), "status": g.get("status")} for g in gaps]
+                + ([{"id": "financials", "label": "Audited financial statements", "ask": "the annual reports",
+                     "status": "awaiting_upload"}] if no_fs and not any(g.get("id") == "financials" for g in gaps)
+                   and state == "needs_data" else [])}
+
+    def _statements_into_ingested(self, case: dict) -> None:
+        """A bank CAM ingested before the agents had read the annual reports: the figures and ratios it does not
+        state are now filled from the audited statements (an officer's or the CAM's own value is kept)."""
+        found: dict = {}
+        self._from_statements(case, found)
+        dp = case.setdefault("dp", {})
+        added = 0
+        for k, v in found.items():
+            cur = dp.get(k) or {}
+            if cur.get("value") in (None, "") and cur.get("status") != "skipped":
+                dp[k] = {"value": v["value"], "source": v["source"], "status": "filled", "flag": None,
+                         "history": cur.get("history") or []}
+                added += 1
+        if added:
+            self._say(case, f"The data agents read the audited statements: {added} figure(s) and ratio(s) the bank's "
+                            f"CAM does not state are now filled from them (with the formula).",
+                      stage=self.stages()[0]["id"])
+
+    def _start_cam(self, case: dict, session: Optional[dict]) -> None:
+        resumed = (case.get("cam") or {}).get("state") == "failed"
+        reason = "rerun" if (case.get("cam") or {}).get("run_id") else "generate"
+        cam = {k: v for k, v in (case.get("cam") or {}).items() if k != "pending"}
+        case["cam"] = {**cam, "state": "running", "mode": "generate", "started_at": self._stamp(), "error": None}
+        case["ask"] = None
+        self._save(case)
+        self._log(case, "cam_rerun" if reason == "rerun" else "cam_generate", session, resume=resumed)
+        if session is None:
+            self._say(case, "The data is in. Step 2: the CAM engine is analysing it and writing the CAM.")
+            self._save(case)
+        self.jobs.start(case["case_id"], case["entity_id"], self._overrides(case), reason)
 
     def cam_progress(self, case_id: str) -> dict:
         case = self._require(case_id)
@@ -1268,8 +1457,18 @@ class FlowService:
             self._build_register(case, engine)
             self._log(case, "cam_upload", session, file=safe, read_by=how, filled=len(found))
             self._intro_after_cam(case, "ingested from the bank's CAM" + (" (embedded data sheet)" if how == "sheet" else ""))
+            # a prospect whose data the agents have not gathered yet: they run now, and the audited figures fill
+            # what the bank's CAM does not state
+            kick = bool(case.get("is_prospect") and self.acquirer
+                        and (case.get("acquisition") or {}).get("state") == "pending")
+            if kick:
+                case["acquisition"] = {**case["acquisition"], "state": "running", "started_at": self._stamp()}
+                self._say(case, "The data acquisition agents are now gathering the borrower's data (Data Sources), so "
+                                "the CAM's figures are checked against the audited statements.")
             self._save(case)
-            return case
+        if kick:
+            self._start_acquire(case_id)
+        return self._require(case_id)
 
     def _from_sheet(self, sheet: dict, content: bytes, file_name: str) -> dict:
         pages = dpx.page_texts(content)
@@ -1382,7 +1581,7 @@ class FlowService:
     def _dp_question(self, case: dict, sp: dict) -> dict:
         """Ask for a field: its valid answers as buttons (a suggested one first, with the reason), "Not
         provided" last and secondary, and a typing hint for a free-text answer (fix list E1)."""
-        options = list(sp.get("options") or [])
+        options = self._options(sp)
         suggested = self._suggest(case, sp) if options else None
         if suggested and suggested["value"] in options:
             options.remove(suggested["value"])
@@ -1399,6 +1598,27 @@ class FlowService:
                 "suggested": suggested["value"] if suggested else None,
                 "hint": sp.get("hint") or (f"Type the {sp['label'].lower()}, or choose above" if options
                                            else f"Type the {sp['label'].lower()} here")}
+
+    def _options(self, sp: dict) -> list[str]:
+        """A field's answers to choose from (round 9: choose, don't type): its ``options`` in flow.yaml, or ones
+        built from configuration — ``options_from: sectors`` (sector_profiles.yaml) or ``policy_covenants`` (the
+        policy limits in rules.yaml as one covenant set)."""
+        from src.core.config_manager import config
+        src = sp.get("options_from")
+        if src == "sectors":
+            prof = config.get("sector_profiles", default={}) or {}
+            word = lambda w: w.upper() if w in ("it", "epc") else w                 # noqa: E731
+            names = [" ".join(word(w) for w in k.split("_")).capitalize().replace("It ", "IT ").replace(" epc", " EPC")
+                     for k in prof if isinstance(prof[k], dict)]
+            return names or [str(o) for o in sp.get("options") or []]
+        if src == "policy_covenants":
+            t = config.get("rules", "policy_thresholds", default={}) or {}
+            parts = [f"{label} {'≥' if way == 'min' else '≤'} {t[key]:.2f}x" for key, label, way in
+                     (("min_dscr", "DSCR", "min"), ("min_interest_coverage", "Interest cover", "min"),
+                      ("max_debt_to_ebitda", "Debt / EBITDA", "max"), ("max_tol_tnw", "TOL / TNW", "max"),
+                      ("min_current_ratio", "Current ratio", "min")) if t.get(key) is not None]
+            return ["Tested annually on audited statements: " + "; ".join(parts)] if parts else []
+        return [str(o) for o in sp.get("options") or []]
 
     def _suggest(self, case: dict, sp: dict) -> Optional[dict]:
         """An answer the record supports, with where it comes from; None when the record says nothing."""
@@ -1429,6 +1649,12 @@ class FlowService:
                                == "demo_file" else "")}
         return None
 
+    @staticmethod
+    def _applies(case: dict, sp: dict) -> bool:
+        """A field that applies only to some products (``applies_to`` in flow.yaml)."""
+        only = sp.get("applies_to")
+        return not only or (case.get("facility") or {}).get("product") in only
+
     def _incomplete(self, case: dict) -> list[dict]:
         """The credit data fields that are not filled, each with why and who should provide it (fix list E7)."""
         stages = [s["id"] for s in self.stages()]
@@ -1439,7 +1665,7 @@ class FlowService:
         for sp in dpx.specs():
             d = case["dp"].get(sp["id"]) or {}
             status = d.get("status") or "missing"
-            if status == "filled":
+            if status == "filled" or not self._applies(case, sp):
                 continue
             if status == "skipped":
                 who = d.get("skipped_by") or rm
@@ -1479,9 +1705,17 @@ class FlowService:
             return case
 
     def _set(self, case: dict, session: dict, dp_id: str, value, reason: str, via: str) -> Optional[dict]:
-        if (dpx.spec(dp_id) or {}).get("computed"):
-            raise ForbiddenError(f"{dpx.spec(dp_id)['label']} is calculated by the CAM engine from the statements — "
-                                 f"change the underlying figure (e.g. EBITDA, total debt) and re-run the CAM")
+        sp0 = dpx.spec(dp_id) or {}
+        if sp0.get("computed"):
+            cur0 = (case.get("dp") or {}).get(dp_id) or {}
+            calculated = cur0.get("value") not in (None, "") and (cur0.get("source") or {}).get("kind") != "person"
+            if calculated:
+                raise ForbiddenError(f"{sp0['label']} is calculated by the CAM engine from the statements — change the "
+                                     f"underlying figure (e.g. EBITDA, total debt) and re-run the CAM")
+            if not self._applies(case, sp0):
+                raise InvalidRequestError(sp0.get("not_applicable") or f"{sp0['label']} does not apply to this product")
+            if not (reason or "").strip():
+                raise InvalidRequestError(f"{sp0['label']} is normally calculated — say how you arrived at the figure")
         st = self._at_stage(case, session)
         if st["id"] not in ("rm", "credit_risk"):
             raise ForbiddenError("Credit data fields are entered at Origination and overridden at Underwriting — "
@@ -1638,6 +1872,12 @@ class FlowService:
                 items.append({"id": f"ratio:{r['id']}", "kind": "threshold",
                               "label": f"{r['label']} {r['display']} ({r['period']})", "policy": r["limit_display"],
                               "deviable": True})
+        for b in risk.get("other_breaches") or []:          # e.g. return on equity, EBITDA margin
+            items.append({"id": f"ratio:{b['id']}", "kind": "threshold",
+                          "label": f"{b['label']} {b['value']:g}{b.get('unit', '')}" + (f" ({b['period']})" if b.get("period") else ""),
+                          "policy": (f"{b.get('way') or 'limit'} {b['limit']:g}{b.get('unit', '')}"
+                                     if b.get("limit") is not None else ""),
+                          "deviable": True})
         for h in (risk.get("hard_rules") or {}).get("failed") or []:
             items.append({"id": f"rule:{h['code']}", "kind": "hard_rule", "label": h["label"] or h["code"],
                           "policy": f"Hard rule {h['code']}" + (f" — {h['detail']}" if h.get("detail") else ""),
@@ -1744,6 +1984,10 @@ class FlowService:
         if missing:
             text += f" Pending: {', '.join(sp['label'] for sp in missing)}."
         self._say(case, text)
+        if not case.get("checks_said"):                      # the mandatory checks and the graph, with the CAM
+            case["checks_said"] = True
+            self._say_checks(case)
+            self._say_graph(case)
         self._ask_next(case)
 
     def _stale_text(self, case: dict, asking: dict) -> str:
@@ -1986,7 +2230,8 @@ class FlowService:
         text, buttons = rk.plan(st["id"], st.get("actions") or [], case.get("risk"), case.get("against") or [],
                                 case.get("responses") or {}, self.blockers(case, st), editable, focus,
                                 case.get("register") or [], labels=self._labels(st), checks=checks_view,
-                                standing=(f"{verdict['label']}. {verdict['text']}" if verdict else None))
+                                standing=(f"Engine verdict: {verdict['label']}. {verdict['text']}" if verdict else None),
+                                can_withdraw=session["user"]["role"] == self.stages()[0]["role"])
         msg = self._say(case, text, kind="answer")
         msg["actions"] = buttons
         self._log(case, "chat_question", session, question="next steps", answered_by="plan")
@@ -2210,9 +2455,9 @@ class FlowService:
                            # the real buttons, by their screen labels and where they are (fix list E4)
                            "actions_available_on_screen": [
                                f"“{self._labels(st).get(a, a)}” — action bar" for a in st.get("actions") or []]
-                           + (["“Edit” on a credit data field (with rationale) — Credit Data Fields"]
+                           + (["“Edit” on a credit data field (with rationale) — Borrower Data tab"]
                               if st["id"] == "credit_risk" else [])
-                           + (["“Record justification” — Key Risk Challenges card, under the challenge"]
+                           + (["“Accept the risk, with justification”, “Ask the RM for evidence” or “Decline the proposal” — Key Risk Challenges card, under the challenge"]
                               if case.get("against") else [])
                            + (["“Record verification” / “Proceed with justification” — Mandatory checks card"]
                               if any(i.get("open") for i in (self._checks_view(case)
@@ -2822,18 +3067,27 @@ class FlowService:
                 status = d.get("status") or "missing"
                 if status == "missing" and sp.get("agent_only"):
                     status = "unavailable"                        # the agents found no source; not asked
+                if d.get("value") in (None, "") and not self._applies(case, sp):
+                    status = "not_applicable"
                 pts.append({"id": sp["id"], "label": sp["label"], "type": sp.get("type"),
                             "required": bool(sp.get("required")), "engine": bool(sp.get("engine")),
                             "computed": bool(sp.get("computed")), "agent_only": bool(sp.get("agent_only")),
                             "value": d.get("value"),
-                            "display": dpx.display(sp, d.get("value")) if status != "unavailable"
-                            else sp.get("unavailable") or "Not on record",
+                            "display": sp.get("not_applicable") or "Not applicable" if status == "not_applicable"
+                            else dpx.display(sp, d.get("value")) if status != "unavailable"
+                            else sp.get("unavailable") or ("Not computed — the figures it needs are not on record"
+                                                           if sp.get("computed") else "Not on record"),
+                            # a calculated figure is edited only while the engine has none (then with a reason)
+                            "can_edit": status != "not_applicable" and (
+                                not sp.get("computed") or d.get("value") in (None, "")
+                                or (d.get("source") or {}).get("kind") == "person"),
+                            "needs_reason": bool(sp.get("computed")),
                             "status": status, "source": d.get("source"), "flag": d.get("flag"),
                             "skipped_by": d.get("skipped_by"), "history": d.get("history") or [],
                             "change": changed.get(sp["id"]),
                             "band": dpx.band(sp, d.get("value"), thresholds, values),
                             "confidence": (d.get("source") or {}).get("confidence"),
-                            "options": sp.get("options"), "hint": sp.get("hint")})
+                            "options": self._options(sp) or None, "hint": sp.get("hint"), "help": sp.get("help")})
             groups.append({"id": g["id"], "label": g["label"], "points": pts,
                            "missing": sum(1 for p in pts if p["status"] == "missing"),
                            "skipped": sum(1 for p in pts if p["status"] == "skipped")})
@@ -2879,8 +3133,11 @@ class FlowService:
                     "acquisition": self._acq_view(case),
                     "can_sources": is_mine and st["id"] == self.stages()[0]["id"] and bool(case.get("acquisition")),
                     "test_pack": self._test_pack_view(case, is_mine and st["id"] == self.stages()[0]["id"]),
-                    "can_generate": self._can_generate(case),
-                    "generate_blocker": None if self._can_generate(case) else self._cannot_generate(case),
+                    "can_generate": self._can_generate(case) or (self._gathers_first(case) and not self._acq_running(case)),
+                    "generate_blocker": None if self._can_generate(case) or self._gathers_first(case)
+                    else self._cannot_generate(case),
+                    "gathers_first": self._gathers_first(case),
+                    "cam_prep": self._prep_view(case),
                     "editable": editable, "can_cam": is_mine and st["id"] == "rm",
                     "can_rerun": is_mine and st["id"] in ("rm", "credit_risk") and cam.get("state") in ("ready", "failed")
                     and bool(cam.get("run_id") or cam.get("mode") == "generate") and self._can_generate(case),

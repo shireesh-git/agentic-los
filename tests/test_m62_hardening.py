@@ -137,11 +137,11 @@ def test_no_fabricated_news_or_default_social_profile(company):
     assert prov["ratio_analysis"]["class"] == "calculated"
 
 
-def test_demo_social_profile_is_labelled_synthetic():
+def test_social_media_is_not_invented_when_no_source_supplied_it():
+    """Round 8: the made-up social profiles of real companies were removed; with none on record the CAM says so."""
     company = seed_company_store()["IHCL001"]
     fp = build_cam_fact_pack(copy.deepcopy(company))
-    assert fp["social_media_analysis"]["data_provenance"].startswith("synthetic_demo")
-    assert fp["data_provenance"]["social_media_analysis"]["class"] == "synthetic_demo"
+    assert not fp["social_media_analysis"]
 
 
 def test_prompts_carry_provenance_and_ask_for_no_calculation(company):

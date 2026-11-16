@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Optional
 
 SEVERITY = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-VERSION = 6          # bump when assess() gains fields: stored summaries older than this are rebuilt on load
+VERSION = 8          # bump when assess() gains fields: stored summaries older than this are rebuilt on load
 
 # ratio id → label, policy threshold key, direction ("min": higher is better)
 RATIOS = [("dscr", "DSCR", "min_dscr", "min"),
@@ -77,17 +77,33 @@ def assess(engine: Optional[dict]) -> Optional[dict]:
                        "limit": lim, "limit_display": (f"{'min' if way == 'min' else 'max'} {_x(lim)}"
                                                        if lim is not None else "no policy limit"),
                        "status": status})
+    keys = {key for _, _, key, _ in RATIOS}
+    other = [{"id": b.get("metric") or b.get("threshold_key"), "label": b.get("label"), "value": _num(b.get("value")),
+              "limit": _num(b.get("limit")), "way": b.get("limit_type"), "period": period,
+              "unit": "%" if str(b.get("threshold_key") or "").endswith("_pct") else ""}
+             for b in _observed(engine, "POLICY_DEVIATION", "breaches")
+             if b.get("threshold_key") not in keys and _num(b.get("value")) is not None]
     return {"v": VERSION, "recommendation": rec or None, "label": label, "tone": "bad" if failed else tone,
             "rationale": engine.get("rationale"), "rating": engine.get("risk_grade"),
             "score": _num(engine.get("composite_score")), "period": period,
             "hard_rules": {"failed": failed, "not_verified": unverified,
                            "passed": sum(1 for r in rules if r.get("result") == "pass"), "total": len(rules)},
             "ratios": ratios, "breaches": sum(1 for r in ratios if r["status"] == "bad"),
+            "other_breaches": other,
             "headroom": amount_advice(engine), "run_id": engine.get("run_id"), "thresholds": limits,
             "ecl": fp.get("ecl") if (fp.get("ecl") or {}).get("available") else None,
             "limit": fp.get("limit_assessment") if (fp.get("limit_assessment") or {}).get("available") else None,
             "notes": fp.get("notes_to_accounts") if (fp.get("notes_to_accounts") or {}).get("available") else None,
             "quality": _quality(fp)}
+
+
+def _observed(engine: Optional[dict], rule_id: str, key: str) -> list:
+    """What an engine observation recorded (e.g. POLICY_DEVIATION → breaches)."""
+    for o in (engine or {}).get("observations") or []:
+        t = o.get("trigger") or {}
+        if t.get("rule_id") == rule_id:
+            return (t.get("observed") or {}).get(key) or []
+    return []
 
 
 GRADE_TONE = {"A": "good", "B": "good", "C": "warn", "D": "bad", "E": "bad"}
@@ -371,20 +387,76 @@ def _why_short(text: Optional[str]) -> str:
     return first + "." if first else ""
 
 
+# the decision each challenge asks of the officer, in one line (round 8: "a justification for what?")
+_DECISION = {
+    "LIMIT_ABOVE_ASSESSED": "The amount requested is more than the borrower's operations need. Reduce the limit to the "
+                            "assessed amount, accept the higher limit with a justification, ask for evidence, or decline.",
+    "LIMIT_NOT_ASSESSED": "The working-capital need could not be assessed. Ask for the data, or accept the limit with a "
+                          "justification.",
+    "UNRESOLVED_INVESTIGATIONS": "Figures the proposal relies on are not yet confirmed. Ask for the evidence, accept them "
+                                 "as they are with a justification, or decline.",
+    "REPAYMENT_CAPACITY": "Cash flows may not cover repayments. Reduce or restructure the limit, accept with a "
+                          "justification, ask for evidence, or decline.",
+    "LEVERAGE": "Debt is high or rising against earnings. Reduce the limit, accept with a justification, ask for "
+                "evidence, or decline.",
+    "POLICY_EXCEPTIONS": "The proposal breaks a credit policy limit. Accept the exception with a justification, ask for "
+                         "evidence, or decline.",
+    "FINANCIAL_PERFORMANCE": "A financial figure looks wrong or weak. Correct it, accept it with a justification, or ask "
+                             "for evidence.",
+    "NOTES_RED_FLAGS": "The auditor or the notes to accounts raise a red flag. Accept it with a justification, ask for "
+                       "evidence, or decline.",
+}
+_LABELS = {"send_back": "Ask the RM for evidence", "justify": "Accept the risk, with justification",
+           "reject": "Decline the proposal", "override": "Correct a figure"}
+
+
+# an open investigation already raised by another card is not asked twice (round 9: "same points, many challenges")
+_RAISED_BY = {"DEBT_SERVICING": "REPAYMENT_CAPACITY", "LEVERAGE": "LEVERAGE",
+              "POLICY_EXCEPTION": "*"}            # every policy breach is a row of the Deviation Register
+
+
+def _investigations(engine: Optional[dict], c: dict, shown: set = frozenset()) -> tuple[Optional[str], list, int]:
+    """For the 'key questions still open' challenge: what each open investigation is about, and the evidence —
+    leaving out those another challenge (``shown``: their rule ids) or the Deviation Register already raises."""
+    ids = set(c.get("linked_investigation_ids") or [])
+    invs = [i for i in (engine or {}).get("investigations") or [] if i.get("investigation_id") in ids]
+    invs = [i for i in invs if _RAISED_BY.get(i.get("investigation_type")) not in shown | {"*"}]
+    if not invs:
+        return None, [], 0
+    import re
+    code = lambda t: re.sub(r"\s*\([A-Z0-9_]{6,}\)", "", str(t or ""))      # internal rule codes are not for the officer
+    what = " ".join(code(f"{i.get('title')}: {i.get('reason')}") for i in invs)
+    asks = [code(f"{e.get('item')}: {e.get('description')}") for i in invs for e in i.get("required_evidence") or []]
+    return what, asks, len(invs)
+
+
 def challenges(engine: Optional[dict], limit: int = 5) -> list[dict]:
     """The engine's challenges, most severe first, each with suggested actions (see _PLAYBOOK)."""
     items = sorted(((engine or {}).get("challenges") or []) + _limit_challenges(engine) + _notes_challenges(engine),
                    key=lambda c: SEVERITY.get(str(c.get("severity")), 9))
+    # one card per decision: the policy breaches are decided one by one in the Deviation Register, so the
+    # "outside credit policy" challenge (the same ratios again) is not a card of its own
+    items = [c for c in items if c.get("rule_id") != "POLICY_EXCEPTIONS"]
+    shown = {c.get("rule_id") for c in items[:limit]}
     head = amount_advice(engine)
     out = []
     for c in items[:limit]:
         rid = c.get("rule_id") or ""
         asks = c.get("required_response") or []
         asks = asks if isinstance(asks, list) else [asks]
+        what = c.get("challenge")
+        if rid == "UNRESOLVED_INVESTIGATIONS":
+            w, a, n = _investigations(engine, c, shown)
+            if c.get("linked_investigation_ids") and not n:
+                continue                                 # everything it asks is raised by another card
+            what, asks = w or what, a or asks
         actions = []
-        for kind in _PLAYBOOK.get(rid, ["send_back", "justify"]):
+        kinds = list(_PLAYBOOK.get(rid, ["send_back", "justify"]))
+        if "reject" not in kinds:
+            kinds.append("reject")                       # declining is always one of the choices, last
+        for kind in kinds:
             if kind == "reduce_amount" and c.get("limit_cr") is not None:
-                actions.append({"kind": "reduce_amount", "label": f"Set the limit to the assessed {_crore(c['limit_cr'])}",
+                actions.append({"kind": "reduce_amount", "label": f"Reduce the limit to the assessed {_crore(c['limit_cr'])}",
                                 "field": "recommended_cr", "value": c["limit_cr"],
                                 "reason": "Within the assessed limit: " + str(c.get("challenge") or "")})
             elif kind == "reduce_amount":
@@ -395,19 +467,21 @@ def challenges(engine: Optional[dict], limit: int = 5) -> list[dict]:
                     actions.append({"kind": "reduce_amount", "label": "Review the recommended limit",
                                     "field": "recommended_cr", "value": None, "reason": ""})
             elif kind == "override":
-                actions.append({"kind": "override", "label": "Override a figure", "field": _FIELD.get(rid)})
+                actions.append({"kind": "override", "label": _LABELS["override"], "field": _FIELD.get(rid)})
             elif kind == "send_back":
-                actions.append({"kind": "send_back", "label": "Return for documents",
+                actions.append({"kind": "send_back", "label": _LABELS["send_back"],
                                 "prefill": f"{c.get('title')}: please provide — " + "; ".join(asks[:3])})
             elif kind == "justify":
-                actions.append({"kind": "justify", "label": "Record justification"})
+                actions.append({"kind": "justify", "label": _LABELS["justify"]})
             elif kind == "reject":
-                actions.append({"kind": "reject", "label": "Decline",
+                actions.append({"kind": "reject", "label": _LABELS["reject"],
                                 "prefill": f"Declined: {c.get('title')}. {_why_short(c.get('challenge'))}"})
         out.append({"id": c.get("challenge_id") or rid, "rule_id": rid, "title": c.get("title") or c.get("category"),
                     "category": c.get("category"), "severity": c.get("severity"),
-                    "what": c.get("challenge"), "why": _why_short(c.get("rationale")),
+                    "what": what, "why": _why_short(c.get("rationale")),
                     "challenge": c.get("challenge"), "asks": asks, "ask": asks[0] if asks else None,
+                    "decision": _DECISION.get(rid) or "Can the proposal go ahead despite this? Accept the risk with a "
+                                                      "justification, ask for evidence, or decline.",
                     "actions": actions,
                     "amount_note": amount_text(head) if rid in ("LEVERAGE", "REPAYMENT_CAPACITY") and head else None})
     return out
@@ -418,7 +492,7 @@ def challenges(engine: Optional[dict], limit: int = 5) -> list[dict]:
 def plan(stage: str, available: list[str], risk: Optional[dict], against: list[dict], responses: dict,
          blockers: list[str], editable: bool, focus: Optional[str] = None,
          register: Optional[list] = None, *, labels: Optional[dict] = None, checks: Optional[dict] = None,
-         standing: Optional[str] = None) -> tuple[str, list[dict]]:
+         standing: Optional[str] = None, can_withdraw: bool = False) -> tuple[str, list[dict]]:
     """Where the proposal stands, then at most three numbered steps in the order to do them (fix list E4).
 
     Every step names a button that exists on this officer's screen, by its label (``labels``: the stage's
@@ -482,11 +556,18 @@ def plan(stage: str, available: list[str], risk: Optional[dict], against: list[d
 
     for b in blockers:
         steps.append(f"Before you can proceed: {b}.")
+    # this officer cannot decline (Origination): say who can, and what this officer can do instead (round 9)
+    no_decline = "reject" not in available and bool(risk) and risk.get("tone") == "bad"
     if "approve" in available and not blockers:
         why = needs_justification(risk)
-        steps.append(f"{'Then press' if steps else 'Press'} **{approve_l}** in the action bar"
-                     + (f"; you will be asked for a written justification, because {'; '.join(why)}" if why else "")
-                     + ".")
+        if no_decline:
+            steps.append(f"If the borrower can support the proposal (restructure, more security, evidence), press "
+                         f"**{approve_l}** in the action bar; you will be asked for a written justification"
+                         + (f", because {'; '.join(why)}" if why else "") + ".")
+        else:
+            steps.append(f"{'Then press' if steps else 'Press'} **{approve_l}** in the action bar"
+                         + (f"; you will be asked for a written justification, because {'; '.join(why)}" if why else "")
+                         + ".")
         buttons.append({"kind": "approve", "label": approve_l})
 
     more = max(len(steps) - 3, 0)
@@ -502,6 +583,11 @@ def plan(stage: str, available: list[str], risk: Optional[dict], against: list[d
         buttons.append({"kind": "reject", "label": decline_l,
                         "prefill": f"Declined: the CAM engine recommends {risk['label']}"
                                    + (" — " + "; ".join(a["title"] for a in shown) if shown else "") + "."})
+    if no_decline:
+        tail.append("You cannot decline at this stage: Underwriting and the Sanctioning Authority decide. If the "
+                    "proposal will not go ahead, **Withdraw** (next to the submit button), with the reason.")
+        if can_withdraw:
+            buttons.append({"kind": "withdraw", "label": "Withdraw this proposal"})
     if not steps:
         steps.append("Nothing is outstanding for you on this proposal.")
     head = (standing.strip() + "\n\n") if standing else ""

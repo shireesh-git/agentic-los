@@ -37,7 +37,7 @@ def spec(dp_id: str) -> Optional[dict]:
 
 # ── values ───────────────────────────────────────────────────────────────────
 
-_NUM = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
+_NUM = re.compile(r"(?:(?<![A-Za-z])-)?\d[\d,]*(?:\.\d+)?")      # "CMR-1" is 1, not -1
 
 
 def parse_value(sp: dict, text) -> object:
