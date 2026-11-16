@@ -27,7 +27,22 @@ const ICONS = {
   more: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
   reset: '<path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+  network: '<circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="m6.5 6.5 3.6 3.6M17.5 6.5l-3.6 3.6M6.5 17.5l3.6-3.6M17.5 17.5l-3.6-3.6"/>',
 };
+// The Connections picture (knowledge graph around a borrower) as SVG markup: Alpine cannot loop inside <svg>.
+function graphSvg(p) {
+  if (!p || !(p.nodes || []).length) return '';
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const lines = (p.lines || []).map(l => '<line x1="' + l.x1 + '" y1="' + l.y1 + '" x2="' + l.x2 + '" y2="' + l.y2 +
+    '" class="kg-l kg-' + esc(String(l.kind).toLowerCase()) + (l.demo ? ' kg-demo' : '') + '"/>').join('');
+  const nodes = p.nodes.map(n => '<g class="kg-n kg-' + esc(n.kind) + (n.stress ? ' kg-stress' : '') + (n.official ? ' kg-official' : '') +
+    (n.center ? ' kg-center' : '') + '"><title>' + esc(n.label) + '</title><circle cx="' + n.x + '" cy="' + n.y + '" r="' +
+    (n.center ? 14 : n.kind === 'person' ? 6 : 8) + '"/><text x="' + n.x + '" y="' + (n.y + (n.center ? 28 : 18)) +
+    '" text-anchor="middle">' + esc(n.label) + '</text></g>').join('');
+  return '<svg class="kg-pic" viewBox="0 0 640 400" role="img" aria-label="Network around the borrower">' + lines + nodes + '</svg>' +
+    (p.hidden ? '<div class="muted sm">' + p.hidden + ' more connection(s) not drawn</div>' : '');
+}
+
 function icon(name, size) {
   const s = size || 16;
   return '<svg class="ic" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (ICONS[name] || '') + '</svg>';

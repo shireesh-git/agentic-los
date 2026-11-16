@@ -107,6 +107,26 @@ async def report(x_flow_session: Optional[str] = Header(None), svc: ServiceConta
     return svc.flow.time_report()
 
 
+@router.get("/mart")
+async def mart_status(x_flow_session: Optional[str] = Header(None), svc: ServiceContainer = Depends(get_container)):
+    """Where the credit data mart is written (BigQuery or local files) and the last sync's row counts."""
+    _s(svc, x_flow_session)
+    from src.core import mart
+    m = mart._mart
+    return {"enabled": bool(m), "target": (m.dataset or str(m.local_dir)) if m else None,
+            "last": m.last if m else None, "graph": {"nodes": len(svc.flow.graph().nodes), "edges": len(svc.flow.graph().edges)}}
+
+
+@router.post("/mart/sync")
+async def mart_sync(x_flow_session: Optional[str] = Header(None), svc: ServiceContainer = Depends(get_container)):
+    _s(svc, x_flow_session)
+    from src.core import mart
+    m = mart.from_env(svc.flow)
+    if not m:
+        return {"enabled": False}
+    return {"enabled": True, "target": m.dataset or str(m.local_dir), "last": m.sync(force=True)}
+
+
 @router.get("/backtest")
 async def backtest(x_flow_session: Optional[str] = Header(None), svc: ServiceContainer = Depends(get_container)):
     _s(svc, x_flow_session)

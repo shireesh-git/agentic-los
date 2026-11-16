@@ -68,3 +68,6 @@ runtime-db-seed/*
 
 # Documents uploaded to proposals at runtime (conditions precedent)
 storage/flow/
+
+# credit data mart written locally when BigQuery is not configured (src/core/mart.py)
+storage/mart/

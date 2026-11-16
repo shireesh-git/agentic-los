@@ -36,7 +36,18 @@ RULES = {
     "HR_MIN_VINTAGE": ("Minimum vintage", "Company at least 3 years old", "Date of incorporation (MCA)"),
     "HR_NO_CRITICAL_EXCEPTIONS": ("No critical data exceptions", "No unresolved critical data exceptions",
                                   "Resolve the critical exceptions raised by the CAM engine"),
+    # knowledge graph checks (src/flow/graph.py)
+    "KG_CONNECTED_STRESS": ("Connected parties in stress",
+                            "No company linked by a common director, holding or group is SMA / NPA or on a list",
+                            "Review of the connected company's account status and the link (director network, CRILC)"),
+    "KG_GROUP_EXPOSURE": ("Group exposure within limits",
+                          "Our exposure to the borrower and to its group of connected counterparties is within limits",
+                          "Exposure within the single-borrower and group limits, or approval of the excess"),
+    "KG_CONNECTED_LENDING": ("Connected lending",
+                             "No director or significant shareholder of the borrower is a director or officer of the bank",
+                             "Board / committee approval for lending to a connected party, with the interested director recused"),
 }
+GRAPH_CHECKS = ("KG_CONNECTED_STRESS", "KG_GROUP_EXPOSURE", "KG_CONNECTED_LENDING")
 FIELD_PLAIN = {"dpd_status": "account status with other lenders (SMA / days past due)",
                "wilful_defaulter": "wilful-defaulter list result", "fraud_flag": "fraud registry result",
                "rbi_defaulter_list": "RBI defaulter list result", "suit_filed_amount_cr": "suits filed"}
@@ -103,6 +114,16 @@ def from_engine(engine: Optional[dict]) -> Optional[dict]:
     items = [item(r.get("rule"), r.get("result"), r.get("details") or "") for r in rules]
     items.sort(key=lambda i: (i["code"] not in DATA_CHECKS, i["status"] == "pass"))
     return {"items": items, "basis": "cam_engine", "demo": any(i["demo"] for i in items)}
+
+
+def merge(checks: Optional[dict], graph_items: Optional[list]) -> Optional[dict]:
+    """The case's checks with the knowledge-graph checks added (they are recomputed as the graph changes)."""
+    graph_items = graph_items or []
+    if not checks and not graph_items:
+        return None
+    base = [i for i in (checks or {}).get("items") or [] if i["code"] not in GRAPH_CHECKS]
+    return {"items": base + graph_items, "basis": (checks or {}).get("basis") or "initiation",
+            "demo": bool((checks or {}).get("demo")) or any(i.get("demo") for i in graph_items)}
 
 
 def view(checks: Optional[dict], notes: Optional[dict]) -> Optional[dict]:

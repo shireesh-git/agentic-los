@@ -1,0 +1,32 @@
+{
+  "note": "DEMO DATA (UAT): stands in for the MCA director-network API (e.g. Probe42), the bureau / CRILC status of connected companies, and the bank's loan book (LMS). Only the synthetic ABC Group is used; no link here describes a real company or person.",
+  "as_of": "2026-11-16",
+  "companies": [
+    {"cin": "U26940MH2011PTC215678", "name": "ABC Precast Structures Pvt Ltd", "classification": "Standard",
+     "source": "Commercial bureau (demo)"},
+    {"cin": "U41000MH2016PTC281234", "name": "ABC Water Projects Pvt Ltd", "classification": "Standard",
+     "source": "Commercial bureau (demo)"},
+    {"cin": "U45400MH2014PTC254321", "name": "Chitale Infra Projects Pvt Ltd", "classification": "SMA-2",
+     "detail": "Overdue 68 days on a term loan with another lender", "source": "CRILC / commercial bureau (demo)"},
+    {"cin": "U63030MH2010PLC201122", "name": "Sahyadri Logistics Parks Ltd", "classification": "Standard",
+     "source": "Commercial bureau (demo)"}
+  ],
+  "directorships": [
+    {"din": "07112233", "name": "Arvind B. Chitale", "cin": "U26940MH2011PTC215678", "designation": "Director", "promoter": true},
+    {"din": "07112233", "name": "Arvind B. Chitale", "cin": "U45400MH2014PTC254321", "designation": "Managing Director", "promoter": true},
+    {"din": "07112233", "name": "Arvind B. Chitale", "cin": "U41000MH2016PTC281234", "designation": "Director", "promoter": true},
+    {"din": "07112234", "name": "Bhavna A. Chitale", "cin": "U26940MH2011PTC215678", "designation": "Director", "promoter": true},
+    {"din": "08223344", "name": "Suresh K. Menon", "cin": "U63030MH2010PLC201122", "designation": "Independent Director", "promoter": false}
+  ],
+  "holdings": [
+    {"holder_cin": "U45200MH2009PLC191234", "held_cin": "U26940MH2011PTC215678", "pct": 74.0},
+    {"holder_cin": "U45200MH2009PLC191234", "held_cin": "U41000MH2016PTC281234", "pct": 51.0},
+    {"holder_din": "07112233", "held_cin": "U45400MH2014PTC254321", "pct": 80.0}
+  ],
+  "our_book": [
+    {"cin": "U26940MH2011PTC215678", "product": "Term loan", "sanctioned_cr": 1000.0, "outstanding_cr": 920.0,
+     "source": "Loan management system (demo)"},
+    {"cin": "U41000MH2016PTC281234", "product": "Term loan", "sanctioned_cr": 800.0, "outstanding_cr": 760.0,
+     "source": "Loan management system (demo)"}
+  ]
+}

@@ -21,6 +21,7 @@ comments explaining every setting.
 | Stress-test scenarios | `rules.yaml` | `stress_testing` |
 | How a working-capital limit is assessed (turnover / MPBF / operating cycle) | `rules.yaml` | `limit_assessment` |
 | The past proposals the engine is back-tested on, and what counts as flagged | `backtest.yaml` | `cases`, `flag_on` |
+| Exposure limits, what makes a group, what counts as stress, the bank's own directors and officers (knowledge graph checks) | `exposure.yaml` | `bank`, `limits`, `group_rules`, `stress`, `bank_officials` |
 | Who may sanction what (delegation of powers) | `approval.yaml` | `authority_levels` |
 | Sector peer benchmarks | `benchmarks.yaml` | `sectors` |
 | Which AI model is used | `llm_providers.yaml` | `active_provider`, `providers` |
@@ -121,6 +122,23 @@ others (owner, review date, grievance process).
 Set `CAM_STATE_BUCKET` and the app copies its database and uploaded files to that bucket every minute
 (`CAM_STATE_SYNC_SECONDS`) and on shutdown, and restores them when it starts. `scripts/deploy_gcp.sh` creates
 the bucket and sets this for you.
+
+### Credit data mart and knowledge graph (BigQuery)
+
+The LOS writes its proposals, credit data fields, checks, challenges, deviations, activity and the knowledge graph
+(`kg_nodes`, `kg_edges`) as tables, every minute when something changed (`MART_INTERVAL`, seconds):
+
+- **BigQuery** when `MART_BQ_DATASET` is set (`project.dataset`; region `MART_BQ_LOCATION`, default
+  `asia-south1`). The dataset and the BigQuery Graph property graph `credit_graph` are created on the first sync.
+  `scripts/deploy_gcp.sh` enables the BigQuery API, grants the runtime service account `bigquery.jobUser` and
+  `bigquery.dataEditor`, and sets `MART_BQ_DATASET=<project>.los_mart`.
+- **Local files** otherwise: JSON lines under `storage/mart/` (set `MART_LOCAL=0` to turn this off).
+
+`GET /api/flow/mart` shows where it writes and the last sync; `POST /api/flow/mart/sync` writes now. Example graph
+queries (connected parties in stress, group exposure, connected lending) are in `sql/bigquery/credit_graph.sql`.
+
+The knowledge graph's demo director network, the connected companies' status and the loan book are in
+`storage/demo_registry/network.json` (synthetic ABC Group only) until the MCA network and LMS are connected.
 
 ### Change a policy limit
 

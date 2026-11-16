@@ -63,6 +63,7 @@
       "backtest",
       "benchmarks",
       "data_sources",
+      "exposure",
       "external_apis",
       "flow",
       "llm_providers",

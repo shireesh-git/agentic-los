@@ -25,6 +25,8 @@ SERVICE="${SERVICE:-kpmg-agentic-los}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.8-flash}"
 RUNTIME_SA="${RUNTIME_SA:-agentic-los-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
 STATE_BUCKET="${STATE_BUCKET:-${PROJECT_ID}-los-state}"
+# Credit data mart and knowledge graph in BigQuery (Mumbai): the app loads its tables every minute when it changed
+MART_DATASET="${MART_DATASET:-los_mart}"
 
 cd "$(dirname "$0")/.."
 mkdir -p runtime-db-seed
@@ -35,7 +37,7 @@ else
 fi
 
 gcloud config set project "$PROJECT_ID"
-APIS="run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com secretmanager.googleapis.com"
+APIS="run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com aiplatform.googleapis.com secretmanager.googleapis.com bigquery.googleapis.com"
 # Enabling is a "mutate" call with a per-minute quota that is sometimes exhausted (RATE_LIMIT_EXCEEDED):
 # after the first deploy the APIs are already on, so a failure only matters if one of them is off.
 if ! gcloud services enable $APIS 2>/tmp/enable-err.txt; then
@@ -66,7 +68,7 @@ if [[ -z "$GEMINI_LOCATION" ]]; then
 fi
 echo "Gemini location: ${GEMINI_LOCATION}"
 
-for role in roles/aiplatform.user roles/secretmanager.secretAccessor; do
+for role in roles/aiplatform.user roles/secretmanager.secretAccessor roles/bigquery.jobUser roles/bigquery.dataEditor; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" --member "serviceAccount:$RUNTIME_SA" \
     --role "$role" --condition None --quiet --format none
 done
@@ -101,9 +103,10 @@ gcloud run deploy "$SERVICE" \
   --concurrency 40 --timeout 900 \
   --session-affinity \
   --allow-unauthenticated \
-  --set-env-vars "LLM_ACTIVE_PROVIDER=vertex_ai_gemini,VERTEX_GEMINI_MODEL=${GEMINI_MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION},CAM_STATE_BUCKET=${STATE_BUCKET}" \
+  --set-env-vars "LLM_ACTIVE_PROVIDER=vertex_ai_gemini,VERTEX_GEMINI_MODEL=${GEMINI_MODEL},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${GEMINI_LOCATION},CAM_STATE_BUCKET=${STATE_BUCKET},MART_BQ_DATASET=${PROJECT_ID}.${MART_DATASET},MART_BQ_LOCATION=${REGION}" \
   "${SECRETS[@]}"
 
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')"
 echo
 echo "Deployed: ${URL}/los"
+echo "Credit data mart: BigQuery dataset ${PROJECT_ID}.${MART_DATASET} (${REGION}); graph queries in sql/bigquery/credit_graph.sql"

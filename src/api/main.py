@@ -35,8 +35,15 @@ app = create_app()
 @app.on_event("startup")
 async def _start_cloud_sync():
     cloud_sync.start()
+    from src.core import mart        # the credit data mart: BigQuery on Cloud Run, local files on a laptop
+    m = mart.from_env(app.state.container.flow)
+    if m:
+        m.start()
 
 
 @app.on_event("shutdown")
 async def _final_cloud_sync():
+    from src.core import mart
+    if mart._mart:
+        mart._mart.stop()        # the last changes into the mart
     cloud_sync.stop()            # Cloud Run sends SIGTERM before stopping the instance: save the last changes

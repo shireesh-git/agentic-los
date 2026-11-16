@@ -1,0 +1,33 @@
+# Exposure norms and connected lending — used by the knowledge graph checks (src/flow/graph.py).
+#
+# DEMO VALUES. A bank sets these from its own capital and board policy. The percentages follow the shape of
+# RBI's Large Exposures Framework (single counterparty / group of connected counterparties, as a share of
+# Tier 1 capital); a development-finance institution or NBFC would use its own regulator's limits.
+
+bank:
+  name: Demo Bank
+  tier1_capital_cr: 8000          # Tier 1 capital, ₹ crore (demo)
+
+limits:
+  single_counterparty_pct: 20     # exposure to one borrower, % of Tier 1
+  group_pct: 25                   # exposure to a group of connected counterparties, % of Tier 1
+  warn_at_pct_of_limit: 85        # flag when exposure reaches this share of a limit
+
+# Which relationships make companies one group of connected counterparties (control).
+group_rules:
+  min_holding_pct: 50             # one holds at least this share of the other
+  common_promoter: true           # a promoter-director of one is a promoter-director of the other
+  declared_group: true            # listed together as one group in the borrower record
+
+# Which statuses of a connected company count as stress.
+stress:
+  classifications: [SMA-1, SMA-2, NPA, Substandard, Doubtful, Loss]
+  flags: [wilful_defaulter, fraud_flag, rbi_defaulter_list]
+  max_hops: 2                     # how far from the borrower to look (director → company is 2 hops)
+
+# Connected lending: the bank's own directors and senior officers (demo). A borrower whose director or
+# significant shareholder is one of these is a connected-lending case.
+bank_officials:
+  - {name: "Suresh K. Menon", din: "08223344", role: "Independent Director, Demo Bank"}
+  - {name: "Lata R. Iyer", din: "09887766", role: "Executive Director, Demo Bank"}
+significant_holding_pct: 10

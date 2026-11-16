@@ -212,3 +212,16 @@ committed (`public/` is git-ignored); `prepare.py` downloads them again.
 | R7.18 (S) | GST vs revenue cannot know that power sales are exempt. | Sector-aware tolerance (energy: exempt supplies) or read the exempt turnover from GSTR-3B. |
 | R7.19 (R) | KPI's rating rationale is published only as an ICRA / CRISIL HTML page; the rating source stays manual. | Accept an HTML / saved page as a rating document. |
 | R7.20 (V) | H.G. Infra: "Rated bank limits vs bureau sanctioned limits" warns (CARE ₹140 Cr vs ₹3,290 Cr) — correct, but CARE rates only part of the lines (ICRA rates the rest). | Allow more than one rating document and sum the rated limits. |
+
+## Google stack Wave 1, items 1–2 (2026-11-16) — built
+
+| # | What | Where |
+|---|---|---|
+| W1.1 | **Credit data mart**: proposals, credit data fields (with source page), checks, challenges, deviations, activity and the knowledge graph as eight tables; written every minute when the LOS changed — BigQuery (`MART_BQ_DATASET`, Mumbai) on Cloud Run, local JSON lines on a laptop | `src/core/mart.py`, `GET/POST /api/flow/mart` |
+| W1.2 | **Credit knowledge graph**: companies (CIN), people (DIN), groups, lenders and our facilities across every borrower; three new mandatory checks — connected parties in stress, group exposure within limits, connected lending — each with its path; **Connections** card on Risk & decision (exposure bars, alerts, network picture, group table); BigQuery Graph property graph `credit_graph` with example queries | `src/flow/graph.py`, `config/exposure.yaml`, `sql/bigquery/credit_graph.sql` |
+| W1.3 (B) | Found while building: the demo packs mask DINs as `99000001…` per company, so the first director of TCI, KPI Green and H.G. Infra shared one DIN and were merged into one "common promoter". | The graph never merges people on a shared identifier whose names differ (initials-aware name match); the conflict is recorded on the node. |
+
+Demo data: the director network, the connected companies' status and the loan book are in
+`storage/demo_registry/network.json` and use only the synthetic ABC Group; Demo Bank's Tier 1 capital and
+officials are in `config/exposure.yaml`. BigQuery loading is untested until the next Cloud Run deploy (the laptop
+has no Google Cloud credentials).

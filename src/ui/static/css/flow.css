@@ -720,3 +720,37 @@ label { font-size: 12.5px; text-transform: none; letter-spacing: 0; color: var(-
 
 /* a failed verification check explained by the RM */
 .vf-note { display: block; margin-top: 3px; color: var(--amber); font-style: italic; }
+
+/* Wave 1: Connections — the credit knowledge graph */
+.kg-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.4fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .kg-grid { grid-template-columns: 1fr; } }
+.kg-exp { margin-bottom: 12px; }
+.kg-exp-h { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 4px; flex-wrap: wrap; }
+.kg-bar { height: 8px; background: var(--line-2); border-radius: 4px; overflow: hidden; margin-bottom: 3px; }
+.kg-bar span { display: block; height: 100%; background: var(--green); border-radius: 4px; }
+.kg-bar span.warn { background: var(--amber); }
+.kg-bar span.over { background: var(--red); }
+.kg-alerts { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.kg-alert { border-left: 3px solid var(--red); background: var(--red-bg); padding: 6px 10px; border-radius: 4px; }
+.kg-pic { width: 100%; height: auto; background: var(--hover); border: 1px solid var(--line); border-radius: 8px; }
+.kg-l { stroke: var(--faint); stroke-width: 1.2; }
+.kg-l.kg-holds { stroke: var(--blue); stroke-width: 1.8; }
+.kg-l.kg-borrows_from_us { stroke: var(--green); stroke-width: 1.8; }
+.kg-l.kg-demo { stroke-dasharray: 4 3; }
+.kg-n circle { fill: var(--panel); stroke: var(--muted); stroke-width: 1.5; }
+.kg-n text { font-size: 10px; fill: var(--ink-2); }
+.kg-n.kg-company circle { fill: var(--blue-bg); stroke: var(--blue); }
+.kg-n.kg-person circle { fill: var(--violet-bg); stroke: var(--violet); }
+.kg-n.kg-lender circle, .kg-n.kg-group circle { fill: var(--line-2); stroke: var(--faint); }
+.kg-n.kg-bank circle { fill: var(--green-bg); stroke: var(--green); }
+.kg-n.kg-stress circle { fill: var(--red-bg); stroke: var(--red); stroke-width: 2.5; }
+.kg-n.kg-official circle { fill: var(--amber-bg); stroke: var(--amber); stroke-width: 2.5; }
+.kg-n.kg-center circle { fill: var(--blue); stroke: var(--blue); }
+.kg-n.kg-center text { font-weight: 700; fill: var(--ink); font-size: 11px; }
+.kg-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+.kg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; border: 1.5px solid var(--muted); }
+.kg-dot.kg-company { background: var(--blue-bg); border-color: var(--blue); }
+.kg-dot.kg-person { background: var(--violet-bg); border-color: var(--violet); }
+.kg-dot.kg-stress { background: var(--red-bg); border-color: var(--red); }
+.kg-dot.kg-official { background: var(--amber-bg); border-color: var(--amber); }
+.kg-dot.kg-bank { background: var(--green-bg); border-color: var(--green); }

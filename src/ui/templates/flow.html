@@ -526,6 +526,61 @@
 
           <template x-if="tab === 'risk'">
           <div class="pane">
+            <!-- Wave 1: the credit knowledge graph — group exposure, connected parties in stress, connected lending -->
+            <section class="card" id="sec-graph" x-show="c.graph">
+              <div class="card-h">
+                <h3><span x-html="icon('network')"></span> Connections
+                  <span class="count-pill" x-text="(c.graph?.reach || 0) + ' linked'"></span></h3>
+                <span class="muted sm">
+                  <span x-text="'Knowledge graph across ' + (c.graph?.borrowers_total || 0) + ' borrowers · ' + (c.graph?.nodes_total || 0) + ' companies, people and lenders · ' + (c.graph?.edges_total || 0) + ' links'"></span>
+                  <span class="tag tg-grey" x-show="c.graph?.demo" title="The MCA director network, connected companies' bureau status and the loan book come from demo files until the APIs are connected">Demo network</span>
+                </span>
+              </div>
+              <div class="kg-grid">
+                <div>
+                  <template x-for="k in ['single', 'group']" :key="k">
+                    <div class="kg-exp" x-show="c.graph?.exposure?.[k + '_limit_cr']">
+                      <div class="kg-exp-h"><b x-text="k === 'single' ? 'Exposure to the borrower' : 'Exposure to the group (' + (c.graph?.group?.length || 0) + ')'"></b>
+                        <span x-text="cr(c.graph?.exposure?.[k + '_cr']) + ' of ' + cr(c.graph?.exposure?.[k + '_limit_cr']) + ' limit'"></span></div>
+                      <div class="kg-bar"><span :class="(c.graph?.exposure?.[k + '_used_pct'] || 0) > 100 ? 'over' : (c.graph?.exposure?.[k + '_used_pct'] || 0) >= c.graph?.exposure?.warn_at ? 'warn' : ''"
+                        :style="'width:' + Math.min(c.graph?.exposure?.[k + '_used_pct'] || 0, 100) + '%'"></span></div>
+                      <div class="muted sm" x-text="(c.graph?.exposure?.[k + '_used_pct'] ?? 0) + '% used · limit ' + c.graph?.exposure?.[k + '_pct'] + '% of Tier 1 capital (' + cr(c.graph?.exposure?.tier1_cr) + ', ' + (c.graph?.exposure?.bank || 'the bank') + ')'"></div>
+                    </div>
+                  </template>
+                  <div class="kg-alerts">
+                    <template x-for="(s, i) in c.graph?.stressed || []" :key="'s' + i">
+                      <div class="kg-alert"><span class="tag tg-red" x-text="s.status"></span> <b x-text="s.name"></b>
+                        <div class="sm" x-text="s.path"></div><div class="muted sm" x-text="(s.detail ? s.detail + ' · ' : '') + 'Source: ' + s.source"></div></div>
+                    </template>
+                    <template x-for="(o, i) in c.graph?.officials || []" :key="'o' + i">
+                      <div class="kg-alert"><span class="tag tg-red">Connected lending</span> <b x-text="o.name"></b>
+                        <div class="sm" x-text="o.role + ' — ' + o.relation + ' of the borrower'"></div></div>
+                    </template>
+                    <p class="muted sm" x-show="!(c.graph?.stressed || []).length && !(c.graph?.officials || []).length"
+                       x-text="'No connected company in stress and no link to the bank\'s own directors or officers within two hops.'"></p>
+                  </div>
+                </div>
+                <div>
+                  <div class="kg-pic-wrap" x-html="graphSvg(c.graph?.picture)"></div>
+                  <div class="kg-legend muted sm">
+                    <span><i class="kg-dot kg-company"></i>Company</span><span><i class="kg-dot kg-person"></i>Person</span>
+                    <span><i class="kg-dot kg-stress"></i>In stress</span><span><i class="kg-dot kg-official"></i>Bank official</span>
+                    <span><i class="kg-dot kg-bank"></i>Our bank</span><span>– – demo data</span>
+                  </div>
+                </div>
+              </div>
+              <div class="table-wrap" x-show="(c.graph?.group || []).length > 1"><table class="tbl">
+                <thead><tr><th>Group of connected counterparties</th><th>Why connected</th><th>Status</th><th class="num">Our exposure</th></tr></thead>
+                <tbody>
+                  <template x-for="(m, i) in c.graph?.group || []" :key="i">
+                    <tr><td><b x-text="m.name"></b><div class="muted sm" x-text="m.cin || ''"></div></td>
+                      <td class="sm" x-text="m.why"></td>
+                      <td><span class="tag" :class="m.status ? 'tg-red' : 'tg-grey'" x-text="m.status || m.classification || '—'"></span></td>
+                      <td class="num" x-text="m.exposure_cr ? cr(m.exposure_cr) : '—'"></td></tr>
+                  </template>
+                </tbody>
+              </table></div>
+            </section>
               <!-- P3: the auditor's report, CARO annexure and notes to accounts, each finding with its page and quote -->
             <section class="card" id="sec-notes" x-show="c.risk?.notes && c.cam.state === 'ready'">
               <div class="card-h">

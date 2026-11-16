@@ -128,6 +128,8 @@ class FlowService:
         self._acq: dict[str, dict] = {}         # case_id → running acquisition (lanes, pending re-run)
         from src.flow.backtest import Backtests
         self.backtests = Backtests(companies, llm_factory)   # roadmap P1: the engine on past proposals
+        self._graph = None                      # the credit knowledge graph (src/flow/graph.py), rebuilt on change
+        self.version = 0                        # bumped on every save: the BigQuery mart syncs when it moves
 
     # ── configuration ────────────────────────────────────────────────────────
 
@@ -249,6 +251,65 @@ class FlowService:
     def _save(self, case: dict) -> None:
         case["updated_at"] = self._stamp()
         self.store.save(case)
+        self._graph = None
+        self.version += 1
+
+    # ── the credit knowledge graph (Wave 1, item 2) ───────────────────────────
+
+    @staticmethod
+    def exposure_cfg() -> dict:
+        from src.core.config_manager import config
+        return config.get("exposure") or {}
+
+    def graph(self):
+        """The knowledge graph across every borrower and proposal, rebuilt after any change."""
+        from src.flow import graph as kg
+        g = self._graph
+        if g is None:
+            g = kg.build(self.companies, self.store.all(), kg.load_network(), self.exposure_cfg(),
+                         demo_enabled=self._demo_enabled())
+            self._graph = g
+        return g
+
+    def connections(self, case: dict) -> Optional[dict]:
+        from src.flow import graph as kg
+        try:
+            return kg.assess(self.graph(), case["entity_id"], self.exposure_cfg(), case)
+        except Exception:                                     # never break a proposal on the graph
+            log.warning("Knowledge graph failed for %s", case.get("case_id"), exc_info=True)
+            return None
+
+    def _all_checks(self, case: dict) -> Optional[dict]:
+        """The case's mandatory checks plus the knowledge-graph checks, as of now."""
+        from src.flow import graph as kg
+        res = self.connections(case)
+        return chk.merge(case.get("checks"), kg.checks(res) if res is not None or case.get("checks") else [])
+
+    def _checks_view(self, case: dict) -> Optional[dict]:
+        return chk.view(self._all_checks(case), case.get("check_notes"))
+
+    def _graph_view(self, case: dict) -> Optional[dict]:
+        """The Connections card: group and exposure against the limits, connected parties in stress, the bank's
+        own officials among the borrower's directors, and a picture of the network."""
+        res = self.connections(case)
+        if not res:
+            return None
+        g = self.graph()
+        return {**res, "nodes_total": len(g.nodes), "edges_total": len(g.edges),
+                "borrowers_total": sum(1 for c in self.companies.values() if c.get("borrower") is not None)}
+
+    def _say_graph(self, case: dict) -> None:
+        """Tell the RM at initiation what the knowledge graph found."""
+        from src.flow import graph as kg
+        res = self.connections(case)
+        if not res:
+            return
+        bad = [i for i in kg.checks(res) if i["status"] == "fail"]
+        if bad:
+            self._say(case, f"Knowledge graph — {len(bad)} check(s) failed. "
+                      + " ".join(f"{n}. {i['label']}: {i['detail']}." for n, i in enumerate(bad, 1))
+                      + " See Connections (Risk & decision); record a verification or justification under Mandatory "
+                        "checks.", kind="warn", stage=self.stages()[0]["id"])
 
     def _log(self, case: dict, kind: str, session: Optional[dict] = None, **detail) -> None:
         self.store.log(case["case_id"], self._stamp(), kind, case.get("stage"), self._actor(session), detail)
@@ -353,6 +414,9 @@ class FlowService:
                                 f"populated from it.")
                 self._run_checks(case, company)
             self._save(case)
+            if not acquire:                                  # the graph counts this proposal once it is saved
+                self._say_graph(case)
+                self._save(case)
         if acquire:
             self._start_acquire(case["case_id"])
         return case
@@ -402,7 +466,7 @@ class FlowService:
             st = self.stage(case["stage"])
             if case["status"] != "open" or st["role"] != session["user"]["role"]:
                 raise ForbiddenError("Only the officer the proposal is with can record this")
-            items = {i["code"]: i for i in (case.get("checks") or {}).get("items") or []}
+            items = {i["code"]: i for i in (self._all_checks(case) or {}).get("items") or []}
             if code not in items or items[code]["status"] == "pass":
                 raise InvalidRequestError("That check is not open")
             u = session["user"]
@@ -475,6 +539,9 @@ class FlowService:
                 if case.get("stage") == self.stages()[0]["id"]:
                     self._ask_next(case)
                 self._save(case)
+                if first:
+                    self._say_graph(case)                         # directors and lenders are on record now
+                    self._save(case)
         except Exception as e:                                   # recorded; the RM can retry from the panel
             log.exception("Data acquisition failed for %s", case_id)
             with self._lock:
@@ -1848,7 +1915,7 @@ class FlowService:
                       stage=self.stage_of_role(session["user"]["role"]), kind="answer")
             return
         editable = st["id"] in ("rm", "credit_risk") and (case.get("cam") or {}).get("state") == "ready"
-        checks_view = chk.view(case.get("checks"), case.get("check_notes"))
+        checks_view = self._checks_view(case)
         verdict = rk.verdict(case.get("risk"), checks_view,
                              f"{self.officer('sanction')} ({self.stage('sanction')['label']})")
         text, buttons = rk.plan(st["id"], st.get("actions") or [], case.get("risk"), case.get("against") or [],
@@ -2083,7 +2150,7 @@ class FlowService:
                            + (["“Record justification” — Key Risk Challenges card, under the challenge"]
                               if case.get("against") else [])
                            + (["“Record verification” / “Proceed with justification” — Mandatory checks card"]
-                              if any(i.get("open") for i in (chk.view(case.get("checks"), case.get("check_notes"))
+                              if any(i.get("open") for i in (self._checks_view(case)
                                                              or {}).get("items") or []) else [])}
         out = cp.ask(question, cp.clean(rec), llm, system_prompt=cp.ADVISE_SYSTEM_PROMPT)
         text = out["answer"]
@@ -2114,7 +2181,7 @@ class FlowService:
                                      if i["status"] != "pass" else None,
                                      "recorded": (f"{i['note']['kind']} by {i['note']['by']}: {i['note']['note']}"
                                                   if i.get("note") else None)}
-                                    for i in (chk.view(case.get("checks"), case.get("check_notes")) or {}).get("items") or []],
+                                    for i in (self._checks_view(case) or {}).get("items") or []],
                "deviations": [{k: d[k] for k in ("by", "stage_label", "reasons", "text")}
                               for d in case.get("deviations") or []],
                "deviation_register": [{k: d.get(k) for k in ("label", "policy", "deviable", "mitigant", "justification",
@@ -2733,7 +2800,7 @@ class FlowService:
                                 "justify": self._justify(case) if a == "approve" else []})
         cam = dict(case.get("cam") or {})
         cam.pop("file", None)
-        checks_view = chk.view(case.get("checks"), case.get("check_notes"))
+        checks_view = self._checks_view(case)
         if checks_view:
             checks_view["can_note"] = is_mine
             checks_view["can_return"] = is_mine and bool(st.get("send_back_to")) and "send_back" in (st.get("actions") or [])
@@ -2772,7 +2839,7 @@ class FlowService:
                     "release_checks": self.release_checks(case) if case.get("sanction") else [],
                     "pending_changes": sum(1 for c in case["changes"] if c["status"] == "pending"),
                     "risk": self._risk_view(case), "responses": case.get("responses") or {},
-                    "checks": checks_view, "verdict": rk.verdict(case.get("risk"), checks_view,
+                    "checks": checks_view, "graph": self._graph_view(case), "verdict": rk.verdict(case.get("risk"), checks_view,
                                                                  f"{self.officer('sanction')} "
                                                                  f"({self.stage('sanction')['label']})"),
                     "ews_about": rk.EWS_ABOUT, "incomplete": self._incomplete(case),
