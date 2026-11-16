@@ -23,6 +23,13 @@ demo_data:
   enabled: true                    # false: never use demo files (production)
   label: "Demo data: not a live bureau / registry pull"
 
+# UAT test packs for new-to-bank prospects (test-documents/<borrower>/: real annual reports and rating rationale,
+# plus demo MCA / KYC / bureau / bank / GST documents). When a prospect's CIN or name matches a pack, Data Sources
+# offers "Load test pack", which files every document as if the RM had uploaded it. Off when demo_data is off.
+test_packs:
+  enabled: true
+  dir: test-documents              # relative to the project folder
+
 network:
   # Identifies the client honestly; one request at a time per host, spaced out,
   # robots.txt respected, responses cached so a re-run does not call again.

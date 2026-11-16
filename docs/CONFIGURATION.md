@@ -104,6 +104,18 @@ To switch demo data off (for production), set `demo_data: {enabled: false}` in `
 borrowers show three cases: Infosys and most others pass all six; Madras Fertilizers fails "suits filed"; Indian
 Hotels has no bureau report, so "bureau status" stays not verified.
 
+### Test a new-to-bank borrower (UAT test packs)
+
+`test-documents/<borrower>/` holds a test pack per prospect: the real annual reports and rating rationale (`public/`,
+downloaded by `prepare.py`, not committed) and demo MCA, KYC, bureau, bank-statement and GST documents (`demo/`).
+Packs ship for Transport Corporation of India, KPI Green Energy, H.G. Infra and Dixon Technologies.
+
+Initiate the proposal as a **New-to-bank prospect** using the registered name (the CIN is optional). When the name or
+CIN matches a pack, Data Sources offers **Load test pack**. It files every document as if the RM had uploaded it and
+runs the agents again. Turn this off with `test_packs: {enabled: false}` in `data_sources.yaml`; it is also off when
+`demo_data` is off. `scripts/deploy_gcp.sh` downloads the public documents in Cloud Shell
+(`scripts/fetch_test_packs.py`) so the packs are complete in the cloud too.
+
 ### Expected credit loss (ECL) parameters
 
 `rules.yaml` → `ecl`: the 12-month PD for each internal grade, the unsecured LGD and its floor for secured

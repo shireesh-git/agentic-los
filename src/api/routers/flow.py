@@ -32,6 +32,10 @@ class NewCase(BaseModel):
     facility: Optional[dict] = None
 
 
+class CaseIds(BaseModel):
+    case_ids: list[str]
+
+
 class DataPoint(BaseModel):
     value: Any = None
     reason: str = ""
@@ -289,6 +293,20 @@ async def archive(case_id: str, body: Archive, x_flow_session: Optional[str] = H
                   svc: ServiceContainer = Depends(get_container)):
     s = _s(svc, x_flow_session)
     svc.flow.archive(case_id, s, body.archived)
+    return svc.flow.view(case_id, s)
+
+
+@router.post("/cases/delete")
+async def delete_cases(body: CaseIds, x_flow_session: Optional[str] = Header(None),
+                       svc: ServiceContainer = Depends(get_container)):
+    return svc.flow.delete_cases(body.case_ids, _s(svc, x_flow_session))
+
+
+@router.post("/cases/{case_id}/sources/test-pack")
+async def load_test_pack(case_id: str, x_flow_session: Optional[str] = Header(None),
+                         svc: ServiceContainer = Depends(get_container)):
+    s = _s(svc, x_flow_session)
+    svc.flow.load_test_pack(case_id, s)
     return svc.flow.view(case_id, s)
 
 

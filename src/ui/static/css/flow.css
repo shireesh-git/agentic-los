@@ -754,3 +754,18 @@ label { font-size: 12.5px; text-transform: none; letter-spacing: 0; color: var(-
 .kg-dot.kg-stress { background: var(--red-bg); border-color: var(--red); }
 .kg-dot.kg-official { background: var(--amber-bg); border-color: var(--amber); }
 .kg-dot.kg-bank { background: var(--green-bg); border-color: var(--green); }
+
+/* queue housekeeping: tick proposals and delete them together */
+.dlg-text { white-space: pre-line; }
+.sel-col { width: 34px; text-align: center; }
+.sel-col input { cursor: pointer; }
+.tbl tr.picked td { background: #fdf2f2; }
+.bulk-bar { display: flex; align-items: center; gap: 10px; padding: 8px 14px; margin: 0 0 8px; border: 1px solid #f0c2c2;
+  border-radius: 8px; background: #fff7f7; font-size: 13px; }
+.bulk-bar span { margin-right: auto; }
+
+/* UAT test pack for a new-to-bank prospect */
+.test-pack { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 0 0 12px; border: 1px dashed var(--line, #cbd5e1);
+  border-radius: 8px; background: #f8fafc; font-size: 13px; color: var(--ink-2); }
+.test-pack > span:nth-child(2) { flex: 1; }
+@media (max-width: 640px) { .test-pack, .bulk-bar { flex-wrap: wrap; } }

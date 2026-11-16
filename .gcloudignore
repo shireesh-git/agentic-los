@@ -24,7 +24,7 @@ docs/
 postman/
 reference/
 refer/
-test-documents/
+# test-documents/ is uploaded: the UAT test packs go into the image ("Load test pack")
 output/
 runtime-db/
 downloaded document/

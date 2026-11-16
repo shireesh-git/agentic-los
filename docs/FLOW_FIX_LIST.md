@@ -225,3 +225,13 @@ Demo data: the director network, the connected companies' status and the loan bo
 `storage/demo_registry/network.json` and use only the synthetic ABC Group; Demo Bank's Tier 1 capital and
 officials are in `config/exposure.yaml`. BigQuery loading is untested until the next Cloud Run deploy (the laptop
 has no Google Cloud credentials).
+
+Deployed 2026-11-16 (revision kpmg-agentic-los-00007-pq2): BigQuery `los_mart` has all 8 tables and the
+`credit_graph` property graph.
+
+## Round 8 — user feedback (2026-11-16) — built
+
+| # | Feedback | Cause | Fix |
+|---|---|---|---|
+| R8.1 | As the RM (Ananya), proposals can only be deleted one at a time, from inside each proposal. | Delete was only in the proposal's menu. | The queue has a tick box per proposal and a select-all box. **Delete selected** asks once, deletes the ticked proposals (`POST /api/flow/cases/delete`), and names any it kept. Sanctioned and disbursed proposals have no tick box and are never deleted. |
+| R8.2 | A new TCI proposal: the agents found none of the data points, so a new-to-bank borrower could not be tested. | A new prospect starts with an empty document folder. The Round 7 test documents were uploaded to the earlier prospect only, and the cloud image had no test packs. | **Load test pack** in Data Sources, when the prospect's CIN or name matches `test-documents/<borrower>/`. It files the real annual reports, the rating rationale and the demo documents, then re-runs the agents (TCI: 7 sources read, 0 required pending, in about 50 s). The packs are now in the cloud image, and `deploy_gcp.sh` fetches the public PDFs first (`scripts/fetch_test_packs.py`). Setting: `data_sources.yaml` → `test_packs`. |

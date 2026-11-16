@@ -55,6 +55,7 @@ function flowApp() {
     session: null,
     page: 'pipeline',            // pipeline | case | analytics
     queueTab: 'mine',
+    sel: {},                  // proposals ticked on the queue for deletion
     q: { mine: [], all: [], kpis: null },
     filter: { stage: '', sla: '', text: '', archived: false },
     qf: { text: '', to: '' },
@@ -222,6 +223,26 @@ function flowApp() {
         && (!this.filter.sla || r.sla_state === this.filter.sla)
         && (this.filter.archived || !r.archived)
         && (!t || (r.borrower_name + ' ' + (r.cin || '') + ' ' + r.case_id).toLowerCase().includes(t)));
+    },
+    // ── queue housekeeping: delete several proposals at once ──
+    picked() { const ids = new Set(this.rows().filter(r => r.deletable).map(r => r.case_id)); return Object.keys(this.sel).filter(id => this.sel[id] && ids.has(id)); },
+    allPicked() { const d = this.rows().filter(r => r.deletable); return d.length > 0 && d.every(r => this.sel[r.case_id]); },
+    pickAll(on) { const s = {}; if (on) this.rows().filter(r => r.deletable).forEach(r => { s[r.case_id] = true; }); this.sel = s; },
+    async deleteSelected() {
+      const ids = this.picked();
+      if (!ids.length) return;
+      const names = this.rows().filter(r => ids.includes(r.case_id)).map(r => r.case_id + ' · ' + r.borrower_name);
+      const ok = await this.confirm('Delete ' + ids.length + ' proposal' + (ids.length > 1 ? 's' : '') + '?',
+        names.slice(0, 8).join('\n') + (names.length > 8 ? '\n… and ' + (names.length - 8) + ' more' : '') +
+        '\n\nEach proposal and its audit trail are removed permanently (demo housekeeping). This cannot be undone.', 'Delete');
+      if (!ok) return;
+      this.busy = true;
+      try {
+        const r = await this.post('/api/flow/cases/delete', { case_ids: ids });
+        this.sel = {}; this.borrowers = [];
+        this.notify(r.deleted.length + ' deleted' + (r.kept.length ? ' · kept ' + r.kept.map(k => k.case_id + ' (' + k.reason + ')').join('; ') : ''), r.kept.length ? 'error' : 'ok');
+        await this.loadQueue();
+      } finally { this.busy = false; }
     },
     stageMax() { return Math.max(1, ...((this.q.kpis && this.q.kpis.by_stage) || []).map(s => s.exposure_cr)); },
     filteredBorrowers() {
@@ -433,6 +454,11 @@ function flowApp() {
       this.notify('Explanation recorded', 'ok');
     },
     async refreshSources() { this.setCase(await this.post(this.cp('/sources/refresh'))); },
+    async loadTestPack() {
+      this.busy = true;
+      try { this.setCase(await this.post(this.cp('/sources/test-pack'))); this.notify('Test pack loaded — the agents are reading the documents', 'ok'); }
+      finally { this.busy = false; }
+    },
     async openSource(s) { this.srcView = await this.get(this.cp('/sources/' + s.id)); },
     fmtNum(v) { return (v === null || v === undefined) ? '—' : Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
     async refresh() { if (this.c) this.setCase(await this.get('/api/flow/cases/' + this.c.case_id)); },

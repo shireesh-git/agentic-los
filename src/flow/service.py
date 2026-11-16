@@ -635,6 +635,58 @@ class FlowService:
         self._start_acquire(case_id)
         return self._require(case_id)
 
+    def _test_pack(self, case: dict) -> Optional[dict]:
+        """The UAT test pack for this prospect (by CIN, else name), when test packs are switched on."""
+        from src.core.config_manager import config
+        from src.core.runtime_paths import PROJECT_ROOT
+        from src.flow import test_packs
+        cfg = config.get("data_sources", "test_packs", default={}) or {}
+        if not case.get("is_prospect") or not cfg.get("enabled") or not self._demo_enabled():
+            return None
+        ctx = self._acq_ctx(case)
+        return test_packs.find(PROJECT_ROOT / str(cfg.get("dir") or "test-documents"), ctx.get("cin"), ctx["name"])
+
+    def _test_pack_view(self, case: dict, at_origination: bool) -> Optional[dict]:
+        if not at_origination or not case.get("acquisition") or case["status"] != "open":
+            return None
+        try:
+            pack = self._test_pack(case)
+        except Exception:                                    # a test aid never breaks the proposal view
+            log.warning("Test pack lookup failed for %s", case["case_id"], exc_info=True)
+            return None
+        if not pack:
+            return None
+        from src.flow import test_packs
+        return {"id": pack["id"], "name": pack["name"], "documents": len(test_packs.files(pack)),
+                "loaded": case.get("test_pack_loaded")}
+
+    def load_test_pack(self, case_id: str, session: dict) -> dict:
+        """UAT: file every document of the prospect's test pack, as if the RM had uploaded each, and re-run the agents."""
+        from src.flow import test_packs
+        with self._lock:
+            case = self._require(case_id)
+            if self._at_stage(case, session)["id"] != self.stages()[0]["id"]:
+                raise ForbiddenError("Data source documents are added at Origination")
+            if not self.acquirer or not self.documents_root:
+                raise InvalidRequestError("Data acquisition is not enabled")
+            pack = self._test_pack(case)
+            if not pack:
+                raise NotFoundError(f"No test pack matches {case['borrower_name']} — enter the CIN at initiation")
+            loaded = test_packs.copy_into(pack, self.documents_root / case["entity_id"])
+            if not loaded:
+                raise NotFoundError(f"The test pack {pack['id']} has no documents on this server")
+            public = sum(1 for f in loaded if f.split("/")[0] in ("financials", "ratings"))
+            self._log(case, "test_pack_loaded", session, pack=pack["id"], files=loaded)
+            case["test_pack_loaded"] = {"pack": pack["id"], "by": session["user"]["name"], "at": self._stamp()}
+            if (case.get("ask") or {}).get("kind") == "source_doc":
+                case["ask"] = None
+            self._say(case, f"Test pack loaded for {pack['name']}: {len(loaded)} documents ({public} public: annual "
+                            f"reports and rating rationale; the rest UAT demo documents). The agents are reading them.")
+            case["acquisition"] = {**(case.get("acquisition") or {}), "state": "running"}
+            self._save(case)
+        self._start_acquire(case_id)
+        return self._require(case_id)
+
     def wait_for_acquisition(self, case_id: str, timeout: float = 120) -> dict:
         end = time.time() + timeout
         while time.time() < end:
@@ -798,6 +850,18 @@ class FlowService:
         log.info("Proposal %s (%s) deleted by %s", case_id, case["entity_id"], session["user"]["id"])
         return {"case_id": case_id, "deleted": True}
 
+    def delete_cases(self, case_ids: list, session: dict) -> dict:
+        """Delete several proposals from the queue at once; the ones that must be kept are listed with the reason."""
+        self._require_role(session, self.stages()[0]["role"])
+        deleted, kept = [], []
+        for cid in dict.fromkeys(str(c) for c in case_ids or []):
+            try:
+                self.delete_case(cid, session)
+                deleted.append(cid)
+            except (ConflictError, NotFoundError) as e:
+                kept.append({"case_id": cid, "reason": str(e)})
+        return {"deleted": deleted, "kept": kept}
+
     # ── clarifications inside the stage: the proposal stays where it is, and its clock pauses ──
 
     @staticmethod
@@ -927,7 +991,8 @@ class FlowService:
                 "pending_changes": sum(1 for x in c.get("changes") or [] if x["status"] == "pending"),
                 "open_queries": len(self._open_queries(c)),
                 "queries_for": sorted({q["to_role"] for q in self._open_queries(c)}),
-                "archived": bool(c.get("archived"))}
+                "archived": bool(c.get("archived")),
+                "deletable": c["status"] != "disbursed" and not c.get("sanction")}
 
     def _kpis(self, rows: list[dict]) -> dict:
         open_ = [r for r in rows if r["status"] == "open"]
@@ -2813,6 +2878,7 @@ class FlowService:
         out.update({"stage_label": st["label"], "chain": chain, "is_mine": is_mine, "my_stage": my_stage,
                     "acquisition": self._acq_view(case),
                     "can_sources": is_mine and st["id"] == self.stages()[0]["id"] and bool(case.get("acquisition")),
+                    "test_pack": self._test_pack_view(case, is_mine and st["id"] == self.stages()[0]["id"]),
                     "can_generate": self._can_generate(case),
                     "generate_blocker": None if self._can_generate(case) else self._cannot_generate(case),
                     "editable": editable, "can_cam": is_mine and st["id"] == "rm",

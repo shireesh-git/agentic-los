@@ -143,12 +143,19 @@
               <label class="chk-arch" title="Archived proposals are closed ones taken off this list"><input type="checkbox" x-model="filter.archived"> Show archived</label>
             </div>
           </div>
+          <!-- RM housekeeping: delete several proposals from the list (sanctioned and disbursed ones are kept) -->
+          <div class="bulk-bar" x-show="role() === 'rm' && picked().length">
+            <span><b x-text="picked().length"></b> selected</span>
+            <button class="btn danger sm" @click="deleteSelected()" :disabled="busy"><span x-html="icon('reset')"></span> Delete selected</button>
+            <button class="btn ghost sm" @click="sel = {}">Clear</button>
+          </div>
           <div class="table-wrap">
             <table class="tbl">
-              <thead><tr><th>Proposal</th><th>Borrower</th><th>Facility</th><th class="r">Exposure</th><th>Rating</th><th>Stage</th><th>Assigned to</th><th>Ageing · SLA</th><th>Status</th></tr></thead>
+              <thead><tr><th class="sel-col" x-show="role() === 'rm'"><input type="checkbox" title="Select every proposal in the list that can be deleted" :checked="allPicked()" @change="pickAll($event.target.checked)"></th><th>Proposal</th><th>Borrower</th><th>Facility</th><th class="r">Exposure</th><th>Rating</th><th>Stage</th><th>Assigned to</th><th>Ageing · SLA</th><th>Status</th></tr></thead>
               <tbody>
                 <template x-for="r in rows()" :key="r.case_id">
-                  <tr class="click" @click="location.hash = 'case/' + r.case_id">
+                  <tr class="click" :class="{picked: sel[r.case_id]}" @click="location.hash = 'case/' + r.case_id">
+                    <td class="sel-col" x-show="role() === 'rm'" @click.stop><input type="checkbox" x-show="r.deletable" x-model="sel[r.case_id]" :title="'Select ' + r.case_id"></td>
                     <td class="mono" x-text="r.case_id"></td>
                     <td><strong x-text="r.borrower_name"></strong><div class="sub mono" x-text="r.cin || ''"></div></td>
                     <td><span x-text="product(r.product)"></span><div class="sub" x-text="(r.tenor_months || '') + (r.tenor_months ? ' months' : '')"></div></td>
@@ -735,6 +742,12 @@
                 <span :class="{bad: c.acquisition?.counts?.needed}"><b class="num" x-text="c.acquisition?.counts?.needed"></b> required pending</span>
                 <span class="muted sm" x-show="c.acquisition?.ms" x-text="'Full run ' + ((c.acquisition?.ms || 0) / 1000).toFixed(1) + 's · ' + (c.acquisition?.max_concurrency || 0) + ' agents in parallel' + (c.acquisition?.runs > 1 ? ' · last update: ' + (c.acquisition?.last_agents || []).join(', ') + ' (' + ((c.acquisition?.last_ms || 0) / 1000).toFixed(1) + 's)' : '')"></span>
                 <button class="btn ghost sm" x-show="c.can_sources" @click="refreshSources()" :disabled="busy || c.acquisition?.state === 'running'"><span x-html="icon('refresh')"></span> Re-run agents</button>
+              </div>
+              <div class="test-pack" x-show="c.test_pack">
+                <span x-html="icon('doc')"></span>
+                <span x-show="!c.test_pack?.loaded">UAT test pack available for <b x-text="c.test_pack?.name"></b>: <span x-text="c.test_pack?.documents"></span> documents (real annual reports and rating rationale, demo MCA, KYC, bureau, bank and GST documents).</span>
+                <span x-show="c.test_pack?.loaded">UAT test pack for <b x-text="c.test_pack?.name"></b> loaded by <span x-text="c.test_pack?.loaded?.by"></span>; its documents are filed under each source below.</span>
+                <button class="btn sm" :class="c.test_pack?.loaded ? 'ghost' : 'primary'" @click="loadTestPack()" :disabled="busy || c.acquisition?.state === 'running'" x-text="c.test_pack?.loaded ? 'Load again' : 'Load test pack'"></button>
               </div>
               <div class="agents">
                 <template x-for="g in c.acquisition?.groups || []" :key="g.agent">
@@ -1372,7 +1385,7 @@
   <div class="modal" x-show="dlg.open" x-transition.opacity>
     <div class="modal-card sm">
       <h3 x-text="dlg.title"></h3>
-      <p class="muted" x-text="dlg.text"></p>
+      <p class="muted dlg-text" x-text="dlg.text"></p>
       <textarea class="input" rows="3" x-show="dlg.input" x-model="dlg.value" :placeholder="dlg.placeholder"></textarea>
       <div class="r mt"><button class="btn ghost" @click="closeDlg(false)">Cancel</button> <button class="btn primary" @click="closeDlg(true)" x-text="dlg.ok"></button></div>
     </div>
