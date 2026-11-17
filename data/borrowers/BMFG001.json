@@ -371,5 +371,48 @@
  "name_aliases": [
   "bharat manufacturing",
   "bharat manufacturing ltd"
- ]
+ ],
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "Bharat Manufacturing Ltd",
+  "cin": "L29100MH2008PLC185432",
+  "pan": null,
+  "credit_rating": "CRISIL A+/Stable",
+  "reporting_date": "31-Mar-2025",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Manufacturing",
+  "group": "Bharat Group",
+  "fund_based": [
+   {
+    "facility_type": "Term loans (all lenders)",
+    "sanction_limit_cr": 500.0,
+    "outstanding_cr": 425.0,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "As per the charges register"
+   },
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 388.89,
+    "outstanding_cr": 280.0,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 888.89,
+   "total_fund_based_outstanding": 705.0,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 888.89,
+   "total_exposure_outstanding": 705.0,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ }
 }

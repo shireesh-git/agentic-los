@@ -290,8 +290,14 @@ class CaseService:
                 from src.agents.financial_overrides import apply_verified_overrides
                 overrides = dict(overrides)
                 analysis_only = overrides.pop("analysis_only", False)
+                news = overrides.pop("live_news", None)
                 company = copy.deepcopy(company)
                 apply_verified_overrides(company, overrides)
+                if news:                   # the borrower's live news for this run (never saved into the record)
+                    company["market_signals"] = news["market_signals"]
+                    company["web_crawl_news"] = news["web_crawl_news"]
+                    company["external_data"] = {**(company.get("external_data") or {}),
+                                                "market_data": news["market_data"]}
                 if analysis_only:          # a bank CAM was ingested: analyse it, write no narrative with the AI
                     company["_analysis_only"] = True
             pipeline = self._pipeline_factory()

@@ -20,22 +20,26 @@
       68.0
     ],
     "conditions": [
-      "Evidence to be obtained and verified before sanction: KYC package must be complete for NTB; Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list",
+      "Evidence to be obtained and verified before sanction: Borrower must not be flagged in fraud registry (RBI CFMC); Borrower must not be on RBI defaulter list",
       "Explore additional collateral to improve coverage to 1.5x"
     ],
     "tier1": [
       "HR_BUREAU_STATUS:pass",
       "HR_COMPANY_ACTIVE:pass",
       "HR_FRAUD_REGISTRY:not_verified",
-      "HR_KYC_COMPLETE:not_verified",
+      "HR_KYC_COMPLETE:fail",
       "HR_MIN_VINTAGE:pass",
-      "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_NO_CRITICAL_EXCEPTIONS:fail",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:not_verified",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "ANAL_MARGIN_DECLINE",
+      "POL_MISSING_BOARD_RES",
+      "POL_MISSING_COLLATERAL_DOCS",
+      "POL_MISSING_KYC",
       "XSRC_GST_REVENUE_MISMATCH"
     ],
     "fact_pack_keys": [
@@ -150,6 +154,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -250,7 +255,7 @@
       "notes_reader": "completed",
       "narrative": "completed"
     },
-    "recommendation": "conditional_approve",
+    "recommendation": "approve",
     "risk_grade": "A",
     "composite_score": 87.7,
     "component_scores": [
@@ -260,7 +265,6 @@
       70.0
     ],
     "conditions": [
-      "Resolve 1 HIGH exception(s) before disbursement",
       "Explore additional collateral to improve coverage to 1.5x"
     ],
     "tier1": [
@@ -270,13 +274,12 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
     ],
-    "exceptions": [
-      "XSRC_DEBT_BUREAU_MISMATCH"
-    ],
+    "exceptions": [],
     "fact_pack_keys": [
       "approving_authority",
       "bank_statement_analysis",
@@ -336,7 +339,7 @@
       "valuation_report_data",
       "web_crawl_news"
     ],
-    "fact_pack_recommendation": "conditional_approve",
+    "fact_pack_recommendation": "approve",
     "fact_pack_risk_grade": "A",
     "narrative_mode": "template",
     "cam_headings": [
@@ -390,6 +393,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -511,6 +515,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -612,11 +617,11 @@
       "narrative": "completed"
     },
     "recommendation": "refer",
-    "risk_grade": "B",
-    "composite_score": 69.7,
+    "risk_grade": "A",
+    "composite_score": 81.7,
     "component_scores": [
       84.0,
-      27.0,
+      75.0,
       94.0,
       70.0
     ],
@@ -630,17 +635,13 @@
       "HR_COMPANY_ACTIVE:pass",
       "HR_FRAUD_REGISTRY:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "ANAL_RECEIVABLE_SPIKE",
-      "COND_DPD_BREACH",
-      "COND_HIGH_CHEQUE_RETURNS",
-      "COND_HIGH_UTILIZATION",
-      "COV_BREACH",
-      "COV_BREACH",
       "ETB_FLAG",
       "ETB_FLAG",
       "ETB_FLAG",
@@ -706,7 +707,7 @@
       "web_crawl_news"
     ],
     "fact_pack_recommendation": "refer",
-    "fact_pack_risk_grade": "B",
+    "fact_pack_risk_grade": "A",
     "narrative_mode": "template",
     "cam_headings": [
       "# INDIAN BANK",
@@ -759,6 +760,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -859,7 +861,7 @@
       "notes_reader": "completed",
       "narrative": "completed"
     },
-    "recommendation": "refer",
+    "recommendation": "approve",
     "risk_grade": "A",
     "composite_score": 87.7,
     "component_scores": [
@@ -868,14 +870,13 @@
       92.0,
       70.0
     ],
-    "conditions": [
-      "Evidence to be obtained and verified before sanction: Bureau status must not be SMA-2 or worse"
-    ],
+    "conditions": [],
     "tier1": [
-      "HR_BUREAU_STATUS:not_verified",
+      "HR_BUREAU_STATUS:pass",
       "HR_COMPANY_ACTIVE:pass",
       "HR_FRAUD_REGISTRY:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -940,7 +941,7 @@
       "valuation_report_data",
       "web_crawl_news"
     ],
-    "fact_pack_recommendation": "refer",
+    "fact_pack_recommendation": "approve",
     "fact_pack_risk_grade": "A",
     "narrative_mode": "template",
     "cam_headings": [
@@ -993,6 +994,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -1112,6 +1114,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -1228,17 +1231,16 @@
       "HR_FRAUD_REGISTRY:pass",
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
-      "HR_NO_CRITICAL_EXCEPTIONS:fail",
+      "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:fail",
       "HR_RBI_DEFAULTER:pass",
-      "HR_SUIT_FILED:fail",
+      "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
       "POL_MISSING_3YR_AUDITED",
       "POL_MISSING_COLLATERAL_DOCS",
-      "TEMP_STALE_FINANCIALS",
-      "XSRC_BUREAU_DPD_ALERT",
-      "XSRC_DEBT_BUREAU_MISMATCH"
+      "TEMP_STALE_FINANCIALS"
     ],
     "fact_pack_keys": [
       "approving_authority",
@@ -1342,9 +1344,7 @@
       97.0,
       70.0
     ],
-    "conditions": [
-      "Resolve 1 HIGH exception(s) before disbursement"
-    ],
+    "conditions": [],
     "tier1": [
       "HR_BUREAU_STATUS:pass",
       "HR_COMPANY_ACTIVE:pass",
@@ -1352,13 +1352,13 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
-      "POL_MISSING_COLLATERAL_DOCS",
-      "XSRC_DEBT_BUREAU_MISMATCH"
+      "POL_MISSING_COLLATERAL_DOCS"
     ],
     "fact_pack_keys": [
       "approving_authority",
@@ -1473,6 +1473,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -1575,10 +1576,10 @@
     },
     "recommendation": "refer",
     "risk_grade": "C",
-    "composite_score": 56.5,
+    "composite_score": 52.5,
     "component_scores": [
       22.0,
-      75.0,
+      59.0,
       92.0,
       70.0
     ],
@@ -1592,11 +1593,15 @@
       "HR_COMPANY_ACTIVE:pass",
       "HR_FRAUD_REGISTRY:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
     ],
-    "exceptions": [],
+    "exceptions": [
+      "COV_BREACH",
+      "COV_BREACH"
+    ],
     "fact_pack_keys": [
       "approving_authority",
       "bank_statement_analysis",
@@ -1707,6 +1712,7 @@
       "HR_COMPANY_ACTIVE:pass",
       "HR_FRAUD_REGISTRY:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:fail",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -1837,6 +1843,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -1951,7 +1958,6 @@
       70.0
     ],
     "conditions": [
-      "Resolve 1 HIGH exception(s) before disbursement",
       "MANDATORY: Additional collateral required before disbursement"
     ],
     "tier1": [
@@ -1961,13 +1967,12 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
     ],
-    "exceptions": [
-      "XSRC_DEBT_BUREAU_MISMATCH"
-    ],
+    "exceptions": [],
     "fact_pack_keys": [
       "approving_authority",
       "bank_statement_analysis",
@@ -2080,6 +2085,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -2199,6 +2205,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:fail",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -2322,6 +2329,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"
@@ -2443,6 +2451,7 @@
       "HR_KYC_COMPLETE:pass",
       "HR_MIN_VINTAGE:pass",
       "HR_NO_CRITICAL_EXCEPTIONS:pass",
+      "HR_POSITIVE_NET_WORTH:pass",
       "HR_RBI_DEFAULTER:pass",
       "HR_SUIT_FILED:pass",
       "HR_WILFUL_DEFAULTER:pass"

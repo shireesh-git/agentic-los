@@ -28,5 +28,24 @@
     "suit_filed_amount_cr": 0.0,
     "suits": [],
     "nclt_cases": []
+  },
+  "charges": {
+    "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+    "source": "demo_mca_charges",
+    "charges": [
+      {
+        "charge_holder": "Term lenders (demo)",
+        "amount_cr": 1152.94,
+        "status": "Open",
+        "assets": "Fixed assets (first pari-passu charge)"
+      },
+      {
+        "charge_holder": "Working capital lenders (demo)",
+        "amount_cr": 625.0,
+        "status": "Open",
+        "assets": "Current assets (hypothecation)"
+      }
+    ],
+    "count": 2
   }
 }

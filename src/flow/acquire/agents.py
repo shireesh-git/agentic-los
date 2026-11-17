@@ -62,6 +62,29 @@ class Acquisition:
         cfg = config.get("data_sources") or {}
         return cls(cfg, PoliteClient.from_config(cfg.get("network") or {}, cache_dir), documents_root, llm_factory)
 
+    def live_news(self, name: str, eid: str) -> Optional[dict]:
+        """An existing borrower's news for a CAM run (round 9): the GDELT search the Market & Reputation agent makes
+        for a prospect, screened the same way. None offline or when the feed cannot be reached."""
+        if PoliteClient.offline():
+            return None
+        from src.flow.acquire import mapper
+        try:
+            env = api.gdelt(self.client, name=name, cache_hours=self._src("adverse_media").get("cache_hours", 24))
+        except Exception:                                        # the CAM goes ahead without news
+            log.warning("Live news for %s could not be fetched", eid, exc_info=True)
+            return None
+        arts = env["payload"]["articles"]
+        llm = None
+        if self.llm_factory:
+            try:
+                llm = self.llm_factory()
+            except Exception:
+                llm = None
+        for a, f in zip(arts, classify_news([a["title"] for a in arts], name, llm)):
+            a.update(f)
+        signals, crawl, market = mapper.news_into(eid, env)
+        return {"market_signals": signals, "web_crawl_news": crawl, "market_data": market}
+
     # ── configuration ────────────────────────────────────────────────────────
 
     def _src(self, sid: str) -> dict:

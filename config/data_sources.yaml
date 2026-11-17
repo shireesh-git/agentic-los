@@ -26,6 +26,18 @@ demo_data:
   # (scripts/refresh_demo_documents.py): MCA from the record, a clean regulatory-list result, and an indicative
   # commercial bureau rank from its real external rating (long-term grade → CMR rank, CRIF-style score).
   # Demo only: a real bureau report replaces it once the bureau API is connected.
+  # The bank's own records about a borrower (src/data/demo_bank_book.py): existing facilities, account conduct,
+  # covenant testing, core banking, the CRILC report and the charges register — sized from its audited figures.
+  bank_book:
+    share_of_borrowings: 0.08        # this bank's share of the borrower's audited borrowings
+    min_limit_share_of_revenue: 0.003 # a working-capital line for a borrower with little or no debt
+    max_share_of_tier1: 0.10         # the bank's exposure to one borrower stays within 10% of its Tier 1 capital
+    non_fund_based_share: 0.15       # guarantees / LCs, as a share of the funded exposure
+    utilisation_pct: 72
+    banking_share_of_revenue: 0.12   # the part of revenue routed through this bank's accounts
+    rate_pct: 9.5
+    relationship_years: 6
+    lenders: 6
   bureau_by_rating:
     AAA: {cmr_rank: CMR-1, credit_score: 820}
     AA: {cmr_rank: CMR-2, credit_score: 790}

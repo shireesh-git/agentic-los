@@ -36,9 +36,9 @@
    "Aurigene Pharmaceutical Services",
    "Dr. Reddy's Laboratories SA (Switzerland)"
   ],
-  "promoter_holding_pct": null,
-  "institutional_holding_pct": null,
-  "public_holding_pct": null,
+  "promoter_holding_pct": 26.63,
+  "institutional_holding_pct": 49.03,
+  "public_holding_pct": 24.33,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -220,7 +220,20 @@
  "conduct": [],
  "covenants": [],
  "exchange_filing": null,
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "Number of permanent employees on the rolls of the Company (employees)": "27,535 [p.79]",
+   "Total permanent employees (employees)": "27,527 [p.97]",
+   "Other than Permanent Employees (employees)": "9,199 [p.97]",
+   "Total permanent workers (workers)": "564 [p.97]",
+   "Other than Permanent Workers (workers)": "5,197 [p.97]",
+   "Rooftop solar capacities (MW)": "6 [p.79]",
+   "Third party PPA's (solar & hydel) (MW)": "59 [p.79]",
+   "Solar plant capacity through Joint venture company (MW)": "22 [p.79]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -316,5 +329,52 @@
   "section": "Corporate governance report — credit ratings (Table 15)",
   "short_term": null,
   "date": "FY2026 annual report"
+ },
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "Dr. Reddy's Laboratories Limited",
+  "cin": "L85195TG1984PLC004507",
+  "pan": null,
+  "credit_rating": "ICRA AA+ (Stable)",
+  "reporting_date": "31-Mar-2026",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Pharma",
+  "group": "Dr. Reddy's Group",
+  "fund_based": [
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 7526.39,
+    "outstanding_cr": 5419.0,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 7526.39,
+   "total_fund_based_outstanding": 5419.0,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 7526.39,
+   "total_exposure_outstanding": 5419.0,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ },
+ "shareholding_source": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "pages": [
+   129,
+   130,
+   131,
+   186,
+   187
+  ],
+  "page": 130,
+  "as_of": "March 31, 2026",
+  "method": "ai (page image)"
  }
 }

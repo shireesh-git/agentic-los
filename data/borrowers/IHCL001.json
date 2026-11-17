@@ -31,9 +31,9 @@
    "Roots Corporation Ltd (Ginger Hotels)",
    "Benares Hotels Ltd"
   ],
-  "promoter_holding_pct": null,
-  "institutional_holding_pct": null,
-  "public_holding_pct": null,
+  "promoter_holding_pct": 38.11,
+  "institutional_holding_pct": 45.92,
+  "public_holding_pct": 15.97,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -294,22 +294,12 @@
  "market_signals": [],
  "existing_exposure": [
   {
-   "facility_id": "EXP_IHCL_01",
+   "facility_id": "EXP_IHCL001_WC",
    "entity_id": "IHCL001",
-   "facility_type": "Term Loan",
-   "sanctioned_limit_cr": 800.0,
-   "outstanding_cr": 520.0,
-   "utilization_pct": 65.0,
-   "overdue_days": 0,
-   "classification": "Standard"
-  },
-  {
-   "facility_id": "EXP_IHCL_02",
-   "entity_id": "IHCL001",
-   "facility_type": "BG/LC (Non-Fund)",
-   "sanctioned_limit_cr": 200.0,
-   "outstanding_cr": 145.0,
-   "utilization_pct": 72.5,
+   "facility_type": "working_capital",
+   "sanctioned_limit_cr": 22.41,
+   "outstanding_cr": 16.14,
+   "utilization_pct": 72.0,
    "overdue_days": 0,
    "classification": "Standard"
   }
@@ -317,12 +307,12 @@
  "conduct": [
   {
    "entity_id": "IHCL001",
-   "period": "Q1 FY2026",
-   "avg_bank_balance_cr": 85.0,
-   "credit_turnover_cr": 320.0,
-   "debit_turnover_cr": 305.0,
+   "period": "Q1_FY2026",
+   "avg_bank_balance_cr": 9.68,
+   "credit_turnover_cr": 161.39,
+   "debit_turnover_cr": 158.16,
    "cheque_returns": 0,
-   "limit_utilization_pct": 65.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -331,12 +321,12 @@
   },
   {
    "entity_id": "IHCL001",
-   "period": "Q2 FY2026",
-   "avg_bank_balance_cr": 92.0,
-   "credit_turnover_cr": 340.0,
-   "debit_turnover_cr": 325.0,
+   "period": "Q2_FY2026",
+   "avg_bank_balance_cr": 9.68,
+   "credit_turnover_cr": 161.39,
+   "debit_turnover_cr": 158.16,
    "cheque_returns": 0,
-   "limit_utilization_pct": 62.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -345,12 +335,12 @@
   },
   {
    "entity_id": "IHCL001",
-   "period": "Q3 FY2026",
-   "avg_bank_balance_cr": 110.0,
-   "credit_turnover_cr": 380.0,
-   "debit_turnover_cr": 360.0,
+   "period": "Q3_FY2026",
+   "avg_bank_balance_cr": 9.68,
+   "credit_turnover_cr": 161.39,
+   "debit_turnover_cr": 158.16,
    "cheque_returns": 0,
-   "limit_utilization_pct": 58.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -359,12 +349,12 @@
   },
   {
    "entity_id": "IHCL001",
-   "period": "Q4 FY2026",
-   "avg_bank_balance_cr": 125.0,
-   "credit_turnover_cr": 420.0,
-   "debit_turnover_cr": 395.0,
+   "period": "Q4_FY2026",
+   "avg_bank_balance_cr": 9.68,
+   "credit_turnover_cr": 161.39,
+   "debit_turnover_cr": 158.16,
    "cheque_returns": 0,
-   "limit_utilization_pct": 55.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -375,121 +365,80 @@
  "covenants": [
   {
    "entity_id": "IHCL001",
-   "covenant_type": "Financial",
-   "required_value": "Debt/EBITDA ≤ 2.5x",
-   "actual_value": "1.69x",
+   "covenant_type": "Debt/Equity",
+   "required_value": "<=2.50",
+   "actual_value": "0.00",
    "compliance_status": "compliant",
-   "period": "FY2025",
+   "period": "FY2026",
    "breach_details": ""
   },
   {
    "entity_id": "IHCL001",
-   "covenant_type": "Financial",
-   "required_value": "DSCR ≥ 1.5x",
-   "actual_value": "2.82x",
+   "covenant_type": "Debt/EBITDA",
+   "required_value": "<=4.00",
+   "actual_value": "0.00",
    "compliance_status": "compliant",
-   "period": "FY2025",
+   "period": "FY2026",
    "breach_details": ""
   },
   {
    "entity_id": "IHCL001",
-   "covenant_type": "Financial",
-   "required_value": "Current Ratio ≥ 0.8x",
-   "actual_value": "0.91x",
+   "covenant_type": "Current ratio",
+   "required_value": ">=1.25",
+   "actual_value": "2.79",
    "compliance_status": "compliant",
-   "period": "FY2025",
+   "period": "FY2026",
    "breach_details": ""
   }
  ],
  "exchange_filing": null,
  "core_banking": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
   "loan_accounts": [
    {
-    "account_number": "ACC_IHC_TL01",
+    "account_number": "DEMO-IHCL001-WO",
     "entity_id": "IHCL001",
-    "facility_type": "TL",
-    "sanction_limit_cr": 800.0,
-    "outstanding_cr": 680.0,
-    "interest_rate_pct": 8.75,
+    "facility_type": "CC",
+    "sanction_limit_cr": 22.41,
+    "outstanding_cr": 16.14,
+    "interest_rate_pct": 9.5,
     "overdue_amount_cr": 0.0,
     "dpd": 0,
     "asset_classification": "Standard",
-    "sanction_date": "2021-06-15",
-    "maturity_date": "2028-06-15",
+    "sanction_date": "2023-04-01",
+    "maturity_date": "2030-03-31",
     "repayment_frequency": "Monthly"
-   },
-   {
-    "account_number": "ACC_IHC_BG01",
-    "entity_id": "IHCL001",
-    "facility_type": "BG",
-    "sanction_limit_cr": 200.0,
-    "outstanding_cr": 165.0,
-    "interest_rate_pct": 1.5,
-    "overdue_amount_cr": 0.0,
-    "dpd": 0,
-    "asset_classification": "Standard",
-    "sanction_date": "2022-03-20",
-    "maturity_date": "2026-03-20",
-    "repayment_frequency": "NA"
    }
   ],
   "bclc": {
-   "total_fund_based_cr": 680.0,
-   "total_non_fund_based_cr": 165.0,
-   "total_exposure_cr": 845.0,
-   "single_borrower_limit_pct": 1.8,
-   "group_borrower_limit_pct": 3.2,
-   "within_single_limit": true,
-   "within_group_limit": true,
-   "industry_exposure_pct": 4.5,
-   "sector_ceiling_pct": 15.0,
-   "rating_based_limit_cr": 2500.0
+   "total_fund_based_cr": 16.14,
+   "total_non_fund_based_cr": 2.42,
+   "total_exposure_cr": 18.56,
+   "single_borrower_limit_pct": 0.23
   },
-  "liability": {
-   "current_account_balance_cr": 12.5,
-   "savings_balance_cr": 0.0,
-   "fixed_deposit_cr": 85.0,
-   "total_deposits_cr": 97.5,
-   "average_balance_6m_cr": 42.8,
-   "reciprocal_business_cr": 97.5,
-   "cross_sell_products": [
-    "Cash Management",
-    "Trade Finance",
-    "Forex Services"
-   ]
-  },
-  "fees_commission": [
-   {
-    "period": "FY2025",
-    "processing_fees_cr": 2.4,
-    "renewal_fees_cr": 0.8,
-    "lc_commission_cr": 1.2,
-    "bg_commission_cr": 0.95,
-    "forex_income_cr": 0.45,
-    "other_charges_cr": 0.3,
-    "total_income_cr": 6.1
-   },
-   {
-    "period": "FY2024",
-    "processing_fees_cr": 1.8,
-    "renewal_fees_cr": 0.6,
-    "lc_commission_cr": 0.9,
-    "bg_commission_cr": 0.85,
-    "forex_income_cr": 0.35,
-    "other_charges_cr": 0.25,
-    "total_income_cr": 4.75
-   }
-  ],
-  "total_exposure_cr": 845.0,
+  "total_exposure_cr": 18.56,
   "overall_asset_classification": "Standard",
-  "relationship_since": "2018-04-01",
-  "relationship_years": 8
+  "relationship_since": "2020-04-01",
+  "relationship_years": 6
  },
  "data_provider": "verified_public_records",
  "catalog_source": "reference_catalog",
  "preferred_identifier": "The Indian Hotels Company Limited",
  "reference_prefix": "IHCL",
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "Employees (Enterprise) (employees)": "51,079 [p.14]",
+   "Permanent Employees (employees)": "27,757 [p.14]",
+   "Occupancy (Enterprise) (%)": "69% [p.14]",
+   "Room Nights (lakhs)": "67 [p.14]",
+   "Guests Welcomed (lakhs)": "151 [p.14]",
+   "Hotels Opened in FY25-26 (hotels)": "132 [p.14]",
+   "Hotels Signed in FY25-26 (hotels)": "250 [p.14]",
+   "Loyalty Member Base (million)": "16 [p.14]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -618,5 +567,43 @@
   "document": "ratings/rating_rationale_care_2026-10-09.pdf",
   "short_term": "CARE A1+",
   "date": "October 09, 2026"
+ },
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "The Indian Hotels Company Limited",
+  "cin": "L74999MH1902PLC000183",
+  "pan": null,
+  "credit_rating": "CARE AAA (Stable)",
+  "reporting_date": "31-Mar-2026",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Hospitality",
+  "group": "IHCL — Tata Hotels Group",
+  "fund_based": [],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 0.0,
+   "total_fund_based_outstanding": 0.0,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 0.0,
+   "total_exposure_outstanding": 0.0,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ },
+ "shareholding_source": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "pages": [
+   17,
+   18,
+   281,
+   282,
+   336,
+   337
+  ],
+  "page": 17,
+  "as_of": "March 31, 2026",
+  "method": "ai (page image)"
  }
 }

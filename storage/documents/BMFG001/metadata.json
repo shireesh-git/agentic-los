@@ -1,6 +1,19 @@
 {
   "entity_id": "BMFG001",
-  "company_name": "Bharat Manufacturing Ltd",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:19.174632",
+  "total_documents": 46,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "legal",
+    "collateral",
+    "ratings",
+    "gst",
+    "mca",
+    "banking",
+    "exchange",
+    "request"
+  ]
 }

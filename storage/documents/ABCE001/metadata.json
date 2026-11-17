@@ -1,6 +1,7 @@
 {
   "entity_id": "ABCE001",
-  "company_name": "ABC Engineering & Infrastructure Ltd.",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:17.824236",
+  "total_documents": 0,
+  "categories": []
 }

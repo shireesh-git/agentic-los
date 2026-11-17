@@ -124,8 +124,8 @@ excluded" → **Re-run CAM** rewrites only the affected sections → Recommend. 
 Sanction. CAD: **Add demo executed documents** → Submit. Disbursement: Authorise Release. Show the **Audit Trail
 Report**, the **CAM** PDF and **TAT & Productivity**.
 
-**B.** RM: *Madras Fertilizers* → Generate CAM → **Decline**: negative net worth, current ratio 0.68x, two hard rules
-failed, early-warning flags. Submitting asks for a written justification. Underwriting: Copilot "What should I do
+**B.** RM: *Madras Fertilizers* → Generate CAM → **Decline**: its audited net worth is negative (₹-32 Cr), which fails
+the "net worth must be positive" hard rule; current ratio 0.68x and other ratios outside policy. Submitting asks for a written justification. Underwriting: Copilot "What should I do
 next?"; answer the challenges; record mitigants. Sanction: the hard-rule failure cannot be approved — decline or
 return.
 

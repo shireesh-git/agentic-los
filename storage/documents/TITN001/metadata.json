@@ -1,6 +1,16 @@
 {
   "entity_id": "TITN001",
-  "company_name": "Titan Company Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:25.141021",
+  "total_documents": 14,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "collateral",
+    "ratings",
+    "gst",
+    "banking",
+    "request"
+  ]
 }

@@ -1130,6 +1130,12 @@ class FlowService:
         return out
 
     def _run_engine(self, entity_id: str, overrides: Optional[dict], on_progress):
+        company = self.companies.get(entity_id) or {}
+        b = company.get("borrower")
+        if self.acquirer and b is not None and not company.get("market_signals"):
+            news = self.acquirer.live_news(b.company_name, entity_id)       # live, for this run only
+            if news:
+                overrides = {**(overrides or {}), "live_news": news}
         return self.cases.run(entity_id, on_progress=on_progress, overrides=overrides)
 
     def _can_generate(self, case: dict) -> bool:

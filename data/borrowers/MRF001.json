@@ -292,7 +292,13 @@
  "catalog_source": "reference_catalog",
  "preferred_identifier": "MRF Limited",
  "reference_prefix": "MRF",
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "total number of permanent employees (employees)": "16,283 [p.53]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -417,5 +423,48 @@
  },
  "profile": {
   "auditor": "M M NISSIM & CO LLP"
+ },
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "MRF Limited",
+  "cin": "L25111TN1960PLC004306",
+  "pan": null,
+  "credit_rating": "CARE AAA (Stable)",
+  "reporting_date": "31-Mar-2026",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Manufacturing",
+  "group": "MRF Limited",
+  "fund_based": [
+   {
+    "facility_type": "Term loans (all lenders)",
+    "sanction_limit_cr": 207.08,
+    "outstanding_cr": 176.02,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "As per the charges register"
+   },
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 936.24,
+    "outstanding_cr": 674.09,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 1143.32,
+   "total_fund_based_outstanding": 850.11,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 1143.32,
+   "total_exposure_outstanding": 850.11,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
  }
 }

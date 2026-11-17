@@ -34,6 +34,8 @@ RULES = {
                       "Suit-filed accounts and NCLT case search"),
     "HR_KYC_COMPLETE": ("KYC complete", "KYC pack on file", "PAN, certificate of incorporation, signatory KYC"),
     "HR_MIN_VINTAGE": ("Minimum vintage", "Company at least 3 years old", "Date of incorporation (MCA)"),
+    "HR_POSITIVE_NET_WORTH": ("Positive net worth", "Net worth positive on the latest audited balance sheet",
+                              "Audited balance sheet; an equity infusion or restructuring plan if negative"),
     "HR_NO_CRITICAL_EXCEPTIONS": ("No critical data exceptions", "No unresolved critical data exceptions",
                                   "Resolve the critical exceptions raised by the CAM engine"),
     # knowledge graph checks (src/flow/graph.py)

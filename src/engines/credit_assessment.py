@@ -88,6 +88,16 @@ def collateral_coverage(company_data: dict) -> float:
     return round(total_fsv / amount, 2) if amount > 0 else 0
 
 
+def _latest_net_worth(company_data: dict) -> tuple | None:
+    """(period, total equity ₹ Cr) of the latest audited statement; None without statements."""
+    fins = {p: f for p, f in (company_data.get("financials") or {}).items()
+            if str(getattr(f, "source", "audited")).lower() in ("audited", "")}
+    if not fins:
+        return None
+    p = max(fins)
+    return p, (getattr(fins[p], "line_items", None) or {}).get("total_equity")
+
+
 def decide(company_data: dict, exceptions: list, latest_ratios: list, latest_benchmarks: list,
            bureau_data: dict) -> PolicyOutcome:
     borrower = company_data["borrower"]
@@ -101,7 +111,8 @@ def decide(company_data: dict, exceptions: list, latest_ratios: list, latest_ben
     tier1 = tier1_hard_rules(borrower, facility, exceptions, bureau_data,
                              document_inventory=company_data.get("document_inventory"),
                              mca_status=mca.get("status"), demo_evidence=demo,
-                             mca_demo=(mca_env.get("provenance") or {}).get("via") == "demo_file")
+                             mca_demo=(mca_env.get("provenance") or {}).get("via") == "demo_file",
+                             net_worth=_latest_net_worth(company_data))
     risk_score = tier2_scoring(
         borrower=borrower,
         ratios=latest_ratios,

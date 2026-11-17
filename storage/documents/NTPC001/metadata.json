@@ -1,6 +1,17 @@
 {
   "entity_id": "NTPC001",
-  "company_name": "NTPC Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:22.845541",
+  "total_documents": 19,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "collateral",
+    "ratings",
+    "gst",
+    "banking",
+    "exchange",
+    "request"
+  ]
 }

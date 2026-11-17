@@ -1,87 +1,46 @@
 {
  "core_banking": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
   "loan_accounts": [
    {
-    "account_number": "ACC_NTP_TL01",
+    "account_number": "DEMO-NTPC001-TE",
     "entity_id": "NTPC001",
     "facility_type": "TL",
-    "sanction_limit_cr": 5000.0,
-    "outstanding_cr": 4200.0,
-    "interest_rate_pct": 7.8,
+    "sanction_limit_cr": 591.52,
+    "outstanding_cr": 502.79,
+    "interest_rate_pct": 9.5,
     "overdue_amount_cr": 0.0,
     "dpd": 0,
     "asset_classification": "Standard",
-    "sanction_date": "2019-01-15",
-    "maturity_date": "2029-01-15",
-    "repayment_frequency": "Quarterly"
+    "sanction_date": "2023-04-01",
+    "maturity_date": "2030-03-31",
+    "repayment_frequency": "Monthly"
    },
    {
-    "account_number": "ACC_NTP_BG01",
+    "account_number": "DEMO-NTPC001-WO",
     "entity_id": "NTPC001",
-    "facility_type": "BG",
-    "sanction_limit_cr": 2000.0,
-    "outstanding_cr": 1650.0,
-    "interest_rate_pct": 0.75,
+    "facility_type": "CC",
+    "sanction_limit_cr": 267.87,
+    "outstanding_cr": 192.86,
+    "interest_rate_pct": 9.5,
     "overdue_amount_cr": 0.0,
     "dpd": 0,
     "asset_classification": "Standard",
-    "sanction_date": "2020-06-01",
-    "maturity_date": "2027-06-01",
-    "repayment_frequency": "NA"
+    "sanction_date": "2023-04-01",
+    "maturity_date": "2030-03-31",
+    "repayment_frequency": "Monthly"
    }
   ],
   "bclc": {
-   "total_fund_based_cr": 4200.0,
-   "total_non_fund_based_cr": 1650.0,
-   "total_exposure_cr": 5850.0,
-   "single_borrower_limit_pct": 3.5,
-   "group_borrower_limit_pct": 6.0,
-   "within_single_limit": true,
-   "within_group_limit": true,
-   "industry_exposure_pct": 8.2,
-   "sector_ceiling_pct": 20.0,
-   "rating_based_limit_cr": 15000.0
+   "total_fund_based_cr": 695.65,
+   "total_non_fund_based_cr": 104.35,
+   "total_exposure_cr": 800.0,
+   "single_borrower_limit_pct": 10.0
   },
-  "liability": {
-   "current_account_balance_cr": 125.0,
-   "savings_balance_cr": 0.0,
-   "fixed_deposit_cr": 500.0,
-   "total_deposits_cr": 625.0,
-   "average_balance_6m_cr": 280.0,
-   "reciprocal_business_cr": 625.0,
-   "cross_sell_products": [
-    "Cash Management",
-    "LC/BG",
-    "Trade Finance",
-    "Forex"
-   ]
-  },
-  "fees_commission": [
-   {
-    "period": "FY2025",
-    "processing_fees_cr": 5.0,
-    "renewal_fees_cr": 2.5,
-    "lc_commission_cr": 3.8,
-    "bg_commission_cr": 4.5,
-    "forex_income_cr": 1.2,
-    "other_charges_cr": 0.8,
-    "total_income_cr": 17.8
-   },
-   {
-    "period": "FY2024",
-    "processing_fees_cr": 4.5,
-    "renewal_fees_cr": 2.0,
-    "lc_commission_cr": 3.2,
-    "bg_commission_cr": 4.0,
-    "forex_income_cr": 1.0,
-    "other_charges_cr": 0.6,
-    "total_income_cr": 15.3
-   }
-  ],
-  "total_exposure_cr": 5850.0,
+  "total_exposure_cr": 800.0,
   "overall_asset_classification": "Standard",
-  "relationship_since": "2010-04-01",
-  "relationship_years": 16
+  "relationship_since": "2020-04-01",
+  "relationship_years": 6
  },
  "data_provider": "verified_public_records",
  "catalog_source": "reference_catalog",
@@ -120,8 +79,8 @@
    "North Eastern Electric Power Corp"
   ],
   "promoter_holding_pct": 51.1,
-  "institutional_holding_pct": null,
-  "public_holding_pct": null,
+  "institutional_holding_pct": 45.68,
+  "public_holding_pct": 3.22,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -362,22 +321,22 @@
  "market_signals": [],
  "existing_exposure": [
   {
-   "facility_id": "EXP_NTPC_01",
+   "facility_id": "EXP_NTPC001_TL",
    "entity_id": "NTPC001",
    "facility_type": "term_loan",
-   "sanctioned_limit_cr": 5000.0,
-   "outstanding_cr": 3200.0,
-   "utilization_pct": 64.0,
+   "sanctioned_limit_cr": 591.52,
+   "outstanding_cr": 502.79,
+   "utilization_pct": 85.0,
    "overdue_days": 0,
    "classification": "Standard"
   },
   {
-   "facility_id": "EXP_NTPC_02",
+   "facility_id": "EXP_NTPC001_WC",
    "entity_id": "NTPC001",
    "facility_type": "working_capital",
-   "sanctioned_limit_cr": 3000.0,
-   "outstanding_cr": 1850.0,
-   "utilization_pct": 61.7,
+   "sanctioned_limit_cr": 267.87,
+   "outstanding_cr": 192.86,
+   "utilization_pct": 72.0,
    "overdue_days": 0,
    "classification": "Standard"
   }
@@ -386,11 +345,11 @@
   {
    "entity_id": "NTPC001",
    "period": "Q1_FY2026",
-   "avg_bank_balance_cr": 85.0,
-   "credit_turnover_cr": 4200.0,
-   "debit_turnover_cr": 4150.0,
+   "avg_bank_balance_cr": 297.89,
+   "credit_turnover_cr": 4964.81,
+   "debit_turnover_cr": 4865.52,
    "cheque_returns": 0,
-   "limit_utilization_pct": 62.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -400,11 +359,11 @@
   {
    "entity_id": "NTPC001",
    "period": "Q2_FY2026",
-   "avg_bank_balance_cr": 92.0,
-   "credit_turnover_cr": 4500.0,
-   "debit_turnover_cr": 4420.0,
+   "avg_bank_balance_cr": 297.89,
+   "credit_turnover_cr": 4964.81,
+   "debit_turnover_cr": 4865.52,
    "cheque_returns": 0,
-   "limit_utilization_pct": 60.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -414,11 +373,11 @@
   {
    "entity_id": "NTPC001",
    "period": "Q3_FY2026",
-   "avg_bank_balance_cr": 88.0,
-   "credit_turnover_cr": 4350.0,
-   "debit_turnover_cr": 4300.0,
+   "avg_bank_balance_cr": 297.89,
+   "credit_turnover_cr": 4964.81,
+   "debit_turnover_cr": 4865.52,
    "cheque_returns": 0,
-   "limit_utilization_pct": 63.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -428,11 +387,11 @@
   {
    "entity_id": "NTPC001",
    "period": "Q4_FY2026",
-   "avg_bank_balance_cr": 95.0,
-   "credit_turnover_cr": 4600.0,
-   "debit_turnover_cr": 4580.0,
+   "avg_bank_balance_cr": 297.89,
+   "credit_turnover_cr": 4964.81,
+   "debit_turnover_cr": 4865.52,
    "cheque_returns": 0,
-   "limit_utilization_pct": 58.0,
+   "limit_utilization_pct": 72.0,
    "overdue_instances": 0,
    "max_overdue_days": 0,
    "dpd_30_count": 0,
@@ -443,34 +402,47 @@
  "covenants": [
   {
    "entity_id": "NTPC001",
-   "covenant_type": "DSCR",
-   "required_value": ">=1.30",
-   "actual_value": "1.52",
-   "compliance_status": "compliant",
-   "period": "Q4_FY2026",
-   "breach_details": ""
-  },
-  {
-   "entity_id": "NTPC001",
    "covenant_type": "Debt/Equity",
-   "required_value": "<=1.20",
-   "actual_value": "1.06",
+   "required_value": "<=2.50",
+   "actual_value": "1.09",
    "compliance_status": "compliant",
-   "period": "Q4_FY2026",
+   "period": "FY2026",
    "breach_details": ""
   },
   {
    "entity_id": "NTPC001",
-   "covenant_type": "Fixed Asset Coverage",
-   "required_value": ">=1.50",
-   "actual_value": "1.53",
-   "compliance_status": "compliant",
-   "period": "Q4_FY2026",
-   "breach_details": ""
+   "covenant_type": "Debt/EBITDA",
+   "required_value": "<=4.00",
+   "actual_value": "5.76",
+   "compliance_status": "breached",
+   "period": "FY2026",
+   "breach_details": "Debt/EBITDA 5.76 against <=4.00 on the audited FY2026 statements"
+  },
+  {
+   "entity_id": "NTPC001",
+   "covenant_type": "Current ratio",
+   "required_value": ">=1.25",
+   "actual_value": "0.90",
+   "compliance_status": "breached",
+   "period": "FY2026",
+   "breach_details": "Current ratio 0.90 against >=1.25 on the audited FY2026 statements"
   }
  ],
  "exchange_filing": null,
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "Plant Availability Factor (PAF) (%)": "90.12% [p.57]",
+   "Average Plant Load Factor (PLF) (%)": "72.04% [p.57]",
+   "Installed capacity added (MW)": "1,823 [p.57]",
+   "Installed capacity as at 31st March 2026 (MW)": "60,796 [p.57]",
+   "Group installed capacity as on 31st March 2026 (MW)": "89,108 [p.57]",
+   "Standalone commercial capacity as on 31st March 2026 (MW)": "60,796 [p.57]",
+   "Electricity sold through various segments of power exchanges (MU)": "8,285 [p.57]",
+   "NTPC Group generation of electricity (BU)": "432.2 [p.72]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -569,5 +541,62 @@
   "document": "ratings/rating_rationale_care_2026-05-22.pdf",
   "short_term": "CARE A1+",
   "date": "May 22, 2026"
+ },
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "NTPC Limited",
+  "cin": "L40101DL1975GOI007966",
+  "pan": null,
+  "credit_rating": "CARE AAA (Stable)",
+  "reporting_date": "31-Mar-2026",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Infrastructure",
+  "group": "NTPC Group",
+  "fund_based": [
+   {
+    "facility_type": "Term loans (all lenders)",
+    "sanction_limit_cr": 161651.2,
+    "outstanding_cr": 137403.52,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "As per the charges register"
+   },
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 73202.86,
+    "outstanding_cr": 52706.06,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 234854.06,
+   "total_fund_based_outstanding": 190109.58,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 234854.06,
+   "total_exposure_outstanding": 190109.58,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ },
+ "shareholding_source": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "pages": [
+   85,
+   86,
+   151,
+   152,
+   169,
+   170
+  ],
+  "page": 85,
+  "as_of": "31st March 2026",
+  "method": "ai (page image)"
  }
 }

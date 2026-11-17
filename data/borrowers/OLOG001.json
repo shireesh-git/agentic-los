@@ -566,5 +566,48 @@
  "name_aliases": [
   "omega logistics",
   "omega logistics pvt ltd"
- ]
+ ],
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "Omega Logistics Pvt Ltd",
+  "cin": "U63090KA2010PTC052345",
+  "pan": null,
+  "credit_rating": "BWR BBB+/Stable",
+  "reporting_date": "31-Mar-2025",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Logistics",
+  "group": "Omega Group",
+  "fund_based": [
+   {
+    "facility_type": "Term loans (all lenders)",
+    "sanction_limit_cr": 170.59,
+    "outstanding_cr": 145.0,
+    "dpd": 0,
+    "classification": "SMA-1",
+    "sma_flag": "SMA-1",
+    "security": "As per the charges register"
+   },
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 152.78,
+    "outstanding_cr": 110.0,
+    "dpd": 0,
+    "classification": "SMA-1",
+    "sma_flag": "SMA-1",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 323.37,
+   "total_fund_based_outstanding": 255.0,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 323.37,
+   "total_exposure_outstanding": 255.0,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ }
 }

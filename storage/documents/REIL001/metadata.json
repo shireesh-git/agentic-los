@@ -1,6 +1,16 @@
 {
   "entity_id": "REIL001",
-  "company_name": "Reliance Industries Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:24.309779",
+  "total_documents": 14,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "collateral",
+    "ratings",
+    "gst",
+    "banking",
+    "request"
+  ]
 }

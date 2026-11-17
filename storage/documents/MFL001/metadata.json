@@ -1,6 +1,14 @@
 {
   "entity_id": "MFL001",
-  "company_name": "Madras Fertilizers Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:21.863991",
+  "total_documents": 13,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "ratings",
+    "gst",
+    "banking"
+  ]
 }

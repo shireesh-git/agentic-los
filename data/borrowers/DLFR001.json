@@ -1,75 +1,32 @@
 {
  "core_banking": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
   "loan_accounts": [
    {
-    "account_number": "ACC_DLF_TL01",
-    "entity_id": "DLFR001",
-    "facility_type": "TL",
-    "sanction_limit_cr": 1500.0,
-    "outstanding_cr": 1380.0,
-    "interest_rate_pct": 9.5,
-    "overdue_amount_cr": 45.0,
-    "dpd": 38,
-    "asset_classification": "SMA-1",
-    "sanction_date": "2020-09-10",
-    "maturity_date": "2027-09-10",
-    "repayment_frequency": "Monthly"
-   },
-   {
-    "account_number": "ACC_DLF_CC01",
+    "account_number": "DEMO-DLFR001-WO",
     "entity_id": "DLFR001",
     "facility_type": "CC",
-    "sanction_limit_cr": 800.0,
-    "outstanding_cr": 765.0,
-    "interest_rate_pct": 10.25,
+    "sanction_limit_cr": 16.6,
+    "outstanding_cr": 11.95,
+    "interest_rate_pct": 9.5,
     "overdue_amount_cr": 0.0,
     "dpd": 0,
     "asset_classification": "Standard",
-    "sanction_date": "2021-04-01",
-    "maturity_date": "2026-03-31",
+    "sanction_date": "2023-04-01",
+    "maturity_date": "2030-03-31",
     "repayment_frequency": "Monthly"
    }
   ],
   "bclc": {
-   "total_fund_based_cr": 2145.0,
-   "total_non_fund_based_cr": 250.0,
-   "total_exposure_cr": 2395.0,
-   "single_borrower_limit_pct": 5.2,
-   "group_borrower_limit_pct": 8.8,
-   "within_single_limit": true,
-   "within_group_limit": true,
-   "industry_exposure_pct": 6.8,
-   "sector_ceiling_pct": 15.0,
-   "rating_based_limit_cr": 3000.0
+   "total_fund_based_cr": 11.95,
+   "total_non_fund_based_cr": 1.79,
+   "total_exposure_cr": 13.74,
+   "single_borrower_limit_pct": 0.17
   },
-  "liability": {
-   "current_account_balance_cr": 8.2,
-   "savings_balance_cr": 0.0,
-   "fixed_deposit_cr": 25.0,
-   "total_deposits_cr": 33.2,
-   "average_balance_6m_cr": 18.5,
-   "reciprocal_business_cr": 33.2,
-   "cross_sell_products": [
-    "Current Account",
-    "Project Finance"
-   ]
-  },
-  "fees_commission": [
-   {
-    "period": "FY2025",
-    "processing_fees_cr": 3.5,
-    "renewal_fees_cr": 1.2,
-    "lc_commission_cr": 0.0,
-    "bg_commission_cr": 0.45,
-    "forex_income_cr": 0.0,
-    "other_charges_cr": 0.85,
-    "total_income_cr": 6.0
-   }
-  ],
-  "total_exposure_cr": 2395.0,
-  "overall_asset_classification": "SMA-1",
-  "relationship_since": "2015-08-01",
-  "relationship_years": 11
+  "total_exposure_cr": 13.74,
+  "overall_asset_classification": "Standard",
+  "relationship_since": "2020-04-01",
+  "relationship_years": 6
  },
  "data_provider": "verified_public_records",
  "catalog_source": "reference_catalog",
@@ -374,23 +331,13 @@
  "market_signals": [],
  "existing_exposure": [
   {
-   "facility_id": "EXP_DLFR_01",
+   "facility_id": "EXP_DLFR001_WC",
    "entity_id": "DLFR001",
    "facility_type": "working_capital",
-   "sanctioned_limit_cr": 1200.0,
-   "outstanding_cr": 1140.0,
-   "utilization_pct": 95.0,
+   "sanctioned_limit_cr": 16.6,
+   "outstanding_cr": 11.95,
+   "utilization_pct": 72.0,
    "overdue_days": 0,
-   "classification": "Standard"
-  },
-  {
-   "facility_id": "EXP_DLFR_02",
-   "entity_id": "DLFR001",
-   "facility_type": "term_loan",
-   "sanctioned_limit_cr": 800.0,
-   "outstanding_cr": 620.0,
-   "utilization_pct": 77.5,
-   "overdue_days": 22,
    "classification": "Standard"
   }
  ],
@@ -398,91 +345,104 @@
   {
    "entity_id": "DLFR001",
    "period": "Q1_FY2026",
-   "avg_bank_balance_cr": 4.5,
-   "credit_turnover_cr": 52.0,
-   "debit_turnover_cr": 51.2,
-   "cheque_returns": 3,
-   "limit_utilization_pct": 92.0,
-   "overdue_instances": 1,
-   "max_overdue_days": 12,
-   "dpd_30_count": 1,
+   "avg_bank_balance_cr": 7.17,
+   "credit_turnover_cr": 119.53,
+   "debit_turnover_cr": 117.14,
+   "cheque_returns": 0,
+   "limit_utilization_pct": 72.0,
+   "overdue_instances": 0,
+   "max_overdue_days": 0,
+   "dpd_30_count": 0,
    "dpd_60_count": 0,
    "dpd_90_count": 0
   },
   {
    "entity_id": "DLFR001",
    "period": "Q2_FY2026",
-   "avg_bank_balance_cr": 3.8,
-   "credit_turnover_cr": 48.0,
-   "debit_turnover_cr": 49.5,
-   "cheque_returns": 5,
-   "limit_utilization_pct": 94.0,
-   "overdue_instances": 2,
-   "max_overdue_days": 18,
-   "dpd_30_count": 1,
+   "avg_bank_balance_cr": 7.17,
+   "credit_turnover_cr": 119.53,
+   "debit_turnover_cr": 117.14,
+   "cheque_returns": 0,
+   "limit_utilization_pct": 72.0,
+   "overdue_instances": 0,
+   "max_overdue_days": 0,
+   "dpd_30_count": 0,
    "dpd_60_count": 0,
    "dpd_90_count": 0
   },
   {
    "entity_id": "DLFR001",
    "period": "Q3_FY2026",
-   "avg_bank_balance_cr": 2.9,
-   "credit_turnover_cr": 42.0,
-   "debit_turnover_cr": 44.8,
-   "cheque_returns": 8,
-   "limit_utilization_pct": 96.0,
-   "overdue_instances": 3,
-   "max_overdue_days": 25,
-   "dpd_30_count": 2,
+   "avg_bank_balance_cr": 7.17,
+   "credit_turnover_cr": 119.53,
+   "debit_turnover_cr": 117.14,
+   "cheque_returns": 0,
+   "limit_utilization_pct": 72.0,
+   "overdue_instances": 0,
+   "max_overdue_days": 0,
+   "dpd_30_count": 0,
    "dpd_60_count": 0,
    "dpd_90_count": 0
   },
   {
    "entity_id": "DLFR001",
    "period": "Q4_FY2026",
-   "avg_bank_balance_cr": 2.1,
-   "credit_turnover_cr": 38.0,
-   "debit_turnover_cr": 40.2,
-   "cheque_returns": 11,
-   "limit_utilization_pct": 98.0,
-   "overdue_instances": 4,
-   "max_overdue_days": 32,
-   "dpd_30_count": 3,
-   "dpd_60_count": 1,
+   "avg_bank_balance_cr": 7.17,
+   "credit_turnover_cr": 119.53,
+   "debit_turnover_cr": 117.14,
+   "cheque_returns": 0,
+   "limit_utilization_pct": 72.0,
+   "overdue_instances": 0,
+   "max_overdue_days": 0,
+   "dpd_30_count": 0,
+   "dpd_60_count": 0,
    "dpd_90_count": 0
   }
  ],
  "covenants": [
   {
    "entity_id": "DLFR001",
-   "covenant_type": "DSCR",
-   "required_value": ">=1.20",
-   "actual_value": "1.08",
-   "compliance_status": "breached",
-   "period": "Q3_FY2026",
-   "breach_details": "DSCR fell below 1.20x due to slow sales velocity"
-  },
-  {
-   "entity_id": "DLFR001",
    "covenant_type": "Debt/Equity",
-   "required_value": "<=1.50",
-   "actual_value": "1.11",
+   "required_value": "<=2.50",
+   "actual_value": "0.00",
    "compliance_status": "compliant",
-   "period": "Q3_FY2026",
+   "period": "FY2026",
    "breach_details": ""
   },
   {
    "entity_id": "DLFR001",
-   "covenant_type": "Max Cheque Returns",
-   "required_value": "<=5/quarter",
-   "actual_value": "11",
-   "compliance_status": "breached",
-   "period": "Q4_FY2026",
-   "breach_details": "Cheque returns spiked due to collection delays from home buyers"
+   "covenant_type": "Debt/EBITDA",
+   "required_value": "<=4.00",
+   "actual_value": "0.00",
+   "compliance_status": "compliant",
+   "period": "FY2026",
+   "breach_details": ""
+  },
+  {
+   "entity_id": "DLFR001",
+   "covenant_type": "Current ratio",
+   "required_value": ">=1.25",
+   "actual_value": "1.27",
+   "compliance_status": "compliant",
+   "period": "FY2026",
+   "breach_details": ""
   }
  ],
  "exchange_filing": null,
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "Permanent employees (employees)": "4,310 [p.41]",
+   "Total employees (D+E) (employees)": "4,310 [p.41]",
+   "Permanent differently abled employees (employees)": "2 [p.41]",
+   "Key Managerial Personnel (KMPs) (KMPs)": "5 [p.41]",
+   "Turnover rate for permanent employees (%)": "20% [p.41]",
+   "Permanent employees that took parental leave - Return to work rate (%)": "100% [p.54]",
+   "Permanent employees that took parental leave - Retention rate (%)": "100% [p.54]",
+   "Total recordable work-related injuries - Employees (injuries)": "- [p.55]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -579,5 +539,29 @@
   "document": "ratings/rating_rationale_crisil_2025-10-17.pdf",
   "short_term": null,
   "date": "October 17, 2025"
+ },
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "DLF Limited",
+  "cin": "L70101HR1963PLC002484",
+  "pan": null,
+  "credit_rating": "CRISIL AA+ (Stable)",
+  "reporting_date": "31-Mar-2026",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Real Estate",
+  "group": "DLF Group",
+  "fund_based": [],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 0.0,
+   "total_fund_based_outstanding": 0.0,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 0.0,
+   "total_exposure_outstanding": 0.0,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
  }
 }

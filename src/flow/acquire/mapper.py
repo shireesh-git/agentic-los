@@ -141,27 +141,13 @@ def apply(company: dict, records: dict, statements: list[dict], facility: dict) 
                                     signal_date=_date(rating.get("action_date")) or date.today()))
         applied["rating"] = [b.credit_rating]
 
-    media = (records.get("adverse_media") or {}).get("payload") or {}
-    if "articles" in media:
-        arts = media["articles"]
-        adverse = [a for a in arts if a.get("adverse")]
-        for a in adverse[:10]:
-            signals.append(MarketSignal(entity_id=eid, signal_type="news", headline=a["title"][:200],
-                                        sentiment="negative", severity=RiskSeverity.MEDIUM, source_name="GDELT",
-                                        signal_date=_date(a.get("date")) or date.today(),
-                                        details=f"{a.get('source')} · {a.get('url')} · {a.get('adverse_reason') or ''}"))
-        company["web_crawl_news"] = {
-            "articles": [{"title": a["title"], "url": a.get("url"), "source": a.get("source"), "date": a.get("date"),
-                          "sentiment": "negative" if a.get("adverse") else "neutral"} for a in arts[:40]],
-            "sentiment_summary": {"articles": len(arts), "adverse": len(adverse)},
-            "crawl_date": (records["adverse_media"].get("provenance") or {}).get("fetched_at"),
-            "source": "GDELT DOC 2.0 (verified feed)"}
-        score = round(1.0 - min(1.0, len(adverse) / max(5, len(arts) or 1) * 2), 2)
-        ext["market_data"] = {**_strip(records["adverse_media"]), "payload": {
-            "overall_sentiment": "negative" if adverse and score < 0.5 else "neutral",
-            "sentiment_score": score, "reputation_risk_score": "high" if len(adverse) >= 3 else
-            ("medium" if adverse else "low"), "articles_reviewed": len(arts), "adverse_articles": len(adverse)}}
-        applied["adverse_media"] = [f"{len(adverse)} adverse of {len(arts)}"]
+    if "articles" in ((records.get("adverse_media") or {}).get("payload") or {}):
+        news, crawl, market = news_into(eid, records["adverse_media"])
+        signals += news
+        company["web_crawl_news"] = crawl
+        ext["market_data"] = market
+        applied["adverse_media"] = [f"{crawl['sentiment_summary']['adverse']} adverse of "
+                                    f"{crawl['sentiment_summary']['articles']}"]
     company["market_signals"] = signals
 
     coll = _security_from_statements(eid, statements, facility)
@@ -175,6 +161,30 @@ def apply(company: dict, records: dict, statements: list[dict], facility: dict) 
                                        "document": (v.get("provenance") or {}).get("document")}
                                    for k, v in records.items() if v}
     return applied
+
+
+def news_into(eid: str, env: dict) -> tuple[list, dict, dict]:
+    """A screened GDELT news search (articles flagged ``adverse``) → the market signals (the adverse headlines),
+    the news list and the market-data envelope the CAM engine reads. Used for prospects (the Market & Reputation
+    agent) and for existing borrowers at each CAM run (live news, never saved into the record)."""
+    arts = (env.get("payload") or {}).get("articles") or []
+    adverse = [a for a in arts if a.get("adverse")]
+    signals = [MarketSignal(entity_id=eid, signal_type="news", headline=a["title"][:200], sentiment="negative",
+                            severity=RiskSeverity.MEDIUM, source_name="GDELT",
+                            signal_date=_date(a.get("date")) or date.today(),
+                            details=f"{a.get('source')} · {a.get('url')} · {a.get('adverse_reason') or ''}")
+               for a in adverse[:10]]
+    crawl = {"articles": [{"title": a["title"], "url": a.get("url"), "source": a.get("source"), "date": a.get("date"),
+                           "sentiment": "negative" if a.get("adverse") else "neutral"} for a in arts[:40]],
+             "sentiment_summary": {"articles": len(arts), "adverse": len(adverse)},
+             "crawl_date": (env.get("provenance") or {}).get("fetched_at"), "source": "GDELT DOC 2.0 (verified feed)",
+             "verified": True}
+    score = round(1.0 - min(1.0, len(adverse) / max(5, len(arts) or 1) * 2), 2)
+    market = {**_strip(env), "payload": {
+        "overall_sentiment": "negative" if adverse and score < 0.5 else "neutral", "sentiment_score": score,
+        "reputation_risk_score": "high" if len(adverse) >= 3 else ("medium" if adverse else "low"),
+        "articles_reviewed": len(arts), "adverse_articles": len(adverse)}}
+    return signals, crawl, market
 
 
 def _security_from_statements(eid: str, statements: list[dict], facility: dict) -> list:

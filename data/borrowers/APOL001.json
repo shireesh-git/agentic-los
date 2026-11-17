@@ -33,7 +33,7 @@
   ],
   "promoter_holding_pct": 28.02,
   "institutional_holding_pct": 65.61,
-  "public_holding_pct": null,
+  "public_holding_pct": 6.37,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -274,7 +274,20 @@
  "catalog_source": "reference_catalog",
  "preferred_identifier": "Apollo Hospitals Enterprise Limited",
  "reference_prefix": "Apollo Hosp",
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "Permanent employees on the rolls of the Company (employees)": "27,661 [p.98]",
+   "Hospitals (hospitals)": "78 [p.104]",
+   "Diagnostics Centres (centres)": "2,501 [p.104]",
+   "Beds (beds)": "10,970 [p.104]",
+   "Clinics (clinics)": "300+ [p.104]",
+   "Pharmacies Stores (stores)": "7,289 [p.104]",
+   "Apollo 24|7 Registered users (registered users)": "47m + [p.104]",
+   "Operational Beds (beds)": "9,620 [p.105]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -405,118 +418,64 @@
   "auditor": "Deloitte Haskins & Sells LLP"
  },
  "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
   "borrower_name": "Apollo Hospitals Enterprise Limited",
   "cin": "L85110TN1979PLC008035",
   "pan": null,
-  "sector": "Healthcare",
-  "group": "Apollo Group",
   "credit_rating": "CRISIL AA+ (Positive)",
   "reporting_date": "31-Mar-2026",
-  "reporting_bank": "State Bank of India",
-  "bank_code": "SBI001",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Healthcare",
+  "group": "Apollo Group",
   "fund_based": [
    {
-    "facility_type": "Term Loan — Hospital Capex",
-    "sanction_limit_cr": 400.0,
-    "outstanding_cr": 320.0,
+    "facility_type": "Term loans (all lenders)",
+    "sanction_limit_cr": 1911.76,
+    "outstanding_cr": 1625.0,
     "dpd": 0,
     "classification": "Standard",
     "sma_flag": "None",
-    "security": "First charge on movable/immovable assets of Apollo Health City, Hyderabad"
+    "security": "As per the charges register"
    },
    {
-    "facility_type": "Working Capital — Cash Credit",
-    "sanction_limit_cr": 150.0,
-    "outstanding_cr": 95.0,
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 273.89,
+    "outstanding_cr": 197.2,
     "dpd": 0,
     "classification": "Standard",
     "sma_flag": "None",
-    "security": "First charge on current assets (hypothecation)"
-   },
-   {
-    "facility_type": "Working Capital — WCDL",
-    "sanction_limit_cr": 100.0,
-    "outstanding_cr": 78.0,
-    "dpd": 0,
-    "classification": "Standard",
-    "sma_flag": "None",
-    "security": "Pari-passu charge on current assets"
+    "security": "Hypothecation of current assets"
    }
   ],
-  "non_fund_based": [
-   {
-    "facility_type": "Bank Guarantee — Performance",
-    "sanction_limit_cr": 75.0,
-    "outstanding_cr": 42.0,
-    "dpd": 0,
-    "classification": "Standard",
-    "invoked": "No"
-   },
-   {
-    "facility_type": "Letter of Credit — Import (Medical Equipment)",
-    "sanction_limit_cr": 50.0,
-    "outstanding_cr": 35.0,
-    "dpd": 0,
-    "classification": "Standard",
-    "invoked": "No"
-   }
-  ],
+  "non_fund_based": [],
   "aggregate_exposure": {
-   "total_fund_based_sanction": 650.0,
-   "total_fund_based_outstanding": 493.0,
-   "total_non_fund_based_sanction": 125.0,
-   "total_non_fund_based_outstanding": 77.0,
-   "total_exposure_sanction": 775.0,
-   "total_exposure_outstanding": 570.0
+   "total_fund_based_sanction": 2185.65,
+   "total_fund_based_outstanding": 1822.2,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 2185.65,
+   "total_exposure_outstanding": 1822.2,
+   "number_of_lenders": 6
   },
-  "sma_history": [
-   {
-    "month": "Mar-2025",
-    "sma_0": 0,
-    "sma_1": 0,
-    "sma_2": 0,
-    "classification": "Standard"
-   },
-   {
-    "month": "Feb-2025",
-    "sma_0": 0,
-    "sma_1": 0,
-    "sma_2": 0,
-    "classification": "Standard"
-   },
-   {
-    "month": "Jan-2025",
-    "sma_0": 0,
-    "sma_1": 0,
-    "sma_2": 0,
-    "classification": "Standard"
-   },
-   {
-    "month": "Dec-2024",
-    "sma_0": 0,
-    "sma_1": 0,
-    "sma_2": 0,
-    "classification": "Standard"
-   },
-   {
-    "month": "Nov-2024",
-    "sma_0": 0,
-    "sma_1": 0,
-    "sma_2": 0,
-    "classification": "Standard"
-   },
-   {
-    "month": "Oct-2024",
-    "sma_0": 0,
-    "sma_1": 0,
-    "sma_2": 0,
-    "classification": "Standard"
-   }
-  ]
+  "sma_history": []
  },
  "rating_source": {
   "document": "ratings/rating_rationale_crisil_2026-05-29.pdf",
   "short_term": null,
   "date": "May 29, 2026"
+ },
+ "shareholding_source": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "pages": [
+   77,
+   78,
+   93,
+   94,
+   95
+  ],
+  "page": 93,
+  "as_of": "March 31, 2026",
+  "method": "ai (page image)"
  }
 }

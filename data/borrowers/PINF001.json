@@ -396,5 +396,48 @@
   "pinnacle infra",
   "pinnacle infra projects",
   "pinnacle infra projects ltd"
- ]
+ ],
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "Pinnacle Infra Projects Ltd",
+  "cin": "L45200DL2005PLC134567",
+  "pan": null,
+  "credit_rating": "ICRA BBB-/Watch Negative",
+  "reporting_date": "31-Mar-2025",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Infrastructure",
+  "group": "Pinnacle Group",
+  "fund_based": [
+   {
+    "facility_type": "Term loans (all lenders)",
+    "sanction_limit_cr": 1152.94,
+    "outstanding_cr": 980.0,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "As per the charges register"
+   },
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 625.0,
+    "outstanding_cr": 450.0,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 1777.94,
+   "total_fund_based_outstanding": 1430.0,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 1777.94,
+   "total_exposure_outstanding": 1430.0,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ }
 }

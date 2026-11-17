@@ -1,6 +1,16 @@
 {
   "entity_id": "DRRD001",
-  "company_name": "Dr. Reddy's Laboratories Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:20.229843",
+  "total_documents": 13,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "collateral",
+    "ratings",
+    "gst",
+    "banking",
+    "request"
+  ]
 }

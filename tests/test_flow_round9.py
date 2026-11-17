@@ -77,5 +77,61 @@ def test_every_borrower_passes_the_test_data_validation():
     for e in borrowers.ids():
         rec = borrowers.load(e)
         if rec.get("latest_statement_source"):
-            assert not rec.get("market_signals") and not rec.get("sector_kpis"), e
+            assert not rec.get("market_signals"), e                    # news is live, never stored
+            assert not rec.get("sector_kpis") or rec["sector_kpis"].get("document"), e   # only with its source
             assert all(d.net_worth_cr is None and d.pan is None for d in rec.get("directors") or []), e
+
+
+def test_bank_records_follow_the_real_figures_and_stay_clean():
+    """src/data/demo_bank_book.py: sizes from the audited borrowings, within the bank's appetite; a real company's
+    conduct is clean and its covenants are tested on its real ratios."""
+    from src.core.config_manager import config
+    from src.data import borrowers, demo_bank_book
+    cfg = dict(config.get("data_sources", "demo_data", "bank_book", default={}))
+    cfg["tier1_capital_cr"] = 8000
+    policy = config.get("rules", "policy_thresholds", default={})
+    assert not demo_bank_book.build(borrowers.load("ADPT001"), cfg, policy)["existing_exposure"]   # new to the bank
+    rec = borrowers.load("NTPC001")                                       # an existing customer
+    out = demo_bank_book.build(rec, cfg, policy)
+    assert out["core_banking"]["bclc"]["single_borrower_limit_pct"] <= 10.0 + 1e-6
+    assert all(c["max_overdue_days"] == 0 and c["cheque_returns"] == 0 for c in out["conduct"])
+    li = rec["financials"][max(rec["financials"])].line_items
+    cr = next(c for c in out["covenants"] if c["covenant_type"] == "Current ratio")
+    assert cr["actual_value"] == f"{li['current_assets'] / li['current_liabilities']:.2f}"
+    assert cr["compliance_status"] == ("compliant" if li["current_assets"] / li["current_liabilities"] >= 1.25 else "breached")
+    assert out["crilc"]["aggregate_exposure"]["total_exposure_outstanding"] == round(li["long_term_debt"] + li["short_term_debt"], 2)
+    assert out["charges"]["charges"] and "DEMO DATA" in out["charges"]["note"]
+
+
+def test_live_news_is_screened_labelled_and_never_saved():
+    from src.engines.data_provenance import classify_fact_pack
+    from src.flow.acquire import mapper
+    env = {"source": "gdelt", "payload": {"articles": [
+        {"title": "Acme Ltd fined by regulator", "url": "u1", "source": "x.com", "date": "2026-10-01", "adverse": True,
+         "adverse_reason": "regulatory action"},
+        {"title": "Acme Ltd opens a plant", "url": "u2", "source": "y.com", "date": "2026-09-01", "adverse": False}]},
+        "provenance": {"fetched_at": "2026-11-17T00:00:00"}}
+    signals, crawl, market = mapper.news_into("ACME001", env)
+    assert [s.source_name for s in signals] == ["GDELT"] and crawl["verified"] and market["payload"]["adverse_articles"] == 1
+    fp = {"market_signals": [{"source": "GDELT", "headline": "x"}], "web_crawl_news": crawl,
+          "existing_exposure": [{"x": 1}], "external_intelligence": {"bureau": {"a": 1}}}
+    prov = classify_fact_pack(fp, {"external_data": {"bureau_data": {"provenance": {"via": "demo_file"}}}})
+    assert prov["market_signals"]["class"] == "external" and prov["web_crawl_news"]["class"] == "source"
+    assert prov["existing_exposure"]["class"] == "synthetic_demo"          # the bank's own records: demo, not source
+    assert prov["external_intelligence"]["class"] == "synthetic_demo"      # a demo registry file, not a live API
+
+
+def test_the_cam_run_passes_live_news_only_for_that_run(monkeypatch):
+    from src.application.container import build_container
+    svc = build_container().flow
+    seen = {}
+
+    class Acq:
+        def live_news(self, name, eid):
+            return {"market_signals": [], "web_crawl_news": {"articles": []}, "market_data": {}}
+
+    monkeypatch.setattr(svc, "acquirer", Acq())
+    monkeypatch.setattr(svc.cases, "run", lambda eid, on_progress=None, overrides=None: seen.update(o=overrides) or ({}, []))
+    svc._run_engine("INFY001", {"facility": {}}, None)
+    assert "live_news" in seen["o"] and "market_signals" not in (svc.companies.get("INFY001") or {}) or \
+        not (svc.companies.get("INFY001") or {}).get("market_signals")

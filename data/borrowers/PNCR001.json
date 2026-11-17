@@ -32,9 +32,9 @@
    "PNC Bundelkhand Expressway Ltd",
    "PNC Kanpur Highways Ltd"
   ],
-  "promoter_holding_pct": null,
-  "institutional_holding_pct": null,
-  "public_holding_pct": null,
+  "promoter_holding_pct": 56.07,
+  "institutional_holding_pct": 38.66,
+  "public_holding_pct": 5.27,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -308,7 +308,20 @@
  "preferred_identifier": "PNC Infratech Limited",
  "reference_prefix": "PNCR",
  "infra_metrics": null,
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "Number of offices - National (offices)": "67 [p.84]",
+   "Markets served - National (No. of States) (States)": "11 [p.84]",
+   "Permanent employees (employees)": "4,990 [p.84]",
+   "Other than Permanent employees (employees)": "2,632 [p.84]",
+   "Total employees (employees)": "7,622 [p.84]",
+   "Lost Time Injury Frequency Rate (LTIFR) - Employees (per one million-person hour": "0.42 [p.101]",
+   "Total recordable work-related injuries - Employees (injuries)": "45 [p.101]",
+   "No. of fatalities - Employees (fatalities)": "5 [p.101]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -439,5 +452,62 @@
  },
  "profile": {
   "auditor": "NSBP & Co."
+ },
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "PNC Infratech Limited",
+  "cin": "L45201DL1999PLC195937",
+  "pan": null,
+  "credit_rating": "CARE AA+ (RWN)",
+  "reporting_date": "31-Mar-2026",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Infrastructure",
+  "group": "PNC Infratech Group",
+  "fund_based": [
+   {
+    "facility_type": "Term loans (all lenders)",
+    "sanction_limit_cr": 239.93,
+    "outstanding_cr": 203.94,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "As per the charges register"
+   },
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 745.51,
+    "outstanding_cr": 536.77,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 985.44,
+   "total_fund_based_outstanding": 740.71,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 985.44,
+   "total_exposure_outstanding": 740.71,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ },
+ "shareholding_source": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "pages": [
+   115,
+   116,
+   131,
+   132,
+   270,
+   271
+  ],
+  "page": 131,
+  "as_of": "March 31, 2026",
+  "method": "ai (page image)"
  }
 }

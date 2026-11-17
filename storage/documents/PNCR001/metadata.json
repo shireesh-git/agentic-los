@@ -1,6 +1,19 @@
 {
   "entity_id": "PNCR001",
-  "company_name": "PNC Infratech Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:23.980002",
+  "total_documents": 31,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "legal",
+    "collateral",
+    "ratings",
+    "gst",
+    "mca",
+    "banking",
+    "exchange",
+    "request"
+  ]
 }

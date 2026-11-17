@@ -69,10 +69,34 @@ def _empty(value) -> bool:
     return False
 
 
+# The bank's own records about the borrower: demo stand-ins while no core-banking / LMS / DMS system is connected
+# (config data_sources.yaml → demo_data.enabled), whatever the borrower (round 9: never shown as source data).
+_BANK_INTERNAL = {"existing_exposure", "conduct_analysis", "covenant_history", "collateral_analysis",
+                  "core_banking", "core_banking_analysis", "charges_data", "site_visit_data", "valuation_report_data",
+                  "bank_statement_analysis"}
+
+
+def _demo_external(company_data: dict) -> bool:
+    """Whether the bureau / MCA / GST payloads came from a demo registry file, not a live API."""
+    ext = company_data.get("external_data") or {}
+    return any(isinstance(v, dict) and (v.get("demo") or (v.get("provenance") or {}).get("demo")
+                                        or (v.get("provenance") or {}).get("via") == "demo_file")
+               for k, v in ext.items() if k in ("bureau_data", "mca_data", "gst_data"))
+
+
+def _bank_demo() -> bool:
+    try:
+        from src.core.config_manager import config
+        return bool(config.get("data_sources", "demo_data", "enabled", default=False))
+    except Exception:
+        return True
+
+
 def classify_fact_pack(fact_pack: dict, company_data: dict) -> dict:
     """{fact-pack key: {"class", "label", "note"}} for every section of the fact pack."""
     demo = (company_data.get("catalog_source") == "demo_catalog"
             or company_data.get("data_provider") == "synthetic_demo")
+    bank_demo = _bank_demo()
     out = {}
     for key, value in fact_pack.items():
         if key == "data_provenance":
@@ -92,12 +116,21 @@ def classify_fact_pack(fact_pack: dict, company_data: dict) -> dict:
             cls = "unavailable" if _empty(value) else ("synthetic_demo" if demo or company_data.get("etb_overlay")
                                                        else "source")
         elif key == "market_signals":
-            # In-code curated headlines (no feed, no URL): kept for testing, never shown as verified news.
-            cls = "unavailable" if _empty(value) else "synthetic_demo"
-            note = "" if cls == "unavailable" else "curated in-code signals, not from a verified news feed"
+            # headlines from the live news feed (GDELT) are external; curated ones are demo, never verified news
+            live = isinstance(value, list) and value and all(
+                (s.get("source") if isinstance(s, dict) else getattr(s, "source_name", "")) in ("GDELT", "rating_agency")
+                for s in value)
+            cls = "unavailable" if _empty(value) else ("external" if live else "synthetic_demo")
+            note = ("" if cls == "unavailable" else "live news feed (GDELT), screened for adverse items" if live
+                    else "curated demo signals, not from a verified news feed")
         elif key == "external_intelligence":
-            cls = "unavailable" if _empty(value) else ("synthetic_demo" if demo else "external")
-            note = "demo fixture bureau / GST / MCA data" if demo else "public-record payloads (bureau, GST, MCA)"
+            dem = demo or _demo_external(company_data)
+            cls = "unavailable" if _empty(value) else ("synthetic_demo" if dem else "external")
+            note = ("demo registry file standing in for the bureau / MCA / GST APIs" if dem
+                    else "public-record payloads (bureau, GST, MCA)")
+        elif key in _BANK_INTERNAL and bank_demo:
+            cls = "unavailable" if _empty(value) else "synthetic_demo"
+            note = "" if cls == "unavailable" else "the bank's own records: demo data, no core-banking system connected"
         elif key == "etb_behavioral_analytics":
             cls = "unavailable" if _empty(value) else "source"
         elif key in _BORROWER_RECORD:

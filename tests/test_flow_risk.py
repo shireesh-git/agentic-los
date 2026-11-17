@@ -202,15 +202,15 @@ def test_quality_blocks_on_madras(svc):
     case = next(c for c in svc.store.all() if c["entity_id"] == E and c["status"] == "open")
     v = svc.view(case["case_id"], rm)
     pts = {p["id"]: p for g in v["groups"] for p in g["points"]}
-    # the real FY2025 record (round 8): negative net worth (₹-32 Cr), current ratio 0.68x, two hard rules failed
+    # the real FY2025 record: negative net worth (₹-32 Cr) fails the positive-net-worth hard rule; current ratio 0.68x
     assert pts["dscr"]["computed"] and pts["dscr"]["band"]["status"]
     assert pts["current_ratio"]["band"]["status"] == "bad" and pts["net_worth_cr"]["value"] < 0
     assert pts["hard_rules_failed"]["value"] >= 1 and pts["hard_rules_failed"]["band"]["status"] == "bad"
     assert pts["sustainable_limit_cr"]["value"] is not None and pts["sustainable_limit_cr"]["band"]
-    assert pts["ews_flags"]["value"] >= 2 and pts["earnings_quality"]["value"] < 85
+    assert pts["ews_flags"]["value"] >= 1 and pts["earnings_quality"]["value"] < 85
     assert pts["revenue_cr"]["confidence"]["score"] <= 90 and "not cross-checked" in pts["revenue_cr"]["confidence"]["basis"]
     assert pts["revenue_truth"]["status"] == "unavailable"
-    assert pts["bureau_score"]["value"] == 612            # from the demo bureau file (E5): no live bureau connected
+    assert pts["bureau_score"]["value"] == 660            # demo bureau file: indicative from the BB+ rating (round 9)
     assert pts["constitution"]["value"].startswith("Government company (listed)")      # CIN …GOI…
     with pytest.raises(Exception, match="calculated"):
         svc.set_datapoint(case["case_id"], rm, "dscr", 1.5)

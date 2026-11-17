@@ -33,11 +33,45 @@ def main(only: list[str]) -> int:
         files = (dd._generate_kyc_documents(eid, data, out) + dd._generate_gst_summaries(eid, data, out)
                  + dd._generate_bureau_documents(eid, data, out) + dd._generate_banking_documents(eid, data, out))
         print(f"{eid}: {dd._latest_year_key(data['financials'])} · {len(files)} documents")
-    _registry_files(store, only)
+    _bank_book(store, only)                              # the bank's records first: the registry reads the conduct
+    _registry_files(borrowers.load_all(), only, rebuild_real=True)   # a real company: clean, from its record
     return 0
 
 
-def _registry_files(store: dict, only: list[str]) -> None:
+def _bank_book(store: dict, only: list[str]) -> None:
+    """The bank's own records about each borrower (src/data/demo_bank_book.py): for a real borrower they are
+    rebuilt from its audited figures, clean (no invented events); a fictional borrower keeps its designed story
+    and only gets the blocks it lacks. The charges register goes into its demo registry file."""
+    import json
+    from src.core.config_manager import config
+    from src.data import borrowers, demo_bank_book, demo_registry
+    cfg = dict(config.get("data_sources", "demo_data", "bank_book", default={}) or {})
+    cfg["tier1_capital_cr"] = config.get("exposure", "bank", "tier1_capital_cr", default=None)
+    policy = config.get("rules", "policy_thresholds", default={}) or {}
+    for eid, rec in sorted(store.items()):
+        if only and eid not in only:
+            continue
+        real = bool(rec.get("latest_statement_source"))
+        reg_path = demo_registry.path_for(eid)
+        reg = json.loads(reg_path.read_text(encoding="utf-8")) if reg_path else {}
+        status = (reg.get("bureau") or {}).get("dpd_status") or "Standard"
+        blocks = demo_bank_book.build(rec, cfg, policy, "Standard" if real else status)
+        rec = borrowers.load(eid)
+        added = []
+        for k in ("existing_exposure", "conduct", "covenants", "core_banking", "crilc"):
+            # a real company: rebuilt (empty when new to the bank); a fictional one: only what it lacks
+            if real or (not rec.get(k) and blocks[k]):
+                rec[k] = blocks[k]
+                added.append(k)
+        borrowers.save(eid, rec)
+        if reg_path and (real or not reg.get("charges")):
+            reg["charges"] = blocks["charges"]
+            reg_path.write_text(json.dumps(reg, indent=2, ensure_ascii=False) + chr(10), encoding="utf-8")
+            added.append("charges")
+        print(f"{eid}: bank records {', '.join(added) or 'kept'}")
+
+
+def _registry_files(store: dict, only: list[str], rebuild_real: bool = False) -> None:
     """A demo registry file (bureau, MCA, regulatory lists) for every borrower on record that has none and no
     bureau data of its own, so its six mandatory data checks can run (round 9). Hand-made files are kept."""
     import json
@@ -46,9 +80,13 @@ def _registry_files(store: dict, only: list[str]) -> None:
     from src.data import demo_registry
     by_rating = config.get("data_sources", "demo_data", "bureau_by_rating", default={}) or {}
     for eid, rec in sorted(store.items()):
-        if (only and eid not in only) or demo_registry.path_for(eid) or (rec.get("external_data") or {}).get("bureau_data"):
+        real = bool(rec.get("latest_statement_source"))
+        if (only and eid not in only) or (rec.get("external_data") or {}).get("bureau_data")                 or (demo_registry.path_for(eid) and not (rebuild_real and real)):
             continue
         data = demo_registry.from_record(rec, by_rating, date.today().isoformat())
+        old = demo_registry.load(eid) or {}
+        if old.get("charges"):
+            data["charges"] = old["charges"]             # written by _bank_book
         (demo_registry.ROOT / f"{eid}.json").write_text(json.dumps(data, indent=2, ensure_ascii=False) + chr(10),
                                                         encoding="utf-8")
         print(f"{eid}: demo registry file written ({data['bureau'].get('cmr_rank') or 'no rank'})")

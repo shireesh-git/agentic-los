@@ -1,8 +1,8 @@
 {
   "entity_id": "ADPT001",
   "source": "dms",
-  "last_fetched": "2026-11-16T22:40:59.752599",
-  "total_documents": 16,
+  "last_fetched": "2026-11-17T07:18:18.280016",
+  "total_documents": 14,
   "categories": [
     "kyc",
     "financials",
@@ -10,7 +10,6 @@
     "collateral",
     "ratings",
     "gst",
-    "mca",
     "banking",
     "request"
   ]

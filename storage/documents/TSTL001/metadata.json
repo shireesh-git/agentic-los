@@ -1,6 +1,17 @@
 {
   "entity_id": "TSTL001",
-  "company_name": "Tata Steel Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:25.519857",
+  "total_documents": 15,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "collateral",
+    "ratings",
+    "gst",
+    "banking",
+    "exchange",
+    "request"
+  ]
 }

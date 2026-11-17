@@ -1,6 +1,19 @@
 {
   "entity_id": "APOL001",
-  "company_name": "Apollo Hospitals Enterprise Limited",
-  "document_index": {},
-  "fetch_status": {}
+  "source": "dms",
+  "last_fetched": "2026-11-17T07:18:18.669859",
+  "total_documents": 27,
+  "categories": [
+    "kyc",
+    "financials",
+    "bureau",
+    "legal",
+    "collateral",
+    "ratings",
+    "gst",
+    "mca",
+    "banking",
+    "exchange",
+    "request"
+  ]
 }

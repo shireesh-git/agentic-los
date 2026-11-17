@@ -29,6 +29,9 @@ hard_rules:
     applies_to: "NTB"
     min_years: 3
     description: "Company must be at least 3 years old for NTB"
+  positive_net_worth:
+    enabled: true
+    description: "Net worth must be positive (latest audited balance sheet)"
 
 scoring:
   base_financial_score: 70

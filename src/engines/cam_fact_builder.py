@@ -1187,6 +1187,16 @@ def _build_charges_data(borrower, probe_bundle=None):
             return payload
     except Exception:
         pass
+    # the demo MCA charges register (storage/demo_registry), while the MCA API is not connected
+    try:
+        from src.core.config_manager import config
+        from src.data import demo_registry
+        if config.get("data_sources", "demo_data", "enabled", default=False):
+            demo = (demo_registry.load(borrower.entity_id, borrower.cin) or {}).get("charges")
+            if demo and demo.get("charges"):
+                return {**demo, "demo": True}
+    except Exception:
+        pass
     return {}
 
 

@@ -33,9 +33,9 @@
   "entities": [
    "TITN001"
   ],
-  "promoter_holding_pct": null,
-  "institutional_holding_pct": null,
-  "public_holding_pct": null,
+  "promoter_holding_pct": 52.9,
+  "institutional_holding_pct": 30.68,
+  "public_holding_pct": 16.42,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -284,7 +284,20 @@
  "conduct": [],
  "covenants": [],
  "exchange_filing": null,
- "sector_kpis": {},
+ "sector_kpis": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "Operating highlights FY2026": {
+   "On-Roll Employees - Manufacturing (Nos.)": "3,161 [p.65]",
+   "On-Roll Employees - Sales, Marketing & Retail (Nos.)": "5,032 [p.65]",
+   "Number of Showrooms across all Formats (Nos.)": "3,603 [p.65]",
+   "Retail Footprint (Sq. Ft.)": "45,97,118 [p.65]",
+   "Touchpoints (Apart from Showrooms) (Nos.)": "13,700 [p.65]",
+   "Mia by Tanishq stores (stores)": "292 [p.156]",
+   "CaratLane store count (stores)": "378 [p.156]",
+   "Zoya exclusive boutiques (exclusive boutiques)": "13 [p.156]",
+   "source": "Annual report FY2026"
+  }
+ },
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -381,5 +394,53 @@
   "document": "ratings/rating_rationale_crisil_2026-09-23.pdf",
   "short_term": null,
   "date": "September 23, 2026"
+ },
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "Titan Company Limited",
+  "cin": "L74999TZ1984PLC001456",
+  "pan": null,
+  "credit_rating": "CRISIL AAA (Stable)",
+  "reporting_date": "31-Mar-2026",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Trading",
+  "group": "Tata Group",
+  "fund_based": [
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 8665.28,
+    "outstanding_cr": 6239.0,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 8665.28,
+   "total_fund_based_outstanding": 6239.0,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 8665.28,
+   "total_exposure_outstanding": 6239.0,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ },
+ "shareholding_source": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "pages": [
+   66,
+   67,
+   136,
+   137,
+   204,
+   205
+  ],
+  "page": 204,
+  "as_of": "31st March 2026",
+  "method": "ai (page image)"
  }
 }

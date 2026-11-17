@@ -111,8 +111,14 @@ marked `demo_file: true` in `data_sources.yaml` uses it before asking for a docu
 file is labelled "demo data" on screen, in the CAM and in Copilot answers.
 
 To switch demo data off (for production), set `demo_data: {enabled: false}` in `data_sources.yaml`. The demo
-borrowers show three cases: Infosys and most others pass all six; Madras Fertilizers fails "suits filed"; Indian
-Hotels has no bureau report, so "bureau status" stays not verified.
+file for a real company is generated from its data file and is clean — no invented defaults, suits or SMA status;
+a real company's weaknesses show in its real figures. The fictional borrowers keep their designed stories (ABC
+Engineering's bureau record does not state two of the lists, so those checks stay not verified).
+
+**The bank's own records** (existing facilities, account conduct, covenant testing, core banking, CRILC, the charges
+register) are demo data generated from each borrower's audited figures — `demo_data.bank_book` sets the bank's
+share of the borrowings, utilisation, the cap on exposure as a share of Tier 1, and so on. A new-to-bank borrower
+(facility `case_type: NTB`) has none of these with the bank; only the all-lender CRILC report and the charges.
 
 ### Test a new-to-bank borrower (UAT test packs)
 

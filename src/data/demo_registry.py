@@ -147,6 +147,7 @@ def from_record(rec: dict, by_rating: dict, as_of: str) -> dict:
         "bureau": {**{k: proxy.get(k) for k in ("credit_score", "cmr_rank")},
                    "dpd_status": status, "max_dpd_last_12m": dpd, "worst_status_12m": status,
                    "total_outstanding_cr": round(float(debt), 2) if debt is not None else None,
+                   "total_lenders": ((rec.get("crilc") or {}).get("aggregate_exposure") or {}).get("number_of_lenders"),
                    "basis": f"Indicative from the external rating {get('credit_rating')}" if proxy
                             else "No external rating on record: rank not indicated"},
         "mca": {"company_name": get("company_name"), "cin": get("cin"), "status": "Active",

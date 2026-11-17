@@ -28,9 +28,9 @@
   "entities": [
    "MFL001"
   ],
-  "promoter_holding_pct": null,
-  "institutional_holding_pct": null,
-  "public_holding_pct": null,
+  "promoter_holding_pct": 85.27,
+  "institutional_holding_pct": 0.05,
+  "public_holding_pct": 14.68,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -389,5 +389,53 @@
   "short_term": null,
   "date": "December 31, 2025"
  },
- "profile": {}
+ "profile": {},
+ "crilc": {
+  "note": "DEMO DATA: the bank's own records (not public). Generated from the borrower's audited figures.",
+  "borrower_name": "Madras Fertilizers Limited",
+  "cin": "L32201TN1966GOI005469",
+  "pan": null,
+  "credit_rating": "CARE BB+ (Stable)",
+  "reporting_date": "31-Mar-2025",
+  "reporting_bank": "All lenders (demo aggregation)",
+  "bank_code": "DEMO",
+  "sector": "Sector.Manufacturing",
+  "group": "Madras Fertilizers Limited",
+  "fund_based": [
+   {
+    "facility_type": "Working capital (all lenders)",
+    "sanction_limit_cr": 2214.32,
+    "outstanding_cr": 1594.31,
+    "dpd": 0,
+    "classification": "Standard",
+    "sma_flag": "None",
+    "security": "Hypothecation of current assets"
+   }
+  ],
+  "non_fund_based": [],
+  "aggregate_exposure": {
+   "total_fund_based_sanction": 2214.32,
+   "total_fund_based_outstanding": 1594.31,
+   "total_non_fund_based_sanction": 0.0,
+   "total_non_fund_based_outstanding": 0.0,
+   "total_exposure_sanction": 2214.32,
+   "total_exposure_outstanding": 1594.31,
+   "number_of_lenders": 6
+  },
+  "sma_history": []
+ },
+ "shareholding_source": {
+  "document": "financials/annual_report_fy2025.pdf",
+  "pages": [
+   190,
+   191,
+   233,
+   234,
+   325,
+   326
+  ],
+  "page": 233,
+  "as_of": "March 31, 2025",
+  "method": "ai (page image)"
+ }
 }

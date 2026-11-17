@@ -69,6 +69,10 @@ def generate_crilc_report(entity_id: str) -> dict:
     }
 
 
+def _pct(part, whole) -> str:
+    return f"{part / whole * 100:.1f}%" if whole else "—"
+
+
 def _build_crilc_pdf(data: dict, output_file: Path):
     """Build the actual CRILC PDF document."""
 
@@ -101,8 +105,8 @@ def _build_crilc_pdf(data: dict, output_file: Path):
     elements.append(Paragraph("Section A: Borrower Information", section_style))
     info_data = [
         ["Borrower Name", data["borrower_name"], "CIN", data["cin"]],
-        ["PAN", data["pan"], "Sector", data["sector"]],
-        ["Group", data["group"], "Credit Rating", data["credit_rating"]],
+        ["PAN", data.get("pan") or "Taken at KYC", "Sector", data.get("sector") or "—"],
+        ["Group", data.get("group") or "—", "Credit Rating", data.get("credit_rating") or "—"],
         ["Reporting Date", data["reporting_date"], "Reporting Bank", data["reporting_bank"]],
     ]
     info_tbl = Table(info_data, colWidths=[4 * cm, 8 * cm, 4 * cm, 8 * cm])
@@ -185,11 +189,11 @@ def _build_crilc_pdf(data: dict, output_file: Path):
     agg_data = [
         ["Category", "Sanction (₹ Cr)", "Outstanding (₹ Cr)", "Utilization %"],
         ["Fund-Based", f"{agg['total_fund_based_sanction']:,.2f}", f"{agg['total_fund_based_outstanding']:,.2f}",
-         f"{(agg['total_fund_based_outstanding']/agg['total_fund_based_sanction']*100):.1f}%"],
+         _pct(agg['total_fund_based_outstanding'], agg['total_fund_based_sanction'])],
         ["Non-Fund Based", f"{agg['total_non_fund_based_sanction']:,.2f}", f"{agg['total_non_fund_based_outstanding']:,.2f}",
-         f"{(agg['total_non_fund_based_outstanding']/agg['total_non_fund_based_sanction']*100):.1f}%"],
+         _pct(agg['total_non_fund_based_outstanding'], agg['total_non_fund_based_sanction'])],
         ["TOTAL", f"{agg['total_exposure_sanction']:,.2f}", f"{agg['total_exposure_outstanding']:,.2f}",
-         f"{(agg['total_exposure_outstanding']/agg['total_exposure_sanction']*100):.1f}%"],
+         _pct(agg['total_exposure_outstanding'], agg['total_exposure_sanction'])],
     ]
     agg_tbl = Table(agg_data, colWidths=[5 * cm, 4 * cm, 4 * cm, 3 * cm])
     agg_tbl.setStyle(TableStyle([
@@ -243,7 +247,7 @@ def _build_crilc_pdf(data: dict, output_file: Path):
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(Paragraph(
         f"Report generated on: {datetime.now().strftime('%d-%b-%Y %H:%M')} | "
-        f"Reference: CRILC/{data['bank_code']}/{data['cin']}/{data['reporting_date'].replace('-','')}",
+        f"Reference: CRILC/{data.get('bank_code', 'DEMO')}/{data['cin']}/{data['reporting_date'].replace('-','')}",
         note_style,
     ))
 

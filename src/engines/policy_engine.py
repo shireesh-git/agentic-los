@@ -65,6 +65,7 @@ def tier1_hard_rules(
     mca_status: str | None = None,
     demo_evidence: bool = False,
     mca_demo: bool = False,
+    net_worth: tuple | None = None,
 ) -> list[PolicyDecision]:
     """Hard rules that must pass before proceeding.
 
@@ -175,6 +176,16 @@ def tier1_hard_rules(
             result="not_verified" if age_years is None else ("pass" if age_years >= min_years else "fail"),
             details="Date of incorporation not on record" if age_years is None else f"Company age: {age_years:.1f} years",
         ))
+
+    # Rule 6b: positive net worth on the latest audited balance sheet (``net_worth`` = (period, ₹ Cr))
+    nw_cfg = _hard_rule_config("positive_net_worth")
+    if nw_cfg.get("enabled", False) and net_worth is not None:
+        period, nw = net_worth
+        decisions.append(PolicyDecision(
+            entity_id=borrower.entity_id, tier="tier1_hard_rules", rule_code="HR_POSITIVE_NET_WORTH",
+            rule_description=nw_cfg.get("description", "Net worth must be positive"),
+            result="not_verified" if nw is None else ("pass" if nw > 0 else "fail"),
+            details="Net worth not on record" if nw is None else f"Net worth ₹{nw:,.2f} Cr ({period}, audited)"))
 
     # Rule 7: RBI fraud registry check
     bureau_rule("HR_FRAUD_REGISTRY", "Borrower must not be flagged in fraud registry (RBI CFMC)", "fraud_flag", bool,
