@@ -60,3 +60,22 @@ def test_every_borrower_has_a_demo_registry_file_built_from_its_record():
     d = demo_registry.from_record(rec, {"BBB": {"cmr_rank": "CMR-4", "credit_score": 720}}, "2026-11-16")
     assert d["bureau"]["dpd_status"] == "SMA-1" and d["bureau"]["cmr_rank"] == "CMR-4"
     assert d["mca"]["company_name"] == rec["borrower"].company_name and "DEMO DATA" in d["note"]
+
+
+def test_every_borrower_passes_the_test_data_validation():
+    """scripts/validate_test_data.py: CIN / PAN format and incorporation year, demo registry and demo documents
+    naming the borrower only, no invented news / filings / KPIs, no personal data on directors. (The checks
+    against the annual reports run where the reports are fetched; tests run without them.)"""
+    import importlib.util
+    from pathlib import Path
+    from src.data import borrowers
+    spec = importlib.util.spec_from_file_location("v", Path(__file__).resolve().parents[1] / "scripts" / "validate_test_data.py")
+    v = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v)
+    problems = {e: [m for lvl, m in v.check(e, borrowers.load(e)) if lvl == "error"] for e in borrowers.ids()}
+    assert not {e: p for e, p in problems.items() if p}
+    for e in borrowers.ids():
+        rec = borrowers.load(e)
+        if rec.get("latest_statement_source"):
+            assert not rec.get("market_signals") and not rec.get("sector_kpis"), e
+            assert all(d.net_worth_cr is None and d.pan is None for d in rec.get("directors") or []), e

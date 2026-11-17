@@ -556,6 +556,7 @@ class FlowService:
 
     def _acquire_run(self, case_id: str, only: Optional[set]) -> None:
         job = self._acq[case_id]
+        analyse_ingested = False
         try:
             with self._lock:
                 case = self._require(case_id)
@@ -601,6 +602,9 @@ class FlowService:
                 elif (case.get("cam") or {}).get("mode") == "upload" and first:
                     self._statements_into_ingested(case)
                     self._save(case)
+                cam = case.get("cam") or {}
+                # an ingested CAM is analysed once the borrower's data is in (a prospect: after the agents)
+                analyse_ingested = cam.get("mode") == "upload" and (cam.get("analysis") or {}).get("state") != "done"
         except Exception as e:                                   # recorded; the RM can retry from the panel
             log.exception("Data acquisition failed for %s", case_id)
             with self._lock:
@@ -615,6 +619,8 @@ class FlowService:
                 job["running"] = False
             if again is None or again:
                 self._start_acquire(case_id, again)
+            elif analyse_ingested:
+                self._start_analysis(case_id)
 
     def _acq_summary(self, case: dict, first: bool) -> str:
         acq = case["acquisition"]
@@ -1088,6 +1094,13 @@ class FlowService:
             d = dp.get(k) or {}
             return d.get("value") if (d.get("source") or {}).get("kind") == "person" else None
 
+        def stated(k):                                   # an officer's entry, else what the ingested CAM states
+            d = dp.get(k) or {}
+            return d.get("value") if (d.get("source") or {}).get("kind") in ("person", "upload") else None
+
+        if (case.get("cam") or {}).get("mode") == "upload":
+            person = stated                              # noqa: F811 - the bank's CAM is the proposal
+
         if person("amount_cr") is not None:
             fac["amount_cr"] = person("amount_cr")
         if person("tenor_months") is not None:
@@ -1304,6 +1317,9 @@ class FlowService:
         engine = self._with_limit(engine)
         with self._lock:
             case = self._require(case_id)
+            if (case.get("cam") or {}).get("mode") == "upload":
+                self._analysis_done(case, engine)
+                return
             narrative = next((e for e in engine.get("pipeline_log") or [] if e.get("agent_name") == "narrative"), {})
             diag = narrative.get("diagnostics") or {}
             first = not (case.get("cam") or {}).get("run_id")
@@ -1351,6 +1367,36 @@ class FlowService:
                 self._ask_next(case)
             self._save(case)
 
+    def _analysis_done(self, case: dict, engine: dict) -> None:
+        """The engine's analysis of an ingested CAM: everything the risk view needs; a field is filled only where
+        the bank's CAM (or an officer) left it empty."""
+        found = {k: v for k, v in dpx.from_engine(engine).items()
+                 if (case["dp"].get(k) or {}).get("value") in (None, "")
+                 and (case["dp"].get(k) or {}).get("status") != "skipped"}
+        for k, hit in found.items():                     # not _fill: it would clear what the CAM states
+            cur = case["dp"].get(k) or {}
+            case["dp"][k] = {"value": hit["value"], "source": hit["source"], "status": "filled",
+                             "flag": hit.get("flag"), "history": cur.get("history") or []}
+        case["against"] = rk.challenges(engine)
+        case["risk"] = rk.assess(engine)
+        case["checks"] = chk.from_engine(engine) or case.get("checks")
+        case["observations"] = [{k: o.get(k) for k in ("title", "severity", "summary")}
+                                for o in engine.get("observations") or []]
+        self._build_register(case, engine)
+        keep = {a["id"] for a in case["against"]}
+        case["responses"] = {k: v for k, v in (case.get("responses") or {}).items() if k in keep}
+        self._refresh_risks(case)
+        case["cam"]["analysis"] = {"state": "done", "run_id": engine.get("run_id"), "at": self._stamp()}
+        r = case.get("risk") or {}
+        self._say(case, f"Analysis of the ingested CAM complete: engine verdict {r.get('label') or '—'} (internal "
+                        f"rating {r.get('rating') or '—'}); {len(case['against'])} key risk challenge(s), "
+                        f"{len(case.get('register') or [])} policy deviation(s), {len(found)} empty field(s) filled. "
+                        f"See Risk & decision.", kind="warn" if r.get("tone") == "bad" else "info",
+                  stage=self.stages()[0]["id"])
+        self._log(case, "cam_analysed", None, run_id=engine.get("run_id"), filled=len(found))
+        self._ask_next(case)
+        self._save(case)
+
     @staticmethod
     def _explain(error: str) -> str:
         """An engine failure in words the officer can act on (the raw error stays in the log)."""
@@ -1371,6 +1417,12 @@ class FlowService:
         job.error = error
         with self._lock:
             case = self._require(case_id)
+            if case["cam"].get("mode") == "upload":
+                case["cam"]["analysis"] = {"state": "failed", "error": error}
+                self._say(case, f"The analysis of the ingested CAM stopped: {error[:200]}. The CAM itself is kept.",
+                          kind="warn", stage=self.stages()[0]["id"])
+                self._save(case)
+                return
             case["cam"] = {**case["cam"], "state": "failed", "error": error}
             self._log(case, "cam_failed", None, error=error, sections_done=job.sections_done)
             self._say(case, f"CAM generation stopped: {error[:200]}. Sections already written are saved; Resume "
@@ -1457,6 +1509,7 @@ class FlowService:
             self._build_register(case, engine)
             self._log(case, "cam_upload", session, file=safe, read_by=how, filled=len(found))
             self._intro_after_cam(case, "ingested from the bank's CAM" + (" (embedded data sheet)" if how == "sheet" else ""))
+            analyse = self._can_generate(case) and how != "sheet"
             # a prospect whose data the agents have not gathered yet: they run now, and the audited figures fill
             # what the bank's CAM does not state
             kick = bool(case.get("is_prospect") and self.acquirer
@@ -1468,7 +1521,24 @@ class FlowService:
             self._save(case)
         if kick:
             self._start_acquire(case_id)
+        elif analyse:
+            self._start_analysis(case_id)
         return self._require(case_id)
+
+    def _start_analysis(self, case_id: str) -> None:
+        """An ingested bank CAM is analysed by the CAM engine like a generated one (round 9): verdict, ratios against
+        policy, mandatory checks, key risk challenges and the deviation register, on the audited figures and the
+        facility the CAM proposes. The bank's CAM stays the CAM; the engine writes no narrative with the AI."""
+        with self._lock:
+            case = self._require(case_id)
+            if self.jobs.running(case_id) or not self._can_generate(case):
+                return
+            case["cam"]["analysis"] = {"state": "running", "started_at": self._stamp()}
+            self._say(case, "The CAM engine is now analysing the ingested CAM: verdict, ratios against policy, "
+                            "mandatory checks, key risk challenges and the deviation register.",
+                      stage=self.stages()[0]["id"])
+            self._save(case)
+            self.jobs.start(case_id, case["entity_id"], {**self._overrides(case), "analysis_only": True}, "analyse")
 
     def _from_sheet(self, sheet: dict, content: bytes, file_name: str) -> dict:
         pages = dpx.page_texts(content)

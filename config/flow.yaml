@@ -131,8 +131,8 @@ datapoints:
   - {id: current_ratio, group: metrics, label: Current ratio, type: ratio, agent_only: true, computed: true, band: {policy: min_current_ratio, way: min}}
   - {id: tol_tnw, group: metrics, label: TOL / TNW, type: ratio, agent_only: true, computed: true, band: {policy: max_tol_tnw, way: max}}
   - {id: debt_to_equity, group: metrics, label: Debt / equity, type: ratio, agent_only: true, computed: true, band: {policy: max_debt_to_equity, way: max}}
-  - {id: sustainable_limit_cr, group: metrics, label: Sustainable limit (₹ Cr), type: amount, agent_only: true, computed: true, band: {vs: recommended_cr}}
-  - {id: assessed_limit_cr, group: metrics, label: Assessed limit (₹ Cr), type: amount, agent_only: true, computed: true, band: {vs: recommended_cr}, unavailable: "Not assessed — see Limit assessment"}
+  - {id: sustainable_limit_cr, group: metrics, label: Sustainable limit (₹ Cr), type: amount, agent_only: true, computed: true, band: {vs: recommended_cr}, help: "The most the bank can lend before a policy ratio (e.g. Debt / EBITDA, DSCR) breaks, given the borrower's earnings and existing debt. The recommended amount should not exceed it."}
+  - {id: assessed_limit_cr, group: metrics, label: Assessed limit (₹ Cr), type: amount, agent_only: true, computed: true, band: {vs: recommended_cr}, unavailable: "Not assessed — see Limit assessment", help: "How much working capital the business needs, from its turnover, MPBF (maximum permissible bank finance) or operating cycle. A working-capital limit above it is more than the operations need."}
   - {id: assessment_method, group: metrics, label: Assessment method, type: text, agent_only: true, computed: true}
   - {id: audit_opinion, group: metrics, label: Audit opinion, type: text, agent_only: true, computed: true, unavailable: "No annual report on record"}
   - {id: notes_red_flags, group: metrics, label: Auditor / CARO red flags, type: number, agent_only: true, computed: true, band: {max: 0, bad_above: 0}}

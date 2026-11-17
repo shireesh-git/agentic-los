@@ -3,7 +3,7 @@
   "entity_id": "APOL001",
   "company_name": "Apollo Hospitals Enterprise Limited",
   "cin": "L85110TN1979PLC008035",
-  "pan": "AAACA1234K",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "healthcare",
   "subsector": "Hospitals & Health Services",
@@ -29,12 +29,11 @@
    "APOL001",
    "Apollo Health & Lifestyle Ltd",
    "Apollo Pharmacy",
-   "Apollo Munich Health Insurance",
    "Apollo Medics Ltd"
   ],
-  "promoter_holding_pct": 29.27,
-  "institutional_holding_pct": 48.5,
-  "public_holding_pct": 22.23,
+  "promoter_holding_pct": 28.02,
+  "institutional_holding_pct": 65.61,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -43,18 +42,48 @@
  },
  "directors": [
   {
-   "din": "00003964",
-   "name": "Dr. Prathap C. Reddy",
+   "din": "00003654",
+   "name": "Dr. Prathap C Reddy",
    "designation": "Executive Chairman",
    "entity_id": "APOL001",
    "pan": null,
    "date_of_appointment": null,
-   "other_directorships": [
-    "Apollo Health & Lifestyle Ltd",
-    "Apollo Medics Ltd"
-   ],
-   "net_worth_cr": 18500.0,
-   "is_promoter": true
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00001835",
+   "name": "Smt. Rama Bijapurkar",
+   "designation": "Independent Director",
+   "entity_id": "APOL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00006285",
+   "name": "Smt. Sangita Reddy",
+   "designation": "Executive Director",
+   "entity_id": "APOL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00001871",
+   "name": "Preetha Reddy",
+   "designation": "Executive Vice Chairperson",
+   "entity_id": "APOL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
   },
   {
    "din": "00001873",
@@ -63,32 +92,8 @@
    "entity_id": "APOL001",
    "pan": null,
    "date_of_appointment": null,
-   "other_directorships": [
-    "Apollo Health & Lifestyle Ltd"
-   ],
-   "net_worth_cr": 4200.0,
-   "is_promoter": true
-  },
-  {
-   "din": "00056809",
-   "name": "Shobana Kamineni",
-   "designation": "Executive Vice Chairperson",
-   "entity_id": "APOL001",
-   "pan": null,
-   "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 3800.0,
-   "is_promoter": true
-  },
-  {
-   "din": "05171022",
-   "name": "Krishnan Akhileswaran",
-   "designation": "CFO",
-   "entity_id": "APOL001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [],
-   "net_worth_cr": 85.0,
+   "net_worth_cr": null,
    "is_promoter": false
   }
  ],
@@ -259,38 +264,7 @@
    "encumbrance_status": "clear"
   }
  ],
- "market_signals": [
-  {
-   "entity_id": "APOL001",
-   "signal_type": "news",
-   "headline": "Apollo Hospitals revenue crosses ₹21,000 Cr; EBITDA margin expands to 17%",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Economic Times",
-   "signal_date": "2025-05-15",
-   "details": ""
-  },
-  {
-   "entity_id": "APOL001",
-   "signal_type": "analyst",
-   "headline": "ICRA reaffirms AA+/Stable for Apollo; strong hospital ARPOB growth noted",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "ICRA",
-   "signal_date": "2025-07-10",
-   "details": ""
-  },
-  {
-   "entity_id": "APOL001",
-   "signal_type": "news",
-   "headline": "Apollo 24|7 digital platform crosses 100M users; pharmacy network at 4,200+ stores",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Mint",
-   "signal_date": "2025-08-22",
-   "details": ""
-  }
- ],
+ "market_signals": [],
  "existing_exposure": [],
  "conduct": [],
  "covenants": [],
@@ -300,62 +274,7 @@
  "catalog_source": "reference_catalog",
  "preferred_identifier": "Apollo Hospitals Enterprise Limited",
  "reference_prefix": "Apollo Hosp",
- "sector_kpis": {
-  "sector_type": "hospitals_healthcare",
-  "hospital_network": {
-   "total_hospitals": 73,
-   "owned_hospitals": 42,
-   "managed_hospitals": 31,
-   "total_beds": 10122,
-   "operational_beds": 8850,
-   "icu_beds": 2200,
-   "avg_occupancy_pct_fy25": 68.5,
-   "avg_occupancy_pct_fy24": 65.2,
-   "avg_occupancy_pct_fy23": 62.8,
-   "source": "Company Annual Report"
-  },
-  "revenue_metrics": {
-   "arpob_rs_fy25": 48500,
-   "arpob_rs_fy24": 45200,
-   "arpob_rs_fy23": 42800,
-   "alos_days": 3.8,
-   "payor_mix_insurance_pct": 45,
-   "payor_mix_self_pay_pct": 38,
-   "payor_mix_govt_pct": 17,
-   "source": "Company Investor Presentation"
-  },
-  "pharmacy_network": {
-   "apollo_pharmacy_stores": 5800,
-   "pharmacy_revenue_cr_fy25": 7200,
-   "pharmacy_ebitda_margin_pct": 4.2,
-   "online_pharmacy_pct": 15,
-   "source": "Company Segment Report"
-  },
-  "digital_health": {
-   "apollo_247_users_mn": 42,
-   "teleconsultation_mn_fy25": 8.5,
-   "apollo_healthco_revenue_cr": 1200,
-   "source": "Company Digital Health Report"
-  },
-  "clinical_excellence": {
-   "organ_transplants_fy25": 1850,
-   "cardiac_surgeries_fy25": 12500,
-   "international_patients_fy25": 45000,
-   "nabh_accredited_hospitals": 42,
-   "jci_accredited": 5,
-   "source": "Company Clinical Report; NABH"
-  },
-  "development_projections": {
-   "new_beds_addition_fy26": 1200,
-   "new_beds_addition_fy27": 1500,
-   "capex_plan_fy26_cr": 2800,
-   "capex_plan_fy27_cr": 3200,
-   "projected_revenue_fy26_cr": 22000,
-   "projected_revenue_fy27_cr": 25500,
-   "target_occupancy_fy28_pct": 75,
-   "source": "Company Guidance; Hospital Expansion Plan"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -473,10 +392,7 @@
   "method": "layout, confirmed by AI",
   "unit": "million"
  },
- "identifiers": {
-  "pan": "AAACA1234K",
-  "gstin": "33AAACA1234K1Z1"
- },
+ "identifiers": {},
  "name_aliases": [
   "apollo hospitals",
   "apollo hospitals enterprise limited"
@@ -486,16 +402,16 @@
   "wikipedia_title": "Apollo Hospitals",
   "official_url": "https://www.apollohospitals.com/",
   "bse_code": "508869",
-  "auditor": "S.R. Batliboi & Associates LLP"
+  "auditor": "Deloitte Haskins & Sells LLP"
  },
  "crilc": {
   "borrower_name": "Apollo Hospitals Enterprise Limited",
   "cin": "L85110TN1979PLC008035",
-  "pan": "AAACA1234K",
+  "pan": null,
   "sector": "Healthcare",
   "group": "Apollo Group",
-  "credit_rating": "ICRA AA+ / Stable",
-  "reporting_date": "31-Mar-2025",
+  "credit_rating": "CRISIL AA+ (Positive)",
+  "reporting_date": "31-Mar-2026",
   "reporting_bank": "State Bank of India",
   "bank_code": "SBI001",
   "fund_based": [

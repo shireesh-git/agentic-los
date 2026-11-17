@@ -2,14 +2,14 @@
  "borrower": {
   "entity_id": "MFL001",
   "company_name": "Madras Fertilizers Limited",
-  "cin": "L24100TN1966GOI005765",
-  "pan": "AAACM1234A",
+  "cin": "L32201TN1966GOI005469",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "manufacturing",
   "subsector": "Fertilizers — PSU",
   "date_of_incorporation": "1966-12-20",
   "registered_state": "Tamil Nadu",
-  "registered_address": "Manali, Chennai — 600 068, Tamil Nadu",
+  "registered_address": "Manali, Chennai - 600068",
   "authorized_capital": 1000.0,
   "paid_up_capital": 474.2,
   "listed_exchange": "NSE/BSE",
@@ -28,9 +28,9 @@
   "entities": [
    "MFL001"
   ],
-  "promoter_holding_pct": 0.0,
-  "institutional_holding_pct": 0.0,
-  "public_holding_pct": 0.0,
+  "promoter_holding_pct": null,
+  "institutional_holding_pct": null,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -39,45 +39,118 @@
  },
  "directors": [
   {
-   "din": "DIN08123456",
-   "name": "Shri K. Ramanathan",
-   "designation": "Chairman & Managing Director",
+   "din": "10690782",
+   "name": "Shri Manoj Kumar Jain",
+   "designation": "CMD",
    "entity_id": "MFL001",
    "pan": null,
-   "date_of_appointment": "2021-08-01",
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Fortune Biotech Ltd",
+    "The fertilizer associate India Ltd",
+    "Indian Potash Ltd"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07720240",
+   "name": "Dr Tina Soni",
+   "designation": "NED (GOI Nominee)",
+   "entity_id": "MFL001",
+   "pan": null,
+   "date_of_appointment": null,
    "other_directorships": [],
    "net_worth_cr": null,
    "is_promoter": false
   },
   {
-   "din": "DIN07234567",
-   "name": "Shri V. Shanmugam",
-   "designation": "Director (Finance)",
+   "din": "10062573",
+   "name": "Dr K Jayachandran",
+   "designation": "Director - Technical",
    "entity_id": "MFL001",
    "pan": null,
-   "date_of_appointment": "2020-03-15",
+   "date_of_appointment": null,
+   "other_directorships": [
+    "FACT"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07704367",
+   "name": "Shri Mohammad Bagher Dakhili",
+   "designation": "NED NICO Nominee",
+   "entity_id": "MFL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Chennai Petroleum Corpn. Ltd"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "08341090",
+   "name": "Shri Babak Bagherpour",
+   "designation": "NED NICO Nominee",
+   "entity_id": "MFL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Chennai Petroleum Corpn. Ltd"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "09066692",
+   "name": "Mrs.Samieh Kokabi",
+   "designation": "NED NICO Nominee",
+   "entity_id": "MFL001",
+   "pan": null,
+   "date_of_appointment": null,
    "other_directorships": [],
    "net_worth_cr": null,
    "is_promoter": false
   },
   {
-   "din": "DIN06345678",
-   "name": "Shri N. Palaniswamy",
-   "designation": "Director (Technical)",
+   "din": "02660442",
+   "name": "Dr Jatin Kumar Mohanty",
+   "designation": "Independent",
    "entity_id": "MFL001",
    "pan": null,
-   "date_of_appointment": "2019-06-10",
-   "other_directorships": [],
+   "date_of_appointment": null,
+   "other_directorships": [
+    "India post payment bank",
+    "Transworld manpower Pvt Ltd"
+   ],
    "net_worth_cr": null,
    "is_promoter": false
   },
   {
-   "din": "DIN09456789",
-   "name": "Smt. R. Lakshmi",
-   "designation": "Independent Director",
+   "din": "01089380",
+   "name": "Shri Sanjay Shetye",
+   "designation": "Independent",
    "entity_id": "MFL001",
    "pan": null,
-   "date_of_appointment": "2022-09-20",
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Orange Round ( OPC ) Pvt Ltd",
+    "Wisdom Tree Events Pvt Ltd",
+    "Short fuse studio Pvt Ltd",
+    "Pan to Plate venture Pvt Ltd"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "09395495",
+   "name": "Shri Alok Kumar Agragwal",
+   "designation": "Independent",
+   "entity_id": "MFL001",
+   "pan": null,
+   "date_of_appointment": null,
    "other_directorships": [],
    "net_worth_cr": null,
    "is_promoter": false
@@ -217,38 +290,7 @@
    "encumbrance_status": "assigned"
   }
  ],
- "market_signals": [
-  {
-   "entity_id": "MFL001",
-   "signal_type": "news",
-   "headline": "Central govt subsidy scheme boosts PSU fertilizer producers' margins",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Economic Times",
-   "signal_date": "2025-11-15",
-   "details": "New nutrient-based subsidy revision benefits complex fertilizer producers including Madras Fertilizers."
-  },
-  {
-   "entity_id": "MFL001",
-   "signal_type": "news",
-   "headline": "Madras Fertilizers to revamp Manali plant with ₹250 Cr capex",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Business Standard",
-   "signal_date": "2026-02-10",
-   "details": "Company received board approval for plant modernization to improve ammonia and urea capacity."
-  },
-  {
-   "entity_id": "MFL001",
-   "signal_type": "regulatory",
-   "headline": "CAG flags operational inefficiencies at Madras Fertilizers",
-   "sentiment": "negative",
-   "severity": "medium",
-   "source_name": "CAG Report",
-   "signal_date": "2025-08-20",
-   "details": "CAG report highlights production downtime and inventory management issues at Manali plant."
-  }
- ],
+ "market_signals": [],
  "existing_exposure": [],
  "conduct": [],
  "covenants": [],
@@ -258,40 +300,7 @@
  "catalog_source": "reference_catalog",
  "preferred_identifier": "Madras Fertilizers Limited",
  "reference_prefix": "Madras Fert",
- "sector_kpis": {
-  "sector_type": "fertilizer_manufacturing",
-  "capacity_profile": {
-   "urea_capacity_mtpa": 0.77,
-   "complex_fertilizer_capacity_mtpa": 0.52,
-   "capacity_utilization_urea_pct": 92.5,
-   "capacity_utilization_complex_pct": 78.3,
-   "plants": 1,
-   "plant_location": "Manali, Chennai",
-   "source": "Company Annual Report; Dept of Fertilizers"
-  },
-  "product_mix": {
-   "urea_revenue_pct": 48,
-   "complex_fertilizer_pct": 32,
-   "bio_fertilizer_pct": 5,
-   "industrial_chemicals_pct": 15,
-   "source": "Company Segment Report"
-  },
-  "subsidy_profile": {
-   "subsidy_income_pct_of_revenue": 65,
-   "subsidy_receivable_days": 90,
-   "subsidy_receivable_cr": 480,
-   "nbs_rate_per_ton_rs": 26800,
-   "source": "Dept of Fertilizers; Company Financials"
-  },
-  "development_projections": {
-   "energy_saving_capex_cr": 45,
-   "projected_revenue_fy26_cr": 3200,
-   "projected_revenue_fy27_cr": 3350,
-   "capex_plan_fy26_cr": 55,
-   "capex_plan_fy27_cr": 40,
-   "source": "Company Board Approval"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2025.capex",
@@ -379,5 +388,6 @@
   "document": "ratings/rating_rationale_care_2025-12-31.pdf",
   "short_term": null,
   "date": "December 31, 2025"
- }
+ },
+ "profile": {}
 }

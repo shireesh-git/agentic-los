@@ -140,7 +140,8 @@ def test_template_cam_does_not_invent_values(apol_fp):
 
 
 def test_curated_signals_and_demo_external_data_are_not_verified_evidence(apol_fp, abce_fp):
-    assert apol_fp["data_provenance"]["market_signals"]["class"] == "synthetic_demo"
+    # round 9: a real borrower carries no invented news (it comes from the live feed); a fictional one is demo
+    assert apol_fp["data_provenance"]["market_signals"]["class"] == "unavailable"
     assert abce_fp["data_provenance"]["market_signals"]["class"] == "synthetic_demo"
     assert abce_fp["data_provenance"]["external_intelligence"]["class"] == "synthetic_demo"
     assert abce_fp["data_provenance"]["web_crawl_news"]["class"] == "unavailable"

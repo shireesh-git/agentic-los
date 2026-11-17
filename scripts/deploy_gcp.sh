@@ -96,6 +96,9 @@ fi
 
 # max-instances 1: SQLite and the in-memory CAM jobs need a single instance.
 # no-cpu-throttling: CAM generation runs in background threads after the request returns.
+# The image build pre-reads every borrower's annual reports (250-580 pages each) into the extraction cache:
+# more than Cloud Build's default time.
+gcloud config set builds/timeout 5400 --quiet
 gcloud run deploy "$SERVICE" \
   --quiet \
   --region "$REGION" \

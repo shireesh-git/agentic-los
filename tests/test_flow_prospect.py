@@ -261,7 +261,7 @@ def test_dixon_prospect_api_first_then_documents_then_the_cam(svc, docs):
     # the borrower record the CAM engine reads
     company = svc.companies[case["entity_id"]]
     b = company["borrower"]
-    assert b.cin == CIN and b.pan == "AAACD3641D" and str(b.date_of_incorporation) == "1993-01-15"
+    assert b.cin == CIN and b.pan == "AAACZ3641D" and str(b.date_of_incorporation) == "1993-01-15"
     assert len(company["directors"]) == 8 and sorted(company["financials"]) == ["FY2025", "FY2026"]
     assert company["external_data"]["bureau_data"]["payload"]["total_exposure_cr"] == pytest.approx(2415.0)
     assert company["external_data"]["bureau_data"]["payload"]["fraud_flag"] is False     # list checks folded in

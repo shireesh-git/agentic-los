@@ -8,13 +8,13 @@
   "entity_id": "CIPL001",
   "company_name": "Cipla Limited",
   "cin": "L24239MH1935PLC002380",
-  "pan": "AAACC6789F",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "pharma",
   "subsector": "Formulations & Generic Drugs",
   "date_of_incorporation": "1935-08-22",
   "registered_state": "Maharashtra",
-  "registered_address": "Cipla House, Peninsula Business Park, Ganpatrao Kadam Marg, Mumbai 400013",
+  "registered_address": "Cipla House, Peninsula Business Park, Ganpatrao Kadam Marg, Lower Parel, Mumbai – 400 013",
   "authorized_capital": 400.0,
   "paid_up_capital": 161.02,
   "listed_exchange": "BSE, NSE",
@@ -35,9 +35,9 @@
    "Cipla Health Ltd",
    "Cipla Medpro SA"
   ],
-  "promoter_holding_pct": 33.5,
-  "institutional_holding_pct": 48.2,
-  "public_holding_pct": 18.3,
+  "promoter_holding_pct": 29.13,
+  "institutional_holding_pct": null,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -46,36 +46,124 @@
  },
  "directors": [
   {
-   "din": "00012345",
-   "name": "Umang Vohra",
-   "designation": "Managing Director & CEO",
+   "din": "09491674",
+   "name": "Mr Achin Gupta",
+   "designation": "Managing Director & Global Chief Executive Officer",
    "entity_id": "CIPL001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 320.0,
+   "net_worth_cr": null,
    "is_promoter": false
   },
   {
-   "din": "00013456",
-   "name": "Y.K. Hamied",
-   "designation": "Non-Executive Chairman",
+   "din": "00029049",
+   "name": "Dr Y K Hamied",
+   "designation": "Promoter Non- Executive Director",
    "entity_id": "CIPL001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 14500.0,
+   "net_worth_cr": null,
    "is_promoter": true
   },
   {
-   "din": "00014567",
-   "name": "Ashok Kumar Malhotra",
+   "din": "00024292",
+   "name": "Mr Kamil Hamied",
+   "designation": "Promoter Group Non- Executive Director",
+   "entity_id": "CIPL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": true
+  },
+  {
+   "din": "07115673",
+   "name": "Mr Abhijit Joshi",
+   "designation": "Non-Executive Director",
+   "entity_id": "CIPL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Navin Flourine International Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "06646490",
+   "name": "Mr Adil Zainulbhai",
+   "designation": "Non-Executive, Non-Independent Director",
+   "entity_id": "CIPL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Network18 Media & Investments Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "10479707",
+   "name": "Dr Balram Bhargava",
    "designation": "Independent Director",
    "entity_id": "CIPL001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 42.0,
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "09690327",
+   "name": "Dr Mandar Vaidya",
+   "designation": "Independent Director",
+   "entity_id": "CIPL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "01123969",
+   "name": "Ms Maya Hari",
+   "designation": "Independent Director",
+   "entity_id": "CIPL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "01915274",
+   "name": "Mr P R Ramesh",
+   "designation": "Independent Director",
+   "entity_id": "CIPL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Nestle India Limited",
+    "Crompton Greaves Consumer Electricals Limited",
+    "Tejas Networks Limited",
+    "Larsen & Toubro Limited",
+    "ITC Hotel Limited",
+    "Cyient Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "02328770",
+   "name": "Ms Sharmila Paranjpe",
+   "designation": "Independent Director",
+   "entity_id": "CIPL001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
    "is_promoter": false
   }
  ],
@@ -198,65 +286,7 @@
  "conduct": [],
  "covenants": [],
  "exchange_filing": null,
- "sector_kpis": {
-  "sector_type": "pharma_formulations",
-  "product_pipeline": {
-   "total_anda_filed": 285,
-   "anda_approved": 220,
-   "pending_anda": 65,
-   "nda_filings": 3,
-   "peptide_inhalation_pipeline": 12,
-   "biosimilar_pipeline": 5,
-   "source": "Company Investor Presentation; USFDA"
-  },
-  "manufacturing": {
-   "formulation_plants": 10,
-   "api_plants": 4,
-   "who_gmp_certified_plants": 12,
-   "usfda_approved_plants": 8,
-   "capacity_utilization_pct": 72,
-   "plant_locations": [
-    "Goa",
-    "Patalganga",
-    "Kurkumbh",
-    "Bengaluru",
-    "Baddi",
-    "Indore"
-   ],
-   "source": "Company Annual Report"
-  },
-  "geographic_mix": {
-   "india_pct": 40,
-   "north_america_pct": 24,
-   "africa_pct": 18,
-   "europe_pct": 10,
-   "row_pct": 8,
-   "source": "Company Segment Report"
-  },
-  "rd_profile": {
-   "rd_spend_pct_of_revenue": 5.8,
-   "rd_spend_cr_fy25": 1310,
-   "rd_employees": 1800,
-   "patents_granted": 420,
-   "source": "Company R&D Report"
-  },
-  "regulatory_compliance": {
-   "usfda_warning_letters": 0,
-   "usfda_observations_fy25": 2,
-   "who_prequalified_products": 45,
-   "last_usfda_inspection": "Sep 2024",
-   "source": "USFDA; WHO"
-  },
-  "development_projections": {
-   "capex_plan_fy26_cr": 1200,
-   "capex_plan_fy27_cr": 1400,
-   "projected_revenue_fy26_cr": 27500,
-   "projected_revenue_fy27_cr": 30500,
-   "respiratory_launch_revenue_cr": 850,
-   "biosimilar_launch_year": "FY2027",
-   "source": "Company Guidance"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -340,27 +370,14 @@
   "method": "ai (statement pages)",
   "unit": "crore"
  },
- "identifiers": {
-  "pan": "AAACC6789F",
-  "gstin": "27AAACC6789F1Z1"
- },
+ "identifiers": {},
  "name_aliases": [],
  "profile": {
   "actual_company_name": "Cipla Limited",
   "wikipedia_title": "Cipla",
   "official_url": "https://www.cipla.com/",
   "bse_code": "500087",
-  "auditor": "SRBC & Co LLP",
-  "narrative": {
-   "chairman_message": "Cipla continued to balance domestic branded growth with export market expansion and a measured specialty pipeline build-out.",
-   "mda_summary": "The operating profile benefits from a diversified mix across chronic therapies, respiratory products, generics exports, and institutional markets.",
-   "risk_factors": [
-    "USFDA and global regulatory compliance",
-    "Price erosion in export markets",
-    "Working-capital intensity in pharma distribution"
-   ],
-   "request_focus": "working-capital and capex support for pharma manufacturing and product pipeline expansion"
-  }
+  "auditor": "Walker Chandiok & Co LLP"
  },
  "rating_source": {
   "document": "ratings/rating_rationale_care_2026-09-10.pdf",

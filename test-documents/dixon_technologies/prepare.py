@@ -33,8 +33,8 @@ PUBLIC = {
 
 NAME = "DIXON TECHNOLOGIES (INDIA) LIMITED"
 CIN = "L32101UP1993PLC066581"
-PAN = "AAACD3641D"
-GSTIN = "09AAACD3641D1Z2"
+PAN = "AAACZ3641D"                                     # masked demo value (not in the public filings)
+GSTIN = "09AAACZ3641D1Z2"                          # masked demo value
 ADDRESS = "B-14 & 15, Phase-II, Noida, Gautam Buddha Nagar, Uttar Pradesh 201305"
 DEMO = "UAT DEMO DATA — prepared for testing from public disclosures; not issued by the named authority."
 
@@ -135,7 +135,7 @@ def make_demo(out: Path = HERE / "demo") -> Path:
              "Paid-up capital and directors per the FY2025-26 annual report; DIN shown as — where the annual "
              "report does not state it."])
     _pdf(out / "kyc" / "kyc_pack.pdf", "KYC Verification Pack", f"{NAME}", [
-        {"Company Name": NAME, "PAN": PAN, "CIN": CIN, "GSTIN": GSTIN,
+        {"Company Name": NAME, "PAN (masked demo)": PAN, "CIN": CIN, "GSTIN (masked demo)": GSTIN,
          "Certificate of Incorporation": "15/01/1993, Registrar of Companies, Kanpur",
          "Registered Office": ADDRESS, "Constitution": "Public limited company (listed on BSE and NSE)",
          "KYC Status": "Verified", "Verified On": "30/10/2026", "Customer Risk Category": "Low"},

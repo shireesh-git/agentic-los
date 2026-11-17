@@ -103,6 +103,7 @@ function flowApp() {
     toast: null,
     poll: null,
     srcPoll: null,
+    anaPoll: null,
     srcView: null,
     fsRows: [['revenue_operating', 'Revenue from operations'], ['other_income', 'Other income'], ['ebitda', 'EBITDA (incl. other income)'],
              ['finance_cost', 'Finance cost'], ['depreciation', 'Depreciation'], ['pbt', 'Profit before tax'], ['pat', 'Profit after tax'],
@@ -357,6 +358,10 @@ function flowApp() {
       if (v.cam && v.cam.state === 'running') this.startPoll(); else this.stopPoll();
       if (this.acquiring()) this.startSrcPoll(); else this.stopSrcPoll();
       this.$nextTick(() => this.scrollChat());
+      // an ingested CAM being analysed by the engine: refresh until the risk view is in
+      const analysing = v.cam && v.cam.mode === 'upload' && (v.cam.analysis || {}).state === 'running';
+      if (analysing && !this.anaPoll) this.anaPoll = setInterval(() => this.refresh(), 3000);
+      if (!analysing && this.anaPoll) { clearInterval(this.anaPoll); this.anaPoll = null; }
     },
 
     // ── proposal tabs (U1) and what needs the signed-in officer (U15) ─────────

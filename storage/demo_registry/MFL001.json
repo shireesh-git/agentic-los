@@ -2,7 +2,7 @@
   "entity_id": "MFL001",
   "note": "DEMO DATA: synthetic records standing in for bureau, MCA and regulatory-list APIs that are not connected. Not a real report on this company.",
   "as_of": "2026-11-01",
-  "cin": "L24100TN1966GOI005765",
+  "cin": "L32201TN1966GOI005469",
   "company_name": "Madras Fertilizers Limited",
   "bureau": {
     "credit_score": 612,
@@ -16,9 +16,9 @@
   },
   "mca": {
     "company_name": "Madras Fertilizers Limited",
-    "cin": "L24100TN1966GOI005765",
+    "cin": "L32201TN1966GOI005469",
     "status": "Active",
-    "date_of_incorporation": "1966-12-08",
+    "date_of_incorporation": "1966-12-20",
     "company_class": "Public, listed (Government company)"
   },
   "registries": {

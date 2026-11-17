@@ -91,11 +91,19 @@ def test_an_ingested_cam_is_checked_and_completed_from_the_audited_statements(sv
     svc.reset(rm, E)
     case = svc.create(rm, entity_id=E)
     svc.upload_cam(case["case_id"], rm, "bank_cam.pdf", _cam_pdf("160,000.00"))
+    svc.wait_for_cam(case["case_id"])                 # the engine analyses the ingested CAM
     pts = {p["id"]: p for g in svc.view(case["case_id"], rm)["groups"] for p in g["points"]}
     assert pts["revenue_cr"]["value"] == 160000.0 and "audited FY2026" in (pts["revenue_cr"]["flag"] or "")
     # not stated in the CAM → from the audited statements on record, with the formula
     assert pts["pat_cr"]["source"]["kind"] == "record" and pts["pat_cr"]["value"] is not None
     assert pts["current_ratio"]["source"]["label"].startswith("Ratio engine · Audited statements · FY2026")
+    # round 9: the CAM engine analyses the ingested CAM — the risk view as for a generated CAM, the bank's CAM kept
+    v = svc.view(case["case_id"], rm)
+    raw = svc._require(case["case_id"])
+    assert raw["cam"]["mode"] == "upload" and raw["cam"]["analysis"]["state"] == "done"
+    assert raw["risk"] and raw["risk"]["ratios"] and v["checks"]
+    assert pts["revenue_cr"]["source"]["kind"] == "upload"              # the CAM's own figure is not replaced
+    assert any("Analysis of the ingested CAM complete" in m["text"] for m in raw["chat"])
     svc.reset(rm, E)
 
 

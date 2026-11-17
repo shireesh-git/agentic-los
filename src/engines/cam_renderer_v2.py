@@ -398,16 +398,21 @@ def render_section_2_borrower_profile(fp: dict) -> str:
     # 2.4 Shareholding Pattern
     out += _h("2.4 Shareholding Pattern", 3)
     out += _hdr(["Category", "Holding (%)", "Source"])
-    out += _row(["Promoter & Promoter Group", f"{gp['promoter_holding_pct']:.1f}%", "BSE / NSE Filing"])
-    out += _row(["Institutional (FII/DII)", f"{gp['institutional_holding_pct']:.1f}%", "BSE / NSE Filing"])
-    out += _row(["Public / Others", f"{gp['public_holding_pct']:.1f}%", "BSE / NSE Filing"])
-    total = gp['promoter_holding_pct'] + gp['institutional_holding_pct'] + gp['public_holding_pct']
-    out += _row(["**Total**", f"**{total:.1f}%**", "Computed"])
+    hold = [gp.get(k) for k in ("promoter_holding_pct", "institutional_holding_pct", "public_holding_pct")]
+    pct = lambda v: f"{v:.1f}%" if isinstance(v, (int, float)) else "Not on record"          # noqa: E731
+    src = lambda v: "Annual report — shareholding pattern" if isinstance(v, (int, float)) else "—"  # noqa: E731
+    for label, v in zip(("Promoter & Promoter Group", "Institutional (FII/DII)", "Public / Others"), hold):
+        out += _row([label, pct(v), src(v)])
+    if all(isinstance(v, (int, float)) for v in hold):
+        out += _row(["**Total**", f"**{sum(hold):.1f}%**", "Computed"])
     out += "\n"
 
-    if gp["promoter_holding_pct"] > 50:
+    ph = gp.get("promoter_holding_pct")
+    if ph is None:
+        pass                                         # not on record: nothing to say
+    elif ph > 50:
         out += f"Promoter holding of {gp['promoter_holding_pct']:.1f}% indicates strong promoter control and alignment of interests.\n\n"
-    elif gp["promoter_holding_pct"] > 25:
+    elif ph > 25:
         out += f"Promoter holding of {gp['promoter_holding_pct']:.1f}% provides adequate governance control while allowing institutional participation.\n\n"
 
     # 2.5 Group Structure

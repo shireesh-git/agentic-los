@@ -104,7 +104,7 @@ class NarrativeAgent(BaseAgent):
         fact_pack_ms = round((time.perf_counter() - started) * 1000, 1)
         section_cb, counts = self._counting(context.get("_on_progress"))
 
-        if self._template_mode():
+        if self._template_mode() or (context.get("company_data") or {}).get("_analysis_only"):
             cam_text = render_cam_template_only(fact_pack, on_section_progress=section_cb)
             self.diagnostics = {"execution_mode": "template", "llm_invoked": False, "llm_calls": 0,
                                 "fact_pack_ms": fact_pack_ms, "fact_pack_keys": len(fact_pack), **counts}

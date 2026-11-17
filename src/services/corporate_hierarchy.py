@@ -71,7 +71,7 @@ def build_corporate_hierarchy(entity_id: str, borrower, directors: list,
         )
         if director_count >= 2:
             node.relationship = "subsidiary"
-            node.holding_pct = min(75.0, director_count * 25.0)
+            node.holding_pct = None                  # not estimated: a holding % comes only from a filing
             subsidiaries.append(node)
         else:
             node.relationship = "associate"

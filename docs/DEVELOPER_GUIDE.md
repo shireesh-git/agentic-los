@@ -75,7 +75,7 @@ is added but never replaces a data file. Reference data that is not about one bo
 |---|---|---|
 | Audited statements (FY2024–FY2026) | **Real** | Read from the annual reports by `scripts/read_fy2026_statements.py` (provenance in `latest_statement_source`) |
 | External rating | **Real** | Read from the rating rationale on file |
-| Name, CIN, listing details | **Real** | Public filings |
+| Name, CIN, registered office, auditor, board (DINs), shareholding | **Real** | Read from the annual report by `read_identity_from_reports.py` |
 | Collateral, conduct, existing exposure, covenants, CRILC, KYC / GST / bank / bureau documents | Demo | Bank-internal; labelled demo on screen |
 | Bureau / MCA / registry checks | Demo | `storage/demo_registry/<ID>.json` until the APIs are connected: written from the data file by `refresh_demo_documents.py` (MCA from the record, conduct classified as SMA, an indicative bureau rank from the external rating — `data_sources.yaml` → `bureau_by_rating`) |
 | Five synthetic borrowers (ABC, Bharat, Omega, Pinnacle, Sunrise) | Demo | Fictional, internally consistent |
@@ -87,8 +87,14 @@ rationales are committed (`scripts/save_rating_rationales.py`); demo documents a
 downloads the public reports and generates the demo documents).
 
 **Refreshing a listed borrower** when a new annual report is out: add its URL to `borrower_documents.yaml` →
-`fetch_borrower_documents.py` → `read_fy2026_statements.py <ID>` → `refresh_demo_documents.py <ID>` → run the tests
+`fetch_borrower_documents.py` → `read_fy2026_statements.py <ID>` → `read_identity_from_reports.py <ID>` (CIN,
+registered office, auditor, board with DINs, shareholding — each kept only if the report prints it) →
+`refresh_demo_documents.py <ID>` → `validate_test_data.py` (every identity fact against the report) → run the tests
 and accept the snapshot.
+
+**What is never on a real borrower's record:** a PAN or GSTIN (not in any public filing; the bank takes it at
+KYC), a director's personal net worth or PAN, news headlines (the live news feed provides them), quarterly figures or
+operating KPIs without the document they come from. `validate_test_data.py` fails on any of these.
 
 ---
 

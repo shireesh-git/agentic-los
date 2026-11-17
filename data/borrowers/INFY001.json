@@ -3,7 +3,7 @@
   "entity_id": "INFY001",
   "company_name": "Infosys Limited",
   "cin": "L85110KA1981PLC013115",
-  "pan": "AAACI3456C",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "it_services",
   "subsector": "IT Consulting & Software Services",
@@ -27,13 +27,12 @@
   "parent_entity_id": "INFY001",
   "entities": [
    "INFY001",
-   "Infosys BPM Ltd",
    "Infosys Consulting Pte Ltd",
    "EdgeVerve Systems Ltd"
   ],
-  "promoter_holding_pct": 14.78,
-  "institutional_holding_pct": 62.5,
-  "public_holding_pct": 22.72,
+  "promoter_holding_pct": null,
+  "institutional_holding_pct": null,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -42,37 +41,70 @@
  },
  "directors": [
   {
-   "din": "07912940",
-   "name": "Salil S. Parekh",
-   "designation": "CEO & Managing Director",
-   "entity_id": "INFY001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [],
-   "net_worth_cr": 450.0,
-   "is_promoter": false
-  },
-  {
-   "din": "08126573",
-   "name": "Nilanjan Roy",
-   "designation": "CFO",
-   "entity_id": "INFY001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [],
-   "net_worth_cr": 120.0,
-   "is_promoter": false
-  },
-  {
-   "din": "00041059",
+   "din": "00041245",
    "name": "Nandan M. Nilekani",
-   "designation": "Non-Executive Chairman",
+   "designation": "Chairman",
    "entity_id": "INFY001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 28000.0,
-   "is_promoter": true
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "01876159",
+   "name": "Salil Parekh",
+   "designation": "Chief Executive Officer and Managing Director",
+   "entity_id": "INFY001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00019437",
+   "name": "Bobby Parikh",
+   "designation": "Director",
+   "entity_id": "INFY001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "09101763",
+   "name": "Chitra Nayak",
+   "designation": "Independent director",
+   "entity_id": "INFY001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00169343",
+   "name": "Govind Iyer",
+   "designation": "Independent director",
+   "entity_id": "INFY001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "10166891",
+   "name": "Helene Auriol Potier",
+   "designation": "Independent director",
+   "entity_id": "INFY001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
   }
  ],
  "financials": {
@@ -232,28 +264,7 @@
    "encumbrance_status": "clear"
   }
  ],
- "market_signals": [
-  {
-   "entity_id": "INFY001",
-   "signal_type": "news",
-   "headline": "Infosys bags mega $2B deal from European telecom major for digital transformation",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Mint",
-   "signal_date": "2026-09-18",
-   "details": ""
-  },
-  {
-   "entity_id": "INFY001",
-   "signal_type": "analyst",
-   "headline": "CRISIL AAA/Stable reaffirmed for Infosys; industry-best cash generation noted",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "CRISIL",
-   "signal_date": "2026-10-08",
-   "details": ""
-  }
- ],
+ "market_signals": [],
  "existing_exposure": [],
  "conduct": [],
  "covenants": [],
@@ -263,61 +274,7 @@
  "catalog_source": "reference_catalog",
  "preferred_identifier": "Infosys Limited",
  "reference_prefix": "Infy",
- "sector_kpis": {
-  "sector_type": "it_services",
-  "deal_pipeline": {
-   "total_deal_value_bn_usd_fy25": 17.2,
-   "large_deal_wins_fy25_bn_usd": 11.5,
-   "large_deal_count_fy25": 32,
-   "new_deals_pct": 52,
-   "renewal_deals_pct": 48,
-   "avg_deal_duration_years": 3.8,
-   "source": "Company Investor Presentation"
-  },
-  "operational_metrics": {
-   "total_employees": 317240,
-   "utilization_rate_pct": 82.5,
-   "utilization_excl_trainees_pct": 85.8,
-   "attrition_rate_ltm_pct": 12.8,
-   "revenue_per_employee_usd_k": 58.5,
-   "onsite_pct": 24.5,
-   "offshore_pct": 75.5,
-   "freshers_hired_fy25": 15000,
-   "source": "Company Quarterly Results; HR Report"
-  },
-  "service_mix": {
-   "digital_revenue_pct": 64.2,
-   "cloud_revenue_pct": 18,
-   "ai_ml_revenue_pct": 8,
-   "consulting_pct": 12,
-   "core_it_pct": 35.8,
-   "source": "Company Segment Report"
-  },
-  "geographic_mix": {
-   "north_america_pct": 60.5,
-   "europe_pct": 25.8,
-   "india_pct": 3.2,
-   "row_pct": 10.5,
-   "source": "Company Segment Report"
-  },
-  "client_metrics": {
-   "total_clients": 1850,
-   "usd_100m_plus_clients": 42,
-   "usd_50m_plus_clients": 85,
-   "client_concentration_top5_pct": 14.2,
-   "source": "Company Annual Report"
-  },
-  "development_projections": {
-   "revenue_guidance_growth_pct": "4-7%",
-   "ebit_margin_guidance_pct": "20-22%",
-   "projected_revenue_fy26_cr": 168000,
-   "projected_revenue_fy27_cr": 178000,
-   "capex_plan_fy26_cr": 3500,
-   "capex_plan_fy27_cr": 3800,
-   "ai_services_target_revenue_pct": 15,
-   "source": "Company Guidance; Analyst Day"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -435,10 +392,7 @@
   "method": "layout, confirmed by AI",
   "unit": "crore"
  },
- "identifiers": {
-  "pan": "AAACI3456C",
-  "gstin": "29AAACI3456C1Z4"
- },
+ "identifiers": {},
  "name_aliases": [
   "infosys",
   "infosys limited"
@@ -446,16 +400,17 @@
  "profile": {
   "actual_company_name": "Infosys Limited",
   "wikipedia_title": "Infosys",
-  "official_url": "https://www.infosys.com/"
+  "official_url": "https://www.infosys.com/",
+  "auditor": "DELOITTE HASKINS & SELLS LLP"
  },
  "crilc": {
   "borrower_name": "Infosys Limited",
   "cin": "L85110KA1981PLC013115",
-  "pan": "AAACI3456C",
+  "pan": null,
   "sector": "Information Technology",
   "group": "Infosys Group",
-  "credit_rating": "CRISIL AAA / Stable",
-  "reporting_date": "31-Mar-2025",
+  "credit_rating": "CRISIL AAA (Stable)",
+  "reporting_date": "31-Mar-2026",
   "reporting_bank": "State Bank of India",
   "bank_code": "SBI001",
   "fund_based": [

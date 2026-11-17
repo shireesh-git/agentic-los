@@ -2,7 +2,7 @@
   "entity_id": "MRF001",
   "note": "DEMO DATA: synthetic records standing in for bureau, MCA and regulatory-list APIs that are not connected. Not a real report on this company.",
   "as_of": "2026-11-01",
-  "cin": "L25111KL1960PLC001049",
+  "cin": "L25111TN1960PLC004306",
   "company_name": "MRF Limited",
   "bureau": {
     "credit_score": 780,
@@ -16,7 +16,7 @@
   },
   "mca": {
     "company_name": "MRF Limited",
-    "cin": "L25111KL1960PLC001049",
+    "cin": "L25111TN1960PLC004306",
     "status": "Active",
     "date_of_incorporation": "1960-11-05",
     "company_class": "Public, listed"

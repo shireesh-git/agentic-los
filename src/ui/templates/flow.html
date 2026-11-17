@@ -338,6 +338,8 @@
               </div>
               <div class="rs-quality" x-show="c.risk?.headroom || c.risk?.quality?.earnings">
                 <span class="rs-l">Size and quality of the numbers</span>
+                <p class="muted sm rs-help" x-show="c.risk?.headroom?.source === 'capacity' || c.risk?.limit">
+                  <b>Sustainable limit</b> (the engine's debt capacity): the most the bank can lend before a policy ratio breaks, given the borrower's earnings and existing debt (“bound by” names the ratio that stops it). <b>Assessed limit</b>: how much working capital the business needs, from its turnover, MPBF or operating cycle. The amount recommended for sanction should be within both.</p>
                 <div class="rq-list">
                   <div class="rq" x-show="c.risk?.headroom?.source === 'capacity'" :class="'rq-' + (c.risk?.headroom?.fits ? 'good' : 'bad')" :title="c.risk?.headroom?.text">
                     <span class="rq-ic" x-html="icon(c.risk?.headroom?.fits ? 'check' : 'alert', 12)"></span>
@@ -860,6 +862,7 @@
                   <span>File</span><b x-text="c.cam.file_name"></b>
                   <span>Read by</span><b x-text="c.cam.read_by === 'sheet' ? 'Embedded data sheet' : 'CAM intake agent'"></b>
                   <span>Pages</span><b x-text="c.cam.pages"></b>
+                  <span>Analysis</span><b x-text="{running: 'CAM engine analysing…', done: 'Analysed by the CAM engine — see Risk & decision', failed: 'Analysis stopped: ' + (c.cam.analysis?.error || '')}[c.cam.analysis?.state] || 'Waits for the borrower\'s audited statements'"></b>
                 </div>
                 <div class="stale" x-show="c.cam.stale">
                   <span x-html="icon('alert')"></span><span x-text="c.cam.stale_reason"></span>

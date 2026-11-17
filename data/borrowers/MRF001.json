@@ -2,14 +2,14 @@
  "borrower": {
   "entity_id": "MRF001",
   "company_name": "MRF Limited",
-  "cin": "L25111KL1960PLC001049",
-  "pan": "AAACM5678B",
+  "cin": "L25111TN1960PLC004306",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "manufacturing",
   "subsector": "Tyres — Premium Branded",
   "date_of_incorporation": "1960-11-05",
   "registered_state": "Kerala",
-  "registered_address": "No. 114, Greams Road, Chennai — 600 006, Tamil Nadu",
+  "registered_address": "No.114, Greams Road, Chennai-600 006",
   "authorized_capital": 10.0,
   "paid_up_capital": 4.24,
   "listed_exchange": "NSE/BSE",
@@ -28,9 +28,9 @@
   "entities": [
    "MRF001"
   ],
-  "promoter_holding_pct": 0.0,
-  "institutional_holding_pct": 0.0,
-  "public_holding_pct": 0.0,
+  "promoter_holding_pct": null,
+  "institutional_holding_pct": null,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -39,45 +39,67 @@
  },
  "directors": [
   {
-   "din": "DIN00020202",
-   "name": "Shri K.M. Mammen",
-   "designation": "Chairman & Managing Director",
+   "din": "07804025",
+   "name": "Varun Mammen",
+   "designation": "Whole-time Director",
    "entity_id": "MRF001",
    "pan": null,
-   "date_of_appointment": "2014-01-01",
-   "other_directorships": [],
-   "net_worth_cr": 4500.0,
-   "is_promoter": true
-  },
-  {
-   "din": "DIN00020303",
-   "name": "Shri Arun Mammen",
-   "designation": "Vice Chairman & Managing Director",
-   "entity_id": "MRF001",
-   "pan": null,
-   "date_of_appointment": "2016-04-01",
-   "other_directorships": [],
-   "net_worth_cr": 1200.0,
-   "is_promoter": true
-  },
-  {
-   "din": "DIN00789012",
-   "name": "Shri V. Sridhar",
-   "designation": "Director (Finance) & CFO",
-   "entity_id": "MRF001",
-   "pan": null,
-   "date_of_appointment": "2019-07-15",
+   "date_of_appointment": null,
    "other_directorships": [],
    "net_worth_cr": null,
    "is_promoter": false
   },
   {
-   "din": "DIN00345678",
-   "name": "Smt. Ambika Mammen",
-   "designation": "Independent Director",
+   "din": "00287146",
+   "name": "Dr. (Mrs) Cibi Mammen",
+   "designation": "Director",
    "entity_id": "MRF001",
    "pan": null,
-   "date_of_appointment": "2020-10-01",
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00020202",
+   "name": "K M Mammen",
+   "designation": "Chairman & Managing Director",
+   "entity_id": "MRF001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00018558",
+   "name": "Arun Mammen",
+   "designation": "Vice Chairman & Managing Director",
+   "entity_id": "MRF001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "03325290",
+   "name": "Rahul Mammen Mappillai",
+   "designation": "Managing Director",
+   "entity_id": "MRF001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07803982",
+   "name": "Samir Thariyan Mappillai",
+   "designation": "Whole-time Director",
+   "entity_id": "MRF001",
+   "pan": null,
+   "date_of_appointment": null,
    "other_directorships": [],
    "net_worth_cr": null,
    "is_promoter": false
@@ -260,38 +282,7 @@
    "encumbrance_status": "assigned"
   }
  ],
- "market_signals": [
-  {
-   "entity_id": "MRF001",
-   "signal_type": "news",
-   "headline": "MRF reports strong Q3 margins on easing rubber prices",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Mint",
-   "signal_date": "2026-01-20",
-   "details": "Natural rubber prices declined 8% QoQ, boosting gross margins for tyre manufacturers."
-  },
-  {
-   "entity_id": "MRF001",
-   "signal_type": "news",
-   "headline": "MRF Cricket sponsorship extension strengthens brand visibility",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Economic Times",
-   "signal_date": "2025-12-05",
-   "details": "MRF extends long-standing association with Indian cricket — premium brand recognition remains strong."
-  },
-  {
-   "entity_id": "MRF001",
-   "signal_type": "regulatory",
-   "headline": "BIS tyre safety rating compliance deadline extended for domestic producers",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Ministry of Commerce",
-   "signal_date": "2025-09-10",
-   "details": "Extended timeline relieves compliance cost pressures for FY26."
-  }
- ],
+ "market_signals": [],
  "existing_exposure": [],
  "conduct": [],
  "covenants": [],
@@ -301,56 +292,7 @@
  "catalog_source": "reference_catalog",
  "preferred_identifier": "MRF Limited",
  "reference_prefix": "MRF",
- "sector_kpis": {
-  "sector_type": "tyre_manufacturing",
-  "capacity_profile": {
-   "total_tyre_capacity_mn_pa": 65.0,
-   "production_mn_fy25": 58.5,
-   "capacity_utilization_pct": 90.0,
-   "plants": 6,
-   "plant_locations": [
-    "Kottayam",
-    "Tiruvottiyur",
-    "Arakkonam",
-    "Goa",
-    "Medak",
-    "Trichy"
-   ],
-   "source": "Company Annual Report; ATMA Data"
-  },
-  "product_mix": {
-   "truck_bus_radial_pct": 38,
-   "passenger_car_radial_pct": 32,
-   "two_three_wheeler_pct": 15,
-   "off_highway_pct": 8,
-   "exports_pct": 7,
-   "source": "Company Segment Report"
-  },
-  "raw_material_profile": {
-   "natural_rubber_cost_pct": 35,
-   "synthetic_rubber_cost_pct": 18,
-   "carbon_black_cost_pct": 12,
-   "rm_to_revenue_pct": 60,
-   "avg_natural_rubber_price_per_kg_rs": 175,
-   "source": "ATMA; Company Procurement Data"
-  },
-  "market_position": {
-   "domestic_market_share_pct": 24,
-   "tbr_market_share_pct": 30,
-   "pcr_market_share_pct": 22,
-   "replacement_market_pct": 65,
-   "oem_market_pct": 35,
-   "source": "ICRA Industry Report; ATMA"
-  },
-  "development_projections": {
-   "capex_plan_fy26_cr": 2200,
-   "capex_plan_fy27_cr": 2000,
-   "new_capacity_addition_mn": 8,
-   "projected_revenue_fy26_cr": 25000,
-   "projected_revenue_fy27_cr": 27500,
-   "source": "Company Guidance"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -472,5 +414,8 @@
   "document": "ratings/rating_rationale_care_2026-10-19.pdf",
   "short_term": "CARE A1+",
   "date": "October 19, 2026"
+ },
+ "profile": {
+  "auditor": "M M NISSIM & CO LLP"
  }
 }

@@ -398,7 +398,7 @@ def compute_governance_flags(borrower: Borrower, group: GroupEntity,
 
     # Promoter holding concentration
     if group and hasattr(group, 'promoter_holding_pct'):
-        if group.promoter_holding_pct > 75:
+        if (group.promoter_holding_pct or 0) > 75:
             score -= 15
             flags.append(FraudFlag(
                 category="governance", indicator="Excessive Promoter Concentration",

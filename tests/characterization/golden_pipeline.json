@@ -133,11 +133,11 @@
     },
     "recommendation": "decline",
     "risk_grade": "D",
-    "composite_score": 47.0,
+    "composite_score": 47.7,
     "component_scores": [
       0,
       75.0,
-      89.0,
+      92.0,
       70.0
     ],
     "conditions": [
@@ -252,12 +252,12 @@
     },
     "recommendation": "conditional_approve",
     "risk_grade": "A",
-    "composite_score": 88.0,
+    "composite_score": 87.7,
     "component_scores": [
       100,
       75.0,
-      87.0,
-      79.0
+      92.0,
+      70.0
     ],
     "conditions": [
       "Resolve 1 HIGH exception(s) before disbursement",
@@ -380,7 +380,7 @@
       76.0
     ],
     "conditions": [
-      "Resolve 2 HIGH exception(s) before disbursement",
+      "Resolve 1 HIGH exception(s) before disbursement",
       "MANDATORY: Additional collateral required before disbursement"
     ],
     "tier1": [
@@ -395,7 +395,6 @@
       "HR_WILFUL_DEFAULTER:pass"
     ],
     "exceptions": [
-      "DOC_REVENUE_CROSS_SOURCE",
       "DOC_REVENUE_CROSS_SOURCE",
       "TEMP_STALE_FINANCIALS"
     ],
@@ -614,11 +613,11 @@
     },
     "recommendation": "refer",
     "risk_grade": "B",
-    "composite_score": 68.0,
+    "composite_score": 69.7,
     "component_scores": [
       84.0,
       27.0,
-      86.0,
+      94.0,
       70.0
     ],
     "conditions": [
@@ -742,12 +741,12 @@
     },
     "recommendation": "conditional_approve",
     "risk_grade": "B",
-    "composite_score": 74.0,
+    "composite_score": 72.7,
     "component_scores": [
       64.0,
       75.0,
       89.0,
-      79.0
+      70.0
     ],
     "conditions": [
       "Resolve 1 HIGH exception(s) before disbursement",
@@ -862,12 +861,12 @@
     },
     "recommendation": "refer",
     "risk_grade": "A",
-    "composite_score": 89.0,
+    "composite_score": 87.7,
     "component_scores": [
       100,
       75.0,
       92.0,
-      79.0
+      70.0
     ],
     "conditions": [
       "Evidence to be obtained and verified before sanction: Bureau status must not be SMA-2 or worse"
@@ -977,12 +976,12 @@
     },
     "recommendation": "approve",
     "risk_grade": "A",
-    "composite_score": 88.6,
+    "composite_score": 88.2,
     "component_scores": [
       100,
       75.0,
-      92.0,
-      76.0
+      95.0,
+      70.0
     ],
     "conditions": [
       "MANDATORY: Additional collateral required before disbursement"
@@ -1094,11 +1093,11 @@
     },
     "recommendation": "refer",
     "risk_grade": "C",
-    "composite_score": 56.2,
+    "composite_score": 56.9,
     "component_scores": [
       23.0,
       75.0,
-      89.0,
+      92.0,
       70.0
     ],
     "conditions": [
@@ -1215,12 +1214,12 @@
     },
     "recommendation": "decline",
     "risk_grade": "C",
-    "composite_score": 58.2,
+    "composite_score": 58.0,
     "component_scores": [
       35.0,
       75.0,
       74.0,
-      71.0
+      70.0
     ],
     "conditions": [],
     "tier1": [
@@ -1336,12 +1335,12 @@
     },
     "recommendation": "conditional_approve",
     "risk_grade": "B",
-    "composite_score": 75.6,
+    "composite_score": 74.2,
     "component_scores": [
       64.0,
       75.0,
       97.0,
-      79.0
+      70.0
     ],
     "conditions": [
       "Resolve 1 HIGH exception(s) before disbursement"
@@ -1719,7 +1718,6 @@
       "COV_BREACH",
       "COV_BREACH",
       "DOC_REVENUE_CROSS_SOURCE",
-      "DOC_REVENUE_CROSS_SOURCE",
       "ETB_FLAG",
       "ETB_FLAG",
       "ETB_FLAG",
@@ -1945,12 +1943,12 @@
     },
     "recommendation": "conditional_approve",
     "risk_grade": "B",
-    "composite_score": 75.0,
+    "composite_score": 71.5,
     "component_scores": [
-      71.0,
+      61.0,
       75.0,
-      84.0,
-      74.0
+      89.0,
+      70.0
     ],
     "conditions": [
       "Resolve 1 HIGH exception(s) before disbursement",
@@ -2207,7 +2205,6 @@
     ],
     "exceptions": [
       "DOC_REVENUE_CROSS_SOURCE",
-      "DOC_REVENUE_CROSS_SOURCE",
       "GRP_CRITICAL_EVENT",
       "GRP_MULTIPLE_HIGH_RISK_SIGNALS",
       "TEMP_STALE_FINANCIALS"
@@ -2307,11 +2304,11 @@
     },
     "recommendation": "conditional_approve",
     "risk_grade": "A",
-    "composite_score": 85.8,
+    "composite_score": 86.2,
     "component_scores": [
       94.0,
       75.0,
-      95.0,
+      97.0,
       70.0
     ],
     "conditions": [

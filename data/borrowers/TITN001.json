@@ -7,14 +7,14 @@
  "borrower": {
   "entity_id": "TITN001",
   "company_name": "Titan Company Limited",
-  "cin": "L74999TN1984PLC010491",
-  "pan": "AAACT0123K",
+  "cin": "L74999TZ1984PLC001456",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "trading",
   "subsector": "Watches, Jewellery & Eyewear Retail",
   "date_of_incorporation": "1984-07-26",
   "registered_state": "Tamil Nadu",
-  "registered_address": "3, SIPCOT Industrial Complex, Hosur, Tamil Nadu 635126",
+  "registered_address": "3, SIPCOT Industrial Complex Hosur 635 126",
   "authorized_capital": 150.0,
   "paid_up_capital": 88.74,
   "listed_exchange": "BSE, NSE",
@@ -31,13 +31,11 @@
   "group_name": "Tata Group",
   "parent_entity_id": "TITN001",
   "entities": [
-   "TITN001",
-   "Tanishq Brand Retail Ltd",
-   "Titan Eyeplus Ltd"
+   "TITN001"
   ],
-  "promoter_holding_pct": 52.9,
-  "institutional_holding_pct": 34.6,
-  "public_holding_pct": 12.5,
+  "promoter_holding_pct": null,
+  "institutional_holding_pct": null,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -46,36 +44,124 @@
  },
  "directors": [
   {
-   "din": "00024567",
-   "name": "CK Venkataraman",
+   "din": "08445015",
+   "name": "Ms. Sandhya Sharma",
+   "designation": "Chairperson",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Tamilnadu Petroproducts Limited",
+    "TANFAC Industries Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07083700",
+   "name": "Mr. Ajoy Chawla",
    "designation": "Managing Director",
    "entity_id": "TITN001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 280.0,
+   "net_worth_cr": null,
    "is_promoter": false
   },
   {
-   "din": "00025678",
-   "name": "N. Chandrasekaran",
-   "designation": "Non-Executive Chairman",
-   "entity_id": "TITN001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [],
-   "net_worth_cr": 1200.0,
-   "is_promoter": true
-  },
-  {
-   "din": "00026789",
-   "name": "Ashwini Deshpande",
+   "din": "00422796",
+   "name": "Mr. Sandeep Singhal",
    "designation": "Independent Director",
    "entity_id": "TITN001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 22.0,
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07624616",
+   "name": "Mr. Puneet Chhatwal",
+   "designation": "Director",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "The Indian Hotels Company Limited",
+    "Oriental Hotels Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "09281201",
+   "name": "Ms. Mariam Pallavi Baldev",
+   "designation": "Director",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00024713",
+   "name": "Mr. N N Tata",
+   "designation": "Director",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Trent Limited",
+    "Voltas Limited",
+    "Tata Investments Corporation Limited",
+    "Tata Steel Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "01764064",
+   "name": "Dr. S Vijayakumar",
+   "designation": "Additional Director (Non-Executive & Non-Independent)",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "03213517",
+   "name": "Mr. Anil Chaudhry",
+   "designation": "Director",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "08497296",
+   "name": "Dr. Mohanasankar Sivaprakasam",
+   "designation": "Director",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00160662",
+   "name": "Mr. Ashwani Puri",
+   "designation": "Director",
+   "entity_id": "TITN001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
    "is_promoter": false
   }
  ],
@@ -198,57 +284,7 @@
  "conduct": [],
  "covenants": [],
  "exchange_filing": null,
- "sector_kpis": {
-  "sector_type": "luxury_retail",
-  "retail_network": {
-   "total_stores": 2850,
-   "tanishq_stores": 520,
-   "titan_eye_stores": 780,
-   "watches_stores": 1200,
-   "caratlane_stores": 250,
-   "other_stores": 100,
-   "tier1_city_pct": 35,
-   "tier2_city_pct": 40,
-   "tier3_city_pct": 25,
-   "source": "Company Annual Report"
-  },
-  "segment_performance": {
-   "jewellery_revenue_pct": 88,
-   "watches_revenue_pct": 7,
-   "eyecare_revenue_pct": 3,
-   "other_pct": 2,
-   "jewellery_ebit_margin_pct": 13.5,
-   "watches_ebit_margin_pct": 8.2,
-   "sssg_jewellery_pct": 18.5,
-   "sssg_watches_pct": 12.0,
-   "source": "Company Segment Report"
-  },
-  "gold_profile": {
-   "gold_inventory_cr": 12500,
-   "gold_hedging_coverage_pct": 75,
-   "avg_gold_purchase_price_per_gm_rs": 6200,
-   "gold_on_lease_cr": 8500,
-   "making_charge_pct": 14,
-   "source": "Company Annual Report; MCX Data"
-  },
-  "digital_presence": {
-   "online_revenue_pct": 12,
-   "caratlane_online_pct": 35,
-   "omnichannel_stores": 1800,
-   "loyalty_program_members_mn": 22,
-   "source": "Company Digital Report"
-  },
-  "development_projections": {
-   "new_stores_fy26": 280,
-   "tanishq_target_stores_fy28": 750,
-   "capex_plan_fy26_cr": 1800,
-   "capex_plan_fy27_cr": 2000,
-   "projected_revenue_fy26_cr": 58000,
-   "projected_revenue_fy27_cr": 66000,
-   "international_expansion_stores": 15,
-   "source": "Company Guidance; Expansion Plan"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -332,27 +368,14 @@
   "method": "layout, confirmed by AI",
   "unit": "crore"
  },
- "identifiers": {
-  "pan": "AAACT0123K",
-  "gstin": "33AAACT0123K1Z3"
- },
+ "identifiers": {},
  "name_aliases": [],
  "profile": {
   "actual_company_name": "Titan Company Limited",
   "wikipedia_title": "Titan Company",
   "official_url": "https://www.titancompany.in/",
   "bse_code": "500114",
-  "auditor": "Price Waterhouse Chartered Accountants LLP",
-  "narrative": {
-   "chairman_message": "Titan continued to deepen its premium retail positioning through brand trust, product innovation, and disciplined expansion across jewellery, watches, and wearables.",
-   "mda_summary": "The business profile is led by jewellery retail with strong brand equity, omnichannel distribution, and efficient inventory and gold-procurement management.",
-   "risk_factors": [
-    "Gold price volatility",
-    "Consumer demand sensitivity",
-    "Inventory and working-capital management"
-   ],
-   "request_focus": "working-capital funding for inventory and network expansion in lifestyle retail"
-  }
+  "auditor": "B S R & Co. LLP"
  },
  "rating_source": {
   "document": "ratings/rating_rationale_crisil_2026-09-23.pdf",

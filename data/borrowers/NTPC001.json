@@ -91,13 +91,13 @@
   "entity_id": "NTPC001",
   "company_name": "NTPC Limited",
   "cin": "L40101DL1975GOI007966",
-  "pan": "AAACN1234L",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "infrastructure",
   "subsector": "Power Generation — Thermal & Renewable",
   "date_of_incorporation": "1975-11-07",
   "registered_state": "Delhi",
-  "registered_address": "NTPC Bhawan, Scope Complex, 7 Institutional Area, Lodhi Road, New Delhi 110003",
+  "registered_address": "NTPC Bhawan, SCOPE Complex, 7 Institutional Area, Lodi Road, New Delhi – 110003",
   "authorized_capital": 15000.0,
   "paid_up_capital": 9697.0,
   "listed_exchange": "BSE, NSE",
@@ -120,8 +120,8 @@
    "North Eastern Electric Power Corp"
   ],
   "promoter_holding_pct": 51.1,
-  "institutional_holding_pct": 36.4,
-  "public_holding_pct": 12.5,
+  "institutional_holding_pct": null,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -130,36 +130,108 @@
  },
  "directors": [
   {
-   "din": "00027890",
-   "name": "Gurdeep Singh",
-   "designation": "CMD",
+   "din": "10347322",
+   "name": "Shri Shanmugha Sundaram Kothandapani",
+   "designation": "Director (Projects)",
    "entity_id": "NTPC001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 18.0,
+   "net_worth_cr": null,
    "is_promoter": false
   },
   {
-   "din": "00028901",
-   "name": "Dillip Kumar Patel",
-   "designation": "Director (Finance)",
-   "entity_id": "NTPC001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [],
-   "net_worth_cr": 12.0,
-   "is_promoter": false
-  },
-  {
-   "din": "00029012",
-   "name": "Ramesh Babu V.",
+   "din": "10523088",
+   "name": "Shri Ravindra Kumar",
    "designation": "Director (Operations)",
    "entity_id": "NTPC001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 10.0,
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07492389",
+   "name": "Shri Piyush Surendrapal Singh",
+   "designation": "Director (Government Nominee)",
+   "entity_id": "NTPC001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07094229",
+   "name": "Shri Mahabir Prasad",
+   "designation": "Director (Government Nominee)",
+   "entity_id": "NTPC001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00442146",
+   "name": "Dr. Anil Kumar Gupta",
+   "designation": "Independent Director",
+   "entity_id": "NTPC001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "REC Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "03415536",
+   "name": "CA Pankaj Gupta",
+   "designation": "Independent Director",
+   "entity_id": "NTPC001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "Power Finance Corporation Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "07584524",
+   "name": "Dr. Kanchiappan Ghayathri Devi",
+   "designation": "Independent Director",
+   "entity_id": "NTPC001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [
+    "REC Limited"
+   ],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "11111980",
+   "name": "Shri Sushil Kumar Choudhary",
+   "designation": "Independent Director",
+   "entity_id": "NTPC001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "11837324",
+   "name": "Dr. Som Nath Sachdeva",
+   "designation": "Independent Director",
+   "entity_id": "NTPC001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
    "is_promoter": false
   }
  ],
@@ -398,59 +470,7 @@
   }
  ],
  "exchange_filing": null,
- "sector_kpis": {
-  "sector_type": "power_generation",
-  "generation_capacity": {
-   "installed_capacity_mw": 73974,
-   "coal_capacity_mw": 55774,
-   "gas_capacity_mw": 5264,
-   "renewable_capacity_mw": 3424,
-   "hydro_capacity_mw": 2012,
-   "nuclear_jv_mw": 1500,
-   "group_installed_mw": 76135,
-   "source": "Company Annual Report; CEA Monthly Data"
-  },
-  "operational_performance": {
-   "plf_pct_fy25": 75.8,
-   "plf_pct_fy24": 74.2,
-   "plf_pct_fy23": 72.1,
-   "national_avg_plf_pct": 65.4,
-   "generation_bu_fy25": 384.5,
-   "generation_bu_fy24": 372.8,
-   "generation_bu_fy23": 359.2,
-   "avg_tariff_per_unit_rs": 4.15,
-   "fuel_cost_per_unit_rs": 2.28,
-   "availability_factor_pct": 92.3,
-   "auxiliary_consumption_pct": 7.2,
-   "heat_rate_kcal_kwh": 2375,
-   "source": "Company Annual Report; CEA Thermal Performance Review"
-  },
-  "fuel_security": {
-   "coal_linkage_coverage_pct": 95,
-   "captive_coal_mines": 12,
-   "captive_coal_production_mt_fy25": 32.5,
-   "total_coal_requirement_mt": 210,
-   "avg_coal_cost_per_ton_rs": 2850,
-   "coal_stock_days": 18,
-   "source": "Coal Ministry Data; Company Disclosure"
-  },
-  "renewable_expansion": {
-   "re_target_mw_fy32": 60000,
-   "re_pipeline_mw": 25000,
-   "green_hydrogen_pilot_mw": 250,
-   "ev_charging_stations": 450,
-   "source": "Company RE Strategy; MNRE Data"
-  },
-  "development_projections": {
-   "capex_plan_fy26_cr": 27500,
-   "capex_plan_fy27_cr": 32000,
-   "target_capacity_mw_fy28": 85000,
-   "projected_generation_bu_fy26": 405,
-   "projected_revenue_fy26_cr": 195000,
-   "projected_revenue_fy27_cr": 215000,
-   "source": "Company Guidance; MoP Capacity Plan"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -534,10 +554,7 @@
   "method": "layout",
   "unit": "crore"
  },
- "identifiers": {
-  "pan": "AAACN1234L",
-  "gstin": "07AAACN1234L1Z1"
- },
+ "identifiers": {},
  "name_aliases": [
   "ntpc power"
  ],
@@ -546,17 +563,7 @@
   "wikipedia_title": "NTPC Limited",
   "official_url": "https://www.ntpc.co.in/",
   "bse_code": "532555",
-  "auditor": "M Kumar Jain & Co",
-  "narrative": {
-   "chairman_message": "NTPC continued to balance stable regulated thermal cash flows with a scaled renewable build-out and transmission-linked growth initiatives.",
-   "mda_summary": "The operating model benefits from long-term PPAs, sovereign linkage perception, and predictable cash flows, partly offset by a capex-heavy transition agenda.",
-   "risk_factors": [
-    "Execution risk on renewable capacity addition",
-    "Receivable concentration with state discoms",
-    "Fuel-cost and policy transitions"
-   ],
-   "request_focus": "term funding for power generation and renewable energy capacity expansion"
-  }
+  "auditor": "Vinod Kumar & Associates"
  },
  "rating_source": {
   "document": "ratings/rating_rationale_care_2026-05-22.pdf",

@@ -92,15 +92,6 @@ def _canonical_to_download_financials(financials: dict[str, Any]) -> dict[str, d
     return mapped
 
 
-def _guess_auditor(company_name: str, sector: str) -> str:
-    sector_key = (sector or "").lower()
-    if "bank" in sector_key or "nbfc" in sector_key:
-        return f"M/s S R Batliboi & Co. LLP, statutory auditors for {company_name}"
-    if "pharma" in sector_key or "health" in sector_key:
-        return f"M/s Deloitte Haskins & Sells LLP, statutory auditors for {company_name}"
-    return f"M/s B S R & Associates LLP, statutory auditors for {company_name}"
-
-
 def _format_crore(val: float) -> str:
     return f"₹{val:,.0f} Cr"
 
@@ -260,7 +251,7 @@ def _build_company_data_from_registry(entity_id: str) -> Optional[dict[str, Any]
         return None
 
     borrower = company_record.get("borrower")
-    if borrower is None or not getattr(borrower, "nse_symbol", None):
+    if borrower is None:
         return None
 
     financials = _canonical_to_download_financials(company_record.get("financials") or {})
@@ -277,7 +268,7 @@ def _build_company_data_from_registry(entity_id: str) -> Optional[dict[str, Any]
         "nse_symbol": borrower.nse_symbol,
         "isin": getattr(borrower, "isin", None),
         "sector": sector_label,
-        "auditor": alias.get("auditor") or _guess_auditor(company_name, sector_label),
+        "auditor": alias.get("auditor") or "the statutory auditor named in the annual report",
         "financials": financials,
         "annual_report_highlights": _build_generated_highlights(company_record, financials),
         "derived_from": "canonical_registry",
@@ -318,7 +309,7 @@ def _generate_kyc_documents(entity_id: str, company_data: dict[str, Any], output
         company_data["company_name"],
         "Permanent Account Number verification copy",
         [
-            f"<b>PAN:</b> {company_data.get('pan', 'N/A')}",
+            f"<b>PAN:</b> {company_data.get('pan') or 'not in the public filings — taken from the borrower at KYC'}",
             f"<b>Legal Name:</b> {company_data['company_name']}",
             f"<b>CIN:</b> {company_data.get('cin', 'N/A')}",
             f"<b>Incorporated:</b> {company_data.get('incorporated_date', 'N/A')}",
@@ -412,7 +403,8 @@ def _generate_gst_summaries(entity_id: str, company_data: dict[str, Any], output
     paragraphs_1 = [
         f"Synthetic outward supplies summary for {company_data['company_name']}.",
         f"Average monthly outward taxable supplies estimated at {_format_crore(monthly_turnover)} based on the internal financial pack.",
-        f"Primary registration references include PAN {company_data.get('pan', 'N/A')} and CIN {company_data.get('cin', 'N/A')}.",
+        f"Primary registration references include CIN {company_data.get('cin', 'N/A')}"
+        + (f" and PAN {company_data['pan']}." if company_data.get('pan') else " (PAN taken from the borrower at KYC)."),
     ]
     return [
         str(_generate_simple_profile_pdf(company_data["company_name"], "GST 3B filing summary", paragraphs_3b, output_dir / "gst" / "gstr3b_summary.pdf").relative_to(output_dir)),

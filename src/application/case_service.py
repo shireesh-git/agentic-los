@@ -288,8 +288,12 @@ class CaseService:
             if overrides:
                 import copy
                 from src.agents.financial_overrides import apply_verified_overrides
+                overrides = dict(overrides)
+                analysis_only = overrides.pop("analysis_only", False)
                 company = copy.deepcopy(company)
                 apply_verified_overrides(company, overrides)
+                if analysis_only:          # a bank CAM was ingested: analyse it, write no narrative with the AI
+                    company["_analysis_only"] = True
             pipeline = self._pipeline_factory()
             context = pipeline.execute_pipeline(company, on_progress=on_progress,
                                                 stores=self.state.pipeline_stores())

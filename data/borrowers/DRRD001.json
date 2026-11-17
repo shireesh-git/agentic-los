@@ -8,21 +8,21 @@
   "entity_id": "DRRD001",
   "company_name": "Dr. Reddy's Laboratories Limited",
   "cin": "L85195TG1984PLC004507",
-  "pan": "AABCD1234R",
+  "pan": null,
   "borrower_type": "listed",
   "sector": "pharma",
   "subsector": "Pharmaceuticals — Generics & Biosimilars",
   "date_of_incorporation": "1984-02-24",
   "registered_state": "Telangana",
-  "registered_address": "8-2-337, Road No. 3, Banjara Hills, Hyderabad 500034",
+  "registered_address": "8-2-337, Road No. 3, Banjara Hills, Hyderabad, Telangana- 500034",
   "authorized_capital": 500.0,
   "paid_up_capital": 166.68,
   "listed_exchange": "BSE, NSE, NYSE",
   "isin": "INE089A01023",
   "bse_code": "500124",
   "nse_symbol": "DRREDDY",
-  "credit_rating": "CRISIL AA+/Stable",
-  "rating_agency": "CRISIL",
+  "credit_rating": "ICRA AA+ (Stable)",
+  "rating_agency": "ICRA",
   "employee_count": 24800,
   "website": "www.drreddys.com"
  },
@@ -36,9 +36,9 @@
    "Aurigene Pharmaceutical Services",
    "Dr. Reddy's Laboratories SA (Switzerland)"
   ],
-  "promoter_holding_pct": 26.68,
-  "institutional_holding_pct": 52.4,
-  "public_holding_pct": 20.92,
+  "promoter_holding_pct": null,
+  "institutional_holding_pct": null,
+  "public_holding_pct": null,
   "hierarchy": null,
   "ultimate_parent": null,
   "group_revenue_cr": null,
@@ -47,49 +47,47 @@
  },
  "directors": [
   {
-   "din": "00107737",
-   "name": "K. Satish Reddy",
-   "designation": "Chairman",
-   "entity_id": "DRRD001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [],
-   "net_worth_cr": 12500.0,
-   "is_promoter": true
-  },
-  {
-   "din": "02951532",
-   "name": "G.V. Prasad",
-   "designation": "Co-Chairman & Managing Director",
-   "entity_id": "DRRD001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [
-    "Aurigene Pharmaceutical Services Ltd"
-   ],
-   "net_worth_cr": 18000.0,
-   "is_promoter": true
-  },
-  {
-   "din": "08934439",
-   "name": "Erez Israeli",
-   "designation": "CEO",
-   "entity_id": "DRRD001",
-   "pan": null,
-   "date_of_appointment": null,
-   "other_directorships": [],
-   "net_worth_cr": 80.0,
-   "is_promoter": false
-  },
-  {
-   "din": "00003894",
-   "name": "Kalpana Morparia",
+   "din": "09665138",
+   "name": "Mr. Arun M Kumar",
    "designation": "Independent Director",
    "entity_id": "DRRD001",
    "pan": null,
    "date_of_appointment": null,
    "other_directorships": [],
-   "net_worth_cr": 120.0,
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "10109819",
+   "name": "Dr. Claudio Albrecht",
+   "designation": "Independent Director",
+   "entity_id": "DRRD001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00129701",
+   "name": "K Satish Reddy",
+   "designation": "Chairman",
+   "entity_id": "DRRD001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
+   "is_promoter": false
+  },
+  {
+   "din": "00057433",
+   "name": "G V Prasad",
+   "designation": "Co-Chairman & Managing Director",
+   "entity_id": "DRRD001",
+   "pan": null,
+   "date_of_appointment": null,
+   "other_directorships": [],
+   "net_worth_cr": null,
    "is_promoter": false
   }
  ],
@@ -217,99 +215,12 @@
    "encumbrance_status": "clear"
   }
  ],
- "market_signals": [
-  {
-   "entity_id": "DRRD001",
-   "signal_type": "news",
-   "headline": "Dr. Reddy's receives USFDA final approval for gRevlimid (lenalidomide) — $9B US market",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Business Standard",
-   "signal_date": "2026-08-22",
-   "details": ""
-  },
-  {
-   "entity_id": "DRRD001",
-   "signal_type": "analyst",
-   "headline": "CRISIL AA+/Stable reaffirmed; strong cash flows and low leverage noted",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "CRISIL",
-   "signal_date": "2026-10-15",
-   "details": ""
-  },
-  {
-   "entity_id": "DRRD001",
-   "signal_type": "news",
-   "headline": "Dr. Reddy's invests ₹1,500 Cr in biosimilar manufacturing capacity at Genome Valley",
-   "sentiment": "positive",
-   "severity": "low",
-   "source_name": "Economic Times",
-   "signal_date": "2026-11-05",
-   "details": ""
-  }
- ],
+ "market_signals": [],
  "existing_exposure": [],
  "conduct": [],
  "covenants": [],
  "exchange_filing": null,
- "sector_kpis": {
-  "sector_type": "pharma_formulations",
-  "product_pipeline": {
-   "total_anda_filed": 340,
-   "anda_approved": 275,
-   "pending_anda": 65,
-   "complex_generic_filings": 28,
-   "biosimilar_pipeline": 9,
-   "source": "Company Investor Presentation; USFDA"
-  },
-  "manufacturing": {
-   "formulation_plants": 14,
-   "api_plants": 8,
-   "total_manufacturing_sites": 24,
-   "usfda_approved_plants": 11,
-   "capacity_utilization_pct": 74,
-   "plant_locations": [
-    "Hyderabad",
-    "Vizag",
-    "Bachupally",
-    "CTO Hyderabad",
-    "Mexico",
-    "UK",
-    "USA"
-   ],
-   "source": "Company Annual Report"
-  },
-  "geographic_mix": {
-   "north_america_pct": 45,
-   "india_pct": 20,
-   "europe_pct": 15,
-   "emerging_markets_pct": 20,
-   "source": "Company Segment Report"
-  },
-  "rd_profile": {
-   "rd_spend_pct_of_revenue": 12.5,
-   "rd_spend_cr_fy25": 3400,
-   "rd_employees": 3200,
-   "patents_granted": 680,
-   "source": "Company R&D Report"
-  },
-  "regulatory_compliance": {
-   "usfda_warning_letters": 0,
-   "usfda_observations_fy25": 1,
-   "last_usfda_inspection": "Nov 2024",
-   "ema_inspections_passed": 4,
-   "source": "USFDA; EMA"
-  },
-  "development_projections": {
-   "capex_plan_fy26_cr": 2200,
-   "capex_plan_fy27_cr": 2500,
-   "projected_revenue_fy26_cr": 30000,
-   "projected_revenue_fy27_cr": 34000,
-   "biosimilar_revenue_target_cr": 4500,
-   "source": "Company Guidance"
-  }
- },
+ "sector_kpis": {},
  "verified_overrides": {
   "financials": [
    "FY2026.capex",
@@ -398,16 +309,12 @@
   "wikipedia_title": "Dr. Reddy's Laboratories",
   "official_url": "https://www.drreddys.com/",
   "bse_code": "500124",
-  "auditor": "S R Batliboi & Associates LLP",
-  "narrative": {
-   "chairman_message": "Dr. Reddy's sustained a balanced growth profile across generics, APIs, and specialty products while maintaining emphasis on compliance and portfolio quality.",
-   "mda_summary": "The operating profile benefits from diversified geographies, R&D-led product flow, and a mix of domestic branded formulations and export-led generics businesses.",
-   "risk_factors": [
-    "Regulatory inspections and remediation risk",
-    "Price erosion in generics",
-    "R&D monetization risk"
-   ],
-   "request_focus": "working-capital and capex support for pharma research, manufacturing, and export growth"
-  }
+  "auditor": "S.R. Batliboi & Associates LLP"
+ },
+ "rating_source": {
+  "document": "financials/annual_report_fy2026.pdf",
+  "section": "Corporate governance report — credit ratings (Table 15)",
+  "short_term": null,
+  "date": "FY2026 annual report"
  }
 }
