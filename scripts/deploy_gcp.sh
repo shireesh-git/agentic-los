@@ -96,13 +96,15 @@ fi
 
 # max-instances 1: SQLite and the in-memory CAM jobs need a single instance.
 # no-cpu-throttling: CAM generation runs in background threads after the request returns.
-# The image build pre-reads every borrower's annual reports (250-580 pages each) into the extraction cache:
-# more than Cloud Build's default time.
-gcloud config set builds/timeout 5400 --quiet
+# The image build pre-reads every borrower's annual reports (250-580 pages each) into the extraction cache,
+# one borrower per CPU. 'run deploy --source' builds on a small machine with a fixed 30-minute limit, so the
+# image is built here on an 8-CPU machine with a longer limit, then deployed.
+IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/${SERVICE}:$(git rev-parse --short HEAD 2>/dev/null || date +%s)"
+gcloud builds submit . --region "$REGION" --tag "$IMAGE" --machine-type e2-highcpu-8 --timeout 5400s --quiet
 gcloud run deploy "$SERVICE" \
   --quiet \
   --region "$REGION" \
-  --source . \
+  --image "$IMAGE" \
   --service-account "$RUNTIME_SA" \
   --memory 2Gi --cpu 1 \
   --min-instances 0 --max-instances 1 \
